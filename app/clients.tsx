@@ -5,17 +5,8 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet } from 'react-native';
-
-
-
-type Client = {
-  id: string;
-  name: string;
-  address: string;
-  frequency?: number;
-  nextVisit?: string;
-};
+import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet } from 'react-native';
+import type { Client } from './types/client';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -66,6 +57,10 @@ export default function ClientsScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title" style={styles.title}>Clients</ThemedText>
+      <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
+        <ThemedText style={styles.buttonText}>Add Client</ThemedText>
+      </Pressable>
+      <Button title="Home" onPress={() => router.replace('/')} />
       <FlatList
         data={clients}
         renderItem={renderClient}

@@ -1,0 +1,240 @@
+The “Uber” of residential services App 
+By Travis Muller
+travis_gm@live.co.uk
+07814 804 759
+
+Viewed as a market, residential services are massive. Window Cleaners, Car valeters, Gutter cleaners, Carpet cleaners, Oven cleaners, laundry rotation, ironing services, gardeners, pool cleaners, mobile dog groomers. The list goes on into ever-more niche services. There are 24.7 Million dwellings in the UK*1 and an unknown fraction of these households use these micro businesses on a regular basis. There is a lot of variability between them and no real regulatory force. I personally understand the perspective of both the customer and the provider of window cleaning as I have grown my business to over 300 regular customers serviced by myself and 3 additional subcontractors. 
+There are far fewer businesses that provide the service in a reliable and accountable manner as there are individuals who offer the service with no accountability and a lot of variation in the method and customer experience.
+Due to the complete lack of a regulating force or central authority in the industry, various competing forces have split opinions in both the customer and the service provider as to what is best practice and the level of expectation in these services. 
+With nothing other than individual assumptions and observations to conclude on, the market has become highly variable.
+Across the country. The thousands of neighbourhoods that represent the market are each only capable of accessing the locally available service provider.
+The service I'm speculating to create is a solution to this. Currently the most reliable way to obtain the services of a window cleaner or other local service provider is analogous to how one would find a drug dealer, as such most services don't have websites but rather a mobile number that is passed by word-of-mouth and association.
+The cleaning app will provide a platform for the market to access service providers with assurances while providing a platform and framework for these service providers to operate more effectively. 
+If a large enough percentage of the market comes onboard this platform, it would provide stabilisation to the market and raise expectations of these services to a higher standard. Much in the same way Uber made taxis safer for everyone. 
+Uber brought accountability to the self employed taxi driver. If a trip is below standard, the driver incurs consequences via the rating system. A more serious issue with the industry was abduction*4. This fear has been nearly eradicated for users of the Uber platform because a third party is actively tracking the provider of that service while the client has in-app functions to deter and respond to a threat.
+
+My experience in window cleaning has taught me:
+
+As mentioned above, I have grown a window cleaning business from the ground up. I have observed in competing businesses/individuals that my experience of this has been very different from other providers of window cleaning.
+The main reason for this is my past experiences. Until the COVID pandemic, I had worked my way into enterprise sales from more junior sales roles. I have always been tasked with acquiring new business accounts. This means I have made thousands upon thousands of cold calls while managing a calendar of existing business. I know how to acquire a number of client relations beyond what one individual is capable of handing with a notebook and pen.
+I follow window cleaner facebook groups and keep an eye on the competition while also hearing about customer experiences of previously incumbent window cleaners. 
+The stand-out observation is, typically they are not running businesses, rather they are following intuition. For instance, I saw a local window cleaner was advertising to sell his customer relationships so I enquired. The deal did not go through because the advert said “£1200 monthly work for £2000” but I discovered he was selling customers equal to £500 monthly turnover.
+While I was at this persons home, collecting the information I needed to discern that, I noted the way he was managing his business. He simply used text messages to gather all his insight. All his customers were on a 4 weekly basis and I was surprised to hear that he sends text reminders to each of them the day before as this is not always guaranteed. I took this as a good sign but soon found that the main reason he does this is because he relies on looking at which text messages are 4 weeks old for him to know the next service is due. Not a calendar, spreadsheet or CRM system in sight.
+
+There are traditional window cleaners. 
+There are commercial window cleaners.
+Additionally, there are commercial window cleaners that do not use completely pure water, opting to cut costs on de-ionising the water and instead use only reverse osmosis, available from the fishkeeping trade to create water that is nearly pure.
+This third variety of service provider is one of the forces that creates a belief within the market that the commercial method results in hard water staining on the glass and has created a submarket that seeks a traditional window cleaner, specifically.
+Currently, anyone in England, Wales and N.Ireland can become a window cleaner overnight, with the procurement of simple equipment and no particular experience or critically, without any understanding of business or management skills. (Scotland actually has some legislation and a central authority that allocates service providers to their area and advises them on best practice*2).
+The typical approach to find business is to canvass a neighbourhood, door to door to find business. 
+Such people can create all manner of problems for the public. There are numerous stories of criminals using a traditional window cleaner approach to conduct reconnaissance on properties, prior to burglarising them*3. Additionally, any well-intended window cleaner can damage property and disappear without a trace and typically not have public liability or indemnity insurance. In the event of damaged property, the client of such an operation may be left with nothing to reference the service provider by. No business address, no business name, only “Steve the window cleaner who lives in town”.
+I don't personally have experience in other residential services like gardening or oven cleaning, but I anticipate it to be rife with similar problems as I observe a similar process at work within those services, in terms of the manner the service provider approaches prospects and the manner in which the public seek the service provider.
+The App i’m looking to produce will be able to stem these issues by providing the market access to these service providers with guaranteed accountability via the app as a 3rd party, while also providing the service providers a platform to manage their workload and build their businesses. 
+
+
+
+
+For instance, the method of cleaning windows that was relevant in the 1940’s is still very widely practised to this day, “Traditional window cleaning”. 
+Traditional window cleaning is a method that involves a bucket, mop and a squeegee and requires the service provider to climb a ladder for each window inaccessible from the ground. This can mean the service provider climbs a ladder more than 50 times a day. Which is a substantial risk to health over timescales in years.
+
+There is a modern alternative, since the invention of the water-fed-pole reach system.
+The commercial method involves deionised water, fed through a hose to a brush at the end of a telescopic pole, capable of reaching 50+ feet.
+No real science has been conducted into the relative efficacy of these methods but I can see quantifiably with my experience in both methods that the commercial method is far safer and enjoys the benefit of deployability during rain. The traditional method requires soap which during rain makes it practically impossible to assure it has been removed from the glass.
+
+What is "The App"?
+An application can be downloaded to a smartphone from Apple's App Store or Androids Play Store. 
+I mean to create an app which has the function of guiding a prospective service provider to visualise and manage their business within the app. 
+The public will also be engaging with the app to procure services they require while safe in the knowledge the work is guaranteed by the platform.
+
+Benefits to the service provider
+    • Guaranteed instant payments upon job completion/ no need to chase clients for payment
+    • Management of the clients handled by the platform
+    • Automatic job scheduling.
+    • Route optimisation for multiple visits.
+    • New client acquisition from clients organically engaging with the app.
+    • An in-app store with special payment options. (Pay as you Earn)
+    • Training videos.
+    • Custom generated branding and marketing materials.
+    • Opportunities to swap clients with other service providers to manifest dense geographic areas of regular clientele rather than driving long distances between clients.
+
+Benefits to the client
+    • No need to communicate to a perceived unpredictable stranger.
+    • View service providers by ratings and other client feedback.
+    • Pay via modern methods (automatic subscription, PayPal, Credit/Debit)
+    • View a statement of previous services and payments.
+    • View the geographical location of a service provider, that is due to service their property within the next few hours.
+    • See the due date of any future services subscribed to, or due, along with an estimated time of arrival
+    • Be notified immediately of any change in intention or scheduling.
+
+Service provider journey - hypothetical case studies
+There are many individual and distinct ways service providers will interact with our platform but the two most important to showcase are John Smith and Clive Smith. 
+John engages as a service provider in an area we have no clients and Clive is reached out to by us because we have clients in an area with no registered service providers. 
+These two case studies will illustrate the platform in its period in infancy and how it will grow. 
+
+	John Smith
+John Smith is a 34 year old male with a young family, living in Newcastle. He currently works 37 hours a week in shift work at a supermarket warehouse, earning £22k per annum. Because of financial circumstances, he begins googling terms like “side hustle, easy money, 2nd job” and begins landing on literature about The App.
+John decides to look further into this, by downloading The App.
+The App prompts him to create an account, in which we collect his name, address, email address and telephone number. The App then walks him through some preferences to ascertain he is: 
+-Wanting to be a service provider.
+-Not currently involved as a service provider or self employed.
+-Interested in window cleaning, gardening and oven cleaning.
+The App then interrogates John on dates and times he is available to conduct work. He chooses Saturdays and Sundays as available and leaves the rest of the week blocked out as unavailable.
+The App then prompts John to create a name his clients will view him by. The name JS Cleaning Services, displayed in graphical text is automatically generated. John swipes on various custom generated styles and chooses one where the text is displayed in a water droplet.
+The App now offers John packages to choose from. He looks at the lowest packages on window cleaning, which is a bucket, mop, scrim and chamois cloth, cleaning solution, Squeegee and telescopic ladder, which costs £x
+He also chooses the lowest package for gardening and the lowest package for oven cleaning.
+The App then references his address with work of that nature in his local area and in this instance, finds none.
+The App then displays a video above a flyer that includes his custom generated business name/logo. In the video, an enthusiastic man explains: 
+    • New customers are coming onto the platform all the time, if one is right for you, the work will be yours.
+    • An explanation on building a round of recurring work. (Each new customer, providing a £15 job every 4 weeks increases your annual turnover by £195)
+    • Along with the packages, the leaflets are a very important investment as they contain a QR code that any prospective customers will use to find them once they have downloaded The App and will automatically be assigned to them. Delivering 1000 leaflets is a sure method to find your first few customers.
+
+The video ends with a contented man walking along a street, posting flyers with his headphones on. 
+John scrolls down and looks at the breakdown of equipment he will receive via post and the 1,000 leaflets. He feels invested, seeing the company branding he just created on some professional looking leaflets, all advertising the services he chose. Although he also feels slightly despondent at the cost and closes the app. Later that day, he opens the app again and shows his wife. They begin talking about how they get all this stuff on credit, pay it off with the work and then after that it's all “profit”.
+So, in a moment of inspiration, John commits. He opens the app and continues where he left off, opting to order the equipment on the basis he will work it off. He briefly reads the T&C’s which are some kind of generic, legal T&C’s, probably.
+John ticks agree on the T&C’s and just like that, the equipment and leaflets are on their way. 
+6 Days pass, in which John has opened the app several times to review the training section, where he watched dozens of videos in regards to setting the equipment up, delivering leaflets and how to provide the service. He feels confident that once he receives his equipment and leaflets, he will begin delivering them in eager anticipation of jobs filling up the calendar, visible in-app. 
+A DPD driver arrives and drops all the stuff. One Saturday morning, he begins unpacking it all and finds the leaflets with a basic PVC High visibility shoulder bag. He puts his headphones on and begins delivering them around his neighbourhood. He remembers the advice from the videos in the training section of the app, that on average 1 in 100 leaflets delivered accounts for a new customer within 1 week. And 1 in 75 is a new customer within 3 months. So over the course of the weekend, John manages to deliver all 1000 he received in the post.
+Throughout the week, during the evenings, he took advice from the videos on the app to begin getting comfortable with the equipment on his own property, so he spends some time in the evening cleaning his own oven, his own windows and cutting his own grass.
+During the day, at the supermarket warehouse he checks his phone and is notified each time he has a new client. To his amazement, by Friday he has 4 customers to attend to on Saturday and 3 on Sunday. 
+He signs in for work on Saturday morning, in-app. He is now "online". He follows The App's directions to sign in for the days work. The app requests first time permission to track his location. He then taps on the prompt to begin navigation to his first customer. Google Maps opens on his phone with the address automatically inputted. He follows the directions in his car and arrives. John reopens the app from Google Maps and notices the option to hit “complete”. He reads underneath this, a statement that he should only press this after he has completed the service and is ready to commute to the next job. So with some anxiety he collects his equipment and gets to work. He finishes without incident and goes onward to his next job and the next, and the next.
+By the end of the weekend, he can see his account has a balance of £97.12  and a withdrawable balance of £55.52 (The app has taken £7.86). 
+He scrolls further down to see a breakdown which at this point is 7 rows, 1 per each job he completed this weekend.
+01/xx/202x - £13.88 Ready to withdraw
+01/xx/202x - £13.88 Ready to withdraw
+01/xx/202x - £13.88 Ready to withdraw
+01/xx/202x - £13.88 Ready to withdraw
+02/xx/202x - £13.88 19h42m
+02/xx/202x - £13.88 21h58m
+02/xx/202x - £13.88 23h6m
+He looks at his calendar to see mon - friday greyed out and the next weekend already has 2 jobs on the saturday. Looking 4 weeks on, that weekend contains the recurring work he’s already done this weekend. He feels inclined to order more leaflets from our store page, confident in his approach to find more business…
+John gets a notification at 22:52, while at home with his family and remarks how a customer has left him a 5 star review. This pleases him.
+3 months on, John opts to go part time at the supermarket warehouse as per comments from his wife about the flexibility The App provides to their family life, all while more profitable than the income from his “Main job”.
+Having now bought a package and serviced some customers, a new feature is available to him on our store page. “Pay as you Earn” John decides to utilise this function, opting to set the rate of his repayment as 50% of his income to pay off the goods. John purchases £600 worth of equipment and consumables to increase the speed of his service and his capacity to serve more clients.
+18 months on, John is working full time on The App, receiving an annual income beyond what he experienced at the supermarket. He has purchased various things from our store page, paying them off as he services clients and now has a respectable round of work and a van with various equipment. He works 0900-15:30 Monday - Friday and earns £32,265 per anum. (The app takes £2,535)
+
+	Clive Smith
+Clive Smith is a 38 year old male, living in Chester and operating as a window cleaner.
+Clive has been actively providing the service for 20 years, when he started working under his father and took over the business completely 4 years ago. 
+On a Friday morning at 10:15 he receives a phone call from an unknown mobile number. He is accustomed to answering unknown mobile numbers as he receives plenty from his clients. He answers the phone and speaks to an operative from The App that explains we have a customer for him on Station Road and we are not a lead gen firm like so many but more like a round management tool such as Squeegee or Cleaner planner, which he is also very aware of as he currently uses Squeegee on his smartphone to manage his round. 
+The operative explains to Clive that there is a prospective client on Station Road with no incumbent window cleaner, 0.9 miles from his business address. 
+The operative asks him politely if he would like to download our free app to engage with the customer and provide the service.
+He objects “I’ve got my own customers that i'm seeing too, I need to know their address and fit it in with all my others”
+The operative reminds him it's on Station Road, Chester and explains it is a 3 bed semi detached home and he will be paid £16.65 for the job and it’s on for a recurring service every 4 weeks.
+Clive feels he’s noticed something suspicious and asks the operative; “How do you make money out of this, then?”
+The operative explains The customer has agreed to pay £18, and we are taking our fee of £1.35
+The operative goes on to ask Clive to put him on speaker phone to guide him in downloading the app and seeing the customer, explaining to Clive, he’s in control and can choose when to do it.
+Clive agrees and opens the PlayStore on his android phone. He downloads the app and creates an account, within the initialisation settings, Clive has to mark the days and hours of the week he is available. The operative advises him to leave blank, all but the hours he would be available to service the customer on station road. He chooses Monday, 15:00 - 17:00 and leaves the rest of the week blocked out as unavailable.  Clive feels confident he will have finished his usual round of work by then.
+After completion of the initialisation settings, the customer is allocated to Clives calendar for Monday at 15:00. Clive remarks about how this “looks just like the Squeegee app except with more bits” The operative continues an informal conversation with Clive about how this is a round management app just like Squeegee but “we also give you customers and handle all the payments so you get paid immediately after the job every time.”
+The operative continues to explain, all he needs to do is open the app on Monday and it will advise him on every step of the way. “The App will let the customer know you are coming and it will credit your account as soon as you’ve finished and ticked the job off on the app.
+Clive 
+Client journey - Hypothetical case study
+
+
+How The App is going to quote service cost to customers
+When a new client opens an account with us, we will take their information to feed a formula which will generate the quote. The formula I envisage for window cleaning would be:
+
+4 weekly service = (£10 + Property type modifier + Conservatory modifier) * Postcode modifier
+8 weekly service = 4 weekly service * 1.5
+One off service = 4 weekly service * 2
+
+Property type modifier could be
+Static Caravan/Park home -=£2
+	Small bungalow +=£0
+	Large Bungalow += £2
+2 Bed Semi +=£5
+	4 Bedroom detatched  += £10
+Conservatory modifier could be
+	4m2 /Small = £2
+	12m2 /Medium = £5
+	25m2 /Large = £10
+Postcode modifier could be
+Central london postcode = 2
+NG34 = 1
+Barrow-In-Furness = 0.5
+
+The new client can be interrogated on sign up by swiping left and right on images of properties that look like theirs, followed by conservatories, after inputting their address and postcode.The formula can become very nuanced over time, with each property and conservatory image being associated with its own formula modifier.
+The formula above is relevant to window cleaning. Others could be devised for different residential services.
+
+What residential services the app will cater for
+Below is a list of all supported regular/recurring services along with a definition of each, which the service provider and client agrees to.
+
+    • Window Cleaners 
+        ? All windows, doors, sills and frames. Top to bottom, all the way around the property, inclusive of garage (doors) 
+    • Interior residential cleaning, chargeable by the hour
+    • Car valeters 
+    • Gutter cleaners 
+    • Carpet cleaners 
+    • Oven cleaners 
+    • Laundry rotation and Ironing services
+    • Gardeners 
+        ? All lawned areas will be cut, borders will be sharp. 
+    • Pool cleaners 
+    • Mobile barbers/hairdressers
+    • Wheelie bin cleaners
+        ? Bins selected for cleaning will be thoroughly washed. All debris will be removed.
+    • Dog walkers
+
+How we are going to manage the customer base 
+This is a question answerable from 3 perspectives. The client, The contractor and ourselves.
+Client perspective
+They will rely on the app to see when their next service is due and see a list of all their previous services by date. They can edit their account details and preferences and view their service providers in-app profile. After each service they can rate their experience/the cleaner that was assigned to them. Additionally, the day their service is due, they will be able to see their service providers location in real time and the number of stops they have to make until they are due at their property, along with a dynamically generated and updated ETA.
+Contractor perspective
+They will be able to view Customers by their addresses and their given name, which can be any nick name the customer provides.
+The app will show the service provider a calendar with work they have scheduled in future. The service provider can mark days in future they are available or not available. They can also set a global preference for days of the week they aren't available, such as weekends.
+I suppose it would be acceptable for them to block out hours of the day they won't be available.
+Our perspective
+We will handle a central repository of customers which will be dynamically delegated to individual service providers.
+There will be formulae in place to identify if a client assigned to one service provider is better suited, geographically to another. In these events, the two service providers can be given the option to trade or sell accounts between eachother.(The platform can take a small percentage from these transactions)
+
+How we will track and monitor the service providers
+Each service provider will be reliant on their phone which will be on their person or in their vehicle at all times, while actively working. We will use their location data to monitor their progress through the workload. Service providers will come online at the start of each working day. The app will then prompt them to mark a job done, once complete. Then it will begin navigation to the next client.
+
+How we will coordinate payment from clients and to service providers
+As soon as a service provider marks a job as complete, and their tracking data suggests they are on location, their account with us incurs frozen credit. The client is then notified the work is complete and an invoice is raised, which can be paid in-app. They have 24 hours to appeal if the work is not to standard. After this 24 hour period, the service providers credit for that job is unfrozen. They can choose to cash this out anytime, in which an invoice is generated to them for the sum total cost of the percentages taken by us and their money is deposited into the bank account they configured with us.
+The app will reserve a percentage of each job (possibly 7.5%)
+
+What happens when a service provider does not show up
+If a service provider goes offline 
+
+
+
+
+
+How we will support Service Providers
+
+How we will handle equipment to be shipped to Service Providers
+
+How the app will handle two service providers in close geographical proximity
+This depends on the circumstances the client engages with The App. If the client downloads The App and creates an account, they will be assigned to the service provider with the better rating, if there is space to accommodate. 
+If the client has received a flyer, they can scan the QR code, included. This will assign them to the service provider that distributed the leaflet.
+
+
+How we will attract clients to the platform
+Why we are freezing their money for 24 hours - what would prevent us from paying the service provider after they confirm completion of the work?.
+
+How the app will handle larger businesses that use subcontractors 
+
+How we will attract service providers to the platform
+A phased approach for scalability
+Phase 1. Me, a phone and 10 quid getting the first few plebs together, after the app goes live
+Will the app support one of jobs/ad hoc work?
+What if for any reason a service provider needs to reschedule work with prior notice?
+
+What happens when a service provider wants to quit the platform. Can they sell their business to other service providers on and off the platform?.
+
+
+Sources
+
+1. Office of national statistics
+https://www.ons.gov.uk/peoplepopulationandcommunity/housing/articles/researchoutputssubnationaldwellingstockbytenureestimatesengland2012to2015/2020#:~:text=This%20model%20estimates%20that%20in,be%20owner%2Doccupied%20in%202020.
+
+2. Gov.uk - Scottish window cleaners licence
+https://www.gov.uk/window-cleaners-licence-scotland
+
+3. Stoke Sentinel - Teen window cleaner ransacked home after using ladder to climb inside 
+https://www.stokesentinel.co.uk/news/stoke-on-trent-news/teen-window-cleaner-ransacked-home-6323074
+
+4. Cnet - How Uber's new safety features aim to stop murders, kidnappings and other crimes
+https://www.cnet.com/tech/mobile/how-ubers-new-safety-features-want-to-fight-murders-kidnappings-and-other-horrible-things/
+
+

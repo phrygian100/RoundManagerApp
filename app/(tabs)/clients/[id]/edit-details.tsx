@@ -13,7 +13,13 @@ export default function EditClientDetailsScreen() {
   const router = useRouter();
 
   const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [town, setTown] = useState('');
+  const [postcode, setPostcode] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [roundOrderNumber, setRoundOrderNumber] = useState('');
+  const [quote, setQuote] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -24,7 +30,13 @@ export default function EditClientDetailsScreen() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setName(data.name || '');
-          setAddress(data.address || '');
+          setAddress1(data.address1 || '');
+          setTown(data.town || '');
+          setPostcode(data.postcode || '');
+          setAccountNumber(data.accountNumber || '');
+          setRoundOrderNumber(data.roundOrderNumber ? String(data.roundOrderNumber) : '');
+          setQuote(data.quote !== undefined ? String(data.quote) : '');
+          setMobileNumber(data.mobileNumber || '');
         }
         setLoading(false);
       };
@@ -34,15 +46,21 @@ export default function EditClientDetailsScreen() {
   }, [id]);
 
   const handleSave = async () => {
-    if (!name.trim() || !address.trim()) {
-      Alert.alert('Error', 'Please enter both name and address.');
+    if (!name.trim() || !address1.trim() || !town.trim() || !postcode.trim() || !accountNumber.trim() || !roundOrderNumber.trim() || !quote.trim() || !mobileNumber.trim()) {
+      Alert.alert('Error', 'Please fill out all fields.');
       return;
     }
 
     if (typeof id === 'string') {
       await updateDoc(doc(db, 'clients', id), {
         name,
-        address,
+        address1,
+        town,
+        postcode,
+        accountNumber,
+        roundOrderNumber: Number(roundOrderNumber),
+        quote: Number(quote),
+        mobileNumber,
       });
       router.replace({ pathname: '/(tabs)/clients/[id]', params: { id } });
     }
@@ -69,9 +87,54 @@ export default function EditClientDetailsScreen() {
 
       <TextInput
         style={styles.input}
-        value={address}
-        onChangeText={setAddress}
-        placeholder="Client Address"
+        value={address1}
+        onChangeText={setAddress1}
+        placeholder="Address (1st line)"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={town}
+        onChangeText={setTown}
+        placeholder="Town"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={postcode}
+        onChangeText={setPostcode}
+        placeholder="Postcode"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={accountNumber}
+        onChangeText={setAccountNumber}
+        placeholder="Account Number"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={roundOrderNumber}
+        onChangeText={setRoundOrderNumber}
+        placeholder="Round Order Number"
+        keyboardType="numeric"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={quote}
+        onChangeText={setQuote}
+        placeholder="Quote (£)"
+        keyboardType="numeric"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={mobileNumber}
+        onChangeText={setMobileNumber}
+        placeholder="Mobile Number"
+        keyboardType="phone-pad"
       />
 
       <Button title="Save Changes" onPress={handleSave} />

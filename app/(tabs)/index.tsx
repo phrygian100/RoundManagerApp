@@ -1,73 +1,111 @@
-import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet } from 'react-native';
-
-import ParallaxScrollView from 'components/ParallaxScrollView';
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { generateRecurringJobs } from '../services/jobService';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
+  const handleGenerateJobs = async () => {
+    setLoading(true);
+    await generateRecurringJobs();
+    setLoading(false);
+    alert('Recurring jobs generated!');
+  };
+
+  const buttons = [
+    {
+      label: 'Client List',
+      onPress: () => router.push('/clients'),
+      disabled: false,
+    },
+    {
+      label: 'Add New Client',
+      onPress: () => router.push('/add-client'),
+      disabled: false,
+    },
+    {
+      label: 'Workload Forecast',
+      onPress: () => router.push('/workload-forecast'),
+      disabled: false,
+    },
+    {
+      label: 'Runsheet',
+      onPress: () => router.push('/runsheet'),
+      disabled: false,
+    },
+    {
+      label: loading ? 'Generating...' : 'Generate Recurring Jobs (Admin)',
+      onPress: handleGenerateJobs,
+      disabled: loading,
+    },
+    {
+      label: 'Settings',
+      onPress: () => router.push('/settings'),
+      disabled: false,
+    },
+  ];
+
+  // Split buttons into rows of 2
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += 2) {
+    rows.push(buttons.slice(i, i + 2));
+  }
 
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-       <Image
-  source={require('../../assets/images/partial-react-logo.png')}
-  style={styles.reactLogo}
-/>
-
-      }
-    >
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Round Manager</ThemedText>
-      </ThemedView>
-
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText>
-          This is the home screen. From here you will manage your daily work.
-        </ThemedText>
-
-        <Pressable style={styles.button} onPress={() => router.push('/clients')}>
-          <ThemedText style={styles.buttonText}>View Clients</ThemedText>
-        </Pressable>
-
-        <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
-          <ThemedText style={styles.buttonText}>Add New Client</ThemedText>
-        </Pressable>
-      </ThemedView>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      {rows.map((row, rowIndex) => (
+        <View key={rowIndex} style={styles.row}>
+          {row.map((btn, idx) => (
+            <Pressable
+              key={idx}
+              style={[styles.button, btn.disabled && styles.buttonDisabled]}
+              onPress={btn.onPress}
+              disabled={btn.disabled}
+            >
+              <Text style={styles.buttonText}>{btn.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ))}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    padding: 24,
+    backgroundColor: '#fff',
   },
-  stepContainer: {
-    gap: 12,
-    marginTop: 16,
+  row: {
+    flexDirection: 'row',
+    width: '100%',
+    justifyContent: 'space-between',
     marginBottom: 24,
   },
   button: {
+    flex: 1,
+    aspectRatio: 1,
+    marginHorizontal: 8,
     backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
+    elevation: 2,
+    minWidth: 0,
+  },
+  buttonDisabled: {
+    backgroundColor: '#eee',
   },
   buttonText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: 'bold',
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+    textAlign: 'center',
   },
 });
 

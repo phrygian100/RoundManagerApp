@@ -1,0 +1,367 @@
+import { Ionicons } from '@expo/vector-icons';
+import { db } from 'core/firebase';
+import { addDays, endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActionSheetIOS, ActivityIndicator, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import type { Client } from '../../types/client';
+import { getClientById, getJobsForWeek, updateJobStatus } from '../services/jobService';
+import type { Job } from '../types/models';
+
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+export default function RunsheetWeekScreen() {
+  const { week } = useLocalSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
+  const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
+  const router = useRouter();
+
+  // Parse week param
+  const weekStart = week ? parseISO(week as string) : startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+
+  useEffect(() => {
+    const fetchJobsAndClients = async () => {
+      setLoading(true);
+      const startDate = format(weekStart, 'yyyy-MM-dd');
+      const endDate = format(weekEnd, 'yyyy-MM-dd');
+      const jobsForWeek = await getJobsForWeek(startDate, endDate);
+      // Fetch all clients in parallel
+      const jobsWithClients = await Promise.all(
+        jobsForWeek.map(async (job) => {
+          const client = await getClientById(job.clientId);
+          return { ...job, client };
+        })
+      );
+      setJobs(jobsWithClients);
+      setLoading(false);
+    };
+    fetchJobsAndClients();
+  }, [week]);
+
+  // Group jobs by day of week
+  const sections = daysOfWeek.map((day, i) => {
+    const dayDate = addDays(weekStart, i);
+    const jobsForDay = jobs
+      .filter((job: any) => {
+        const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+        return jobDate && jobDate.toDateString() === dayDate.toDateString();
+      })
+      .sort((a: any, b: any) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+    return {
+      title: day,
+      data: jobsForDay,
+      dayDate,
+    };
+  });
+
+  const handleComplete = async (jobId: string, isCompleted: boolean) => {
+    setLoading(true);
+    await updateJobStatus(jobId, isCompleted ? 'pending' : 'completed');
+    setJobs((prev) =>
+      prev.map((job) =>
+        job.id === jobId ? { ...job, status: isCompleted ? 'pending' : 'completed' } : job
+      )
+    );
+    setLoading(false);
+  };
+
+  const handleJobPress = (job: Job & { client: Client | null }) => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Navigate?', 'View details?', 'Message ETA', 'Delete Job', 'Cancel'],
+          destructiveButtonIndex: 3,
+          cancelButtonIndex: 4,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 0) handleNavigate(job.client);
+          if (buttonIndex === 1) handleViewDetails(job.client);
+          if (buttonIndex === 2) handleMessageETA(job.client);
+          if (buttonIndex === 3) handleDeleteJob(job.id);
+        }
+      );
+    } else {
+      setActionSheetJob(job);
+    }
+  };
+
+  const handleNavigate = (client: Client | null) => {
+    if (!client) return;
+    const address = `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`;
+    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    Linking.openURL(url);
+    setActionSheetJob(null);
+  };
+
+  const handleViewDetails = (client: Client | null) => {
+    if (!client) return;
+    router.push({ pathname: '/(tabs)/clients/[id]', params: { id: client.id } });
+    setActionSheetJob(null);
+  };
+
+  const handleMessageETA = (client: Client | null) => {
+    if (!client || !client.mobileNumber) return;
+    let smsUrl = '';
+    // Template text
+    const template = 'hello';
+    if (Platform.OS === 'ios') {
+      smsUrl = `sms:${client.mobileNumber}&body=${encodeURIComponent(template)}`;
+    } else {
+      smsUrl = `smsto:${client.mobileNumber}?body=${encodeURIComponent(template)}`;
+    }
+    Linking.openURL(smsUrl);
+    setActionSheetJob(null);
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    await deleteDoc(doc(db, 'jobs', jobId));
+    setJobs((prev) => prev.filter((job) => job.id !== jobId));
+    setActionSheetJob(null);
+  };
+
+  const toggleDay = (title: string) => {
+    setCollapsedDays((prev) =>
+      prev.includes(title) ? prev.filter((d) => d !== title) : [...prev, title]
+    );
+  };
+
+  const renderItem = ({ item, index, section }: any) => {
+    const sectionIndex = sections.findIndex(s => s.title === section.title);
+    const isCompleted = item.status === 'completed';
+    const client: any = item.client;
+    // Find the first incomplete job in this section
+    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
+    const showCompleteButton = index === firstIncompleteIndex && !isCompleted;
+    const showUndoButton = isCompleted;
+    return (
+      <View style={[styles.clientRow, isCompleted && styles.completedRow]}>
+        <View style={{ flex: 1 }}>
+          <Pressable onPress={() => handleJobPress(item)}>
+            <View style={styles.addressBlock}>
+              <Text style={styles.addressTitle}>{client ? `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}` : 'Unknown address'}</Text>
+            </View>
+            {client?.mobileNumber && (
+              <Text style={styles.mobileNumber}>{client.mobileNumber}</Text>
+            )}
+            <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
+          </Pressable>
+        </View>
+        <View style={styles.arrowContainer}>
+          {!isCompleted && (
+            <>
+              <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
+                <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+              <Pressable onPress={() => moveJob(sectionIndex, index, 'down')} disabled={index === section.data.length - 1} style={styles.arrowButton}>
+                <Ionicons name="arrow-down" size={24} color={index === section.data.length - 1 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+              <Pressable onPress={() => moveJob(sectionIndex, index, 'left')} disabled={sectionIndex === 0} style={styles.arrowButton}>
+                <Ionicons name="arrow-back" size={24} color={sectionIndex === 0 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+              <Pressable onPress={() => moveJob(sectionIndex, index, 'right')} disabled={sectionIndex === sections.length - 1} style={styles.arrowButton}>
+                <Ionicons name="arrow-forward" size={24} color={sectionIndex === sections.length - 1 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+            </>
+          )}
+          {showCompleteButton && (
+            <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
+              <Text style={styles.completeButtonText}>Complete?</Text>
+            </Pressable>
+          )}
+          {showUndoButton && (
+            <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
+              <Text style={styles.completeButtonText}>Undo</Text>
+            </Pressable>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  // Move job up/down within a day or left/right between days (same as in main runsheet)
+  const moveJob = async (sectionIndex: number, jobIndex: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    const section = sections[sectionIndex];
+    const job = section.data[jobIndex];
+    let newJobs = [...jobs];
+    if (direction === 'up' && jobIndex > 0) {
+      const prevJob = section.data[jobIndex - 1];
+      const temp = job.client?.roundOrderNumber ?? 0;
+      if (job.client && prevJob.client) {
+        job.client!.roundOrderNumber = prevJob.client!.roundOrderNumber;
+        prevJob.client!.roundOrderNumber = temp;
+        await Promise.all([
+          updateDoc(doc(db, 'clients', job.client!.id), { roundOrderNumber: job.client!.roundOrderNumber }),
+          updateDoc(doc(db, 'clients', prevJob.client!.id), { roundOrderNumber: prevJob.client!.roundOrderNumber }),
+        ]);
+        newJobs = newJobs.map(j => {
+          if (j.client?.id === job.client!.id) return { ...j, client: { ...j.client! } };
+          if (j.client?.id === prevJob.client!.id) return { ...j, client: { ...j.client! } };
+          return j;
+        });
+      }
+    } else if (direction === 'down' && jobIndex < section.data.length - 1) {
+      const nextJob = section.data[jobIndex + 1];
+      const temp = job.client?.roundOrderNumber ?? 0;
+      if (job.client && nextJob.client) {
+        job.client!.roundOrderNumber = nextJob.client!.roundOrderNumber;
+        nextJob.client!.roundOrderNumber = temp;
+        await Promise.all([
+          updateDoc(doc(db, 'clients', job.client!.id), { roundOrderNumber: job.client!.roundOrderNumber }),
+          updateDoc(doc(db, 'clients', nextJob.client!.id), { roundOrderNumber: nextJob.client!.roundOrderNumber }),
+        ]);
+        newJobs = newJobs.map(j => {
+          if (j.client?.id === job.client!.id) return { ...j, client: { ...j.client! } };
+          if (j.client?.id === nextJob.client!.id) return { ...j, client: { ...j.client! } };
+          return j;
+        });
+      }
+    } else if (direction === 'left' && sectionIndex > 0) {
+      const prevDay = sections[sectionIndex - 1].dayDate;
+      const newDate = format(prevDay, 'yyyy-MM-dd') + 'T09:00:00';
+      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: newDate });
+      job.scheduledTime = newDate;
+    } else if (direction === 'right' && sectionIndex < sections.length - 1) {
+      const nextDay = sections[sectionIndex + 1].dayDate;
+      const newDate = format(nextDay, 'yyyy-MM-dd') + 'T09:00:00';
+      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: newDate });
+      job.scheduledTime = newDate;
+    } else {
+      return;
+    }
+    setJobs([...newJobs]);
+  };
+
+  // Title for the week
+  const getOrdinal = (n: number) => {
+    const s = ["th", "st", "nd", "rd"], v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  };
+  const weekTitle = `Runsheet - Week Commencing ${getOrdinal(weekStart.getDate())} ${format(weekStart, 'MMMM')}`;
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>{weekTitle}</Text>
+      <Button title="Home" onPress={() => router.replace('/')} />
+      <Text>Debug: {jobs.length} jobs</Text>
+      {loading ? (
+        <ActivityIndicator size="large" />
+      ) : (
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item, index, section }) =>
+            collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
+          }
+          renderSectionHeader={({ section: { title, data } }) => (
+            <Pressable onPress={() => toggleDay(title)}>
+              <Text style={styles.sectionHeader}>{title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}</Text>
+            </Pressable>
+          )}
+          ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+        />
+      )}
+      {actionSheetJob && Platform.OS === 'android' && (
+        <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
+          <View style={styles.androidSheet} pointerEvents="box-none">
+            <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
+            <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
+            <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob.client)} />
+            <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+          </View>
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, padding: 24, paddingTop: 60 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
+  sectionHeader: { fontSize: 20, fontWeight: 'bold', backgroundColor: '#f0f0f0', paddingVertical: 8, paddingHorizontal: 8, marginTop: 16 },
+  clientRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 0,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    backgroundColor: '#fff',
+    marginBottom: 12,
+    borderRadius: 10,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+    minHeight: 0,
+  },
+  addressBlock: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderTopLeftRadius: 10,
+    borderTopRightRadius: 10,
+    borderBottomWidth: 2,
+    borderBottomColor: '#005bb5',
+    marginBottom: 4,
+    alignSelf: 'stretch',
+  },
+  addressTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  clientName: { fontSize: 16 },
+  clientAddress: { fontSize: 16 },
+  empty: { textAlign: 'center', marginTop: 50 },
+  arrowContainer: {
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  arrowButton: {
+    padding: 4,
+  },
+  completedRow: {
+    backgroundColor: '#b6eab6',
+  },
+  completeButton: {
+    marginTop: 8,
+    backgroundColor: '#eee',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  completeButtonText: {
+    color: '#007A33',
+    fontWeight: 'bold',
+  },
+  androidSheetOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  androidSheet: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: 250,
+    elevation: 4,
+    gap: 12,
+  },
+  mobileNumber: {
+    fontSize: 14,
+    color: '#555',
+    marginBottom: 2,
+  },
+}); 
