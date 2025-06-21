@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -18,6 +18,7 @@ function getOrdinal(n: number) {
 
 export default function AddClientScreen() {
   const router = useRouter();
+  const isMountedRef = useRef(true);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [frequency, setFrequency] = useState<'4' | '8' | 'one-off'>('4');
@@ -32,6 +33,12 @@ export default function AddClientScreen() {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const today = new Date();
     const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
     const mondays = Array.from({ length: 12 }, (_, i) =>
@@ -41,31 +48,46 @@ export default function AddClientScreen() {
     if (!nextVisit) setNextVisit(mondays[0]);
 
     const fetchNextNumbers = async () => {
-      // Fetch next account number
-      const q = query(collection(db, 'clients'), orderBy('accountNumber', 'desc'), limit(1));
-      const querySnapshot = await getDocs(q);
-      let nextAccountNumber = 1;
-      if (!querySnapshot.empty) {
-        const highestClient = querySnapshot.docs[0].data();
-        nextAccountNumber = (highestClient.accountNumber || 0) + 1;
-      }
-      setAccountNumber(nextAccountNumber);
+      try {
+        console.log('Fetching next numbers...');
+        
+        // Fetch next account number
+        const q = query(collection(db, 'clients'), orderBy('accountNumber', 'desc'), limit(1));
+        const querySnapshot = await getDocs(q);
+        let nextAccountNumber = 1;
+        if (!querySnapshot.empty) {
+          const highestClient = querySnapshot.docs[0].data();
+          nextAccountNumber = (highestClient.accountNumber || 0) + 1;
+        }
+        
+        if (isMountedRef.current) {
+          setAccountNumber(nextAccountNumber);
+        }
 
-      // Get total number of clients to determine round order behavior
-      const allClientsSnapshot = await getDocs(collection(db, 'clients'));
-      const clientCount = allClientsSnapshot.size;
-      setTotalClients(clientCount);
-      
-      // Show round order button for 3rd client onwards
-      setShowRoundOrderButton(clientCount >= 2);
-      
-      // Set default round order number
-      if (clientCount < 2) {
-        // For first 2 clients, just increment
-        setRoundOrderNumber(clientCount + 1);
-      } else {
-        // For 3rd client onwards, we'll let the user choose position
-        setRoundOrderNumber(null);
+        // Get total number of clients to determine round order behavior
+        const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+        const clientCount = allClientsSnapshot.size;
+        console.log('Current client count:', clientCount);
+        
+        if (isMountedRef.current) {
+          setTotalClients(clientCount);
+          
+          // Show round order button for 3rd client onwards
+          setShowRoundOrderButton(clientCount >= 2);
+          
+          // Set default round order number
+          if (clientCount < 2) {
+            // For first 2 clients, just increment
+            setRoundOrderNumber(clientCount + 1);
+            console.log('Set round order to:', clientCount + 1);
+          } else {
+            // For 3rd client onwards, we'll let the user choose position
+            setRoundOrderNumber(null);
+            console.log('Round order set to null (user will choose)');
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching next numbers:', error);
       }
     };
 
@@ -91,8 +113,12 @@ export default function AddClientScreen() {
         }
       };
 
-      checkSelectedRoundOrder();
-    }, [])
+      // Only check for round order if we're showing the round order button
+      // This prevents unnecessary checks when just navigating back from client creation
+      if (showRoundOrderButton) {
+        checkSelectedRoundOrder();
+      }
+    }, [showRoundOrderButton])
   );
 
   const handleRoundOrderPress = () => {
