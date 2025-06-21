@@ -15,7 +15,7 @@ export default function WorkloadForecastScreen() {
     const today = new Date();
     const start = startOfWeek(today, { weekStartsOn: 1 });
     const weeksArr: { week: string; count: number }[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 52; i++) {
       const weekDate = addWeeks(start, i);
       const weekStr = format(weekDate, 'yyyy-MM-dd');
       const weekStart = weekStr;
