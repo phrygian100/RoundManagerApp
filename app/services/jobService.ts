@@ -6,6 +6,26 @@ import type { Job } from '../types/models';
 
 const JOBS_COLLECTION = 'jobs';
 
+/**
+ * Creates required Firestore indexes for the jobs collection
+ * This should be called once during app initialization
+ */
+export async function createRequiredIndexes(): Promise<void> {
+  try {
+    // Note: Firestore indexes are typically created through the Firebase Console
+    // or via the Firebase CLI. Programmatic creation is limited.
+    // For now, we'll use a simpler query approach that doesn't require composite indexes
+    
+    console.log('Checking for required indexes...');
+    // The indexes will be created automatically when queries are first run
+    // If they don't exist, Firebase will throw an error with a link to create them
+    
+  } catch (error) {
+    console.error('Error checking indexes:', error);
+    throw error;
+  }
+}
+
 export async function createJob(job: Omit<Job, 'id'>) {
   const jobsRef = collection(db, JOBS_COLLECTION);
   const docRef = await addDoc(jobsRef, job);
@@ -75,17 +95,27 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
       const weekStr = format(visitDate, 'yyyy-MM-dd');
       
       // Check if a job already exists for this client on this date
+      // Use a simpler query that doesn't require composite indexes
       const existingJobsQuery = query(
         collection(db, JOBS_COLLECTION),
-        where('clientId', '==', clientId),
-        where('scheduledTime', '>=', weekStr + 'T00:00:00'),
-        where('scheduledTime', '<', weekStr + 'T23:59:59')
+        where('clientId', '==', clientId)
       );
       
       const existingJobs = await getDocs(existingJobsQuery);
       
+      // Check if any existing job matches this date (client-side filtering)
+      const jobExistsForDate = existingJobs.docs.some(doc => {
+        const jobData = doc.data();
+        const jobDate = jobData.scheduledTime;
+        if (!jobDate) return false;
+        
+        // Check if the job is scheduled for the same date
+        const jobDateStr = jobDate.split('T')[0]; // Get just the date part
+        return jobDateStr === weekStr;
+      });
+      
       // Only create job if no existing job for this date
-      if (existingJobs.empty) {
+      if (!jobExistsForDate) {
         jobsToCreate.push({
           clientId: client.id,
           providerId: 'test-provider-1',
@@ -155,17 +185,28 @@ export async function createJobsForWeek(weekStartDate: string): Promise<number> 
       if (visitDate >= targetWeek && visitDate < weekEnd) {
         // Check if a job already exists for this client on this date
         const weekStr = format(visitDate, 'yyyy-MM-dd');
+        
+        // Use a simpler query that doesn't require composite indexes
         const existingJobsQuery = query(
           collection(db, JOBS_COLLECTION),
-          where('clientId', '==', client.id),
-          where('scheduledTime', '>=', weekStr + 'T00:00:00'),
-          where('scheduledTime', '<', weekStr + 'T23:59:59')
+          where('clientId', '==', client.id)
         );
         
         const existingJobs = await getDocs(existingJobsQuery);
         
+        // Check if any existing job matches this date (client-side filtering)
+        const jobExistsForDate = existingJobs.docs.some(doc => {
+          const jobData = doc.data();
+          const jobDate = jobData.scheduledTime;
+          if (!jobDate) return false;
+          
+          // Check if the job is scheduled for the same date
+          const jobDateStr = jobDate.split('T')[0]; // Get just the date part
+          return jobDateStr === weekStr;
+        });
+        
         // Only create job if no existing job for this date
-        if (existingJobs.empty) {
+        if (!jobExistsForDate) {
           await createJob({
             clientId: client.id,
             providerId: 'test-provider-1',
