@@ -86,8 +86,12 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
     
     // Generate jobs for the specified number of weeks
     for (let i = 0; i < maxWeeks; i++) {
-      // Skip if the visit date is in the past
-      if (isBefore(visitDate, today)) {
+      // Only skip if the visit date is more than 7 days in the past
+      // This allows jobs to be created for the current week
+      const weekAgo = new Date(today);
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      
+      if (isBefore(visitDate, weekAgo)) {
         visitDate = addWeeks(visitDate, Number(client.frequency));
         continue;
       }
