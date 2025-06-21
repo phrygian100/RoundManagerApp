@@ -204,8 +204,8 @@ export default function RunsheetWeekScreen() {
     const client: any = item.client;
     // Find the first incomplete job in this section
     const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed' && job.status !== 'accounted');
-    const showCompleteButton = index === firstIncompleteIndex && !isCompleted && !isAccounted;
-    const showUndoButton = isCompleted && !isAccounted;
+    const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isAccounted;
+    const showUndoButton = isCurrentWeek && isCompleted && !isAccounted;
     return (
       <View style={[styles.clientRow, (isCompleted || isAccounted) && styles.completedRow]}>
         <View style={{ flex: 1 }}>
