@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
 import { getJobsForWeek, updateJobStatus } from '../services/jobService';
@@ -19,6 +20,8 @@ export default function RunsheetWeekScreen() {
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
   const [completedDays, setCompletedDays] = useState<string[]>([]);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timePickerJob, setTimePickerJob] = useState<(Job & { client: Client | null }) | null>(null);
   const router = useRouter();
 
   // Parse week param
@@ -72,6 +75,29 @@ export default function RunsheetWeekScreen() {
     };
     fetchJobsAndClients();
   }, [week]);
+
+  const handleSetEta = async (time: string) => {
+    if (!timePickerJob) return;
+
+    // Update job in Firestore
+    const jobRef = doc(db, 'jobs', timePickerJob.id);
+    await updateDoc(jobRef, { eta: time });
+
+    // Update local state
+    setJobs(prevJobs =>
+      prevJobs.map(job =>
+        job.id === timePickerJob.id ? { ...job, eta: time } : job
+      )
+    );
+
+    setTimePickerJob(null);
+    setShowTimePicker(false);
+  };
+
+  const showPickerForJob = (job: Job & { client: Client | null }) => {
+    setTimePickerJob(job);
+    setShowTimePicker(true);
+  };
 
   // Group jobs by day of week
   const sections = daysOfWeek.map((day, i) => {
@@ -234,23 +260,28 @@ export default function RunsheetWeekScreen() {
             <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
           </Pressable>
         </View>
-        <View style={styles.arrowContainer}>
-          {!isCompleted && !isAccounted && (
-            <>
-              <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
-                <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
-              </Pressable>
-              <Pressable onPress={() => moveJob(sectionIndex, index, 'down')} disabled={index === section.data.length - 1} style={styles.arrowButton}>
-                <Ionicons name="arrow-down" size={24} color={index === section.data.length - 1 ? '#ccc' : '#007AFF'} />
-              </Pressable>
-              <Pressable onPress={() => moveJob(sectionIndex, index, 'left')} disabled={sectionIndex === 0} style={styles.arrowButton}>
-                <Ionicons name="arrow-back" size={24} color={sectionIndex === 0 ? '#ccc' : '#007AFF'} />
-              </Pressable>
-              <Pressable onPress={() => moveJob(sectionIndex, index, 'right')} disabled={sectionIndex === sections.length - 1} style={styles.arrowButton}>
-                <Ionicons name="arrow-forward" size={24} color={sectionIndex === sections.length - 1 ? '#ccc' : '#007AFF'} />
-              </Pressable>
-            </>
-          )}
+        <View style={styles.controlsContainer}>
+          <Pressable onPress={() => showPickerForJob(item)} style={styles.etaButton}>
+            <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
+          </Pressable>
+          <View style={styles.arrowContainer}>
+            {!isCompleted && !isAccounted && (
+              <>
+                <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
+                  <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
+                </Pressable>
+                <Pressable onPress={() => moveJob(sectionIndex, index, 'down')} disabled={index === section.data.length - 1} style={styles.arrowButton}>
+                  <Ionicons name="arrow-down" size={24} color={index === section.data.length - 1 ? '#ccc' : '#007AFF'} />
+                </Pressable>
+                <Pressable onPress={() => moveJob(sectionIndex, index, 'left')} disabled={sectionIndex === 0} style={styles.arrowButton}>
+                  <Ionicons name="arrow-back" size={24} color={sectionIndex === 0 ? '#ccc' : '#007AFF'} />
+                </Pressable>
+                <Pressable onPress={() => moveJob(sectionIndex, index, 'right')} disabled={sectionIndex === sections.length - 1} style={styles.arrowButton}>
+                  <Ionicons name="arrow-forward" size={24} color={sectionIndex === sections.length - 1 ? '#ccc' : '#007AFF'} />
+                </Pressable>
+              </>
+            )}
+          </View>
           {showCompleteButton && (
             <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
               <Text style={styles.completeButtonText}>Complete?</Text>
@@ -360,6 +391,17 @@ export default function RunsheetWeekScreen() {
           contentContainerStyle={{ flexGrow: 1 }}
         />
       )}
+      {showTimePicker && timePickerJob && (
+        <TimePickerModal
+          visible={showTimePicker}
+          onClose={() => {
+            setShowTimePicker(false);
+            setTimePickerJob(null);
+          }}
+          onConfirm={handleSetEta}
+          initialTime={timePickerJob.eta}
+        />
+      )}
       {actionSheetJob && Platform.OS === 'android' && (
         <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
           <View style={styles.androidSheet} pointerEvents="box-none">
@@ -426,11 +468,28 @@ const styles = StyleSheet.create({
   clientName: { fontSize: 16 },
   clientAddress: { fontSize: 16 },
   empty: { textAlign: 'center', marginTop: 50 },
+  controlsContainer: {
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  etaButton: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  etaButtonText: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
   arrowContainer: {
-    flexDirection: 'column',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    flexWrap: 'wrap',
+    maxWidth: 100,
   },
   arrowButton: {
     padding: 4,

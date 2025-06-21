@@ -25,6 +25,7 @@ export type Job = {
   propertyDetails: string;
   scheduledTime: string; // ISO date string
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'accounted';
+  eta?: string; // e.g., "13:45"
   price: number;
   rating?: number; // client rating for this job
   review?: string;
