@@ -1,18 +1,24 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
-import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Button, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Button, FlatList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { db } from '../../../core/firebase';
 import type { Client } from '../../../types/client';
+import type { Job, Payment } from '../../types/models';
+
+type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
 
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -24,6 +30,42 @@ export default function ClientDetailScreen() {
       setLoading(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!client) return;
+
+    const fetchServiceHistory = async () => {
+      setLoadingHistory(true);
+      try {
+        // Fetch jobs
+        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id), where('status', 'in', ['completed', 'accounted']));
+        const jobsSnapshot = await getDocs(jobsQuery);
+        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'job' })) as (Job & { type: 'job' })[];
+
+        // Fetch payments
+        const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'payment' })) as (Payment & { type: 'payment' })[];
+
+        // Combine and sort
+        const combinedHistory = [...jobsData, ...paymentsData];
+        combinedHistory.sort((a, b) => {
+          const dateA = new Date(a.type === 'job' ? (a.scheduledTime || 0) : (a.date || 0)).getTime();
+          const dateB = new Date(b.type === 'job' ? (b.scheduledTime || 0) : (b.date || 0)).getTime();
+          return dateB - dateA;
+        });
+
+        setServiceHistory(combinedHistory);
+      } catch (error) {
+        console.error("Error fetching service history:", error);
+        Alert.alert("Error", "Could not load service history.");
+      } finally {
+        setLoadingHistory(false);
+      }
+    };
+
+    fetchServiceHistory();
+  }, [client]);
 
   useFocusEffect(
     useCallback(() => {
@@ -147,7 +189,82 @@ export default function ClientDetailScreen() {
       <View style={{ marginTop: 32 }}>
         <Button title="Home" onPress={() => router.replace('/')} />
       </View>
+
+      <View style={styles.historyContainer}>
+        <ThemedText type="subtitle" style={styles.historyTitle}>Service History</ThemedText>
+        {loadingHistory ? (
+          <ActivityIndicator />
+        ) : (
+          <FlatList
+            data={serviceHistory}
+            keyExtractor={(item) => `${item.type}-${item.id}`}
+            renderItem={renderHistoryItem}
+            ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
+          />
+        )}
+      </View>
     </ThemedView>
   );
 }
+
+const renderHistoryItem = ({ item }: { item: ServiceHistoryItem }) => {
+  if (item.type === 'job') {
+    return (
+      <View style={[styles.historyItem, styles.jobItem]}>
+        <ThemedText style={styles.historyItemText}>
+          <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText> {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
+        </ThemedText>
+        <ThemedText style={styles.historyItemText}>
+          Status: <ThemedText style={{ fontWeight: 'bold' }}>{item.status}</ThemedText>
+        </ThemedText>
+        <ThemedText style={styles.historyItemText}>
+          Price: £{item.price.toFixed(2)}
+        </ThemedText>
+      </View>
+    );
+  } else {
+    return (
+      <View style={[styles.historyItem, styles.paymentItem]}>
+        <ThemedText style={styles.historyItemText}>
+          <ThemedText style={{ fontWeight: 'bold' }}>Payment:</ThemedText> {format(parseISO(item.date), 'do MMMM yyyy')}
+        </ThemedText>
+        <ThemedText style={styles.historyItemText}>
+          Amount: <ThemedText style={{ fontWeight: 'bold' }}>£{item.amount.toFixed(2)}</ThemedText>
+        </ThemedText>
+        <ThemedText style={styles.historyItemText}>
+          Method: {item.method.replace('_', ' ')}
+        </ThemedText>
+      </View>
+    );
+  }
+};
+
+const styles = StyleSheet.create({
+  historyContainer: {
+    marginTop: 24,
+    flex: 1,
+  },
+  historyTitle: {
+    marginBottom: 12,
+  },
+  historyItem: {
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  jobItem: {
+    backgroundColor: '#eef5ff',
+    borderColor: '#cce0ff',
+    borderWidth: 1,
+  },
+  paymentItem: {
+    backgroundColor: '#e8fff4',
+    borderColor: '#b8eed7',
+    borderWidth: 1,
+  },
+  historyItemText: {
+    fontSize: 14,
+    textTransform: 'capitalize',
+  }
+});
 
