@@ -5,7 +5,7 @@ import { db } from '../../../../core/firebase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Button, StyleSheet, TextInput } from 'react-native';
+import { Alert, Button, Pressable, StyleSheet, TextInput } from 'react-native';
 
 
 export default function EditClientDetailsScreen() {
@@ -130,13 +130,12 @@ export default function EditClientDetailsScreen() {
         placeholder="Account Number"
       />
 
-      <TextInput
-        style={styles.input}
-        value={roundOrderNumber}
-        onChangeText={setRoundOrderNumber}
-        placeholder="Round Order Number"
-        keyboardType="numeric"
-      />
+      <ThemedText style={styles.label}>Round Order</ThemedText>
+      <Pressable style={styles.roundOrderButton} onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}>
+        <ThemedText style={styles.roundOrderButtonText}>
+          Change Round Order (Currently: {roundOrderNumber})
+        </ThemedText>
+      </Pressable>
 
       <TextInput
         style={styles.input}
@@ -170,5 +169,21 @@ const styles = StyleSheet.create({
     padding: 12,
     marginVertical: 10,
     borderRadius: 8,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginTop: 10,
+  },
+  roundOrderButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  roundOrderButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 });

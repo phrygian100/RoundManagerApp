@@ -20,24 +20,21 @@ const VISIBLE_ITEMS = 7;
 
 export default function RoundOrderManagerScreen() {
   const router = useRouter();
-  const { newClientData } = useLocalSearchParams();
+  const { newClientData, editingClientId } = useLocalSearchParams();
   const [clients, setClients] = useState<ClientWithPosition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [newClientPosition, setNewClientPosition] = useState(1);
-  const [newClient, setNewClient] = useState<Client | null>(null);
+  const [position, setPosition] = useState(1);
+  const [activeClient, setActiveClient] = useState<Client | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
   useEffect(() => {
     const loadClients = async () => {
       try {
         setLoading(true);
+        let initialPosition = 1;
+        let clientsList: ClientWithPosition[] = [];
+        let activeClientData: Client | null = null;
         
-        // Parse the new client data
-        if (newClientData) {
-          const parsedData = JSON.parse(newClientData as string);
-          setNewClient(parsedData);
-        }
-
         // Get all active clients ordered by round order
         const clientsQuery = query(
           collection(db, 'clients'),
@@ -45,14 +42,34 @@ export default function RoundOrderManagerScreen() {
         );
         const clientsSnapshot = await getDocs(clientsQuery);
         
-        const existingClients: ClientWithPosition[] = clientsSnapshot.docs.map(doc => ({
+        const allClients: ClientWithPosition[] = clientsSnapshot.docs.map(doc => ({
           ...doc.data(),
           id: doc.id,
           displayPosition: doc.data().roundOrderNumber || 0,
         })) as ClientWithPosition[];
 
-        setClients(existingClients);
-        setNewClientPosition(1);
+        if (newClientData) {
+          // CREATE MODE
+          activeClientData = JSON.parse(newClientData as string);
+          clientsList = allClients;
+        } else if (typeof editingClientId === 'string') {
+          // EDIT MODE
+          const clientToEdit = allClients.find(c => c.id === editingClientId);
+          if (clientToEdit) {
+            activeClientData = clientToEdit;
+            // Exclude the client being edited from the list
+            clientsList = allClients.filter(c => c.id !== editingClientId);
+            initialPosition = clientToEdit.roundOrderNumber;
+          } else {
+            // Fallback if client not found
+            clientsList = allClients;
+          }
+        }
+        
+        setClients(clientsList);
+        setActiveClient(activeClientData);
+        setPosition(initialPosition);
+
       } catch (error) {
         console.error('Error loading clients:', error);
         Alert.alert('Error', 'Failed to load clients.');
@@ -62,12 +79,13 @@ export default function RoundOrderManagerScreen() {
     };
 
     loadClients();
-  }, [newClientData]);
+  }, [newClientData, editingClientId]);
 
-  const handlePositionChange = (position: number) => {
-    const newPosition = Math.max(1, Math.min(clients.length + 1, position));
-    if (newPosition !== newClientPosition) {
-      setNewClientPosition(newPosition);
+  const handlePositionChange = (newPosition: number) => {
+    const maxPosition = clients.length + 1;
+    const clampedPosition = Math.max(1, Math.min(maxPosition, newPosition));
+    if (clampedPosition !== position) {
+      setPosition(clampedPosition);
     }
   };
 
@@ -75,7 +93,7 @@ export default function RoundOrderManagerScreen() {
     try {
       setLoading(true);
       
-      if (!newClient) {
+      if (!activeClient) {
         Alert.alert('Error', 'No client data available.');
         return;
       }
@@ -85,47 +103,48 @@ export default function RoundOrderManagerScreen() {
       
       // Create new client list with the new client inserted at the selected position
       const updatedClients = [...clients];
-      updatedClients.splice(newClientPosition - 1, 0, { 
-        ...newClient, 
+      updatedClients.splice(position - 1, 0, { 
+        ...activeClient, 
         isNewClient: true,
-        displayPosition: newClientPosition 
+        displayPosition: position 
       });
       
       // Update round order numbers for all clients
       updatedClients.forEach((client, index) => {
-        if (client.id) { // Only update existing clients
+        if (client.id) {
           const clientRef = doc(db, 'clients', client.id);
           batch.update(clientRef, { roundOrderNumber: index + 1 });
         }
       });
       
-      await batch.commit();
-      
-      // Now create the new client with the selected round order position
-      const clientRef = await addDoc(collection(db, 'clients'), {
-        ...newClient,
-        roundOrderNumber: newClientPosition,
-        status: 'active',
-      });
+      if (newClientData) {
+        // If it's a new client, we still need to add it to the database
+        const clientToAdd = updatedClients.find(c => 'isNewClient' in c && c.isNewClient);
+        if(clientToAdd) {
+            const {id, isNewClient, displayPosition, ...clientData} = clientToAdd;
+            const clientRef = await addDoc(collection(db, 'clients'), {
+                ...clientData,
+                roundOrderNumber: position,
+                status: 'active',
+            });
 
-      console.log('Client created with ID:', clientRef.id);
-
-      // Create jobs for the new client (only for recurring clients, not one-off)
-      if (newClient.frequency !== 'one-off') {
-        try {
-          const jobsCreated = await createJobsForClient(clientRef.id, 8);
-          console.log(`Created ${jobsCreated} jobs for new client`);
-        } catch (jobError) {
-          console.error('Error creating jobs for new client:', jobError);
-          // Don't fail the client creation if job creation fails
+            if (clientData.frequency !== 'one-off') {
+                await createJobsForClient(clientRef.id, 8);
+            }
         }
       }
 
-      // Clear any stored round order data
+      await batch.commit();
+
+      // Clear any stored round order data (from old flows)
       await AsyncStorage.removeItem('selectedRoundOrder');
       
-      // Navigate back to clients list
-      router.push('/clients');
+      // Navigate back to clients list or client details
+      if (editingClientId) {
+        router.back();
+      } else {
+        router.push('/clients');
+      }
       
     } catch (error) {
       console.error('Error creating client:', error);
@@ -156,9 +175,9 @@ export default function RoundOrderManagerScreen() {
 
   // Create the display list with new client inserted
   const displayList = [
-    ...clients.slice(0, newClientPosition - 1),
-    { ...newClient!, isNewClient: true, displayPosition: newClientPosition },
-    ...clients.slice(newClientPosition - 1)
+    ...clients.slice(0, position - 1),
+    { ...activeClient!, isNewClient: true, displayPosition: position },
+    ...clients.slice(position - 1)
   ].map((client, index) => ({...client, displayPosition: index + 1}));
 
   const onScroll = (event: any) => {
@@ -179,7 +198,7 @@ export default function RoundOrderManagerScreen() {
     <ThemedView style={styles.container}>
       <ThemedText type="title">Round Order Manager</ThemedText>
       <ThemedText style={styles.subtitle}>
-        Position your new client in the round order
+        {newClientData ? 'Position your new client' : 'Change client position'}
       </ThemedText>
 
       <View style={styles.instructions}>
@@ -199,12 +218,12 @@ export default function RoundOrderManagerScreen() {
           <FlatList
             data={displayList}
             renderItem={({item, index}) => {
-              const isSelected = index === newClientPosition -1;
+              const isSelected = index === position -1;
               return (
                 <View style={[styles.clientItem, isSelected && styles.newClientItem]}>
                    <Text style={styles.positionText}>{index + 1}</Text>
                    <Text style={[styles.addressText, isSelected && styles.newClientText]}>
-                    {'isNewClient' in item && item.isNewClient ? "NEW CLIENT" : item.address1 || item.address}
+                    {'isNewClient' in item && item.isNewClient ? (activeClient?.name || "NEW CLIENT") : item.address1 || item.address}
                    </Text>
                 </View>
               )
