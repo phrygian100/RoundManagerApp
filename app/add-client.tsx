@@ -1,8 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -25,6 +27,8 @@ export default function AddClientScreen() {
   const [mondayOptions, setMondayOptions] = useState<string[]>([]);
   const [accountNumber, setAccountNumber] = useState<number | null>(null);
   const [roundOrderNumber, setRoundOrderNumber] = useState<number | null>(null);
+  const [totalClients, setTotalClients] = useState(0);
+  const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -46,17 +50,76 @@ export default function AddClientScreen() {
       }
       setAccountNumber(nextAccountNumber);
 
-      // Fetch next round order number
+      // Get total number of clients to determine round order behavior
       const allClientsSnapshot = await getDocs(collection(db, 'clients'));
-      setRoundOrderNumber(allClientsSnapshot.size + 1);
+      const clientCount = allClientsSnapshot.size;
+      setTotalClients(clientCount);
+      
+      // Show round order button for 3rd client onwards
+      setShowRoundOrderButton(clientCount >= 2);
+      
+      // Set default round order number
+      if (clientCount < 2) {
+        // For first 2 clients, just increment
+        setRoundOrderNumber(clientCount + 1);
+      } else {
+        // For 3rd client onwards, we'll let the user choose position
+        setRoundOrderNumber(null);
+      }
     };
 
     fetchNextNumbers();
   }, []);
 
+  // Check for selected round order when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      const checkSelectedRoundOrder = async () => {
+        try {
+          const selectedPosition = await AsyncStorage.getItem('selectedRoundOrder');
+          if (selectedPosition) {
+            setRoundOrderNumber(Number(selectedPosition));
+            // Clear the stored value
+            await AsyncStorage.removeItem('selectedRoundOrder');
+          }
+        } catch (error) {
+          console.error('Error checking selected round order:', error);
+        }
+      };
+
+      checkSelectedRoundOrder();
+    }, [])
+  );
+
+  const handleRoundOrderPress = () => {
+    // Prepare the new client data
+    const newClientData = {
+      name,
+      address,
+      frequency,
+      nextVisit,
+      mobileNumber,
+      quote: Number(quote),
+      accountNumber,
+      status: 'active',
+    };
+
+    // Navigate to round order manager with the client data
+    router.push({
+      pathname: '/round-order-manager' as any,
+      params: { newClientData: JSON.stringify(newClientData) }
+    });
+  };
+
   const handleSave = async () => {
     if (!name.trim() || !address.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
       Alert.alert('Error', 'Please fill out all fields.');
+      return;
+    }
+
+    // For 3rd client onwards, require round order to be set
+    if (showRoundOrderButton && roundOrderNumber === null) {
+      Alert.alert('Error', 'Please set the round order position for this client.');
       return;
     }
 
@@ -157,11 +220,19 @@ export default function AddClientScreen() {
         />
 
         <ThemedText style={styles.label}>Round Order</ThemedText>
-        <TextInput
-          style={[styles.input, styles.disabledInput]}
-          value={roundOrderNumber ? String(roundOrderNumber) : 'Loading...'}
-          editable={false}
-        />
+        {showRoundOrderButton ? (
+          <Pressable style={styles.roundOrderButton} onPress={handleRoundOrderPress}>
+            <ThemedText style={styles.roundOrderButtonText}>
+              {roundOrderNumber ? `Position ${roundOrderNumber}` : 'Set Round Order Position'}
+            </ThemedText>
+          </Pressable>
+        ) : (
+          <TextInput
+            style={[styles.input, styles.disabledInput]}
+            value={roundOrderNumber ? String(roundOrderNumber) : 'Loading...'}
+            editable={false}
+          />
+        )}
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <Picker
@@ -217,6 +288,20 @@ const styles = StyleSheet.create({
   disabledInput: {
     backgroundColor: '#f0f0f0',
     color: '#999',
+  },
+  roundOrderButton: {
+    height: 50,
+    borderColor: '#007AFF',
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  roundOrderButtonText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   button: {
     backgroundColor: '#007AFF',
