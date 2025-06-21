@@ -146,21 +146,15 @@ export default function ClientDetailScreen() {
     );
   }
 
+  const displayAddress =
+    client.address1 && client.town && client.postcode
+      ? `${client.address1}, ${client.town}, ${client.postcode}`
+      : client.address || 'No address';
+
   return (
     <ThemedView style={{ flex: 1, padding: 20, paddingTop: 40 }}>
-      <ThemedText type="title">Client Details</ThemedText>
+      <ThemedText type="title">{displayAddress}</ThemedText>
       <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-      
-      {/* Handle both old and new address formats */}
-      {client.address1 && client.town && client.postcode ? (
-        <>
-          <ThemedText>Address: {client.address1}</ThemedText>
-          <ThemedText>Town: {client.town}</ThemedText>
-          <ThemedText>Postcode: {client.postcode}</ThemedText>
-        </>
-      ) : (
-        <ThemedText>Address: {client.address || 'No address'}</ThemedText>
-      )}
       
       <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
       <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
