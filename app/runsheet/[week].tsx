@@ -137,7 +137,7 @@ export default function RunsheetWeekScreen() {
         (buttonIndex) => {
           if (buttonIndex === 0) handleNavigate(job.client);
           if (buttonIndex === 1) handleViewDetails(job.client);
-          if (buttonIndex === 2) handleMessageETA(job.client);
+          if (buttonIndex === 2) handleMessageETA(job);
           if (buttonIndex === 3) handleDeleteJob(job.id);
         }
       );
@@ -161,11 +161,17 @@ export default function RunsheetWeekScreen() {
     setActionSheetJob(null);
   };
 
-  const handleMessageETA = (client: Client | null) => {
+  const handleMessageETA = (job: (Job & { client: Client | null })) => {
+    const { client, eta: jobEta } = job;
     if (!client || !client.mobileNumber) return;
+    
+    const etaText = jobEta 
+      ? `Roughly estimated time of arrival: \n${jobEta}` 
+      : 'We will be with you as soon as possible tomorrow.';
+
+    const template = `Hello ${client.name},\n\nCourtesy message to let you know window cleaning is due tomorrow.\n${etaText}\n\nMany thanks,`;
+
     let smsUrl = '';
-    // Template text
-    const template = 'hello';
     if (Platform.OS === 'ios') {
       smsUrl = `sms:${client.mobileNumber}&body=${encodeURIComponent(template)}`;
     } else {
@@ -407,7 +413,7 @@ export default function RunsheetWeekScreen() {
           <View style={styles.androidSheet} pointerEvents="box-none">
             <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
             <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
-            <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob.client)} />
+            <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
             <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
           </View>
         </Pressable>
