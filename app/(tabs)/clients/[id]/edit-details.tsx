@@ -13,9 +13,9 @@ export default function EditClientDetailsScreen() {
   const router = useRouter();
 
   const [name, setName] = useState('');
-  const [address1, setAddress1] = useState('');
   const [town, setTown] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [address, setAddress] = useState(''); // For old address format
   const [accountNumber, setAccountNumber] = useState('');
   const [roundOrderNumber, setRoundOrderNumber] = useState('');
   const [quote, setQuote] = useState('');
@@ -30,9 +30,9 @@ export default function EditClientDetailsScreen() {
         if (docSnap.exists()) {
           const data = docSnap.data();
           setName(data.name || '');
-          setAddress1(data.address1 || '');
           setTown(data.town || '');
           setPostcode(data.postcode || '');
+          setAddress(data.address || '');
           setAccountNumber(data.accountNumber || '');
           setRoundOrderNumber(data.roundOrderNumber ? String(data.roundOrderNumber) : '');
           setQuote(data.quote !== undefined ? String(data.quote) : '');
@@ -46,22 +46,38 @@ export default function EditClientDetailsScreen() {
   }, [id]);
 
   const handleSave = async () => {
-    if (!name.trim() || !address1.trim() || !town.trim() || !postcode.trim() || !accountNumber.trim() || !roundOrderNumber.trim() || !quote.trim() || !mobileNumber.trim()) {
-      Alert.alert('Error', 'Please fill out all fields.');
+    // Check if we have either new format (address1 + town + postcode) or old format (address)
+    const hasNewFormat = town.trim() && postcode.trim();
+    const hasOldFormat = address.trim();
+    
+    if (!name.trim() || (!hasNewFormat && !hasOldFormat) || !accountNumber.trim() || !roundOrderNumber.trim() || !quote.trim() || !mobileNumber.trim()) {
+      Alert.alert('Error', 'Please fill out all required fields. You need either the new address format (Address, Town, Postcode) or the old address format.');
       return;
     }
 
     if (typeof id === 'string') {
-      await updateDoc(doc(db, 'clients', id), {
+      const updateData: any = {
         name,
-        address1,
-        town,
-        postcode,
         accountNumber,
         roundOrderNumber: Number(roundOrderNumber),
         quote: Number(quote),
         mobileNumber,
-      });
+      };
+
+      // Use new format if provided, otherwise use old format
+      if (hasNewFormat) {
+        updateData.town = town;
+        updateData.postcode = postcode;
+        // Clear old address if using new format
+        updateData.address = '';
+      } else {
+        updateData.address = address;
+        // Clear new format fields if using old format
+        updateData.town = '';
+        updateData.postcode = '';
+      }
+
+      await updateDoc(doc(db, 'clients', id), updateData);
       router.replace({ pathname: '/(tabs)/clients/[id]', params: { id } });
     }
   };
@@ -87,13 +103,6 @@ export default function EditClientDetailsScreen() {
 
       <TextInput
         style={styles.input}
-        value={address1}
-        onChangeText={setAddress1}
-        placeholder="Address (1st line)"
-      />
-
-      <TextInput
-        style={styles.input}
         value={town}
         onChangeText={setTown}
         placeholder="Town"
@@ -104,6 +113,13 @@ export default function EditClientDetailsScreen() {
         value={postcode}
         onChangeText={setPostcode}
         placeholder="Postcode"
+      />
+
+      <TextInput
+        style={styles.input}
+        value={address}
+        onChangeText={setAddress}
+        placeholder="Address"
       />
 
       <TextInput

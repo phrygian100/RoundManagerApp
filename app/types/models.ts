@@ -29,4 +29,16 @@ export type Job = {
   rating?: number; // client rating for this job
   review?: string;
   paymentStatus: 'unpaid' | 'paid' | 'released';
+};
+
+export type Payment = {
+  id: string;
+  clientId: string;
+  amount: number;
+  date: string; // ISO date string
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other';
+  reference?: string; // payment reference or cheque number
+  notes?: string;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
 }; 

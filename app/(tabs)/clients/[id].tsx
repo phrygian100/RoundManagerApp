@@ -1,7 +1,7 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
@@ -108,11 +108,20 @@ export default function ClientDetailScreen() {
     <ThemedView style={{ flex: 1, padding: 20, paddingTop: 40 }}>
       <ThemedText type="title">Client Details</ThemedText>
       <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-      <ThemedText>Address: {client.address1}</ThemedText>
-      <ThemedText>Town: {client.town}</ThemedText>
-      <ThemedText>Postcode: {client.postcode}</ThemedText>
-      <ThemedText>Account Number: {client.accountNumber}</ThemedText>
-      <ThemedText>Round Order Number: {client.roundOrderNumber}</ThemedText>
+      
+      {/* Handle both old and new address formats */}
+      {client.address1 && client.town && client.postcode ? (
+        <>
+          <ThemedText>Address: {client.address1}</ThemedText>
+          <ThemedText>Town: {client.town}</ThemedText>
+          <ThemedText>Postcode: {client.postcode}</ThemedText>
+        </>
+      ) : (
+        <ThemedText>Address: {client.address || 'No address'}</ThemedText>
+      )}
+      
+      <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
+      <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
       {typeof client.quote === 'number' && !isNaN(client.quote) ? (
         <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
       ) : (

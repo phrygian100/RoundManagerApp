@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -125,8 +125,8 @@ export default function ClientsScreen() {
               Next Visit: {format(parseISO(item.nextVisit), 'd MMMM yyyy')}
             </ThemedText>
           )}
-          {item.roundOrderNumber && (
-            <ThemedText>Round Order: {item.roundOrderNumber}</ThemedText>
+          {item.roundOrderNumber != null && (
+            <ThemedText>Round Order: {String(item.roundOrderNumber)}</ThemedText>
           )}
         </ThemedView>
       </Pressable>
@@ -147,13 +147,17 @@ export default function ClientsScreen() {
       <ThemedView style={styles.headerRow}>
         <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
         <Pressable style={styles.sortButton} onPress={handleSort}>
-          <Ionicons name="funnel" size={20} color="#666" style={styles.sortIcon} />
+          <View style={styles.sortIcon}>
+            <Ionicons name="funnel" size={20} color="#666" />
+          </View>
           <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
         </Pressable>
       </ThemedView>
       <ThemedView style={styles.searchRow}>
         <ThemedView style={styles.searchContainer}>
-          <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+          <View style={styles.searchIcon}>
+            <Ionicons name="search" size={20} color="#666" />
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Search clients..."

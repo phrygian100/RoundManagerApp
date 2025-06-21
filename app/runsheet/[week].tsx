@@ -315,7 +315,7 @@ export default function RunsheetWeekScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>{weekTitle}</Text>
       <Button title="Home" onPress={() => router.replace('/')} />
-      <Text>Debug: {jobs.length} jobs</Text>
+      <Text>Debug: {String(jobs.length)} jobs</Text>
       {loading ? (
         <ActivityIndicator size="large" />
       ) : (

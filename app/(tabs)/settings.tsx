@@ -220,7 +220,7 @@ export default function SettingsScreen() {
         <Button title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
       </View>
       <View style={styles.buttonContainer}>
-        <Button title={loading ? loadingMessage : 'Repair Client Order'} onPress={handleRepairClients} disabled={loading} />
+        <Button title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'} onPress={handleRepairClients} disabled={loading} />
       </View>
       <View style={styles.buttonContainer}>
         <Button title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
