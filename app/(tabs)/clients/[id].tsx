@@ -1,12 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
-import { db } from 'core/firebase';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { deleteDoc, doc, getDoc } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, View } from 'react-native';
-import type { Client } from 'types/client';
+import { ThemedText } from '../../../components/ThemedText';
+import { ThemedView } from '../../../components/ThemedView';
+import { db } from '../../../core/firebase';
+import type { Client } from '../../../types/client';
 
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams();

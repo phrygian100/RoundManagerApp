@@ -1,6 +1,6 @@
-import { getUserProfile, updateUserProfile } from 'app/services/userService';
-import type { User } from 'app/types/models';
 import { useState } from 'react';
+import { getUserProfile, updateUserProfile } from '../services/userService';
+import type { User } from '../types/models';
 
 export function useUser(initialUser: User | null = null) {
   const [user, setUser] = useState<User | null>(initialUser);

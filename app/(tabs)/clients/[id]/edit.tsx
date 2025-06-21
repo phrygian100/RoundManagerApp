@@ -1,12 +1,12 @@
 import { Picker } from '@react-native-picker/picker';
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
-import { db } from 'core/firebase';
 import { addWeeks, format, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Alert, Button, StyleSheet, TextInput } from 'react-native';
+import { ThemedText } from '../../../../components/ThemedText';
+import { ThemedView } from '../../../../components/ThemedView';
+import { db } from '../../../../core/firebase';
 
 export default function EditClientScreen() {
   const { id } = useLocalSearchParams();

@@ -1,8 +1,8 @@
-import type { Job } from 'app/types/models';
-import { db } from 'core/firebase';
 import { addWeeks, format, isBefore, parseISO } from 'date-fns';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
+import type { Job } from '../types/models';
 
 const JOBS_COLLECTION = 'jobs';
 
@@ -49,33 +49,30 @@ export async function generateRecurringJobs() {
   const querySnapshot = await getDocs(collection(db, 'clients'));
   const today = new Date();
   const jobsRef = collection(db, 'jobs');
-  const allJobsSnapshot = await getDocs(jobsRef);
-  const allJobs = allJobsSnapshot.docs.map(doc => doc.data());
+  
   const jobsToCreate: any[] = [];
   querySnapshot.forEach((docSnap) => {
     const client: any = { id: docSnap.id, ...docSnap.data() };
     if (!client.nextVisit || !client.frequency || client.frequency === 'one-off') return;
     let visitDate = parseISO(client.nextVisit);
-    for (let i = 0; i < 52; i++) {
+    for (let i = 0; i < 8; i++) { // Generate for 8 weeks
       if (isBefore(visitDate, today)) {
         visitDate = addWeeks(visitDate, Number(client.frequency));
         continue;
       }
       const weekStr = format(visitDate, 'yyyy-MM-dd');
-      // Only create if this client does not already have a job for this week
-      const alreadyHasJob = allJobs.some((job: any) => job.clientId === client.id && job.scheduledTime && job.scheduledTime.startsWith(weekStr));
-      if (!alreadyHasJob) {
-        jobsToCreate.push({
-          clientId: client.id,
-          providerId: 'test-provider-1',
-          serviceId: 'window-cleaning',
-          propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
-          scheduledTime: weekStr + 'T09:00:00',
-          status: 'pending',
-          price: typeof client.quote === 'number' ? client.quote : 25,
-          paymentStatus: 'unpaid',
-        });
-      }
+
+      jobsToCreate.push({
+        clientId: client.id,
+        providerId: 'test-provider-1',
+        serviceId: 'window-cleaning',
+        propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+        scheduledTime: weekStr + 'T09:00:00',
+        status: 'pending',
+        price: typeof client.quote === 'number' ? client.quote : 25,
+        paymentStatus: 'unpaid',
+      });
+      
       visitDate = addWeeks(visitDate, Number(client.frequency));
     }
   });

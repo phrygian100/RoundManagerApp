@@ -1,6 +1,6 @@
-import type { User } from 'app/types/models';
-import { db } from 'core/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../core/firebase';
+import type { User } from '../types/models';
 
 const USERS_COLLECTION = 'users';
 

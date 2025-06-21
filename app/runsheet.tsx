@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { db } from 'core/firebase';
 import { addDays, addWeeks, endOfWeek, format, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { db } from '../core/firebase';
 import type { Client } from '../types/client';
 import { getClientById, getJobsForWeek, updateJobStatus } from './services/jobService';
 import type { Job } from './types/models';

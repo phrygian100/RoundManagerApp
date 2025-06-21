@@ -1,6 +1,6 @@
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
-import { db } from 'core/firebase';
+import { ThemedText } from '../../../../components/ThemedText';
+import { ThemedView } from '../../../../components/ThemedView';
+import { db } from '../../../../core/firebase';
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';

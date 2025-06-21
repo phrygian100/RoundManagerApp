@@ -1,6 +1,6 @@
-import { getJobsForProvider, updateJobStatus } from 'app/services/jobService';
-import type { Job } from 'app/types/models';
 import { useState } from 'react';
+import { getJobsForProvider, updateJobStatus } from '../services/jobService';
+import type { Job } from '../types/models';
 
 export function useProviderJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);

@@ -1,11 +1,11 @@
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
-import { db } from 'core/firebase';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet } from 'react-native';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
+import { db } from '../core/firebase';
 import type { Client } from './types/client';
 
 export default function ClientsScreen() {

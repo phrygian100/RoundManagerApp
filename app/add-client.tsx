@@ -1,12 +1,12 @@
 import { Picker } from '@react-native-picker/picker';
-import { ThemedText } from 'components/ThemedText';
-import { ThemedView } from 'components/ThemedView';
-import { db } from 'core/firebase';
 import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { addDoc, collection } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
+import { db } from '../core/firebase';
 
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -44,6 +44,7 @@ export default function AddClientScreen() {
       frequencyValue = 'one-off';
     } else {
       frequencyValue = Number(frequency);
+
       if (isNaN(frequencyValue) || frequencyValue <= 0) {
         Alert.alert('Error', 'Frequency must be 4, 8, or one-off.');
         return;

@@ -1,12 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { db } from 'core/firebase';
-import { addDays, endOfWeek, format, parseISO, startOfWeek } from 'date-fns';
+import { addDays, endOfWeek, format, isThisWeek, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
-import { getClientById, getJobsForWeek, updateJobStatus } from '../services/jobService';
+import { getJobsForWeek, updateJobStatus } from '../services/jobService';
 import type { Job } from '../types/models';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -17,6 +17,7 @@ export default function RunsheetWeekScreen() {
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
+  const [isCurrentWeek, setIsCurrentWeek] = useState(false);
   const router = useRouter();
 
   // Parse week param
@@ -24,18 +25,47 @@ export default function RunsheetWeekScreen() {
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
 
   useEffect(() => {
+    setIsCurrentWeek(isThisWeek(weekStart, { weekStartsOn: 1 }));
     const fetchJobsAndClients = async () => {
       setLoading(true);
       const startDate = format(weekStart, 'yyyy-MM-dd');
       const endDate = format(weekEnd, 'yyyy-MM-dd');
+      
+      // 1. Fetch all jobs for the week
       const jobsForWeek = await getJobsForWeek(startDate, endDate);
-      // Fetch all clients in parallel
-      const jobsWithClients = await Promise.all(
-        jobsForWeek.map(async (job) => {
-          const client = await getClientById(job.clientId);
-          return { ...job, client };
-        })
+      if (jobsForWeek.length === 0) {
+        setJobs([]);
+        setLoading(false);
+        return;
+      }
+
+      // 2. Get unique client IDs from the jobs
+      const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+      
+      // 3. Fetch all required clients in batched queries (Firestore 'in' query limit is 30)
+      const clientChunks = [];
+      for (let i = 0; i < clientIds.length; i += 30) {
+          clientChunks.push(clientIds.slice(i, i + 30));
+      }
+      
+      const clientsMap = new Map<string, Client>();
+      const clientPromises = clientChunks.map(chunk => 
+        getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
       );
+      const clientSnapshots = await Promise.all(clientPromises);
+      
+      clientSnapshots.forEach(snapshot => {
+        snapshot.forEach(docSnap => {
+          clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+        });
+      });
+      
+      // 4. Map clients back to their jobs
+      const jobsWithClients = jobsForWeek.map(job => ({
+        ...job,
+        client: clientsMap.get(job.clientId) || null,
+      }));
+
       setJobs(jobsWithClients);
       setLoading(false);
     };
