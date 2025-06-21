@@ -32,6 +32,7 @@ export default function AddClientScreen() {
   const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [hasManualRoundOrder, setHasManualRoundOrder] = useState(false);
+  const [isReturningFromRoundOrder, setIsReturningFromRoundOrder] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -105,30 +106,38 @@ export default function AddClientScreen() {
   // Check for selected round order when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('Add client screen focused');
-      const checkSelectedRoundOrder = async () => {
-        try {
-          const selectedPosition = await AsyncStorage.getItem('selectedRoundOrder');
-          console.log('Selected round order from storage:', selectedPosition);
-          if (selectedPosition) {
-            setRoundOrderNumber(Number(selectedPosition));
-            setHasManualRoundOrder(true);
-            // Clear the stored value
-            await AsyncStorage.removeItem('selectedRoundOrder');
-            console.log('Cleared selected round order from storage');
+      console.log('Add client screen focused, isReturningFromRoundOrder:', isReturningFromRoundOrder);
+      
+      // Only check for round order selection if we're returning from round order manager
+      if (isReturningFromRoundOrder) {
+        const checkSelectedRoundOrder = async () => {
+          try {
+            const selectedPosition = await AsyncStorage.getItem('selectedRoundOrder');
+            console.log('Selected round order from storage:', selectedPosition);
+            if (selectedPosition) {
+              setRoundOrderNumber(Number(selectedPosition));
+              setHasManualRoundOrder(true);
+              // Clear the stored value
+              await AsyncStorage.removeItem('selectedRoundOrder');
+              console.log('Cleared selected round order from storage');
+            }
+            // Reset the flag
+            setIsReturningFromRoundOrder(false);
+          } catch (error) {
+            console.error('Error checking selected round order:', error);
+            setIsReturningFromRoundOrder(false);
           }
-        } catch (error) {
-          console.error('Error checking selected round order:', error);
-        }
-      };
+        };
 
-      // Always check for round order selection when screen focuses
-      // This ensures we get the selected position when returning from round order manager
-      checkSelectedRoundOrder();
-    }, [])
+        checkSelectedRoundOrder();
+      }
+    }, [isReturningFromRoundOrder])
   );
 
   const handleRoundOrderPress = () => {
+    // Set flag to indicate we're going to round order manager
+    setIsReturningFromRoundOrder(true);
+    
     // Prepare the new client data
     const newClientData = {
       name,
