@@ -7,6 +7,7 @@ import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-nativ
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { createJobsForClient } from './services/jobService';
 
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -78,7 +79,8 @@ export default function AddClientScreen() {
     }
 
     try {
-      await addDoc(collection(db, 'clients'), {
+      // Create the client first
+      const clientRef = await addDoc(collection(db, 'clients'), {
         name,
         address,
         frequency: frequencyValue,
@@ -89,8 +91,21 @@ export default function AddClientScreen() {
         roundOrderNumber,
         status: 'active',
       });
+
+      // Create jobs for the new client (only for recurring clients, not one-off)
+      if (frequencyValue !== 'one-off') {
+        try {
+          const jobsCreated = await createJobsForClient(clientRef.id, 8);
+          console.log(`Created ${jobsCreated} jobs for new client`);
+        } catch (jobError) {
+          console.error('Error creating jobs for new client:', jobError);
+          // Don't fail the client creation if job creation fails
+        }
+      }
+
       router.back();
     } catch (e) {
+      console.error('Error saving client:', e);
       Alert.alert('Error', 'Could not save client.');
     }
   };
@@ -100,20 +115,20 @@ export default function AddClientScreen() {
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
         <ThemedText type="title">Add New Client</ThemedText>
 
-        <ThemedText style={styles.label}>Name</ThemedText>
-        <TextInput
-          value={name}
-          onChangeText={setName}
-          style={styles.input}
-          placeholder="John Smith"
-        />
-
         <ThemedText style={styles.label}>Address</ThemedText>
         <TextInput
           value={address}
           onChangeText={setAddress}
           style={styles.input}
           placeholder="123 Oak Avenue"
+        />
+
+        <ThemedText style={styles.label}>Name</ThemedText>
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          style={styles.input}
+          placeholder="John Smith"
         />
 
         <ThemedText style={styles.label}>Mobile Number</ThemedText>

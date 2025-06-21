@@ -1,4 +1,4 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../core/firebase';
 import type { Payment } from '../types/models';
 
@@ -52,4 +52,20 @@ export async function getPaymentsByDateRange(startDate: string, endDate: string)
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+}
+
+export async function deleteAllPayments(): Promise<void> {
+  const paymentsRef = collection(db, PAYMENTS_COLLECTION);
+  const querySnapshot = await getDocs(paymentsRef);
+  
+  if (querySnapshot.empty) {
+    return;
+  }
+  
+  const batch = writeBatch(db);
+  querySnapshot.forEach((doc) => {
+    batch.delete(doc.ref);
+  });
+  
+  await batch.commit();
 } 

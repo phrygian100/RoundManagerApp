@@ -1,12 +1,17 @@
 import * as DocumentPicker from 'expo-document-picker';
+import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, View } from 'react-native';
+import { Alert, Button, StyleSheet, View } from 'react-native';
+import { ThemedText } from '../../components/ThemedText';
+import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
 import { generateRecurringJobs } from '../services/jobService';
+import { deleteAllPayments } from '../services/paymentService';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState('');
 
@@ -136,6 +141,32 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleDeleteAllPayments = () => {
+    Alert.alert(
+      'Delete All Payments',
+      'This will permanently delete all payment records. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              await deleteAllPayments();
+              Alert.alert('Success', 'All payments have been deleted.');
+            } catch (error) {
+              console.error('Error deleting payments:', error);
+              Alert.alert('Error', 'Could not delete payments.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleGenerateJobs = async () => {
     Alert.alert(
       'Generate Recurring Jobs',
@@ -162,73 +193,26 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleRepairClients = async () => {
-    setLoading(true);
-    setLoadingMessage('Repairing client data...');
-    try {
-      const clientsRef = collection(db, 'clients');
-      const querySnapshot = await getDocs(clientsRef);
-      
-      const BATCH_SIZE = 450;
-      const batches: any[] = [writeBatch(db)];
-      let currentBatchIndex = 0;
-      let writeCountInCurrentBatch = 0;
-      let totalUpdates = 0;
-
-      querySnapshot.docs.forEach((docSnap, index) => {
-        const client = docSnap.data();
-        if (typeof client.roundOrderNumber !== 'number') {
-          if (writeCountInCurrentBatch === BATCH_SIZE) {
-            batches.push(writeBatch(db));
-            currentBatchIndex++;
-            writeCountInCurrentBatch = 0;
-          }
-          batches[currentBatchIndex].update(docSnap.ref, { roundOrderNumber: index });
-          writeCountInCurrentBatch++;
-          totalUpdates++;
-        }
-      });
-
-      if (totalUpdates > 0) {
-        for (const batch of batches) {
-          await batch.commit();
-        }
-        Alert.alert('Repair Complete', `${totalUpdates} clients were repaired.`);
-      } else {
-        Alert.alert('Repair Complete', 'No client data needed repair.');
-      }
-
-    } catch (error) {
-      console.error('Error repairing clients:', error);
-      Alert.alert('Error', 'Could not repair client data.');
-    } finally {
-      setLoading(false);
-      setLoadingMessage('');
-    }
-  };
-
-  const handleDeleteAllPayments = () => {
+  const handleWeeklyRollover = async () => {
     Alert.alert(
-      'Delete All Payments',
-      'Are you sure you want to delete ALL payment records? This action cannot be undone.',
+      'Weekly Rollover',
+      'This will simulate the weekly rollover process:\n\n1. Move completed jobs from last week to "accounted"\n2. Create jobs for the new week (8 weeks ahead)\n\nThis is normally automated but can be triggered manually for testing.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete All',
-          style: 'destructive',
+          text: 'Run Rollover',
+          style: 'default',
           onPress: async () => {
             setLoading(true);
             try {
-              const paymentsSnapshot = await getDocs(collection(db, 'payments'));
-              const batch = writeBatch(db);
-              paymentsSnapshot.forEach((doc) => {
-                batch.delete(doc.ref);
-              });
-              await batch.commit();
-              Alert.alert('Success', 'All payments have been deleted.');
+              const result = await handleWeeklyRollover();
+              Alert.alert(
+                'Weekly Rollover Complete', 
+                `Jobs accounted: ${result.jobsAccounted}\nJobs created: ${result.jobsCreated}`
+              );
             } catch (error) {
-              console.error('Error deleting payments:', error);
-              Alert.alert('Error', 'Could not delete all payments.');
+              console.error('Error in weekly rollover:', error);
+              Alert.alert('Error', 'Could not complete weekly rollover.');
             } finally {
               setLoading(false);
             }
@@ -238,46 +222,118 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleRepairClients = async () => {
+    Alert.alert(
+      'Repair Client Data',
+      'This will attempt to repair any corrupted client data.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Repair',
+          style: 'default',
+          onPress: async () => {
+            setLoading(true);
+            setLoadingMessage('Repairing client data...');
+            try {
+              const clientsRef = collection(db, 'clients');
+              const querySnapshot = await getDocs(clientsRef);
+              
+              const BATCH_SIZE = 450;
+              const batches: any[] = [writeBatch(db)];
+              let currentBatchIndex = 0;
+              let writeCountInCurrentBatch = 0;
+              let totalUpdates = 0;
+
+              querySnapshot.docs.forEach((docSnap, index) => {
+                const client = docSnap.data();
+                if (typeof client.roundOrderNumber !== 'number') {
+                  if (writeCountInCurrentBatch === BATCH_SIZE) {
+                    batches.push(writeBatch(db));
+                    currentBatchIndex++;
+                    writeCountInCurrentBatch = 0;
+                  }
+                  batches[currentBatchIndex].update(docSnap.ref, { roundOrderNumber: index });
+                  writeCountInCurrentBatch++;
+                  totalUpdates++;
+                }
+              });
+
+              if (totalUpdates > 0) {
+                for (const batch of batches) {
+                  await batch.commit();
+                }
+                Alert.alert('Repair Complete', `${totalUpdates} clients were repaired.`);
+              } else {
+                Alert.alert('Repair Complete', 'No client data needed repair.');
+              }
+
+            } catch (error) {
+              console.error('Error repairing clients:', error);
+              Alert.alert('Error', 'Could not repair client data.');
+            } finally {
+              setLoading(false);
+              setLoadingMessage('');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Settings</Text>
+    <ThemedView style={styles.container}>
+      <ThemedText type="title">Settings</ThemedText>
+      <Button title="Home" onPress={() => router.replace('/')} />
+      
       <View style={styles.buttonContainer}>
         <Button title="Import Clients from CSV" onPress={handleImport} />
       </View>
+
       <View style={styles.buttonContainer}>
-        <Button title={loading ? 'Generating...' : 'Generate Recurring Jobs'} onPress={handleGenerateJobs} disabled={loading} />
+        <Button
+          title={loading ? "Loading..." : "Generate Recurring Jobs"}
+          onPress={handleGenerateJobs}
+          disabled={loading}
+        />
       </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title={loading ? "Loading..." : "Weekly Rollover (Test)"}
+          onPress={handleWeeklyRollover}
+          disabled={loading}
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title={loading ? "Loading..." : "Delete All Payments"}
+          onPress={handleDeleteAllPayments}
+          disabled={loading}
+          color="red"
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'}
+          onPress={handleRepairClients}
+          disabled={loading}
+        />
+      </View>
+
       <View style={styles.buttonContainer}>
         <Button title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
       </View>
-      <View style={styles.buttonContainer}>
-        <Button title="Delete All Payments" color="red" onPress={handleDeleteAllPayments} />
-      </View>
-      <View style={styles.buttonContainer}>
-        <Button title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'} onPress={handleRepairClients} disabled={loading} />
-      </View>
+
       <View style={styles.buttonContainer}>
         <Button title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
       </View>
-    </View>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 32,
-  },
-  buttonContainer: {
-    marginVertical: 10,
-    width: '80%',
-  }
+  container: { flex: 1, padding: 24, paddingTop: 60 },
+  buttonContainer: { marginVertical: 8 },
 }); 
