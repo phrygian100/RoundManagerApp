@@ -1,10 +1,8 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
-import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -31,8 +29,6 @@ export default function AddClientScreen() {
   const [totalClients, setTotalClients] = useState(0);
   const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [hasManualRoundOrder, setHasManualRoundOrder] = useState(false);
-  const [isReturningFromRoundOrder, setIsReturningFromRoundOrder] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -79,20 +75,10 @@ export default function AddClientScreen() {
           setShowRoundOrderButton(shouldShowRoundOrderButton);
           console.log('Should show round order button:', shouldShowRoundOrderButton);
           
-          // Set default round order number
+          // Set default round order number for first 2 clients
           if (clientCount < 2) {
-            // For first 2 clients, just increment
             setRoundOrderNumber(clientCount + 1);
             console.log('Set round order to:', clientCount + 1);
-          } else {
-            // For 3rd client onwards, we'll let the user choose position
-            // Only set to null if we don't already have a manually selected position
-            if (!hasManualRoundOrder) {
-              setRoundOrderNumber(null);
-              console.log('Round order set to null (user will choose)');
-            } else {
-              console.log('Keeping manual round order selection:', roundOrderNumber);
-            }
           }
         }
       } catch (error) {
@@ -102,60 +88,6 @@ export default function AddClientScreen() {
 
     fetchNextNumbers();
   }, []);
-
-  // Check for selected round order when screen comes into focus
-  useFocusEffect(
-    useCallback(() => {
-      console.log('Add client screen focused, isReturningFromRoundOrder:', isReturningFromRoundOrder);
-      
-      // Only check for round order selection if we're returning from round order manager
-      if (isReturningFromRoundOrder) {
-        const checkSelectedRoundOrder = async () => {
-          try {
-            const selectedPosition = await AsyncStorage.getItem('selectedRoundOrder');
-            console.log('Selected round order from storage:', selectedPosition);
-            if (selectedPosition) {
-              setRoundOrderNumber(Number(selectedPosition));
-              setHasManualRoundOrder(true);
-              // Clear the stored value
-              await AsyncStorage.removeItem('selectedRoundOrder');
-              console.log('Cleared selected round order from storage');
-            }
-            // Reset the flag
-            setIsReturningFromRoundOrder(false);
-          } catch (error) {
-            console.error('Error checking selected round order:', error);
-            setIsReturningFromRoundOrder(false);
-          }
-        };
-
-        checkSelectedRoundOrder();
-      }
-    }, [isReturningFromRoundOrder])
-  );
-
-  const handleRoundOrderPress = () => {
-    // Set flag to indicate we're going to round order manager
-    setIsReturningFromRoundOrder(true);
-    
-    // Prepare the new client data
-    const newClientData = {
-      name,
-      address,
-      frequency,
-      nextVisit,
-      mobileNumber,
-      quote: Number(quote),
-      accountNumber,
-      status: 'active',
-    };
-
-    // Navigate to round order manager with the client data
-    router.push({
-      pathname: '/round-order-manager' as any,
-      params: { newClientData: JSON.stringify(newClientData) }
-    });
-  };
 
   const handleSave = async () => {
     if (isSaving) {
@@ -168,9 +100,9 @@ export default function AddClientScreen() {
       return;
     }
 
-    // For 3rd client onwards, require round order to be set
-    if (showRoundOrderButton && roundOrderNumber === null) {
-      Alert.alert('Error', 'Please set the round order position for this client.');
+    // For 3rd client onwards, navigate to round order manager instead of saving directly
+    if (showRoundOrderButton) {
+      handleRoundOrderPress();
       return;
     }
 
@@ -232,6 +164,26 @@ export default function AddClientScreen() {
     }
   };
 
+  const handleRoundOrderPress = () => {
+    // Prepare the new client data
+    const newClientData = {
+      name,
+      address,
+      frequency,
+      nextVisit,
+      mobileNumber,
+      quote: Number(quote),
+      accountNumber,
+      status: 'active',
+    };
+
+    // Navigate to round order manager with the client data
+    router.push({
+      pathname: '/round-order-manager' as any,
+      params: { newClientData: JSON.stringify(newClientData) }
+    });
+  };
+
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
@@ -282,7 +234,7 @@ export default function AddClientScreen() {
         {showRoundOrderButton ? (
           <Pressable style={styles.roundOrderButton} onPress={handleRoundOrderPress}>
             <ThemedText style={styles.roundOrderButtonText}>
-              {roundOrderNumber ? `Position ${roundOrderNumber}` : 'Set Round Order Position'}
+              Set Round Order Position
             </ThemedText>
           </Pressable>
         ) : (
@@ -350,6 +302,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     color: '#999',
   },
+  button: {
+    backgroundColor: '#007AFF',
+    marginTop: 32,
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
   roundOrderButton: {
     height: 50,
     borderColor: '#007AFF',
@@ -363,16 +326,5 @@ const styles = StyleSheet.create({
   roundOrderButtonText: {
     color: '#007AFF',
     fontWeight: 'bold',
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    marginTop: 32,
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
-  buttonDisabled: {
-    backgroundColor: '#ccc',
   },
 });
