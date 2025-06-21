@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { addDays, endOfWeek, format, isThisWeek, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
 import { getJobsForWeek, updateJobStatus } from '../services/jobService';
@@ -18,6 +18,7 @@ export default function RunsheetWeekScreen() {
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
+  const [completedDays, setCompletedDays] = useState<string[]>([]);
   const router = useRouter();
 
   // Parse week param
@@ -159,16 +160,54 @@ export default function RunsheetWeekScreen() {
     );
   };
 
+  const isDayComplete = (dayTitle: string) => {
+    const dayJobs = sections.find(section => section.title === dayTitle)?.data || [];
+    return dayJobs.length > 0 && dayJobs.every(job => job.status === 'completed');
+  };
+
+  const handleDayComplete = async (dayTitle: string) => {
+    const dayJobs = sections.find(section => section.title === dayTitle)?.data || [];
+    const completedJobs = dayJobs.filter(job => job.status === 'completed');
+    
+    if (completedJobs.length === 0) return;
+
+    try {
+      // Update job status to 'accounted' to prevent undo
+      const batch = writeBatch(db);
+      completedJobs.forEach(job => {
+        const jobRef = doc(db, 'jobs', job.id);
+        batch.update(jobRef, { status: 'accounted' });
+      });
+      await batch.commit();
+
+      // Update local state
+      setJobs(prev => prev.map(job => 
+        completedJobs.some(completedJob => completedJob.id === job.id) 
+          ? { ...job, status: 'accounted' }
+          : job
+      ));
+
+      // Add day to completed days
+      setCompletedDays(prev => [...prev, dayTitle]);
+
+      Alert.alert('Success', `${completedJobs.length} jobs moved to accounts for ${dayTitle}`);
+    } catch (error) {
+      console.error('Error completing day:', error);
+      Alert.alert('Error', 'Failed to complete day. Please try again.');
+    }
+  };
+
   const renderItem = ({ item, index, section }: any) => {
     const sectionIndex = sections.findIndex(s => s.title === section.title);
     const isCompleted = item.status === 'completed';
+    const isAccounted = item.status === 'accounted';
     const client: any = item.client;
     // Find the first incomplete job in this section
-    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
-    const showCompleteButton = index === firstIncompleteIndex && !isCompleted;
-    const showUndoButton = isCompleted;
+    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed' && job.status !== 'accounted');
+    const showCompleteButton = index === firstIncompleteIndex && !isCompleted && !isAccounted;
+    const showUndoButton = isCompleted && !isAccounted;
     return (
-      <View style={[styles.clientRow, isCompleted && styles.completedRow]}>
+      <View style={[styles.clientRow, (isCompleted || isAccounted) && styles.completedRow]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={styles.addressBlock}>
@@ -181,7 +220,7 @@ export default function RunsheetWeekScreen() {
           </Pressable>
         </View>
         <View style={styles.arrowContainer}>
-          {!isCompleted && (
+          {!isCompleted && !isAccounted && (
             <>
               <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
                 <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
@@ -287,9 +326,19 @@ export default function RunsheetWeekScreen() {
             collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
           }
           renderSectionHeader={({ section: { title, data } }) => (
-            <Pressable onPress={() => toggleDay(title)}>
-              <Text style={styles.sectionHeader}>{title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}</Text>
-            </Pressable>
+            <View style={styles.sectionHeaderContainer}>
+              <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
+                <Text style={styles.sectionHeader}>{title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}</Text>
+              </Pressable>
+              {isDayComplete(title) && !completedDays.includes(title) && (
+                <Pressable 
+                  style={styles.dayCompleteButton} 
+                  onPress={() => handleDayComplete(title)}
+                >
+                  <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+                </Pressable>
+              )}
+            </View>
           )}
           ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
           style={{ flex: 1 }}
@@ -313,7 +362,19 @@ export default function RunsheetWeekScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
-  sectionHeader: { fontSize: 20, fontWeight: 'bold', backgroundColor: '#f0f0f0', paddingVertical: 8, paddingHorizontal: 8, marginTop: 16 },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  sectionHeaderPressable: {
+    flex: 1,
+  },
+  sectionHeader: { fontSize: 20, fontWeight: 'bold' },
   clientRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -393,5 +454,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#555',
     marginBottom: 2,
+  },
+  dayCompleteButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  dayCompleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 }); 

@@ -27,6 +27,11 @@ export default function HomeScreen() {
       disabled: false,
     },
     {
+      label: 'Accounts',
+      onPress: () => router.push('/accounts'),
+      disabled: false,
+    },
+    {
       label: 'Settings',
       onPress: () => router.push('/settings'),
       disabled: false,
