@@ -31,6 +31,7 @@ export default function AddClientScreen() {
   const [totalClients, setTotalClients] = useState(0);
   const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasManualRoundOrder, setHasManualRoundOrder] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -73,7 +74,9 @@ export default function AddClientScreen() {
           setTotalClients(clientCount);
           
           // Show round order button for 3rd client onwards
-          setShowRoundOrderButton(clientCount >= 2);
+          const shouldShowRoundOrderButton = clientCount >= 2;
+          setShowRoundOrderButton(shouldShowRoundOrderButton);
+          console.log('Should show round order button:', shouldShowRoundOrderButton);
           
           // Set default round order number
           if (clientCount < 2) {
@@ -82,8 +85,13 @@ export default function AddClientScreen() {
             console.log('Set round order to:', clientCount + 1);
           } else {
             // For 3rd client onwards, we'll let the user choose position
-            setRoundOrderNumber(null);
-            console.log('Round order set to null (user will choose)');
+            // Only set to null if we don't already have a manually selected position
+            if (!hasManualRoundOrder) {
+              setRoundOrderNumber(null);
+              console.log('Round order set to null (user will choose)');
+            } else {
+              console.log('Keeping manual round order selection:', roundOrderNumber);
+            }
           }
         }
       } catch (error) {
@@ -104,6 +112,7 @@ export default function AddClientScreen() {
           console.log('Selected round order from storage:', selectedPosition);
           if (selectedPosition) {
             setRoundOrderNumber(Number(selectedPosition));
+            setHasManualRoundOrder(true);
             // Clear the stored value
             await AsyncStorage.removeItem('selectedRoundOrder');
             console.log('Cleared selected round order from storage');
@@ -113,12 +122,10 @@ export default function AddClientScreen() {
         }
       };
 
-      // Only check for round order if we're showing the round order button
-      // This prevents unnecessary checks when just navigating back from client creation
-      if (showRoundOrderButton) {
-        checkSelectedRoundOrder();
-      }
-    }, [showRoundOrderButton])
+      // Always check for round order selection when screen focuses
+      // This ensures we get the selected position when returning from round order manager
+      checkSelectedRoundOrder();
+    }, [])
   );
 
   const handleRoundOrderPress = () => {
