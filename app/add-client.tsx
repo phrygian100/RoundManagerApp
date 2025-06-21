@@ -29,6 +29,7 @@ export default function AddClientScreen() {
   const [roundOrderNumber, setRoundOrderNumber] = useState<number | null>(null);
   const [totalClients, setTotalClients] = useState(0);
   const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -74,13 +75,16 @@ export default function AddClientScreen() {
   // Check for selected round order when screen comes into focus
   useFocusEffect(
     useCallback(() => {
+      console.log('Add client screen focused');
       const checkSelectedRoundOrder = async () => {
         try {
           const selectedPosition = await AsyncStorage.getItem('selectedRoundOrder');
+          console.log('Selected round order from storage:', selectedPosition);
           if (selectedPosition) {
             setRoundOrderNumber(Number(selectedPosition));
             // Clear the stored value
             await AsyncStorage.removeItem('selectedRoundOrder');
+            console.log('Cleared selected round order from storage');
           }
         } catch (error) {
           console.error('Error checking selected round order:', error);
@@ -112,6 +116,11 @@ export default function AddClientScreen() {
   };
 
   const handleSave = async () => {
+    if (isSaving) {
+      console.log('Already saving, preventing duplicate submission');
+      return;
+    }
+
     if (!name.trim() || !address.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
       Alert.alert('Error', 'Please fill out all fields.');
       return;
@@ -142,6 +151,9 @@ export default function AddClientScreen() {
     }
 
     try {
+      setIsSaving(true);
+      console.log('Starting client creation...');
+      
       // Create the client first
       const clientRef = await addDoc(collection(db, 'clients'), {
         name,
@@ -155,6 +167,8 @@ export default function AddClientScreen() {
         status: 'active',
       });
 
+      console.log('Client created with ID:', clientRef.id);
+
       // Create jobs for the new client (only for recurring clients, not one-off)
       if (frequencyValue !== 'one-off') {
         try {
@@ -166,10 +180,13 @@ export default function AddClientScreen() {
         }
       }
 
+      console.log('Client creation completed successfully');
       router.back();
     } catch (e) {
       console.error('Error saving client:', e);
       Alert.alert('Error', 'Could not save client.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -261,8 +278,10 @@ export default function AddClientScreen() {
           })}
         </Picker>
 
-        <Pressable style={styles.button} onPress={handleSave}>
-          <ThemedText style={styles.buttonText}>Save Client</ThemedText>
+        <Pressable style={[styles.button, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
+          <ThemedText style={styles.buttonText}>
+            {isSaving ? 'Saving...' : 'Save Client'}
+          </ThemedText>
         </Pressable>
       </ScrollView>
     </ThemedView>
@@ -311,4 +330,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   buttonText: { color: '#FFFFFF', fontSize: 16, fontWeight: 'bold' },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
 });
