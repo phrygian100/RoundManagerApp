@@ -26,11 +26,12 @@ export async function updateJobStatus(jobId: string, status: Job['status']) {
 
 export async function getJobsForWeek(startDate: string, endDate: string): Promise<Job[]> {
   // scheduledTime is an ISO string (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
+  // We need to ensure we capture the full day range
   const jobsRef = collection(db, JOBS_COLLECTION);
   const q = query(
     jobsRef,
-    where('scheduledTime', '>=', startDate),
-    where('scheduledTime', '<=', endDate)
+    where('scheduledTime', '>=', startDate + 'T00:00:00'),
+    where('scheduledTime', '<', endDate + 'T00:00:00')
   );
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));

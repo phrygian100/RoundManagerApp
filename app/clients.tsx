@@ -9,11 +9,14 @@ import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
 
+type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none';
+
 export default function ClientsScreen() {
   const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('none');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,18 +33,71 @@ export default function ClientsScreen() {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredClients(clients);
-    } else {
-      const filtered = clients.filter(client => 
-        client.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.address1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.town?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.postcode?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredClients(filtered);
+    let filtered = clients;
+    
+    // Apply search filter
+    if (searchQuery.trim() !== '') {
+      filtered = clients.filter(client => {
+        const searchTerm = searchQuery.toLowerCase();
+        
+        // Search in name
+        if (client.name?.toLowerCase().includes(searchTerm)) return true;
+        
+        // Search in new address format
+        if (client.address1?.toLowerCase().includes(searchTerm)) return true;
+        if (client.town?.toLowerCase().includes(searchTerm)) return true;
+        if (client.postcode?.toLowerCase().includes(searchTerm)) return true;
+        
+        // Search in old address format
+        if (client.address?.toLowerCase().includes(searchTerm)) return true;
+        
+        // Search in full address string (for partial matches)
+        const fullAddress = client.address1 && client.town && client.postcode 
+          ? `${client.address1}, ${client.town}, ${client.postcode}`.toLowerCase()
+          : client.address?.toLowerCase() || '';
+        
+        if (fullAddress.includes(searchTerm)) return true;
+        
+        return false;
+      });
     }
-  }, [searchQuery, clients]);
+
+    // Apply sorting
+    if (sortBy !== 'none') {
+      filtered = [...filtered].sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            return (a.name || '').localeCompare(b.name || '');
+          case 'nextVisit':
+            const aDate = a.nextVisit ? parseISO(a.nextVisit) : new Date(9999, 11, 31);
+            const bDate = b.nextVisit ? parseISO(b.nextVisit) : new Date(9999, 11, 31);
+            return aDate.getTime() - bDate.getTime();
+          case 'roundOrder':
+            return (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0);
+          default:
+            return 0;
+        }
+      });
+    }
+
+    setFilteredClients(filtered);
+  }, [searchQuery, clients, sortBy]);
+
+  const handleSort = () => {
+    const sortOptions: SortOption[] = ['none', 'name', 'nextVisit', 'roundOrder'];
+    const currentIndex = sortOptions.indexOf(sortBy);
+    const nextIndex = (currentIndex + 1) % sortOptions.length;
+    setSortBy(sortOptions[nextIndex]);
+  };
+
+  const getSortLabel = () => {
+    switch (sortBy) {
+      case 'name': return 'Name';
+      case 'nextVisit': return 'Next Visit';
+      case 'roundOrder': return 'Round Order';
+      default: return 'Sort';
+    }
+  };
 
   const handleClientPress = (clientId: string) => {
     router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientId } } as never);
@@ -69,6 +125,9 @@ export default function ClientsScreen() {
               Next Visit: {format(parseISO(item.nextVisit), 'd MMMM yyyy')}
             </ThemedText>
           )}
+          {item.roundOrderNumber && (
+            <ThemedText>Round Order: {item.roundOrderNumber}</ThemedText>
+          )}
         </ThemedView>
       </Pressable>
     );
@@ -87,6 +146,12 @@ export default function ClientsScreen() {
       <ThemedText type="title" style={styles.title}>Clients</ThemedText>
       <ThemedView style={styles.headerRow}>
         <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
+        <Pressable style={styles.sortButton} onPress={handleSort}>
+          <Ionicons name="funnel" size={20} color="#666" style={styles.sortIcon} />
+          <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
+        </Pressable>
+      </ThemedView>
+      <ThemedView style={styles.searchRow}>
         <ThemedView style={styles.searchContainer}>
           <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
           <TextInput
@@ -151,11 +216,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
   },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  sortIcon: {
+    marginRight: 4,
+  },
+  sortText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    marginLeft: 16,
     backgroundColor: '#f5f5f5',
     borderRadius: 8,
     paddingHorizontal: 12,

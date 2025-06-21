@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
-import { addWeeks, format, startOfWeek } from 'date-fns';
+import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Alert, Button, StyleSheet, TextInput } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
@@ -18,6 +18,7 @@ export default function EditClientScreen() {
   const [nextVisit, setNextVisit] = useState('');
   const [weekOptions, setWeekOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -47,6 +48,95 @@ export default function EditClientScreen() {
     }
   }, [id]);
 
+  const regenerateJobsForClient = async () => {
+    if (typeof id !== 'string') return;
+    
+    try {
+      console.log('Starting job regeneration for client:', id);
+      
+      // 1. Delete existing future jobs for this client
+      const jobsRef = collection(db, 'jobs');
+      const futureJobsQuery = query(
+        jobsRef, 
+        where('clientId', '==', id),
+        where('status', 'in', ['pending', 'in-progress'])
+      );
+      
+      const futureJobsSnapshot = await getDocs(futureJobsQuery);
+      console.log('Found', futureJobsSnapshot.size, 'existing future jobs to delete');
+      
+      const batch = writeBatch(db);
+      
+      futureJobsSnapshot.forEach((jobDoc) => {
+        batch.delete(jobDoc.ref);
+      });
+      
+      await batch.commit();
+      console.log('Deleted existing future jobs');
+
+      // 2. Get the updated client data
+      const clientDoc = await getDoc(doc(db, 'clients', id));
+      if (!clientDoc.exists()) {
+        console.log('Client not found after update');
+        return;
+      }
+      
+      const clientData = clientDoc.data();
+      console.log('Client data:', clientData);
+      
+      // 3. Generate new jobs for this client
+      let jobsToCreate: any[] = [];
+      if (clientData.nextVisit && clientData.frequency && clientData.frequency !== 'one-off') {
+        let visitDate = parseISO(clientData.nextVisit);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Reset time to start of day
+        
+        console.log('Starting date:', visitDate);
+        console.log('Today:', today);
+        console.log('Frequency:', clientData.frequency);
+        
+        for (let i = 0; i < 8; i++) { // Generate for 8 weeks
+          // Always create jobs starting from the nextVisit date, regardless of whether it's in the past
+          const weekStr = format(visitDate, 'yyyy-MM-dd');
+          const jobData = {
+            clientId: id,
+            providerId: 'test-provider-1',
+            serviceId: 'window-cleaning',
+            propertyDetails: `${clientData.address1 || clientData.address || ''}, ${clientData.town || ''}, ${clientData.postcode || ''}`,
+            scheduledTime: weekStr + 'T09:00:00',
+            status: 'pending',
+            price: typeof clientData.quote === 'number' ? clientData.quote : 25,
+            paymentStatus: 'unpaid',
+          };
+          jobsToCreate.push(jobData);
+          console.log('Adding job for week:', weekStr);
+          
+          visitDate = addWeeks(visitDate, Number(clientData.frequency));
+        }
+        
+        console.log('Creating', jobsToCreate.length, 'new jobs');
+        
+        // Add new jobs
+        if (jobsToCreate.length > 0) {
+          const addBatch = writeBatch(db);
+          jobsToCreate.forEach(job => {
+            const newJobRef = doc(collection(db, 'jobs'));
+            addBatch.set(newJobRef, job);
+          });
+          await addBatch.commit();
+          console.log('Successfully created new jobs');
+        }
+      } else {
+        console.log('Client has no nextVisit, frequency, or is one-off');
+      }
+      
+      Alert.alert('Success', `Service routine updated and ${jobsToCreate.length} jobs regenerated!`);
+    } catch (error) {
+      console.error('Error regenerating jobs:', error);
+      Alert.alert('Error', 'Failed to regenerate jobs. Please try again.');
+    }
+  };
+
   const handleSave = async () => {
     if (!frequency.trim() || !nextVisit.trim()) {
       Alert.alert('Error', 'Please fill out both frequency and next visit.');
@@ -60,11 +150,23 @@ export default function EditClientScreen() {
     }
 
     if (typeof id === 'string') {
-      await updateDoc(doc(db, 'clients', id), {
-        frequency: frequencyNumber,
-        nextVisit,
-      });
-      router.replace({ pathname: '/(tabs)/clients/[id]', params: { id } });
+      setUpdating(true);
+      try {
+        await updateDoc(doc(db, 'clients', id), {
+          frequency: frequencyNumber,
+          nextVisit,
+        });
+        
+        // Regenerate jobs for this client
+        await regenerateJobsForClient();
+        
+        router.replace({ pathname: '/(tabs)/clients/[id]', params: { id } });
+      } catch (error) {
+        console.error('Error updating client:', error);
+        Alert.alert('Error', 'Failed to update client. Please try again.');
+      } finally {
+        setUpdating(false);
+      }
     }
   };
 
@@ -106,7 +208,10 @@ export default function EditClientScreen() {
         ))}
       </Picker>
 
-      <Button title="Save Changes" onPress={handleSave} />
+      <Button title="Save Changes" onPress={handleSave} disabled={updating} />
+      {updating && (
+        <ThemedText style={styles.loadingText}>Updating service routine and regenerating jobs...</ThemedText>
+      )}
     </ThemedView>
   );
 }
@@ -127,6 +232,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
     borderRadius: 8,
+  },
+  loadingText: {
+    textAlign: 'center',
+    marginTop: 16,
+    color: '#666',
+    fontStyle: 'italic',
   },
 });
 

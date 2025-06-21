@@ -1,6 +1,7 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getJobsForWeek } from './services/jobService';
 
@@ -9,27 +10,36 @@ export default function WorkloadForecastScreen() {
   const [weeks, setWeeks] = useState<{ week: string; count: number }[]>([]);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchJobs = async () => {
-      setLoading(true);
-      const today = new Date();
-      const start = startOfWeek(today, { weekStartsOn: 1 });
-      const weeksArr: { week: string; count: number }[] = [];
-      for (let i = 0; i < 8; i++) {
-        const weekDate = addWeeks(start, i);
-        const weekStr = format(weekDate, 'yyyy-MM-dd');
-        const weekStart = weekStr;
-        const weekEnd = format(addWeeks(weekDate, 1), 'yyyy-MM-dd');
-        // Use getJobsForWeek to fetch jobs for this week
-        const jobsForWeek = await getJobsForWeek(weekStart, weekEnd);
-        const count = jobsForWeek.length;
-        weeksArr.push({ week: weekStr, count });
-      }
-      setWeeks(weeksArr);
-      setLoading(false);
-    };
-    fetchJobs();
+  const fetchJobs = useCallback(async () => {
+    setLoading(true);
+    const today = new Date();
+    const start = startOfWeek(today, { weekStartsOn: 1 });
+    const weeksArr: { week: string; count: number }[] = [];
+    for (let i = 0; i < 8; i++) {
+      const weekDate = addWeeks(start, i);
+      const weekStr = format(weekDate, 'yyyy-MM-dd');
+      const weekStart = weekStr;
+      const weekEnd = format(addWeeks(weekDate, 1), 'yyyy-MM-dd');
+      // Use getJobsForWeek to fetch jobs for this week
+      const jobsForWeek = await getJobsForWeek(weekStart, weekEnd);
+      const count = jobsForWeek.length;
+      weeksArr.push({ week: weekStr, count });
+    }
+    setWeeks(weeksArr);
+    setLoading(false);
   }, []);
+
+  // Refresh data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchJobs();
+    }, [fetchJobs])
+  );
+
+  // Initial load
+  useEffect(() => {
+    fetchJobs();
+  }, [fetchJobs]);
 
   const renderItem = ({ item }: { item: { week: string; count: number } }) => {
     const date = parseISO(item.week);

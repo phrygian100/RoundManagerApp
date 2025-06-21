@@ -1,6 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { deleteDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
@@ -35,7 +35,7 @@ export default function ClientDetailScreen() {
   const handleDelete = () => {
     Alert.alert(
       'Delete Client',
-      'Are you sure you want to delete this client?',
+      'This will delete the client and all their pending/future jobs. Completed jobs will be preserved with client information. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -43,9 +43,32 @@ export default function ClientDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             if (typeof id === 'string') {
-              await deleteDoc(doc(db, 'clients', id));
-              router.replace('/clients');
-
+              try {
+                // 1. Delete the client
+                await deleteDoc(doc(db, 'clients', id));
+                
+                // 2. Find and delete all pending/future jobs for this client
+                const jobsRef = collection(db, 'jobs');
+                const pendingJobsQuery = query(
+                  jobsRef, 
+                  where('clientId', '==', id),
+                  where('status', 'in', ['pending', 'in-progress'])
+                );
+                
+                const pendingJobsSnapshot = await getDocs(pendingJobsQuery);
+                const batch = writeBatch(db);
+                
+                pendingJobsSnapshot.forEach((jobDoc) => {
+                  batch.delete(jobDoc.ref);
+                });
+                
+                await batch.commit();
+                
+                router.replace('/clients');
+              } catch (error) {
+                console.error('Error deleting client:', error);
+                Alert.alert('Error', 'Failed to delete client. Please try again.');
+              }
             }
           },
         },

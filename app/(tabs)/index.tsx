@@ -1,18 +1,9 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { generateRecurringJobs } from '../services/jobService';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
-  const handleGenerateJobs = async () => {
-    setLoading(true);
-    await generateRecurringJobs();
-    setLoading(false);
-    alert('Recurring jobs generated!');
-  };
 
   const buttons = [
     {
@@ -34,11 +25,6 @@ export default function HomeScreen() {
       label: 'Runsheet',
       onPress: () => router.push('/runsheet'),
       disabled: false,
-    },
-    {
-      label: loading ? 'Generating...' : 'Generate Recurring Jobs (Admin)',
-      onPress: handleGenerateJobs,
-      disabled: loading,
     },
     {
       label: 'Settings',
