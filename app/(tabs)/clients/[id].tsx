@@ -1,9 +1,11 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Modal, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { db } from '../../../core/firebase';
@@ -19,6 +21,12 @@ export default function ClientDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [jobType, setJobType] = useState('Gutter cleaning');
+  const [jobNotes, setJobNotes] = useState('');
+  const [jobPrice, setJobPrice] = useState('');
+  const [jobDate, setJobDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -76,40 +84,23 @@ export default function ClientDetailScreen() {
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Client',
-      'This will delete the client and all their pending/future jobs. Completed jobs will be preserved with client information. Are you sure?',
+      'Archive Client',
+      'This will mark the client as an ex-client and they will be moved to the ex-client list. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Archive',
           style: 'destructive',
           onPress: async () => {
             if (typeof id === 'string') {
               try {
-                // 1. Delete the client
-                await deleteDoc(doc(db, 'clients', id));
-                
-                // 2. Find and delete all pending/future jobs for this client
-                const jobsRef = collection(db, 'jobs');
-                const pendingJobsQuery = query(
-                  jobsRef, 
-                  where('clientId', '==', id),
-                  where('status', 'in', ['pending', 'in-progress'])
-                );
-                
-                const pendingJobsSnapshot = await getDocs(pendingJobsQuery);
-                const batch = writeBatch(db);
-                
-                pendingJobsSnapshot.forEach((jobDoc) => {
-                  batch.delete(jobDoc.ref);
+                await updateDoc(doc(db, 'clients', id), {
+                  status: 'ex-client'
                 });
-                
-                await batch.commit();
-                
                 router.replace('/clients');
               } catch (error) {
-                console.error('Error deleting client:', error);
-                Alert.alert('Error', 'Failed to delete client. Please try again.');
+                console.error('Error archiving client:', error);
+                Alert.alert('Error', 'Failed to archive client. Please try again.');
               }
             }
           },
@@ -128,6 +119,38 @@ export default function ClientDetailScreen() {
     if (typeof id === 'string') {
       router.push({ pathname: '/(tabs)/clients/[id]/edit', params: { id } } as never);
     }
+  };
+
+  const handleAddJob = async () => {
+    if (!jobPrice) {
+      Alert.alert('Error', 'Please enter a price for the job.');
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'jobs'), {
+        clientId: id,
+        serviceId: jobType,
+        propertyDetails: jobNotes,
+        price: Number(jobPrice),
+        status: 'pending',
+        scheduledTime: jobDate.toISOString(),
+        paymentStatus: 'unpaid',
+      });
+      Alert.alert('Success', 'Job added successfully.');
+      setModalVisible(false);
+      setJobNotes('');
+      setJobPrice('');
+    } catch (error) {
+      console.error('Error adding job:', error);
+      Alert.alert('Error', 'Failed to add job.');
+    }
+  };
+
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || jobDate;
+    setShowDatePicker(false);
+    setJobDate(currentDate);
   };
 
   if (loading) {
@@ -177,8 +200,9 @@ export default function ClientDetailScreen() {
 
       <Button title="Edit Client Details" onPress={handleEditDetails} />
       <Button title="Edit Service Routine" onPress={handleEditRoutine} />
+      <Button title="Add Job" onPress={() => setModalVisible(true)} />
       <View style={{ marginTop: 32 }}>
-      <Button title="Delete Client" color="red" onPress={handleDelete} />
+      <Button title="Archive Client" color="red" onPress={handleDelete} />
       </View>
       <View style={{ marginTop: 32 }}>
         <Button title="Home" onPress={() => router.replace('/')} />
@@ -197,6 +221,62 @@ export default function ClientDetailScreen() {
           />
         )}
       </View>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText type="subtitle">Add a New Job</ThemedText>
+
+            <View style={styles.datePickerContainer}>
+              <ThemedText>Job Date: {format(jobDate, 'do MMMM yyyy')}</ThemedText>
+              <Button title="Change Date" onPress={() => setShowDatePicker(true)} />
+            </View>
+
+            {showDatePicker && (
+              <DateTimePicker
+                testID="dateTimePicker"
+                value={jobDate}
+                mode="date"
+                display="default"
+                onChange={onDateChange}
+              />
+            )}
+
+            <Picker
+              selectedValue={jobType}
+              onValueChange={(itemValue) => setJobType(itemValue)}
+              style={styles.picker}
+            >
+              <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+              <Picker.Item label="Conservatory roof" value="Conservatory roof" />
+              <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+              <Picker.Item label="Other" value="Other" />
+            </Picker>
+            <TextInput
+              style={styles.input}
+              placeholder="Job Notes"
+              value={jobNotes}
+              onChangeText={setJobNotes}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Job Price (£)"
+              value={jobPrice}
+              onChangeText={setJobPrice}
+              keyboardType="numeric"
+            />
+            <View style={styles.modalButtons}>
+              <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
+              <Button title="Add Job" onPress={handleAddJob} />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -259,6 +339,53 @@ const styles = StyleSheet.create({
   historyItemText: {
     fontSize: 14,
     textTransform: 'capitalize',
-  }
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '90%',
+  },
+  datePickerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 10,
+  },
+  picker: {
+    width: '100%',
+    height: 150,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 5,
+    width: '100%',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 20,
+  },
 });
 

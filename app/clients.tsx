@@ -23,7 +23,10 @@ export default function ClientsScreen() {
     const unsubscribe = onSnapshot(collection(db, 'clients'), (querySnapshot) => {
       const clientsData: Client[] = [];
       querySnapshot.forEach((doc) => {
-        clientsData.push({ id: doc.id, ...doc.data() } as Client);
+        const client = { id: doc.id, ...doc.data() } as Client;
+        if (client.status !== 'ex-client') {
+          clientsData.push(client);
+        }
       });
       setClients(clientsData);
       setFilteredClients(clientsData);
@@ -146,12 +149,17 @@ export default function ClientsScreen() {
       <ThemedText type="title" style={styles.title}>Clients</ThemedText>
       <ThemedView style={styles.headerRow}>
         <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
-        <Pressable style={styles.sortButton} onPress={handleSort}>
-          <View style={styles.sortIcon}>
-            <Ionicons name="funnel" size={20} color="#666" />
-          </View>
-          <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
-        </Pressable>
+        <View style={{ flexDirection: 'row' }}>
+          <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
+            <View style={styles.sortIcon}>
+              <Ionicons name="funnel" size={20} color="#666" />
+            </View>
+            <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
+          </Pressable>
+          <Pressable style={styles.sortButton} onPress={() => router.push('/ex-clients')}>
+            <ThemedText style={styles.sortText}>Ex-Clients</ThemedText>
+          </Pressable>
+        </View>
       </ThemedView>
       <ThemedView style={styles.searchRow}>
         <ThemedView style={styles.searchContainer}>

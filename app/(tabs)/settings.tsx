@@ -207,6 +207,37 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteAllPayments = () => {
+    Alert.alert(
+      'Delete All Payments',
+      'Are you sure you want to delete ALL payment records? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete All',
+          style: 'destructive',
+          onPress: async () => {
+            setLoading(true);
+            try {
+              const paymentsSnapshot = await getDocs(collection(db, 'payments'));
+              const batch = writeBatch(db);
+              paymentsSnapshot.forEach((doc) => {
+                batch.delete(doc.ref);
+              });
+              await batch.commit();
+              Alert.alert('Success', 'All payments have been deleted.');
+            } catch (error) {
+              console.error('Error deleting payments:', error);
+              Alert.alert('Error', 'Could not delete all payments.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Settings</Text>
@@ -218,6 +249,9 @@ export default function SettingsScreen() {
       </View>
       <View style={styles.buttonContainer}>
         <Button title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
+      </View>
+      <View style={styles.buttonContainer}>
+        <Button title="Delete All Payments" color="red" onPress={handleDeleteAllPayments} />
       </View>
       <View style={styles.buttonContainer}>
         <Button title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'} onPress={handleRepairClients} disabled={loading} />

@@ -206,13 +206,24 @@ export default function RunsheetWeekScreen() {
     const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed' && job.status !== 'accounted');
     const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isAccounted;
     const showUndoButton = isCurrentWeek && isCompleted && !isAccounted;
+    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
+
     return (
-      <View style={[styles.clientRow, (isCompleted || isAccounted) && styles.completedRow]}>
+      <View style={[
+        styles.clientRow,
+        (isCompleted || isAccounted) && styles.completedRow,
+        isOneOffJob && !isCompleted && !isAccounted && styles.oneOffJobRow
+      ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={styles.addressBlock}>
               <Text style={styles.addressTitle}>{client ? `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}` : 'Unknown address'}</Text>
             </View>
+            {isOneOffJob && (
+              <View style={styles.oneOffJobLabel}>
+                <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
+              </View>
+            )}
             {client?.mobileNumber && (
               <Text style={styles.mobileNumber}>{client.mobileNumber}</Text>
             )}
@@ -422,6 +433,23 @@ const styles = StyleSheet.create({
   },
   completedRow: {
     backgroundColor: '#b6eab6',
+  },
+  oneOffJobRow: {
+    backgroundColor: '#fffbe6', // A light yellow to highlight
+    borderColor: '#ffeaa7',
+  },
+  oneOffJobLabel: {
+    backgroundColor: '#fdcb6e',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    borderBottomRightRadius: 10,
+    marginBottom: 4,
+  },
+  oneOffJobText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   completeButton: {
     marginTop: 8,

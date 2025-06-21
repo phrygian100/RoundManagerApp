@@ -150,9 +150,30 @@ export default function AccountsScreen() {
       );
     };
 
+    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
+
+    let recurringJobLabel = '';
+    if (!isOneOffJob && client?.frequency) {
+        switch(client.frequency) {
+            case '4': recurringJobLabel = '4 Weekly Window Clean'; break;
+            case '8': recurringJobLabel = '8 Weekly Window Clean'; break;
+            case 'one-off': recurringJobLabel = 'One-off Window Clean'; break;
+        }
+    }
+
     return (
       <Pressable onPress={handleJobPress}>
-        <View style={styles.jobItem}>
+        <View style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]}>
+          {isOneOffJob && (
+            <View style={styles.oneOffJobLabel}>
+              <ThemedText style={styles.oneOffJobText}>{item.serviceId}</ThemedText>
+            </View>
+          )}
+          {recurringJobLabel ? (
+            <View style={styles.recurringJobLabel}>
+              <ThemedText style={styles.recurringJobText}>{recurringJobLabel}</ThemedText>
+            </View>
+          ) : null}
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
           <ThemedText>{client?.name || 'Unknown client'}</ThemedText>
           <ThemedText>£{item.price.toFixed(2)}</ThemedText>
@@ -316,15 +337,56 @@ const styles = StyleSheet.create({
   },
   jobItem: {
     padding: 16,
-    marginBottom: 12,
+    marginVertical: 8,
+    backgroundColor: '#fff',
     borderRadius: 8,
-    backgroundColor: '#f9f9f9',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  oneOffJobItem: {
+    backgroundColor: '#fffbe6',
+    borderColor: '#ffeaa7',
+  },
+  oneOffJobLabel: {
+    backgroundColor: '#fdcb6e',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    borderTopLeftRadius: 8,
+    borderBottomRightRadius: 10,
+    marginBottom: 8,
+    marginLeft: -16, 
+    marginTop: -16,
+  },
+  oneOffJobText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  recurringJobLabel: {
+    backgroundColor: '#e0f7fa',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    borderTopLeftRadius: 8,
+    borderBottomRightRadius: 10,
+    marginBottom: 8,
+    marginLeft: -16, 
+    marginTop: -16,
+  },
+  recurringJobText: {
+    color: '#00796b',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
   paymentItem: {
     padding: 16,
-    marginBottom: 12,
+    marginVertical: 8,
     borderRadius: 8,
     backgroundColor: '#f0f8ff',
     borderWidth: 1,
