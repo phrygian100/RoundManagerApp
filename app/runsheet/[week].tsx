@@ -122,7 +122,8 @@ export default function RunsheetWeekScreen() {
 
   const handleNavigate = (client: Client | null) => {
     if (!client) return;
-    const address = `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`;
+    const addressParts = [client.address1 || client.address, client.town, client.postcode].filter(Boolean);
+    const address = addressParts.join(', ');
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     Linking.openURL(url);
     setActionSheetJob(null);
@@ -208,6 +209,9 @@ export default function RunsheetWeekScreen() {
     const showUndoButton = isCurrentWeek && isCompleted && !isAccounted;
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
 
+    const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
+    const address = client ? addressParts.join(', ') : 'Unknown address';
+
     return (
       <View style={[
         styles.clientRow,
@@ -217,7 +221,7 @@ export default function RunsheetWeekScreen() {
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={styles.addressBlock}>
-              <Text style={styles.addressTitle}>{client ? `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}` : 'Unknown address'}</Text>
+              <Text style={styles.addressTitle}>{address}</Text>
             </View>
             {isOneOffJob && (
               <View style={styles.oneOffJobLabel}>
