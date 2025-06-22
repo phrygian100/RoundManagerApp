@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { addDays, endOfWeek, format, isThisWeek, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
@@ -89,6 +89,21 @@ export default function RunsheetWeekScreen() {
       console.log('✅ Jobs with missing clients:', jobsWithClients.filter(job => !job.client).length);
 
       setJobs(jobsWithClients);
+      
+      // 5. Fetch completed days for this week
+      try {
+        const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', startDate));
+        if (completedDaysDoc.exists()) {
+          const data = completedDaysDoc.data();
+          setCompletedDays(data.completedDays || []);
+        } else {
+          setCompletedDays([]);
+        }
+      } catch (error) {
+        console.error('Error fetching completed days:', error);
+        setCompletedDays([]);
+      }
+      
       setLoading(false);
     };
     fetchJobsAndClients();
@@ -251,8 +266,17 @@ export default function RunsheetWeekScreen() {
           : job
       ));
 
-      // Add day to completed days
-      setCompletedDays(prev => [...prev, dayTitle]);
+      // Add day to completed days and save to Firestore
+      const newCompletedDays = [...completedDays, dayTitle];
+      setCompletedDays(newCompletedDays);
+      
+      // Save completed days to Firestore
+      const startDate = format(weekStart, 'yyyy-MM-dd');
+      await setDoc(doc(db, 'completedWeeks', startDate), {
+        completedDays: newCompletedDays,
+        weekStart: startDate,
+        updatedAt: new Date()
+      });
 
       Alert.alert('Success', `${completedJobs.length} jobs moved to completed jobs for ${dayTitle}`);
     } catch (error) {

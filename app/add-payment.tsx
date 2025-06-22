@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Button, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -40,8 +40,11 @@ export default function AddPaymentScreen() {
           setAmount(params.amount as string);
           setIsFromJob(true);
           
-          // Set reference if provided
-          if (params.reference) {
+          // Auto-populate reference with client's account number
+          const selectedClient = clientsData.find(client => client.id === params.clientId);
+          if (selectedClient?.accountNumber) {
+            setReference(`Account: ${selectedClient.accountNumber}`);
+          } else if (params.reference) {
             setReference(params.reference as string);
           }
           
@@ -146,91 +149,100 @@ export default function AddPaymentScreen() {
         </View>
       )}
       
-      <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Client *</ThemedText>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={selectedClientId}
-              onValueChange={setSelectedClientId}
-              style={styles.picker}
-              enabled={!isFromJob} // Disable if coming from job
-            >
-              {clients.map((client) => (
-                <Picker.Item
-                  key={client.id}
-                  label={getClientDisplayName(client)}
-                  value={client.id}
-                />
-              ))}
-            </Picker>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.form}
+      >
+        <ScrollView showsVerticalScrollIndicator={false}>
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Client *</ThemedText>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={selectedClientId}
+                onValueChange={setSelectedClientId}
+                style={styles.picker}
+                enabled={!isFromJob} // Disable if coming from job
+              >
+                {clients.map((client) => (
+                  <Picker.Item
+                    key={client.id}
+                    label={getClientDisplayName(client)}
+                    value={client.id}
+                  />
+                ))}
+              </Picker>
+            </View>
           </View>
-        </View>
 
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Amount (£) *</ThemedText>
-          <TextInput
-            style={styles.input}
-            value={amount}
-            onChangeText={setAmount}
-            placeholder="0.00"
-            keyboardType="decimal-pad"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Payment Date *</ThemedText>
-          <TextInput
-            style={styles.input}
-            value={paymentDate}
-            onChangeText={setPaymentDate}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#999"
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Payment Method</ThemedText>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={paymentMethod}
-              onValueChange={(value) => setPaymentMethod(value as Payment['method'])}
-              style={styles.picker}
-            >
-              <Picker.Item label="Cash" value="cash" />
-              <Picker.Item label="Card" value="card" />
-              <Picker.Item label="Bank Transfer" value="bank_transfer" />
-              <Picker.Item label="Cheque" value="cheque" />
-              <Picker.Item label="Other" value="other" />
-            </Picker>
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Amount (£) *</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={amount}
+              onChangeText={setAmount}
+              placeholder="0.00"
+              keyboardType="decimal-pad"
+              placeholderTextColor="#999"
+            />
           </View>
-        </View>
 
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Reference (Optional)</ThemedText>
-          <TextInput
-            style={styles.input}
-            value={reference}
-            onChangeText={setReference}
-            placeholder={selectedClient?.accountNumber ? `Account: ${selectedClient.accountNumber}` : "Payment reference or cheque number"}
-            placeholderTextColor="#999"
-          />
-        </View>
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Payment Date *</ThemedText>
+            <TextInput
+              style={styles.input}
+              value={paymentDate}
+              onChangeText={setPaymentDate}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor="#999"
+            />
+          </View>
 
-        <View style={styles.inputGroup}>
-          <ThemedText style={styles.label}>Notes (Optional)</ThemedText>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Additional notes"
-            multiline
-            numberOfLines={3}
-            placeholderTextColor="#999"
-          />
-        </View>
-      </ScrollView>
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Payment Method</ThemedText>
+            <View style={styles.pickerContainer}>
+              <Picker
+                selectedValue={paymentMethod}
+                onValueChange={(value) => setPaymentMethod(value as Payment['method'])}
+                style={styles.picker}
+              >
+                <Picker.Item label="Cash" value="cash" />
+                <Picker.Item label="Card" value="card" />
+                <Picker.Item label="Bank Transfer" value="bank_transfer" />
+                <Picker.Item label="Cheque" value="cheque" />
+                <Picker.Item label="Other" value="other" />
+              </Picker>
+            </View>
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Reference</ThemedText>
+            <TextInput
+              style={[styles.input, isFromJob && styles.disabledInput]}
+              value={reference}
+              onChangeText={setReference}
+              placeholder={selectedClient?.accountNumber ? `Account: ${selectedClient.accountNumber}` : "Payment reference or cheque number"}
+              placeholderTextColor="#999"
+              editable={!isFromJob}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <ThemedText style={styles.label}>Notes (Optional)</ThemedText>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Additional notes"
+              multiline
+              numberOfLines={3}
+              placeholderTextColor="#999"
+            />
+          </View>
+          
+          {/* Add extra padding at the bottom to ensure notes field is visible */}
+          <View style={styles.bottomPadding} />
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={styles.buttonContainer}>
         <Button
@@ -277,8 +289,9 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   textArea: {
-    height: 80,
+    height: 100,
     textAlignVertical: 'top',
+    paddingTop: 12,
   },
   pickerContainer: {
     borderWidth: 1,
@@ -293,6 +306,7 @@ const styles = StyleSheet.create({
   buttonContainer: {
     gap: 12,
     marginTop: 20,
+    paddingBottom: 20,
   },
   infoBox: {
     backgroundColor: '#f0f8ff',
@@ -311,5 +325,8 @@ const styles = StyleSheet.create({
   disabledInput: {
     backgroundColor: '#f0f0f0',
     color: '#666',
+  },
+  bottomPadding: {
+    height: 100,
   },
 }); 

@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, Modal, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { db } from '../../../core/firebase';
@@ -117,15 +117,10 @@ export default function ClientDetailScreen() {
   };
 
   const handleEditDetails = () => {
-    if (typeof id === 'string') {
-      router.push({ pathname: '/(tabs)/clients/[id]/edit-details', params: { id } } as never);
-    }
-  };
-
-  const handleEditRoutine = () => {
-    if (typeof id === 'string') {
-      router.push({ pathname: '/(tabs)/clients/[id]/edit', params: { id } } as never);
-    }
+    router.push({
+      pathname: '/(tabs)/clients/[id]/edit-customer',
+      params: { id }
+    } as never);
   };
 
   const handleMakePayment = () => {
@@ -200,62 +195,87 @@ export default function ClientDetailScreen() {
       : client.address || 'No address';
 
   return (
-    <ThemedView style={{ flex: 1, padding: 20, paddingTop: 40 }}>
-      <ThemedText type="title">{displayAddress}</ThemedText>
-      <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-      
-      <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
-      <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
-      {typeof client.quote === 'number' && !isNaN(client.quote) ? (
-        <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
-      ) : (
-        <ThemedText>Quote: N/A</ThemedText>
-      )}
-      {client.frequency && (
-        <ThemedText>Visit every {client.frequency} weeks</ThemedText>
-      )}
-      {client.nextVisit && (
-        <ThemedText>Next scheduled visit: {new Date(client.nextVisit).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        })}</ThemedText>
-      )}
-      <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
+    <ThemedView style={{ flex: 1 }}>
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          <ThemedText type="title" style={styles.title}>{displayAddress}</ThemedText>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+          </Pressable>
+        </View>
+        
+        <View style={styles.infoAndButtonsRow}>
+          <View style={styles.clientInfo}>
+            <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
+            
+            <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
+            <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
+            {typeof client.quote === 'number' && !isNaN(client.quote) ? (
+              <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
+            ) : (
+              <ThemedText>Quote: N/A</ThemedText>
+            )}
+            {client.frequency && (
+              <ThemedText>Visit every {client.frequency} weeks</ThemedText>
+            )}
+            {client.nextVisit && (
+              <ThemedText>Next scheduled visit: {new Date(client.nextVisit).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+              })}</ThemedText>
+            )}
+            <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
+          </View>
+          
+          <View style={styles.verticalButtons}>
+            <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
+              <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
+            </Pressable>
+            
+            <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
+              <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
+            </Pressable>
+            
+            <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
+              <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
+            </Pressable>
+            
+            {balance !== null ? (
+              <Pressable 
+                style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
+                onPress={() => router.push({
+                  pathname: '/client-balance',
+                  params: { clientId: id, clientName: client.name }
+                } as never)}
+              >
+                <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+              </Pressable>
+            ) : (
+              <View style={[styles.verticalButton, styles.disabledButton]}>
+                <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+              </View>
+            )}
+            
+            <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
+              <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
+            </Pressable>
+          </View>
+        </View>
 
-      <Button title="Edit Client Details" onPress={handleEditDetails} />
-      <Button title="Edit Service Routine" onPress={handleEditRoutine} />
-      <Button title="Add Job" onPress={() => setModalVisible(true)} />
-      <Button title="Make Payment" onPress={handleMakePayment} />
-      {balance !== null && (
-        <Button
-          title={`Balance: £${balance.toFixed(2)}`}
-          color={balance < 0 ? 'red' : 'green'}
-          onPress={() => router.push({
-            pathname: '/client-balance',
-            params: { clientId: id, clientName: client.name }
-          } as never)}
-        />
-      )}
-      <View style={{ marginTop: 32 }}>
-      <Button title="Archive Client" color="red" onPress={handleDelete} />
-      </View>
-      <View style={{ marginTop: 32 }}>
-        <Button title="Home" onPress={() => router.replace('/')} />
-      </View>
-
-      <View style={styles.historyContainer}>
-        <ThemedText type="subtitle" style={styles.historyTitle}>Service History</ThemedText>
-        {loadingHistory ? (
-          <ActivityIndicator />
-        ) : (
-          <FlatList
-            data={serviceHistory}
-            keyExtractor={(item) => `${item.type}-${item.id}`}
-            renderItem={renderHistoryItem}
-            ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
-          />
-        )}
+        <View style={styles.historyContainer}>
+          <ThemedText type="subtitle" style={styles.historyTitle}>Service History</ThemedText>
+          {loadingHistory ? (
+            <ActivityIndicator />
+          ) : (
+            <FlatList
+              data={serviceHistory}
+              keyExtractor={(item) => `${item.type}-${item.id}`}
+              renderItem={renderHistoryItem}
+              ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
+            />
+          )}
+        </View>
       </View>
 
       <Modal
@@ -344,12 +364,42 @@ const renderHistoryItem = ({ item }: { item: ServiceHistoryItem }) => {
         <ThemedText style={styles.historyItemText}>
           Method: {item.method.replace('_', ' ')}
         </ThemedText>
+        {item.reference && (
+          <ThemedText style={styles.historyItemText}>
+            Reference: <ThemedText style={{ fontWeight: 'bold' }}>{item.reference}</ThemedText>
+          </ThemedText>
+        )}
+        {item.notes && (
+          <ThemedText style={styles.historyItemText}>
+            Notes: <ThemedText style={{ fontWeight: 'bold' }}>{item.notes}</ThemedText>
+          </ThemedText>
+        )}
       </View>
     );
   }
 };
 
 const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    padding: 20,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    flex: 1,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  homeButtonText: {
+    fontSize: 18,
+  },
   historyContainer: {
     marginTop: 24,
     flex: 1,
@@ -422,6 +472,50 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 20,
+  },
+  infoAndButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 20,
+  },
+  clientInfo: {
+    flex: 1,
+    marginRight: 20,
+  },
+  verticalButtons: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  verticalButton: {
+    width: 40,
+    height: 40,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  verticalButtonIcon: {
+    fontSize: 16,
+  },
+  negativeBalance: {
+    backgroundColor: '#ffe6e6',
+    borderColor: '#ffb3b3',
+  },
+  positiveBalance: {
+    backgroundColor: '#e6ffe6',
+    borderColor: '#b3ffb3',
+  },
+  dangerButton: {
+    backgroundColor: '#ffe6e6',
+    borderColor: '#ffb3b3',
+  },
+  disabledButton: {
+    backgroundColor: '#f0f0f0',
+    borderColor: '#d0d0d0',
   },
 });
 

@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
@@ -20,24 +20,13 @@ const ClientBalanceScreen = () => {
   const [loading, setLoading] = useState(true);
   const [sections, setSections] = useState<SectionData[]>([]);
   const router = useRouter();
-  const [totalAwaitingPayment, setTotalAwaitingPayment] = useState(0);
+  const [totalCompleted, setTotalCompleted] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!clientId) return;
     setLoading(true);
     try {
-      // Fetch jobs that have been completed
-      const jobsAwaitingPaymentQuery = query(
-        collection(db, 'jobs'),
-        where('clientId', '==', clientId),
-        where('status', '==', 'completed')
-      );
-      const jobsAwaitingPaymentSnapshot = await getDocs(jobsAwaitingPaymentQuery);
-      const jobsAwaitingPayment = jobsAwaitingPaymentSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
-      const awaitingTotal = jobsAwaitingPayment.reduce((sum, job) => sum + job.price, 0);
-      setTotalAwaitingPayment(awaitingTotal);
-
       // Fetch completed jobs
       const completedJobsQuery = query(
         collection(db, 'jobs'),
@@ -46,6 +35,8 @@ const ClientBalanceScreen = () => {
       );
       const completedJobsSnapshot = await getDocs(completedJobsQuery);
       const completedJobs = completedJobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
+      const completedTotal = completedJobs.reduce((sum, job) => sum + job.price, 0);
+      setTotalCompleted(completedTotal);
 
       // Fetch payments
       const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', clientId));
@@ -56,14 +47,11 @@ const ClientBalanceScreen = () => {
 
       // Create sections
       const currentSections: SectionData[] = [];
-      if (jobsAwaitingPayment.length > 0) {
-        currentSections.push({ title: 'Awaiting Payment', data: jobsAwaitingPayment });
-      }
       if (payments.length > 0) {
         currentSections.push({ title: 'Payment History', data: payments });
       }
       if (completedJobs.length > 0) {
-        currentSections.push({ title: 'Recently Completed Jobs', data: completedJobs });
+        currentSections.push({ title: 'Completed Jobs', data: completedJobs });
       }
       setSections(currentSections);
     } catch (error) {
@@ -80,27 +68,57 @@ const ClientBalanceScreen = () => {
   const renderItem = ({ item }: { item: Job | Payment }) => {
     if ('serviceId' in item) { // This is a Job
       const isCompleted = item.status === 'completed';
+      
+      const handleDeleteJob = () => {
+        Alert.alert(
+          'Delete Job',
+          'Are you sure you want to permanently delete this completed job?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Delete',
+              style: 'destructive',
+              onPress: async () => {
+                try {
+                  // Delete the job from Firestore
+                  await deleteDoc(doc(db, 'jobs', item.id));
+                  fetchData(); 
+                  Alert.alert('Success', 'Job deleted.');
+                } catch (error) {
+                  console.error('Error deleting job:', error);
+                  Alert.alert('Error', 'Could not delete job.');
+                }
+              },
+            },
+          ]
+        );
+      };
+
       return (
-        <Pressable
-          style={styles.itemContainer}
-          onPress={() => {
-            if (isCompleted) {
-              router.push({
-                pathname: '/add-payment',
-                params: {
-                  jobId: item.id,
-                  clientId: item.clientId,
-                  amount: item.price,
-                  clientName: clientName
-                },
-              });
-            }
-          }}
-        >
-          <ThemedText>Date: {format(parseISO(item.scheduledTime), 'do MMM yyyy')}</ThemedText>
-          <ThemedText>Service: {item.serviceId}</ThemedText>
-          <ThemedText style={{ fontWeight: 'bold' }}>Price: £{item.price.toFixed(2)}</ThemedText>
-        </Pressable>
+        <View style={styles.itemContainer}>
+          <Pressable style={styles.deleteButton} onPress={handleDeleteJob}>
+            <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={() => {
+              if (isCompleted) {
+                router.push({
+                  pathname: '/add-payment',
+                  params: {
+                    jobId: item.id,
+                    clientId: item.clientId,
+                    amount: item.price,
+                    clientName: clientName
+                  },
+                });
+              }
+            }}
+          >
+            <ThemedText>Date: {format(parseISO(item.scheduledTime), 'do MMM yyyy')}</ThemedText>
+            <ThemedText>Service: {item.serviceId}</ThemedText>
+            <ThemedText style={{ fontWeight: 'bold' }}>Price: £{item.price.toFixed(2)}</ThemedText>
+          </Pressable>
+        </View>
       );
     } else { // This is a Payment
       const handleDelete = () => {
@@ -147,7 +165,7 @@ const ClientBalanceScreen = () => {
     return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: 'center' }} />;
   }
 
-  const balance = totalPaid - totalAwaitingPayment;
+  const balance = totalPaid - totalCompleted;
 
   return (
     <ThemedView style={styles.container}>
@@ -159,7 +177,7 @@ const ClientBalanceScreen = () => {
              £{balance.toFixed(2)}
           </ThemedText>
         </ThemedText>
-        <ThemedText>Total Awaiting Payment: £{totalAwaitingPayment.toFixed(2)}</ThemedText>
+        <ThemedText>Total Completed Jobs: £{totalCompleted.toFixed(2)}</ThemedText>
         <ThemedText>Total Paid: £{totalPaid.toFixed(2)}</ThemedText>
         <Button title="Go Back" onPress={() => router.back()} />
       </View>
@@ -210,17 +228,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: '#ff4d4d',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
     zIndex: 1,
   },
   deleteButtonText: {
-    color: 'white',
-    fontSize: 12,
+    color: '#ff4d4d',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
   itemContainer: {
     padding: 12,
