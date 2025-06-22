@@ -135,7 +135,7 @@ export default function CompletedJobsScreen() {
     return (
       <Pressable style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]} onPress={handleCreatePayment}>
         <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+          <ThemedText style={styles.deleteButtonText}>×</ThemedText>
         </Pressable>
         {isOneOffJob && (
           <View style={styles.oneOffJobLabel}>
@@ -153,7 +153,6 @@ export default function CompletedJobsScreen() {
         <ThemedText>
           Completed: {format(parseISO(item.scheduledTime), 'd MMMM yyyy')}
         </ThemedText>
-        <ThemedText style={styles.completedLabel}>✓ Completed</ThemedText>
       </Pressable>
     );
   };
@@ -249,16 +248,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   recurringJobText: {
-    color: '#00796b',
+    color: '#006064',
     fontWeight: 'bold',
     fontSize: 12,
-  },
-  completedLabel: {
-    marginTop: 8,
-    fontStyle: 'italic',
-    color: '#4CAF50',
-    textAlign: 'right',
-    fontWeight: 'bold',
   },
   titleRow: {
     flexDirection: 'row',
@@ -281,18 +273,13 @@ const styles = StyleSheet.create({
   deleteButton: {
     position: 'absolute',
     top: 8,
-    right: 8,
-    backgroundColor: '#ff4d4d',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    right: 12,
     zIndex: 1,
   },
   deleteButtonText: {
-    color: 'white',
-    fontSize: 12,
+    color: '#ff4d4d',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   tapInstruction: {
     fontSize: 14,

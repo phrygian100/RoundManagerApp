@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { addDays, endOfWeek, format, isThisWeek, parseISO, startOfWeek } from 'date-fns';
+import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -90,13 +90,38 @@ export default function RunsheetWeekScreen() {
 
       setJobs(jobsWithClients);
       
-      // 5. Fetch completed days for this week
+      // 5. Fetch and verify completed days for this week
       try {
         const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', startDate));
         if (completedDaysDoc.exists()) {
           const data = completedDaysDoc.data();
-          setCompletedDays(data.completedDays || []);
+          const loadedCompletedDays = data.completedDays || [];
+          console.log(`Loaded completed days from Firestore for week ${startDate}:`, loadedCompletedDays);
+
+          const verifiedCompletedDays = loadedCompletedDays.filter((dayTitle: string) => {
+            const dayIndex = daysOfWeek.indexOf(dayTitle);
+            if (dayIndex === -1) return false;
+
+            const dayDate = addDays(weekStart, dayIndex);
+            const jobsForDay = jobsWithClients.filter((job: any) => {
+                const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+                return jobDate && jobDate.toDateString() === dayDate.toDateString();
+            });
+            
+            const isActuallyComplete = jobsForDay.length > 0 && jobsForDay.every(job => job.status === 'completed');
+
+            if (jobsForDay.length > 0 && !isActuallyComplete) {
+                console.warn(`Data inconsistency: Day "${dayTitle}" was marked as complete in Firestore, but has incomplete jobs. Ignoring for this session.`);
+            }
+
+            return isActuallyComplete;
+          });
+          
+          console.log('Verified completed days:', verifiedCompletedDays);
+          setCompletedDays(verifiedCompletedDays);
+
         } else {
+          console.log(`No completed days document found for week ${startDate}.`);
           setCompletedDays([]);
         }
       } catch (error) {
@@ -172,6 +197,27 @@ export default function RunsheetWeekScreen() {
     setLoading(false);
   };
 
+  const handleDeferJob = async (job: Job & { client: Client | null }) => {
+    try {
+      // Get today's date in the same format as other jobs
+      const today = new Date();
+      const todayString = format(today, 'yyyy-MM-dd') + 'T09:00:00';
+      
+      // Update the job's scheduled time to today
+      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: todayString });
+      
+      // Update local state
+      setJobs(prevJobs => prevJobs.map(j => 
+        j.id === job.id ? { ...j, scheduledTime: todayString } : j
+      ));
+      
+      Alert.alert('Success', 'Job deferred to today');
+    } catch (error) {
+      console.error('Error deferring job:', error);
+      Alert.alert('Error', 'Failed to defer job. Please try again.');
+    }
+  };
+
   const handleJobPress = (job: Job & { client: Client | null }) => {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
@@ -240,8 +286,24 @@ export default function RunsheetWeekScreen() {
   };
 
   const isDayComplete = (dayTitle: string) => {
-    const dayJobs = sections.find(section => section.title === dayTitle)?.data || [];
-    return dayJobs.length > 0 && dayJobs.every(job => job.status === 'completed');
+    const dayIndex = daysOfWeek.indexOf(dayTitle);
+    if (dayIndex === -1) return false;
+    const dayDate = addDays(weekStart, dayIndex);
+    const jobsForDay = jobs.filter((job) => {
+      const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+      return jobDate && jobDate.toDateString() === dayDate.toDateString();
+    });
+    return jobsForDay.length > 0 && jobsForDay.every((job) => job.status === 'completed');
+  };
+
+  const isDayInPast = (dayTitle: string) => {
+    const dayIndex = daysOfWeek.indexOf(dayTitle);
+    if (dayIndex === -1) return false;
+    
+    const dayDate = addDays(weekStart, dayIndex);
+    
+    // Use isBefore and startOfToday for a robust, timezone-safe comparison
+    return isBefore(dayDate, startOfToday());
   };
 
   const handleDayComplete = async (dayTitle: string) => {
@@ -294,7 +356,13 @@ export default function RunsheetWeekScreen() {
     const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
     const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
-    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
+    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
+
+    // Check if this job is from a past day (not completed and from a day before today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
+    const isPastDay = jobDate && jobDate < today && !isCompleted && isCurrentWeek;
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
@@ -303,7 +371,8 @@ export default function RunsheetWeekScreen() {
       <View style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
-        isOneOffJob && !isCompleted && styles.oneOffJobRow
+        isOneOffJob && !isCompleted && styles.oneOffJobRow,
+        isPastDay && styles.pastDayRow
       ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
@@ -314,9 +383,6 @@ export default function RunsheetWeekScreen() {
               <View style={styles.oneOffJobLabel}>
                 <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
               </View>
-            )}
-            {client?.mobileNumber && (
-              <Text style={styles.mobileNumber}>{client.mobileNumber}</Text>
             )}
             <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
           </Pressable>
@@ -351,6 +417,11 @@ export default function RunsheetWeekScreen() {
           {showUndoButton && (
             <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
               <Text style={styles.completeButtonText}>Undo</Text>
+            </Pressable>
+          )}
+          {isPastDay && (
+            <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
+              <Text style={styles.deferButtonText}>Defer</Text>
             </Pressable>
           )}
         </View>
@@ -441,8 +512,6 @@ export default function RunsheetWeekScreen() {
           <Text style={styles.homeButtonText}>🏠</Text>
         </Pressable>
       </View>
-      <Text>Debug: {String(jobs.length)} jobs loaded</Text>
-      <Text>Debug: Week {format(weekStart, 'yyyy-MM-dd')} to {format(weekEnd, 'yyyy-MM-dd')}</Text>
       {loading ? (
         <ActivityIndicator size="large" />
       ) : (
@@ -452,29 +521,35 @@ export default function RunsheetWeekScreen() {
           renderItem={({ item, index, section }) =>
             collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
           }
-          renderSectionHeader={({ section: { title, data } }) => (
-            <View style={styles.sectionHeaderContainer}>
-              <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
-                <Text style={styles.sectionHeader}>
-                  {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
-                  {completedDays.includes(title) && ' 🔒'}
-                </Text>
-              </Pressable>
-              {isDayComplete(title) && !completedDays.includes(title) && (
-                <Pressable 
-                  style={styles.dayCompleteButton} 
-                  onPress={() => handleDayComplete(title)}
-                >
-                  <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+          renderSectionHeader={({ section: { title, data } }) => {
+            const dayIsPast = isDayInPast(title);
+            const dayIsCompleted = completedDays.includes(title);
+            const showDayCompleteButton = isDayComplete(title) && !dayIsCompleted && !dayIsPast;
+
+            return (
+              <View style={styles.sectionHeaderContainer}>
+                <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
+                  <Text style={styles.sectionHeader}>
+                    {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
+                    {(dayIsCompleted || dayIsPast) && ' 🔒'}
+                  </Text>
                 </Pressable>
-              )}
-              {completedDays.includes(title) && (
-                <View style={styles.dayCompletedIndicator}>
-                  <Text style={styles.dayCompletedText}>Completed</Text>
-                </View>
-              )}
-            </View>
-          )}
+                {showDayCompleteButton && (
+                  <Pressable 
+                    style={styles.dayCompleteButton} 
+                    onPress={() => handleDayComplete(title)}
+                  >
+                    <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+                  </Pressable>
+                )}
+                {(dayIsCompleted || dayIsPast) && (
+                  <View style={styles.dayCompletedIndicator}>
+                    <Text style={styles.dayCompletedText}>Completed</Text>
+                  </View>
+                )}
+              </View>
+            );
+          }}
           ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1 }}
@@ -676,5 +751,20 @@ const styles = StyleSheet.create({
   dayCompletedText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  deferButton: {
+    marginTop: 8,
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  deferButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  pastDayRow: {
+    backgroundColor: '#ffd7d7', // Light red background for past day jobs
+    borderColor: '#ffb3b3',
   },
 }); 

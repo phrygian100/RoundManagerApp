@@ -22,6 +22,7 @@ export default function EditCustomerScreen() {
   const [roundOrderNumber, setRoundOrderNumber] = useState('');
   const [quote, setQuote] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [email, setEmail] = useState('');
 
   // Service routine state
   const [frequency, setFrequency] = useState('');
@@ -60,6 +61,7 @@ export default function EditCustomerScreen() {
           setRoundOrderNumber(data.roundOrderNumber ? String(data.roundOrderNumber) : '');
           setQuote(data.quote !== undefined ? String(data.quote) : '');
           setMobileNumber(data.mobileNumber || '');
+          setEmail(data.email || '');
           
           // Set service routine
           setFrequency(data.frequency?.toString() || '');
@@ -180,6 +182,7 @@ export default function EditCustomerScreen() {
           roundOrderNumber: Number(roundOrderNumber),
           quote: Number(quote),
           mobileNumber,
+          email,
         };
 
         // Add service routine data if provided
@@ -317,6 +320,13 @@ export default function EditCustomerScreen() {
               onChangeText={setMobileNumber}
               placeholder="Mobile Number"
               keyboardType="phone-pad"
+            />
+
+            <TextInput
+              style={styles.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Email"
             />
           </View>
         ) : (

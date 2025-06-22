@@ -41,6 +41,7 @@ export default function SettingsScreen() {
           frequency: (row as any)['Visit Frequency']?.trim(),
           nextVisit: '',
           roundOrderNumber: i,
+          email: (row as any)['Email']?.trim(),
         };
 
         const quoteString = (row as any)['Quote']?.trim();
@@ -64,7 +65,12 @@ export default function SettingsScreen() {
 
         if (clientData.name && clientData.address && clientData.nextVisit) {
           try {
-            await addDoc(collection(db, 'clients'), clientData);
+            await addDoc(collection(db, 'clients'), {
+              ...clientData,
+              dateAdded: new Date().toISOString(),
+              source: clientData.source || '',
+              email: clientData.email || '',
+            });
             imported++;
           } catch (e) {
             console.error('Firestore write error:', e, 'for row:', row);

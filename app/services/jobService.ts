@@ -53,13 +53,37 @@ export async function getJobsForWeek(startDate: string, endDate: string): Promis
   // scheduledTime is an ISO string (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
   // We need to ensure we capture the full day range
   const jobsRef = collection(db, JOBS_COLLECTION);
+  
+  // Use endDate + 1 day to include the full last day of the week
+  const nextDay = new Date(endDate);
+  nextDay.setDate(nextDay.getDate() + 1);
+  const inclusiveEndDate = format(nextDay, 'yyyy-MM-dd');
+  
   const q = query(
     jobsRef,
     where('scheduledTime', '>=', startDate + 'T00:00:00'),
-    where('scheduledTime', '<', endDate + 'T00:00:00')
+    where('scheduledTime', '<', inclusiveEndDate + 'T00:00:00')
   );
+  
+  console.log('🔍 getJobsForWeek query:', {
+    startDate: startDate + 'T00:00:00',
+    endDate: endDate,
+    inclusiveEndDate: inclusiveEndDate + 'T00:00:00'
+  });
+  
   const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+  const jobs = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+  
+  console.log('📋 getJobsForWeek found jobs:', jobs.length);
+  console.log('📋 Jobs details:', jobs.map(job => ({
+    id: job.id,
+    clientId: job.clientId,
+    scheduledTime: job.scheduledTime,
+    serviceId: job.serviceId,
+    status: job.status
+  })));
+  
+  return jobs;
 }
 
 export async function getClientById(clientId: string): Promise<Client | null> {

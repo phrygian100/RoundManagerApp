@@ -29,6 +29,23 @@ export default function AddClientScreen() {
   const [totalClients, setTotalClients] = useState(0);
   const [showRoundOrderButton, setShowRoundOrderButton] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [source, setSource] = useState('');
+  const [customSource, setCustomSource] = useState('');
+  const [showCustomSourceInput, setShowCustomSourceInput] = useState(false);
+  const [email, setEmail] = useState('');
+
+  const sourceOptions = [
+    'Google',
+    'Facebook',
+    'Canvassing',
+    'Referral',
+    'Word of mouth',
+    'Flyers / Leaflets',
+    'Cold calling',
+    'Van signage/Branding',
+    'Found on the curb',
+    'Other'
+  ];
 
   useEffect(() => {
     return () => {
@@ -139,6 +156,9 @@ export default function AddClientScreen() {
         accountNumber,
         roundOrderNumber,
         status: 'active',
+        dateAdded: new Date().toISOString(),
+        source: source === 'Other' ? customSource : source,
+        email,
       });
 
       console.log('Client created with ID:', clientRef.id);
@@ -175,6 +195,8 @@ export default function AddClientScreen() {
       quote: Number(quote),
       accountNumber,
       status: 'active',
+      source: source === 'Other' ? customSource : source,
+      email,
     };
 
     // Navigate to round order manager with the client data
@@ -218,6 +240,45 @@ export default function AddClientScreen() {
           placeholder="07xxx..."
           keyboardType="phone-pad"
         />
+
+        <ThemedText style={styles.label}>Email</ThemedText>
+        <TextInput
+          value={email}
+          onChangeText={setEmail}
+          style={styles.input}
+          placeholder="john.smith@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <ThemedText style={styles.label}>Source</ThemedText>
+        <Picker
+          selectedValue={source}
+          onValueChange={(itemValue) => {
+            setSource(itemValue as string);
+            setShowCustomSourceInput(itemValue === 'Other');
+            if (itemValue !== 'Other') {
+              setCustomSource('');
+            }
+          }}
+          style={styles.input}
+        >
+          {sourceOptions.map((option) => (
+            <Picker.Item key={option} label={option} value={option} />
+          ))}
+        </Picker>
+
+        {showCustomSourceInput && (
+          <>
+            <ThemedText style={styles.label}>Custom Source</ThemedText>
+            <TextInput
+              value={customSource}
+              onChangeText={setCustomSource}
+              style={styles.input}
+              placeholder="Enter custom source..."
+            />
+          </>
+        )}
 
         <ThemedText style={styles.label}>Quote (£)</ThemedText>
         <TextInput

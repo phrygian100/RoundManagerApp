@@ -126,6 +126,9 @@ export default function RoundOrderManagerScreen() {
                 ...clientData,
                 roundOrderNumber: position,
                 status: 'active',
+                dateAdded: new Date().toISOString(),
+                source: clientData.source || '',
+                email: clientData.email || '',
             });
 
             if (clientData.frequency !== 'one-off') {

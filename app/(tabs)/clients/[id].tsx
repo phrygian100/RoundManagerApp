@@ -24,17 +24,25 @@ export default function ClientDetailScreen() {
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [jobType, setJobType] = useState('Gutter cleaning');
+  const [customJobType, setCustomJobType] = useState('');
   const [jobNotes, setJobNotes] = useState('');
   const [jobPrice, setJobPrice] = useState('');
   const [jobDate, setJobDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [notesModalVisible, setNotesModalVisible] = useState(false);
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [historyCollapsed, setHistoryCollapsed] = useState(false);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
       const docRef = doc(db, 'clients', id);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setClient({ id: docSnap.id, ...docSnap.data() } as Client);
+        const data = docSnap.data();
+        setClient({ id: docSnap.id, ...data } as Client);
+        setNotes(data.notes || '');
       }
       setLoading(false);
     }
@@ -124,21 +132,37 @@ export default function ClientDetailScreen() {
   };
 
   const handleMakePayment = () => {
-    if (!client) return;
-    
-    const address = client.address1 && client.town && client.postcode 
-      ? `${client.address1}, ${client.town}, ${client.postcode}`
-      : client.address || '';
-
     router.push({
       pathname: '/add-payment',
       params: {
-        clientId: client.id,
-        clientName: client.name,
-        address: address,
-        accountNumber: client.accountNumber || '',
-      },
-    });
+        clientId: id,
+        clientName: client?.name,
+        clientAddress: client?.address1 || client?.address,
+        clientAccountNumber: client?.accountNumber
+      }
+    } as never);
+  };
+
+  const handleOpenNotes = () => {
+    setNotesModalVisible(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (typeof id !== 'string') return;
+    
+    setSavingNotes(true);
+    try {
+      await updateDoc(doc(db, 'clients', id), {
+        notes: notes
+      });
+      setNotesModalVisible(false);
+      Alert.alert('Success', 'Notes saved successfully!');
+    } catch (error) {
+      console.error('Error saving notes:', error);
+      Alert.alert('Error', 'Failed to save notes. Please try again.');
+    } finally {
+      setSavingNotes(false);
+    }
   };
 
   const handleAddJob = async () => {
@@ -147,20 +171,33 @@ export default function ClientDetailScreen() {
       return;
     }
 
+    if (jobType === 'Other' && !customJobType.trim()) {
+      Alert.alert('Error', 'Please enter a custom job type.');
+      return;
+    }
+
+    const finalJobType = jobType === 'Other' ? customJobType.trim() : jobType;
+
+    const jobData = {
+      clientId: id,
+      providerId: 'test-provider-1',
+      serviceId: finalJobType,
+      propertyDetails: jobNotes,
+      price: Number(jobPrice),
+      status: 'pending',
+      scheduledTime: format(jobDate, 'yyyy-MM-dd') + 'T09:00:00',
+      paymentStatus: 'unpaid',
+    };
+
+    console.log('➕ Creating adhoc job:', jobData);
+
     try {
-      await addDoc(collection(db, 'jobs'), {
-        clientId: id,
-        serviceId: jobType,
-        propertyDetails: jobNotes,
-        price: Number(jobPrice),
-        status: 'pending',
-        scheduledTime: jobDate.toISOString(),
-        paymentStatus: 'unpaid',
-      });
+      await addDoc(collection(db, 'jobs'), jobData);
       Alert.alert('Success', 'Job added successfully.');
       setModalVisible(false);
       setJobNotes('');
       setJobPrice('');
+      setCustomJobType('');
     } catch (error) {
       console.error('Error adding job:', error);
       Alert.alert('Error', 'Failed to add job.');
@@ -215,9 +252,11 @@ export default function ClientDetailScreen() {
             ) : (
               <ThemedText>Quote: N/A</ThemedText>
             )}
-            {client.frequency && (
+            {client.frequency && client.frequency !== 'one-off' ? (
               <ThemedText>Visit every {client.frequency} weeks</ThemedText>
-            )}
+            ) : client.frequency === 'one-off' ? (
+              <ThemedText>No recurring work</ThemedText>
+            ) : null}
             {client.nextVisit && (
               <ThemedText>Next scheduled visit: {new Date(client.nextVisit).toLocaleDateString('en-GB', {
                 day: '2-digit',
@@ -226,6 +265,19 @@ export default function ClientDetailScreen() {
               })}</ThemedText>
             )}
             <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
+            {client.email && (
+              <ThemedText>Email: {client.email}</ThemedText>
+            )}
+            {client.dateAdded && (
+              <ThemedText>Date Added: {new Date(client.dateAdded).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+              })}</ThemedText>
+            )}
+            {client.source && (
+              <ThemedText>Source: {client.source}</ThemedText>
+            )}
           </View>
           
           <View style={styles.verticalButtons}>
@@ -263,17 +315,48 @@ export default function ClientDetailScreen() {
           </View>
         </View>
 
+        <View style={styles.notesSection}>
+          <Pressable 
+            style={styles.notesHeader} 
+            onPress={() => setNotesCollapsed(!notesCollapsed)}
+          >
+            <ThemedText type="subtitle" style={styles.notesTitle}>
+              Notes {notesCollapsed ? '▶️' : '🔽'}
+            </ThemedText>
+          </Pressable>
+          {!notesCollapsed && (
+            <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
+              {notes ? (
+                <ThemedText style={styles.notesText}>{notes}</ThemedText>
+              ) : (
+                <ThemedText style={styles.notesPlaceholder}>Tap to add notes...</ThemedText>
+              )}
+            </Pressable>
+          )}
+        </View>
+
         <View style={styles.historyContainer}>
-          <ThemedText type="subtitle" style={styles.historyTitle}>Service History</ThemedText>
-          {loadingHistory ? (
-            <ActivityIndicator />
-          ) : (
-            <FlatList
-              data={serviceHistory}
-              keyExtractor={(item) => `${item.type}-${item.id}`}
-              renderItem={renderHistoryItem}
-              ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
-            />
+          <Pressable 
+            style={styles.historyHeader} 
+            onPress={() => setHistoryCollapsed(!historyCollapsed)}
+          >
+            <ThemedText type="subtitle" style={styles.historyTitle}>
+              Service History {historyCollapsed ? '▶️' : '🔽'}
+            </ThemedText>
+          </Pressable>
+          {!historyCollapsed && (
+            <>
+              {loadingHistory ? (
+                <ActivityIndicator />
+              ) : (
+                <FlatList
+                  data={serviceHistory}
+                  keyExtractor={(item) => `${item.type}-${item.id}`}
+                  renderItem={renderHistoryItem}
+                  ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
+                />
+              )}
+            </>
           )}
         </View>
       </View>
@@ -289,8 +372,10 @@ export default function ClientDetailScreen() {
             <ThemedText type="subtitle">Add a New Job</ThemedText>
 
             <View style={styles.datePickerContainer}>
-              <ThemedText>Job Date: {format(jobDate, 'do MMMM yyyy')}</ThemedText>
-              <Button title="Change Date" onPress={() => setShowDatePicker(true)} />
+              <ThemedText style={styles.dateText}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
+              <Pressable style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
+                <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+              </Pressable>
             </View>
 
             {showDatePicker && (
@@ -311,8 +396,19 @@ export default function ClientDetailScreen() {
               <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
               <Picker.Item label="Conservatory roof" value="Conservatory roof" />
               <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+              <Picker.Item label="One-off window cleaning" value="One-off window cleaning" />
               <Picker.Item label="Other" value="Other" />
             </Picker>
+            
+            {jobType === 'Other' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter custom job type"
+                value={customJobType}
+                onChangeText={setCustomJobType}
+              />
+            )}
+            
             <TextInput
               style={styles.input}
               placeholder="Job Notes"
@@ -329,6 +425,42 @@ export default function ClientDetailScreen() {
             <View style={styles.modalButtons}>
               <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
               <Button title="Add Job" onPress={handleAddJob} />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={notesModalVisible}
+        onRequestClose={() => setNotesModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText type="subtitle">Edit Notes</ThemedText>
+            
+            <TextInput
+              style={styles.notesTextInput}
+              placeholder="Enter notes for this client..."
+              value={notes}
+              onChangeText={setNotes}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+            />
+            
+            <View style={styles.modalButtons}>
+              <Button 
+                title="Cancel" 
+                onPress={() => setNotesModalVisible(false)} 
+                color="red" 
+              />
+              <Button 
+                title={savingNotes ? "Saving..." : "Save Notes"} 
+                onPress={handleSaveNotes}
+                disabled={savingNotes}
+              />
             </View>
           </View>
         </View>
@@ -383,6 +515,7 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     padding: 20,
+    paddingTop: 60,
   },
   titleRow: {
     flexDirection: 'row',
@@ -437,7 +570,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 35,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -454,6 +586,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: '100%',
     marginBottom: 10,
+    paddingVertical: 5,
+  },
+  dateText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  calendarButton: {
+    padding: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  calendarIcon: {
+    fontSize: 18,
   },
   picker: {
     width: '100%',
@@ -516,6 +665,49 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#f0f0f0',
     borderColor: '#d0d0d0',
+  },
+  notesSection: {
+    marginTop: 24,
+  },
+  notesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingVertical: 5,
+  },
+  notesTitle: {
+    flex: 1,
+  },
+  notesContent: {
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 5,
+  },
+  notesText: {
+    fontSize: 14,
+  },
+  notesPlaceholder: {
+    fontSize: 14,
+    color: '#999',
+  },
+  notesTextInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginVertical: 10,
+    borderRadius: 5,
+    width: '100%',
+    height: 200,
+    textAlignVertical: 'top',
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingVertical: 5,
   },
 });
 

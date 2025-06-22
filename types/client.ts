@@ -11,5 +11,8 @@ export type Client = {
   nextVisit?: string;
   quote?: number;
   mobileNumber?: string;
+  email?: string;
   status?: 'active' | 'ex-client';
+  dateAdded?: string;
+  source?: string;
 }; 
