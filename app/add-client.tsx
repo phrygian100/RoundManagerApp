@@ -3,7 +3,7 @@ import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'd
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -187,7 +187,12 @@ export default function AddClientScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
-        <ThemedText type="title">Add New Client</ThemedText>
+        <View style={styles.titleRow}>
+          <ThemedText type="title">Add New Client</ThemedText>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+          </Pressable>
+        </View>
 
         <ThemedText style={styles.label}>Address</ThemedText>
         <TextInput
@@ -326,5 +331,23 @@ const styles = StyleSheet.create({
   roundOrderButtonText: {
     color: '#007AFF',
     fontWeight: 'bold',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 });

@@ -24,7 +24,7 @@ export type Job = {
   serviceId: string;
   propertyDetails: string;
   scheduledTime: string; // ISO date string
-  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'accounted';
+  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'accounted' | 'paid';
   eta?: string; // e.g., "13:45"
   price: number;
   rating?: number; // client rating for this job
@@ -35,6 +35,7 @@ export type Job = {
 export type Payment = {
   id: string;
   clientId: string;
+  jobId?: string; // Link to the job if payment is for a specific job
   amount: number;
   date: string; // ISO date string
   method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other';

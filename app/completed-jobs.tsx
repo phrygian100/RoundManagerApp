@@ -1,16 +1,19 @@
 import { format, parseISO } from 'date-fns';
+import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
+import { deleteJob } from './services/jobService';
 import type { Job } from './types/models';
 
 export default function CompletedJobsScreen() {
   const [loading, setLoading] = useState(true);
   const [paidJobs, setPaidJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -82,8 +85,35 @@ export default function CompletedJobsScreen() {
         }
     }
 
+    const handleDelete = () => {
+      Alert.alert(
+        'Delete Job',
+        'Are you sure you want to permanently delete this job record?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteJob(item.id);
+                Alert.alert('Success', 'Job has been deleted.');
+                // Note: The list will update automatically due to the onSnapshot listener
+              } catch (error) {
+                console.error('Error deleting job:', error);
+                Alert.alert('Error', 'Could not delete job.');
+              }
+            },
+          },
+        ]
+      );
+    };
+
     return (
       <View style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]}>
+        <Pressable style={styles.deleteButton} onPress={handleDelete}>
+          <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+        </Pressable>
         {isOneOffJob && (
           <View style={styles.oneOffJobLabel}>
             <ThemedText style={styles.oneOffJobText}>{item.serviceId}</ThemedText>
@@ -119,7 +149,12 @@ export default function CompletedJobsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Completed Jobs</ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="title" style={styles.title}>Completed Jobs</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+        </Pressable>
+      </View>
       <ThemedText style={styles.sectionSubtitle}>
         Total: £{calculateJobsTotal().toFixed(2)} ({paidJobs.length} jobs)
       </ThemedText>
@@ -159,6 +194,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    position: 'relative',
   },
   oneOffJobItem: {
     backgroundColor: '#fffbe6',
@@ -197,5 +233,39 @@ const styles = StyleSheet.create({
     color: '#4CAF50',
     textAlign: 'right',
     fontWeight: 'bold',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
+  deleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ff4d4d',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 12,
   },
 }); 

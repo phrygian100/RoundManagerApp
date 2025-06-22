@@ -3,7 +3,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -146,7 +146,12 @@ export default function ClientsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Clients</ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="title" style={styles.title}>Clients</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+        </Pressable>
+      </View>
       <ThemedView style={styles.headerRow}>
         <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
         <View style={{ flexDirection: 'row' }}>
@@ -178,7 +183,6 @@ export default function ClientsScreen() {
       <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
         <ThemedText style={styles.buttonText}>Add Client</ThemedText>
       </Pressable>
-      <Button title="Home" onPress={() => router.replace('/')} />
       <FlatList
         data={filteredClients}
         renderItem={renderClient}
@@ -267,6 +271,25 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
+    color: '#333',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
     color: '#333',
   },
 });

@@ -1,7 +1,7 @@
 import { addWeeks, format, parseISO, startOfWeek, subWeeks } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getJobsForWeek } from './services/jobService';
 
 export default function RunsheetHistoryScreen() {
@@ -53,8 +53,12 @@ export default function RunsheetHistoryScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Runsheet History</Text>
-      <Button title="Back" onPress={() => router.back()} />
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Runsheet History</Text>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <Text style={styles.homeButtonText}>🏠</Text>
+        </Pressable>
+      </View>
       {loading ? (
         <Text style={styles.empty}>Loading...</Text>
       ) : (
@@ -83,4 +87,22 @@ const styles = StyleSheet.create({
   weekLabel: { fontSize: 15, flex: 1, flexWrap: 'wrap' },
   count: { fontSize: 15, fontWeight: 'bold', marginLeft: 8, minWidth: 60, textAlign: 'right' },
   empty: { textAlign: 'center', marginTop: 50 },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
 }); 

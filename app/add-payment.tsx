@@ -8,6 +8,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
+import { updateJobStatus } from './services/jobService';
 import { createPayment } from './services/paymentService';
 import type { Payment } from './types/models';
 
@@ -89,7 +90,17 @@ export default function AddPaymentScreen() {
         paymentData.notes = notes.trim();
       }
 
+      // If the payment is from a job, include the jobId
+      if (params.jobId) {
+        paymentData.jobId = params.jobId as string;
+      }
+
       await createPayment(paymentData);
+
+      // If the payment was created from a job, update the job's status to 'paid'
+      if (params.jobId) {
+        await updateJobStatus(params.jobId as string, 'paid');
+      }
 
       Alert.alert('Success', 'Payment added successfully!', [
         { text: 'OK', onPress: () => router.back() }

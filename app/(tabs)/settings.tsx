@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, View } from 'react-native';
+import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
@@ -282,8 +282,12 @@ export default function SettingsScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">Settings</ThemedText>
-      <Button title="Home" onPress={() => router.replace('/')} />
+      <View style={styles.titleRow}>
+        <ThemedText type="title">Settings</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+        </Pressable>
+      </View>
       
       <View style={styles.buttonContainer}>
         <Button title="Import Clients from CSV" onPress={handleImport} />
@@ -336,4 +340,22 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60 },
   buttonContainer: { marginVertical: 8 },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
 }); 

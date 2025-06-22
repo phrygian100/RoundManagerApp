@@ -1,5 +1,5 @@
 import { addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
 import type { Job } from '../types/models';
@@ -42,6 +42,11 @@ export async function getJobsForProvider(providerId: string): Promise<Job[]> {
 export async function updateJobStatus(jobId: string, status: Job['status']) {
   const jobRef = doc(db, JOBS_COLLECTION, jobId);
   await updateDoc(jobRef, { status });
+}
+
+export async function deleteJob(jobId: string): Promise<void> {
+  const jobRef = doc(db, JOBS_COLLECTION, jobId);
+  await deleteDoc(jobRef);
 }
 
 export async function getJobsForWeek(startDate: string, endDate: string): Promise<Job[]> {

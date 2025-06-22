@@ -2,12 +2,13 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
-import { getAllPayments } from './services/paymentService';
+import { updateJobStatus } from './services/jobService';
+import { deletePayment, getAllPayments } from './services/paymentService';
 import type { Payment } from './types/models';
 
 export default function PaymentsListScreen() {
@@ -69,8 +70,46 @@ export default function PaymentsListScreen() {
       ? `${client.address1}, ${client.town}, ${client.postcode}`
       : client?.address || 'No address';
 
+    const handleDelete = () => {
+      Alert.alert(
+        'Delete Payment',
+        'Are you sure you want to permanently delete this payment? If it is linked to a job, the job will be marked as awaiting payment again.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                // Delete the payment record
+                await deletePayment(item.id);
+
+                // If a job is linked, revert its status to 'accounted'
+                if (item.jobId) {
+                  await updateJobStatus(item.jobId, 'accounted');
+                }
+
+                Alert.alert('Success', 'Payment has been deleted.');
+                
+                // Manually refresh the list data after deletion
+                const updatedPayments = payments.filter(p => p.id !== item.id);
+                setPayments(updatedPayments);
+
+              } catch (error) {
+                console.error('Error deleting payment:', error);
+                Alert.alert('Error', 'Could not delete payment.');
+              }
+            },
+          },
+        ]
+      );
+    };
+
     return (
       <View style={styles.paymentItem}>
+        <Pressable style={styles.deleteButton} onPress={handleDelete}>
+          <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+        </Pressable>
         <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
         <ThemedText>{client?.name || 'Unknown client'}</ThemedText>
         <ThemedText>£{item.amount.toFixed(2)}</ThemedText>
@@ -102,7 +141,12 @@ export default function PaymentsListScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Payments</ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="title" style={styles.title}>Payments</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+        </Pressable>
+      </View>
       <ThemedText style={styles.sectionSubtitle}>
         Total: £{calculatePaymentsTotal().toFixed(2)} ({payments.length} payments)
       </ThemedText>
@@ -142,6 +186,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    position: 'relative',
   },
   paymentMethod: {
     marginTop: 8,
@@ -153,8 +198,42 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     color: '#555',
   },
+  deleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ff4d4d',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 12,
+  },
   notes: {
     marginTop: 4,
     color: '#777',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 }); 

@@ -1,9 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { collection, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getJobsForWeek } from './services/jobService';
+import { db } from '../core/firebase';
+import type { Job } from './types/models';
 
 export default function WorkloadForecastScreen() {
   const [loading, setLoading] = useState(true);
@@ -12,21 +14,39 @@ export default function WorkloadForecastScreen() {
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
-    const today = new Date();
-    const start = startOfWeek(today, { weekStartsOn: 1 });
-    const weeksArr: { week: string; count: number }[] = [];
-    for (let i = 0; i < 52; i++) {
-      const weekDate = addWeeks(start, i);
-      const weekStr = format(weekDate, 'yyyy-MM-dd');
-      const weekStart = weekStr;
-      const weekEnd = format(addWeeks(weekDate, 1), 'yyyy-MM-dd');
-      // Use getJobsForWeek to fetch jobs for this week
-      const jobsForWeek = await getJobsForWeek(weekStart, weekEnd);
-      const count = jobsForWeek.length;
-      weeksArr.push({ week: weekStr, count });
+    try {
+      // Get all jobs in a single query instead of 52 separate queries
+      const jobsRef = collection(db, 'jobs');
+      const jobsSnapshot = await getDocs(jobsRef);
+      const allJobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));
+
+      // Calculate the date range for the next 52 weeks
+      const today = new Date();
+      const start = startOfWeek(today, { weekStartsOn: 1 });
+      const weeksArr: { week: string; count: number }[] = [];
+
+      // Group jobs by week
+      for (let i = 0; i < 52; i++) {
+        const weekDate = addWeeks(start, i);
+        const weekStr = format(weekDate, 'yyyy-MM-dd');
+        const weekEnd = format(addWeeks(weekDate, 1), 'yyyy-MM-dd');
+
+        // Count jobs that fall within this week
+        const count = allJobs.filter(job => {
+          if (!job.scheduledTime) return false;
+          const jobDate = job.scheduledTime.split('T')[0]; // Get just the date part
+          return jobDate >= weekStr && jobDate < weekEnd;
+        }).length;
+
+        weeksArr.push({ week: weekStr, count });
+      }
+
+      setWeeks(weeksArr);
+    } catch (error) {
+      console.error('Error fetching workload forecast:', error);
+    } finally {
+      setLoading(false);
     }
-    setWeeks(weeksArr);
-    setLoading(false);
   }, []);
 
   // Refresh data when screen comes into focus
@@ -77,8 +97,12 @@ export default function WorkloadForecastScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Workload Forecast</Text>
-      <Button title="Home" onPress={() => router.replace('/')} />
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Workload Forecast</Text>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <Text style={styles.homeButtonText}>🏠</Text>
+        </Pressable>
+      </View>
       <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
       <FlatList
         data={weeks}
@@ -109,4 +133,22 @@ const styles = StyleSheet.create({
   count: { fontSize: 15, fontWeight: 'bold', marginLeft: 8, minWidth: 60, textAlign: 'right' },
   empty: { textAlign: 'center', marginTop: 50 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
 }); 

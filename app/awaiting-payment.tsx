@@ -7,6 +7,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
+import { deleteJob } from './services/jobService';
 import type { Job } from './types/models';
 
 export default function AwaitingPaymentScreen() {
@@ -107,6 +108,30 @@ export default function AwaitingPaymentScreen() {
       );
     };
 
+    const handleDelete = () => {
+      Alert.alert(
+        'Delete Job',
+        'Are you sure you want to permanently delete this job record?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await deleteJob(item.id);
+                Alert.alert('Success', 'Job has been deleted.');
+                // Note: The list will update automatically due to the onSnapshot listener
+              } catch (error) {
+                console.error('Error deleting job:', error);
+                Alert.alert('Error', 'Could not delete job.');
+              }
+            },
+          },
+        ]
+      );
+    };
+
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
 
     let recurringJobLabel = '';
@@ -121,6 +146,9 @@ export default function AwaitingPaymentScreen() {
     return (
       <Pressable onPress={handleJobPress}>
         <View style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]}>
+          <Pressable style={styles.deleteButton} onPress={handleDelete}>
+            <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+          </Pressable>
           {isOneOffJob && (
             <View style={styles.oneOffJobLabel}>
               <ThemedText style={styles.oneOffJobText}>{item.serviceId}</ThemedText>
@@ -157,7 +185,12 @@ export default function AwaitingPaymentScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>Awaiting Payment</ThemedText>
+      <View style={styles.titleRow}>
+        <ThemedText type="title" style={styles.title}>Awaiting Payment</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+        </Pressable>
+      </View>
       <ThemedText style={styles.sectionSubtitle}>
         Total: £{calculateJobsTotal().toFixed(2)} ({accountedJobs.length} jobs)
       </ThemedText>
@@ -197,6 +230,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
+    position: 'relative',
   },
   oneOffJobItem: {
     backgroundColor: '#fffbe6',
@@ -229,10 +263,44 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
+  deleteButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#ff4d4d',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
+  },
+  deleteButtonText: {
+    color: 'white',
+    fontSize: 12,
+  },
   tapHint: {
     marginTop: 8,
     fontStyle: 'italic',
     color: '#007AFF',
     textAlign: 'right',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
   },
 }); 

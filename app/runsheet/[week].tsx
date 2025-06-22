@@ -305,55 +305,70 @@ export default function RunsheetWeekScreen() {
 
   // Move job up/down within a day or left/right between days (same as in main runsheet)
   const moveJob = async (sectionIndex: number, jobIndex: number, direction: 'up' | 'down' | 'left' | 'right') => {
+    const sections = daysOfWeek.map((day, i) => {
+      const dayDate = addDays(weekStart, i);
+      const jobsForDay = jobs
+        .filter((job) => {
+          const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+          return jobDate && jobDate.toDateString() === dayDate.toDateString();
+        })
+        .sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+      return {
+        title: day,
+        data: jobsForDay,
+        dayDate,
+      };
+    });
+
     const section = sections[sectionIndex];
-    const job = section.data[jobIndex];
-    let newJobs = [...jobs];
-    if (direction === 'up' && jobIndex > 0) {
-      const prevJob = section.data[jobIndex - 1];
-      const temp = job.client?.roundOrderNumber ?? 0;
-      if (job.client && prevJob.client) {
-        job.client!.roundOrderNumber = prevJob.client!.roundOrderNumber;
-        prevJob.client!.roundOrderNumber = temp;
-        await Promise.all([
-          updateDoc(doc(db, 'clients', job.client!.id), { roundOrderNumber: job.client!.roundOrderNumber }),
-          updateDoc(doc(db, 'clients', prevJob.client!.id), { roundOrderNumber: prevJob.client!.roundOrderNumber }),
-        ]);
-        newJobs = newJobs.map(j => {
-          if (j.client?.id === job.client!.id) return { ...j, client: { ...j.client! } };
-          if (j.client?.id === prevJob.client!.id) return { ...j, client: { ...j.client! } };
+    if (!section) return;
+
+    const jobToMove = section.data[jobIndex];
+    if (!jobToMove) return;
+
+    if (direction === 'up' || direction === 'down') {
+      const swapIndex = direction === 'up' ? jobIndex - 1 : jobIndex + 1;
+      if (swapIndex < 0 || swapIndex >= section.data.length) return;
+
+      const jobToSwapWith = section.data[swapIndex];
+      if (!jobToMove.client || !jobToSwapWith.client) return;
+
+      const newRoundOrderForJobToMove = jobToSwapWith.client.roundOrderNumber;
+      const newRoundOrderForJobToSwapWith = jobToMove.client.roundOrderNumber;
+
+      // Perform DB updates first
+      await Promise.all([
+        updateDoc(doc(db, 'clients', jobToMove.client.id), { roundOrderNumber: newRoundOrderForJobToMove }),
+        updateDoc(doc(db, 'clients', jobToSwapWith.client.id), { roundOrderNumber: newRoundOrderForJobToSwapWith }),
+      ]);
+
+      // Then, update local state immutably
+      setJobs(prevJobs => {
+        return prevJobs.map(j => {
+          if (j.id === jobToMove.id && j.client) {
+            return { ...j, client: { ...j.client, roundOrderNumber: newRoundOrderForJobToMove } };
+          }
+          if (j.id === jobToSwapWith.id && j.client) {
+            return { ...j, client: { ...j.client, roundOrderNumber: newRoundOrderForJobToSwapWith } };
+          }
           return j;
         });
-      }
-    } else if (direction === 'down' && jobIndex < section.data.length - 1) {
-      const nextJob = section.data[jobIndex + 1];
-      const temp = job.client?.roundOrderNumber ?? 0;
-      if (job.client && nextJob.client) {
-        job.client!.roundOrderNumber = nextJob.client!.roundOrderNumber;
-        nextJob.client!.roundOrderNumber = temp;
-        await Promise.all([
-          updateDoc(doc(db, 'clients', job.client!.id), { roundOrderNumber: job.client!.roundOrderNumber }),
-          updateDoc(doc(db, 'clients', nextJob.client!.id), { roundOrderNumber: nextJob.client!.roundOrderNumber }),
-        ]);
-        newJobs = newJobs.map(j => {
-          if (j.client?.id === job.client!.id) return { ...j, client: { ...j.client! } };
-          if (j.client?.id === nextJob.client!.id) return { ...j, client: { ...j.client! } };
-          return j;
-        });
-      }
-    } else if (direction === 'left' && sectionIndex > 0) {
-      const prevDay = sections[sectionIndex - 1].dayDate;
-      const newDate = format(prevDay, 'yyyy-MM-dd') + 'T09:00:00';
-      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: newDate });
-      job.scheduledTime = newDate;
-    } else if (direction === 'right' && sectionIndex < sections.length - 1) {
-      const nextDay = sections[sectionIndex + 1].dayDate;
-      const newDate = format(nextDay, 'yyyy-MM-dd') + 'T09:00:00';
-      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: newDate });
-      job.scheduledTime = newDate;
-    } else {
-      return;
+      });
+    } else if (direction === 'left' || direction === 'right') {
+      const newSectionIndex = direction === 'left' ? sectionIndex - 1 : sectionIndex + 1;
+      if (newSectionIndex < 0 || newSectionIndex >= sections.length) return;
+      
+      const newDay = sections[newSectionIndex].dayDate;
+      const newScheduledTime = format(newDay, 'yyyy-MM-dd') + 'T09:00:00';
+      
+      // Perform DB update first
+      await updateDoc(doc(db, 'jobs', jobToMove.id), { scheduledTime: newScheduledTime });
+
+      // Then, update local state immutably
+      setJobs(prevJobs => prevJobs.map(j => 
+        j.id === jobToMove.id ? { ...j, scheduledTime: newScheduledTime } : j
+      ));
     }
-    setJobs([...newJobs]);
   };
 
   // Title for the week
@@ -365,8 +380,12 @@ export default function RunsheetWeekScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{weekTitle}</Text>
-      <Button title="Home" onPress={() => router.replace('/')} />
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>{weekTitle}</Text>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <Text style={styles.homeButtonText}>🏠</Text>
+        </Pressable>
+      </View>
       <Text>Debug: {String(jobs.length)} jobs</Text>
       {loading ? (
         <ActivityIndicator size="large" />
@@ -424,7 +443,29 @@ export default function RunsheetWeekScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 8 },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginRight: 16,
+    flexShrink: 1,
+  },
+  homeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  homeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+  },
   sectionHeaderContainer: {
     flexDirection: 'row',
     alignItems: 'center',
