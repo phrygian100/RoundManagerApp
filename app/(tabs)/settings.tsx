@@ -196,7 +196,7 @@ export default function SettingsScreen() {
   const handleWeeklyRollover = async () => {
     Alert.alert(
       'Weekly Rollover',
-      'This will simulate the weekly rollover process:\n\n1. Move completed jobs from last week to "accounted"\n2. Create jobs for the new week (8 weeks ahead)\n\nThis is normally automated but can be triggered manually for testing.',
+      'This will simulate the weekly rollover process:\n\n1. Move completed jobs from last week to "completed"\n2. Create jobs for the new week (8 weeks ahead)\n\nThis is normally automated but can be triggered manually for testing.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -208,7 +208,7 @@ export default function SettingsScreen() {
               const result = await handleWeeklyRollover();
               Alert.alert(
                 'Weekly Rollover Complete', 
-                `Jobs accounted: ${result.jobsAccounted}\nJobs created: ${result.jobsCreated}`
+                'Weekly rollover has been completed successfully.'
               );
             } catch (error) {
               console.error('Error in weekly rollover:', error);

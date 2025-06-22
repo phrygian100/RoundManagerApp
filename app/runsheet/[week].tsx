@@ -35,8 +35,19 @@ export default function RunsheetWeekScreen() {
       const startDate = format(weekStart, 'yyyy-MM-dd');
       const endDate = format(weekEnd, 'yyyy-MM-dd');
       
+      console.log('🔍 Fetching jobs for week:', startDate, 'to', endDate);
+      
       // 1. Fetch all jobs for the week
       const jobsForWeek = await getJobsForWeek(startDate, endDate);
+      console.log('📋 Jobs found for week:', jobsForWeek.length);
+      console.log('📋 Jobs data:', jobsForWeek.map(job => ({
+        id: job.id,
+        clientId: job.clientId,
+        scheduledTime: job.scheduledTime,
+        status: job.status,
+        serviceId: job.serviceId
+      })));
+      
       if (jobsForWeek.length === 0) {
         setJobs([]);
         setLoading(false);
@@ -45,6 +56,7 @@ export default function RunsheetWeekScreen() {
 
       // 2. Get unique client IDs from the jobs
       const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+      console.log('👥 Unique client IDs:', clientIds);
       
       // 3. Fetch all required clients in batched queries (Firestore 'in' query limit is 30)
       const clientChunks = [];
@@ -64,11 +76,17 @@ export default function RunsheetWeekScreen() {
         });
       });
       
+      console.log('👥 Clients found:', clientsMap.size);
+      console.log('👥 Client IDs:', Array.from(clientsMap.keys()));
+      
       // 4. Map clients back to their jobs
       const jobsWithClients = jobsForWeek.map(job => ({
         ...job,
         client: clientsMap.get(job.clientId) || null,
       }));
+
+      console.log('✅ Final jobs with clients:', jobsWithClients.length);
+      console.log('✅ Jobs with missing clients:', jobsWithClients.filter(job => !job.client).length);
 
       setJobs(jobsWithClients);
       setLoading(false);
@@ -105,9 +123,22 @@ export default function RunsheetWeekScreen() {
     const jobsForDay = jobs
       .filter((job: any) => {
         const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-        return jobDate && jobDate.toDateString() === dayDate.toDateString();
+        const matches = jobDate && jobDate.toDateString() === dayDate.toDateString();
+        if (!matches && job.scheduledTime) {
+          console.log(`❌ Job ${job.id} filtered out for ${day}:`, {
+            jobDate: job.scheduledTime,
+            dayDate: dayDate.toDateString(),
+            jobDateString: jobDate?.toDateString()
+          });
+        }
+        return matches;
       })
       .sort((a: any, b: any) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+    
+    if (jobsForDay.length > 0) {
+      console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
+    }
+    
     return {
       title: day,
       data: jobsForDay,
@@ -205,25 +236,25 @@ export default function RunsheetWeekScreen() {
     if (completedJobs.length === 0) return;
 
     try {
-      // Update job status to 'accounted' to prevent undo
+      // Update job status to 'completed' to show in completed jobs
       const batch = writeBatch(db);
       completedJobs.forEach(job => {
         const jobRef = doc(db, 'jobs', job.id);
-        batch.update(jobRef, { status: 'accounted' });
+        batch.update(jobRef, { status: 'completed' });
       });
       await batch.commit();
 
       // Update local state
       setJobs(prev => prev.map(job => 
         completedJobs.some(completedJob => completedJob.id === job.id) 
-          ? { ...job, status: 'accounted' }
+          ? { ...job, status: 'completed' }
           : job
       ));
 
       // Add day to completed days
       setCompletedDays(prev => [...prev, dayTitle]);
 
-      Alert.alert('Success', `${completedJobs.length} jobs moved to accounts for ${dayTitle}`);
+      Alert.alert('Success', `${completedJobs.length} jobs moved to completed jobs for ${dayTitle}`);
     } catch (error) {
       console.error('Error completing day:', error);
       Alert.alert('Error', 'Failed to complete day. Please try again.');
@@ -233,12 +264,12 @@ export default function RunsheetWeekScreen() {
   const renderItem = ({ item, index, section }: any) => {
     const sectionIndex = sections.findIndex(s => s.title === section.title);
     const isCompleted = item.status === 'completed';
-    const isAccounted = item.status === 'accounted';
+    const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
     // Find the first incomplete job in this section
-    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed' && job.status !== 'accounted');
-    const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isAccounted;
-    const showUndoButton = isCurrentWeek && isCompleted && !isAccounted;
+    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
+    const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
+    const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
@@ -247,8 +278,8 @@ export default function RunsheetWeekScreen() {
     return (
       <View style={[
         styles.clientRow,
-        (isCompleted || isAccounted) && styles.completedRow,
-        isOneOffJob && !isCompleted && !isAccounted && styles.oneOffJobRow
+        isCompleted && styles.completedRow,
+        isOneOffJob && !isCompleted && styles.oneOffJobRow
       ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
@@ -271,7 +302,7 @@ export default function RunsheetWeekScreen() {
             <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
           </Pressable>
           <View style={styles.arrowContainer}>
-            {!isCompleted && !isAccounted && (
+            {!isCompleted && !isDayCompleted && (
               <>
                 <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
                   <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
@@ -386,7 +417,8 @@ export default function RunsheetWeekScreen() {
           <Text style={styles.homeButtonText}>🏠</Text>
         </Pressable>
       </View>
-      <Text>Debug: {String(jobs.length)} jobs</Text>
+      <Text>Debug: {String(jobs.length)} jobs loaded</Text>
+      <Text>Debug: Week {format(weekStart, 'yyyy-MM-dd')} to {format(weekEnd, 'yyyy-MM-dd')}</Text>
       {loading ? (
         <ActivityIndicator size="large" />
       ) : (
@@ -399,7 +431,10 @@ export default function RunsheetWeekScreen() {
           renderSectionHeader={({ section: { title, data } }) => (
             <View style={styles.sectionHeaderContainer}>
               <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
-                <Text style={styles.sectionHeader}>{title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}</Text>
+                <Text style={styles.sectionHeader}>
+                  {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
+                  {completedDays.includes(title) && ' 🔒'}
+                </Text>
               </Pressable>
               {isDayComplete(title) && !completedDays.includes(title) && (
                 <Pressable 
@@ -408,6 +443,11 @@ export default function RunsheetWeekScreen() {
                 >
                   <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
                 </Pressable>
+              )}
+              {completedDays.includes(title) && (
+                <View style={styles.dayCompletedIndicator}>
+                  <Text style={styles.dayCompletedText}>Completed</Text>
+                </View>
               )}
             </View>
           )}
@@ -600,6 +640,16 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   dayCompleteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  dayCompletedIndicator: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  dayCompletedText: {
     color: '#fff',
     fontWeight: 'bold',
   },

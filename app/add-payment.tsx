@@ -8,7 +8,6 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
-import { updateJobStatus } from './services/jobService';
 import { createPayment } from './services/paymentService';
 import type { Payment } from './types/models';
 
@@ -47,6 +46,19 @@ export default function AddPaymentScreen() {
           }
           
           // Don't auto-populate notes - leave blank for user to fill in
+        } else if (params.clientId) {
+          // Coming from client detail screen
+          setSelectedClientId(params.clientId as string);
+          
+          // Pre-populate reference with account number if available
+          if (params.accountNumber) {
+            setReference(`Account: ${params.accountNumber}`);
+          }
+          
+          // Pre-populate notes with address if available
+          if (params.address) {
+            setNotes(`Address: ${params.address}`);
+          }
         } else if (clientsData.length > 0) {
           setSelectedClientId(clientsData[0].id);
         }
@@ -57,7 +69,7 @@ export default function AddPaymentScreen() {
     };
 
     fetchClients();
-  }, [params]);
+  }, []);
 
   const handleSave = async () => {
     if (!selectedClientId || !amount.trim() || !paymentDate.trim()) {
@@ -97,10 +109,8 @@ export default function AddPaymentScreen() {
 
       await createPayment(paymentData);
 
-      // If the payment was created from a job, update the job's status to 'paid'
-      if (params.jobId) {
-        await updateJobStatus(params.jobId as string, 'paid');
-      }
+      // Note: We don't update job status to 'paid' anymore since completed jobs should remain as 'completed'
+      // The payment is linked to the job via jobId for reference purposes
 
       Alert.alert('Success', 'Payment added successfully!', [
         { text: 'OK', onPress: () => router.back() }
@@ -160,13 +170,12 @@ export default function AddPaymentScreen() {
         <View style={styles.inputGroup}>
           <ThemedText style={styles.label}>Amount (£) *</ThemedText>
           <TextInput
-            style={[styles.input, isFromJob && styles.disabledInput]}
+            style={styles.input}
             value={amount}
             onChangeText={setAmount}
             placeholder="0.00"
             keyboardType="decimal-pad"
             placeholderTextColor="#999"
-            editable={!isFromJob} // Disable if coming from job
           />
         </View>
 

@@ -1,15 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
+import type { Job, Payment } from './types/models';
 
-type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none';
+type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none' | 'balance';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -18,6 +19,8 @@ export default function ClientsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('none');
   const [loading, setLoading] = useState(true);
+  const [clientBalances, setClientBalances] = useState<Record<string, number>>({});
+  const [loadingBalances, setLoadingBalances] = useState(true);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'clients'), (querySnapshot) => {
@@ -34,6 +37,43 @@ export default function ClientsScreen() {
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (clients.length === 0) return;
+
+    const fetchClientBalances = async () => {
+      setLoadingBalances(true);
+      try {
+        // Fetch all relevant jobs and payments in optimized queries
+        const jobsQuery = query(collection(db, 'jobs'), where('status', '==', 'completed'));
+        const jobsSnapshot = await getDocs(jobsQuery);
+        const allJobs = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Job[];
+
+        const paymentsQuery = query(collection(db, 'payments'));
+        const paymentsSnapshot = await getDocs(paymentsQuery);
+        const allPayments = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Payment[];
+        
+        const balances: Record<string, number> = {};
+        clients.forEach(client => {
+          const clientJobs = allJobs.filter(job => job.clientId === client.id);
+          const clientPayments = allPayments.filter(payment => payment.clientId === client.id);
+          
+          const totalBilled = clientJobs.reduce((sum, job) => sum + job.price, 0);
+          const totalPaid = clientPayments.reduce((sum, payment) => sum + payment.amount, 0);
+          
+          balances[client.id] = totalPaid - totalBilled;
+        });
+
+        setClientBalances(balances);
+      } catch (error) {
+        console.error("Error fetching client balances:", error);
+      } finally {
+        setLoadingBalances(false);
+      }
+    };
+
+    fetchClientBalances();
+  }, [clients]);
 
   useEffect(() => {
     let filtered = clients;
@@ -77,6 +117,10 @@ export default function ClientsScreen() {
             return aDate.getTime() - bDate.getTime();
           case 'roundOrder':
             return (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0);
+          case 'balance':
+            const balanceA = clientBalances[a.id] ?? 0;
+            const balanceB = clientBalances[b.id] ?? 0;
+            return balanceA - balanceB; // Sorts from most debt to most credit
           default:
             return 0;
         }
@@ -84,10 +128,10 @@ export default function ClientsScreen() {
     }
 
     setFilteredClients(filtered);
-  }, [searchQuery, clients, sortBy]);
+  }, [searchQuery, clients, sortBy, clientBalances]);
 
   const handleSort = () => {
-    const sortOptions: SortOption[] = ['none', 'name', 'nextVisit', 'roundOrder'];
+    const sortOptions: SortOption[] = ['none', 'name', 'nextVisit', 'roundOrder', 'balance'];
     const currentIndex = sortOptions.indexOf(sortBy);
     const nextIndex = (currentIndex + 1) % sortOptions.length;
     setSortBy(sortOptions[nextIndex]);
@@ -98,6 +142,7 @@ export default function ClientsScreen() {
       case 'name': return 'Name';
       case 'nextVisit': return 'Next Visit';
       case 'roundOrder': return 'Round Order';
+      case 'balance': return 'Balance';
       default: return 'Sort';
     }
   };
@@ -112,9 +157,18 @@ export default function ClientsScreen() {
       ? `${item.address1}, ${item.town}, ${item.postcode}`
       : item.address || 'No address';
 
+    const balance = clientBalances[item.id];
+
     return (
       <Pressable onPress={() => handleClientPress(item.id)}>
         <ThemedView style={styles.clientItem}>
+          {loadingBalances ? (
+            <ActivityIndicator style={styles.balanceBadge} size="small" />
+          ) : (
+            <View style={[styles.balanceBadge, { backgroundColor: balance < 0 ? '#ff4d4d' : '#4CAF50' }]}>
+              <ThemedText style={styles.balanceText}>£{balance.toFixed(2)}</ThemedText>
+            </View>
+          )}
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
           <ThemedText>{item.name}</ThemedText>
           {item.quote && (
@@ -209,6 +263,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9f9f9',
     borderWidth: 1,
     borderColor: '#e0e0e0',
+    position: 'relative',
   },
   button: {
     backgroundColor: '#007AFF',
@@ -291,5 +346,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  balanceBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    zIndex: 1,
+  },
+  balanceText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

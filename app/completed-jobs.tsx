@@ -12,7 +12,7 @@ import type { Job } from './types/models';
 
 export default function CompletedJobsScreen() {
   const [loading, setLoading] = useState(true);
-  const [paidJobs, setPaidJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const [completedJobs, setCompletedJobs] = useState<(Job & { client: Client | null })[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -20,15 +20,15 @@ export default function CompletedJobsScreen() {
       setLoading(true);
       
       const jobsRef = collection(db, 'jobs');
-      const paidJobsQuery = query(jobsRef, where('status', '==', 'paid'));
+      const completedJobsQuery = query(jobsRef, where('status', '==', 'completed'));
       
-      const unsubscribe = onSnapshot(paidJobsQuery, async (querySnapshot) => {
+      const unsubscribe = onSnapshot(completedJobsQuery, async (querySnapshot) => {
         const jobsData: (Job & { client: Client | null })[] = [];
         
         const clientIds = [...new Set(querySnapshot.docs.map(doc => doc.data().clientId))];
         
         if (clientIds.length === 0) {
-          setPaidJobs([]);
+          setCompletedJobs([]);
           setLoading(false);
           return;
         }
@@ -58,7 +58,7 @@ export default function CompletedJobsScreen() {
         
         jobsData.sort((a, b) => new Date(b.scheduledTime).getTime() - new Date(a.scheduledTime).getTime());
         
-        setPaidJobs(jobsData);
+        setCompletedJobs(jobsData);
         setLoading(false);
       });
       
@@ -109,8 +109,31 @@ export default function CompletedJobsScreen() {
       );
     };
 
+    const handleCreatePayment = () => {
+      if (!client) {
+        Alert.alert('Error', 'Client information not available.');
+        return;
+      }
+
+      const address = client.address1 && client.town && client.postcode 
+        ? `${client.address1}, ${client.town}, ${client.postcode}`
+        : client.address || '';
+
+      router.push({
+        pathname: '/add-payment',
+        params: {
+          jobId: item.id,
+          clientId: item.clientId,
+          amount: item.price,
+          clientName: client.name,
+          address: address,
+          accountNumber: client.accountNumber || '',
+        },
+      });
+    };
+
     return (
-      <View style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]}>
+      <Pressable style={[styles.jobItem, isOneOffJob && styles.oneOffJobItem]} onPress={handleCreatePayment}>
         <Pressable style={styles.deleteButton} onPress={handleDelete}>
           <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
         </Pressable>
@@ -130,13 +153,13 @@ export default function CompletedJobsScreen() {
         <ThemedText>
           Completed: {format(parseISO(item.scheduledTime), 'd MMMM yyyy')}
         </ThemedText>
-        <ThemedText style={styles.paidLabel}>✓ Paid</ThemedText>
-      </View>
+        <ThemedText style={styles.completedLabel}>✓ Completed</ThemedText>
+      </Pressable>
     );
   };
 
   const calculateJobsTotal = () => {
-    return paidJobs.reduce((sum, job) => sum + job.price, 0);
+    return completedJobs.reduce((sum, job) => sum + job.price, 0);
   };
 
   if (loading) {
@@ -156,10 +179,13 @@ export default function CompletedJobsScreen() {
         </Pressable>
       </View>
       <ThemedText style={styles.sectionSubtitle}>
-        Total: £{calculateJobsTotal().toFixed(2)} ({paidJobs.length} jobs)
+        Total: £{calculateJobsTotal().toFixed(2)} ({completedJobs.length} jobs)
+      </ThemedText>
+      <ThemedText style={styles.tapInstruction}>
+        Tap any job to create a payment
       </ThemedText>
       <FlatList
-        data={paidJobs}
+        data={completedJobs}
         renderItem={renderJob}
         keyExtractor={item => item.id}
         contentContainerStyle={{ paddingTop: 10 }}
@@ -227,7 +253,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
   },
-  paidLabel: {
+  completedLabel: {
     marginTop: 8,
     fontStyle: 'italic',
     color: '#4CAF50',
@@ -267,5 +293,11 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: 'white',
     fontSize: 12,
+  },
+  tapInstruction: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 16,
+    textAlign: 'center',
   },
 }); 

@@ -8,10 +8,8 @@ import { db } from '../core/firebase';
 
 export default function AccountsScreen() {
   const [loading, setLoading] = useState(true);
-  const [jobsTotal, setJobsTotal] = useState(0);
   const [paymentsTotal, setPaymentsTotal] = useState(0);
   const [completedJobsTotal, setCompletedJobsTotal] = useState(0);
-  const [jobsCount, setJobsCount] = useState(0);
   const [paymentsCount, setPaymentsCount] = useState(0);
   const [completedJobsCount, setCompletedJobsCount] = useState(0);
   const router = useRouter();
@@ -20,20 +18,9 @@ export default function AccountsScreen() {
     const fetchTotals = async () => {
       setLoading(true);
 
-      // Fetch accounted jobs for total
-      const jobsRef = collection(db, 'jobs');
-      const accountedJobsQuery = query(jobsRef, where('status', '==', 'accounted'));
-      const jobsUnsubscribe = onSnapshot(accountedJobsQuery, (querySnapshot) => {
-        let total = 0;
-        querySnapshot.forEach((doc) => {
-          total += doc.data().price;
-        });
-        setJobsTotal(total);
-        setJobsCount(querySnapshot.size);
-      });
-
       // Fetch completed jobs for total
-      const completedJobsQuery = query(jobsRef, where('status', '==', 'paid'));
+      const jobsRef = collection(db, 'jobs');
+      const completedJobsQuery = query(jobsRef, where('status', '==', 'completed'));
       const completedJobsUnsubscribe = onSnapshot(completedJobsQuery, (querySnapshot) => {
         let total = 0;
         querySnapshot.forEach((doc) => {
@@ -58,7 +45,6 @@ export default function AccountsScreen() {
       setLoading(false);
 
       return () => {
-        jobsUnsubscribe();
         completedJobsUnsubscribe();
         paymentsUnsubscribe();
       };
@@ -85,10 +71,6 @@ export default function AccountsScreen() {
       </View>
       
       <View style={styles.dashboard}>
-        <Pressable style={styles.dashButton} onPress={() => router.push('/awaiting-payment')}>
-          <ThemedText style={styles.dashButtonText}>Awaiting Payment</ThemedText>
-          <ThemedText style={styles.dashButtonSubText}>£{jobsTotal.toFixed(2)}</ThemedText>
-        </Pressable>
         <Pressable style={styles.dashButton} onPress={() => router.push('/completed-jobs')}>
           <ThemedText style={styles.dashButtonText}>Completed Jobs</ThemedText>
           <ThemedText style={styles.dashButtonSubText}>£{completedJobsTotal.toFixed(2)}</ThemedText>

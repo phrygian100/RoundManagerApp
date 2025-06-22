@@ -20,6 +20,7 @@ export default function ClientDetailScreen() {
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
+  const [balance, setBalance] = useState<number | null>(null);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   const [jobType, setJobType] = useState('Gutter cleaning');
@@ -44,9 +45,10 @@ export default function ClientDetailScreen() {
 
     const fetchServiceHistory = async () => {
       setLoadingHistory(true);
+      setBalance(null); // Reset balance on re-fetch
       try {
-        // Fetch jobs
-        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id), where('status', 'in', ['completed', 'accounted']));
+        // Fetch jobs with status 'completed'
+        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id), where('status', '==', 'completed'));
         const jobsSnapshot = await getDocs(jobsQuery);
         const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'job' })) as (Job & { type: 'job' })[];
 
@@ -54,8 +56,13 @@ export default function ClientDetailScreen() {
         const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
         const paymentsSnapshot = await getDocs(paymentsQuery);
         const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'payment' })) as (Payment & { type: 'payment' })[];
+        
+        // Calculate balance from the client's perspective (credit is positive, debt is negative)
+        const totalBilled = jobsData.reduce((sum, job) => sum + job.price, 0);
+        const totalPaid = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
+        setBalance(totalPaid - totalBilled);
 
-        // Combine and sort
+        // Combine and sort for history view
         const combinedHistory = [...jobsData, ...paymentsData];
         combinedHistory.sort((a, b) => {
           const dateA = new Date(a.type === 'job' ? (a.scheduledTime || 0) : (a.date || 0)).getTime();
@@ -119,6 +126,24 @@ export default function ClientDetailScreen() {
     if (typeof id === 'string') {
       router.push({ pathname: '/(tabs)/clients/[id]/edit', params: { id } } as never);
     }
+  };
+
+  const handleMakePayment = () => {
+    if (!client) return;
+    
+    const address = client.address1 && client.town && client.postcode 
+      ? `${client.address1}, ${client.town}, ${client.postcode}`
+      : client.address || '';
+
+    router.push({
+      pathname: '/add-payment',
+      params: {
+        clientId: client.id,
+        clientName: client.name,
+        address: address,
+        accountNumber: client.accountNumber || '',
+      },
+    });
   };
 
   const handleAddJob = async () => {
@@ -201,6 +226,17 @@ export default function ClientDetailScreen() {
       <Button title="Edit Client Details" onPress={handleEditDetails} />
       <Button title="Edit Service Routine" onPress={handleEditRoutine} />
       <Button title="Add Job" onPress={() => setModalVisible(true)} />
+      <Button title="Make Payment" onPress={handleMakePayment} />
+      {balance !== null && (
+        <Button
+          title={`Balance: £${balance.toFixed(2)}`}
+          color={balance < 0 ? 'red' : 'green'}
+          onPress={() => router.push({
+            pathname: '/client-balance',
+            params: { clientId: id, clientName: client.name }
+          } as never)}
+        />
+      )}
       <View style={{ marginTop: 32 }}>
       <Button title="Archive Client" color="red" onPress={handleDelete} />
       </View>

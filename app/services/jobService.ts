@@ -241,17 +241,17 @@ export async function createJobsForWeek(weekStartDate: string): Promise<number> 
 /**
  * Handles the weekly rollover process
  * This should be called at 00:00:00 every Monday
- * 1. Moves completed jobs from the previous week to 'accounted' status
+ * 1. Moves completed jobs from the previous week to 'completed' status
  * 2. Creates jobs for the new week for all active clients
  */
-export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; jobsAccounted: number }> {
+export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; jobsCompleted: number }> {
   try {
     const today = new Date();
     const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 });
     const previousWeekStart = addWeeks(currentWeekStart, -1);
     const previousWeekEnd = addWeeks(previousWeekStart, 1);
     
-    // 1. Move all completed jobs from the previous week to 'accounted' status
+    // 1. Move all completed jobs from the previous week to 'completed' status
     const previousWeekStartStr = format(previousWeekStart, 'yyyy-MM-dd');
     const previousWeekEndStr = format(previousWeekEnd, 'yyyy-MM-dd');
     
@@ -263,15 +263,15 @@ export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; job
     );
     
     const completedJobsSnapshot = await getDocs(completedJobsQuery);
-    let jobsAccounted = 0;
+    let jobsCompleted = 0;
     
     if (!completedJobsSnapshot.empty) {
       const batch = writeBatch(db);
       completedJobsSnapshot.forEach(doc => {
-        batch.update(doc.ref, { status: 'accounted' });
+        batch.update(doc.ref, { status: 'completed' });
       });
       await batch.commit();
-      jobsAccounted = completedJobsSnapshot.size;
+      jobsCompleted = completedJobsSnapshot.size;
     }
     
     // 2. Create jobs for the new week (8 weeks from now)
@@ -279,7 +279,7 @@ export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; job
     const newWeekStartStr = format(newWeekStart, 'yyyy-MM-dd');
     const jobsCreated = await createJobsForWeek(newWeekStartStr);
     
-    return { jobsCreated, jobsAccounted };
+    return { jobsCreated, jobsCompleted };
   } catch (error) {
     console.error('Error in weekly rollover:', error);
     throw error;

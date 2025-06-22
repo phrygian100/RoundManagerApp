@@ -84,9 +84,9 @@ export default function PaymentsListScreen() {
                 // Delete the payment record
                 await deletePayment(item.id);
 
-                // If a job is linked, revert its status to 'accounted'
+                // If a job is linked, revert its status to 'completed'
                 if (item.jobId) {
-                  await updateJobStatus(item.jobId, 'accounted');
+                  await updateJobStatus(item.jobId, 'completed');
                 }
 
                 Alert.alert('Success', 'Payment has been deleted.');
