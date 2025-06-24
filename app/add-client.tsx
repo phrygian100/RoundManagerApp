@@ -21,6 +21,9 @@ export default function AddClientScreen() {
   const isMountedRef = useRef(true);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [town, setTown] = useState('');
+  const [postcode, setPostcode] = useState('');
   const [frequency, setFrequency] = useState<'4' | '8' | 'one-off'>('4');
   const [nextVisit, setNextVisit] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
@@ -35,6 +38,7 @@ export default function AddClientScreen() {
   const [showCustomSourceInput, setShowCustomSourceInput] = useState(false);
   const [email, setEmail] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [startingBalance, setStartingBalance] = useState('0');
 
   const sourceOptions = [
     'Google',
@@ -109,7 +113,9 @@ export default function AddClientScreen() {
     // If returning from round order manager, update all fields from params if present
     if (params.roundOrderNumber) setRoundOrderNumber(Number(params.roundOrderNumber));
     if (params.name) setName(String(params.name));
-    if (params.address) setAddress(String(params.address));
+    if (params.address1) setAddress1(String(params.address1));
+    if (params.town) setTown(String(params.town));
+    if (params.postcode) setPostcode(String(params.postcode));
     if (params.frequency) setFrequency(params.frequency as '4' | '8' | 'one-off');
     if (params.nextVisit) setNextVisit(String(params.nextVisit));
     if (params.mobileNumber) setMobileNumber(String(params.mobileNumber));
@@ -126,8 +132,14 @@ export default function AddClientScreen() {
       return;
     }
 
-    if (!name.trim() || !address.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
-      Alert.alert('Error', 'Please fill out all fields.');
+    if (!name.trim() || !address1.trim() || !town.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
+      Alert.alert('Error', 'Please fill out all required fields.');
+      return;
+    }
+
+    const startingBalanceValue = Number(startingBalance);
+    if (isNaN(startingBalanceValue)) {
+      Alert.alert('Error', 'Starting Balance must be a valid number.');
       return;
     }
 
@@ -156,7 +168,11 @@ export default function AddClientScreen() {
       // Create the client first
       const clientRef = await addDoc(collection(db, 'clients'), {
         name,
-        address,
+        address1,
+        town,
+        postcode,
+        // For backward compatibility, also store combined address
+        address: `${address1}, ${town}, ${postcode}`,
         frequency: frequencyValue,
         nextVisit,
         mobileNumber,
@@ -167,6 +183,7 @@ export default function AddClientScreen() {
         dateAdded: new Date().toISOString(),
         source: source === 'Other' ? customSource : source,
         email,
+        startingBalance: startingBalanceValue,
       });
 
       console.log('Client created with ID:', clientRef.id);
@@ -193,10 +210,12 @@ export default function AddClientScreen() {
   };
 
   const handleRoundOrderPress = () => {
-    // Prepare the new client data
+    // Prepare the new client data, including address1, town, postcode
     const newClientData = {
       name,
-      address,
+      address1,
+      town,
+      postcode,
       frequency,
       nextVisit,
       mobileNumber,
@@ -224,12 +243,26 @@ export default function AddClientScreen() {
           </Pressable>
         </View>
 
-        <ThemedText style={styles.label}>Address</ThemedText>
+        <ThemedText style={styles.label}>Address Line 1</ThemedText>
         <TextInput
-          value={address}
-          onChangeText={setAddress}
+          value={address1}
+          onChangeText={setAddress1}
           style={styles.input}
           placeholder="123 Oak Avenue"
+        />
+        <ThemedText style={styles.label}>Town</ThemedText>
+        <TextInput
+          value={town}
+          onChangeText={setTown}
+          style={styles.input}
+          placeholder="Springfield"
+        />
+        <ThemedText style={styles.label}>Postcode</ThemedText>
+        <TextInput
+          value={postcode}
+          onChangeText={setPostcode}
+          style={styles.input}
+          placeholder="AB12 3CD"
         />
 
         <ThemedText style={styles.label}>Name</ThemedText>
@@ -344,6 +377,18 @@ export default function AddClientScreen() {
             }}
           />
         )}
+
+        <ThemedText style={styles.label}>Starting Balance</ThemedText>
+        <TextInput
+          value={startingBalance}
+          onChangeText={text => {
+            // Only allow valid numbers (including negative)
+            if (/^-?\d*(\.\d*)?$/.test(text)) setStartingBalance(text);
+          }}
+          style={styles.input}
+          placeholder="0"
+          keyboardType="numeric"
+        />
 
         <Pressable style={[styles.button, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
           <ThemedText style={styles.buttonText}>

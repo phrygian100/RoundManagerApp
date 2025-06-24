@@ -8,12 +8,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
+import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
 import { isTodayMarkedComplete } from '../../services/jobService';
 import type { Client } from '../../types/client';
 import type { Job, Payment } from '../../types/models';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
+
+// Extend Client type to include optional startingBalance
+type ClientWithStartingBalance = Client & { startingBalance?: number };
 
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -37,6 +41,8 @@ export default function ClientDetailScreen() {
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [todayComplete, setTodayComplete] = useState(false);
   const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
+  const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
+  const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -61,7 +67,9 @@ export default function ClientDetailScreen() {
         // Fetch all jobs for this client (not just completed)
         const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id));
         const jobsSnapshot = await getDocs(jobsQuery);
-        const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'job' })) as (Job & { type: 'job' })[];
+        const jobsData = jobsSnapshot.docs
+          .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
+          .filter(job => job.status === 'completed');
 
         // Fetch payments
         const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
@@ -82,6 +90,12 @@ export default function ClientDetailScreen() {
         });
 
         setServiceHistory(combinedHistory);
+
+        // Pending jobs for schedule
+        const pending = jobsSnapshot.docs
+          .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
+          .filter(job => job.status !== 'completed');
+        setPendingJobs(pending);
       } catch (error) {
         console.error("Error fetching service history:", error);
         Alert.alert("Error", "Could not load service history.");
@@ -140,7 +154,7 @@ export default function ClientDetailScreen() {
             }
           }
         });
-        setNextScheduledVisit(nextJobDate ? nextJobDate.toISOString() : null);
+        setNextScheduledVisit((nextJobDate && Object.prototype.toString.call(nextJobDate) === '[object Date]') ? (nextJobDate as Date).toISOString() : null);
       } catch (error) {
         setNextScheduledVisit(null);
       }
@@ -189,7 +203,7 @@ export default function ClientDetailScreen() {
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
                 const jobsQuery = query(
-                  jobsRef,
+                  jobsRef, 
                   where('clientId', '==', id),
                   where('status', '!=', 'completed')
                 );
@@ -201,7 +215,7 @@ export default function ClientDetailScreen() {
                     const jobDate = new Date(jobData.scheduledTime);
                     jobDate.setHours(0, 0, 0, 0);
                     if (jobDate >= today) {
-                      batch.delete(jobDoc.ref);
+                  batch.delete(jobDoc.ref);
                     }
                   }
                 });
@@ -333,143 +347,158 @@ export default function ClientDetailScreen() {
     );
   }
 
-  const displayAddress =
-    client.address1 && client.town && client.postcode
-      ? `${client.address1}, ${client.town}, ${client.postcode}`
-      : client.address || 'No address';
+  const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
+  const displayAddress = addressParts.length > 0
+    ? addressParts.join(', ')
+    : client.address || 'No address';
+
+  // Prepend starting balance to service history if present
+  const typedClient = client as ClientWithStartingBalance;
+  const serviceHistoryWithStartingBalance =
+    typedClient.startingBalance !== undefined && typedClient.startingBalance !== 0
+      ? ([{ type: 'startingBalance', amount: typedClient.startingBalance }, ...serviceHistory] as any[])
+      : serviceHistory;
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          <ThemedText type="title" style={styles.title}>{displayAddress}</ThemedText>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-          </Pressable>
-        </View>
-        
-        <View style={styles.infoAndButtonsRow}>
-          <View style={styles.clientInfo}>
-            <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-            
-            <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
-            <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
-            {typeof client.quote === 'number' && !isNaN(client.quote) ? (
-              <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
-            ) : (
-              <ThemedText>Quote: N/A</ThemedText>
-            )}
-            {client.frequency && client.frequency !== 'one-off' ? (
-              <ThemedText>Visit every {client.frequency} weeks</ThemedText>
-            ) : client.frequency === 'one-off' ? (
-              <ThemedText>No recurring work</ThemedText>
-            ) : null}
-            {nextScheduledVisit ? (
-              <ThemedText>Next scheduled visit: {new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-              })}</ThemedText>
-            ) : (
-              <ThemedText>Next scheduled visit: N/A</ThemedText>
-            )}
-            <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
-            {client.email && (
-              <ThemedText>Email: {client.email}</ThemedText>
-            )}
-            {client.dateAdded && (
-              <ThemedText>Date Added: {new Date(client.dateAdded).toLocaleDateString('en-GB', {
-                day: '2-digit',
-                month: 'long',
-                year: 'numeric',
-              })}</ThemedText>
-            )}
-            {client.source && (
-              <ThemedText>Source: {client.source}</ThemedText>
-            )}
-          </View>
-          
-          <View style={styles.verticalButtons}>
-            <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
-              <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
-            </Pressable>
-            
-            <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
-              <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
-            </Pressable>
-            
-            <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
-              <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
-            </Pressable>
-            
-            {balance !== null ? (
-              <Pressable 
-                style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
-                onPress={() => router.push({
-                  pathname: '/client-balance',
-                  params: { clientId: id, clientName: client.name }
-                } as never)}
-              >
-                <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+      <FlatList
+        contentContainerStyle={styles.content}
+        data={historyCollapsed ? [] : serviceHistoryWithStartingBalance}
+        keyExtractor={(item) => item.type === 'startingBalance' ? 'startingBalance' : (item.id ? `${item.type}-${item.id}` : `${item.type}`)}
+        renderItem={loadingHistory ? undefined : renderHistoryItem}
+        ListEmptyComponent={
+          loadingHistory
+            ? <ActivityIndicator />
+            : (!historyCollapsed && serviceHistoryWithStartingBalance.length === 0
+                ? <ThemedText>No service history found.</ThemedText>
+                : null)
+        }
+        ListHeaderComponent={
+          <>
+            <View style={styles.titleRow}>
+              <ThemedText type="title" style={styles.title}>{displayAddress}</ThemedText>
+              <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+                <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
               </Pressable>
-            ) : (
-              <View style={[styles.verticalButton, styles.disabledButton]}>
-                <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+            </View>
+            <View style={styles.infoAndButtonsRow}>
+              <View style={styles.clientInfo}>
+      <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
+                <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
+                <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
+      {typeof client.quote === 'number' && !isNaN(client.quote) ? (
+        <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
+      ) : (
+        <ThemedText>Quote: N/A</ThemedText>
+      )}
+                {client.frequency && client.frequency !== 'one-off' ? (
+        <ThemedText>Visit every {client.frequency} weeks</ThemedText>
+                ) : client.frequency === 'one-off' ? (
+                  <ThemedText>No recurring work</ThemedText>
+                ) : null}
+                {nextScheduledVisit ? (
+                  <ThemedText>Next scheduled visit: {new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })}</ThemedText>
+                ) : (
+                  <ThemedText>Next scheduled visit: N/A</ThemedText>
+                )}
+                <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
+                {client.email && (
+                  <ThemedText>Email: {client.email}</ThemedText>
+                )}
+                {client.dateAdded && (
+                  <ThemedText>Date Added: {new Date(client.dateAdded).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        })}</ThemedText>
+      )}
+                {client.source && (
+                  <ThemedText>Source: {client.source}</ThemedText>
+                )}
               </View>
+              <View style={styles.verticalButtons}>
+                <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
+                  <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
+                </Pressable>
+                <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
+                  <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
+                </Pressable>
+                <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
+                  <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
+                </Pressable>
+                {balance !== null ? (
+                  <Pressable 
+                    style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
+                    onPress={() => router.push({
+                      pathname: '/client-balance',
+                      params: { clientId: id, clientName: client.name }
+                    } as never)}
+                  >
+                    <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                  </Pressable>
+                ) : (
+                  <View style={[styles.verticalButton, styles.disabledButton]}>
+                    <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                  </View>
+                )}
+                <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
+                  <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+            <View style={styles.notesSection}>
+              <Pressable style={styles.sectionHeading} onPress={() => setNotesCollapsed(!notesCollapsed)}>
+                <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
+                <ThemedText style={styles.sectionHeadingText}>Notes</ThemedText>
+              </Pressable>
+              {!notesCollapsed && (
+                <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
+                  {notes ? (
+                    <ThemedText style={styles.notesText}>{notes}</ThemedText>
+                  ) : (
+                    <ThemedText style={styles.notesPlaceholder}>Tap to add notes...</ThemedText>
+                  )}
+                </Pressable>
+              )}
+            </View>
+            <Pressable style={styles.sectionHeading} onPress={() => setHistoryCollapsed(!historyCollapsed)}>
+              <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
+              <ThemedText style={styles.sectionHeadingText}>Service History</ThemedText>
+            </Pressable>
+          </>
+        }
+        ListFooterComponent={
+          <View style={styles.scheduleContainer}>
+            <Pressable style={styles.sectionHeading} onPress={() => setScheduleCollapsed(!scheduleCollapsed)}>
+              <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: scheduleCollapsed ? '0deg' : '90deg' }] }} />
+              <ThemedText style={styles.sectionHeadingText}>Service Schedule</ThemedText>
+            </Pressable>
+            {!scheduleCollapsed && (
+              pendingJobs.length === 0 ? (
+                <ThemedText>No pending jobs.</ThemedText>
+              ) : (
+                [...pendingJobs]
+                  .sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
+                  .map(job => (
+                    <View key={job.id} style={[styles.historyItem, styles.jobItem]}>
+                      <ThemedText style={styles.historyItemText}>
+                        <ThemedText style={{ fontWeight: 'bold' }}>{job.serviceId || 'Job'}:</ThemedText> {format(parseISO(job.scheduledTime), 'do MMMM yyyy')}
+                      </ThemedText>
+                      <ThemedText style={styles.historyItemText}>
+                        Price: £{job.price.toFixed(2)}
+                      </ThemedText>
+                    </View>
+                  ))
+              )
             )}
-            
-            <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
-              <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
-            </Pressable>
           </View>
-        </View>
-
-        <View style={styles.notesSection}>
-          <Pressable 
-            style={styles.notesHeader} 
-            onPress={() => setNotesCollapsed(!notesCollapsed)}
-          >
-            <ThemedText type="subtitle" style={styles.notesTitle}>
-              Notes {notesCollapsed ? '▶️' : '🔽'}
-            </ThemedText>
-          </Pressable>
-          {!notesCollapsed && (
-            <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
-              {notes ? (
-                <ThemedText style={styles.notesText}>{notes}</ThemedText>
-              ) : (
-                <ThemedText style={styles.notesPlaceholder}>Tap to add notes...</ThemedText>
-              )}
-            </Pressable>
-          )}
-        </View>
-
-        <View style={styles.historyContainer}>
-          <Pressable 
-            style={styles.historyHeader} 
-            onPress={() => setHistoryCollapsed(!historyCollapsed)}
-          >
-            <ThemedText type="subtitle" style={styles.historyTitle}>
-              Service History {historyCollapsed ? '▶️' : '🔽'}
-            </ThemedText>
-          </Pressable>
-          {!historyCollapsed && (
-            <>
-              {loadingHistory ? (
-                <ActivityIndicator />
-              ) : (
-                <FlatList
-                  data={serviceHistory}
-                  keyExtractor={(item) => `${item.type}-${item.id}`}
-                  renderItem={renderHistoryItem}
-                  ListEmptyComponent={<ThemedText>No service history found.</ThemedText>}
-                />
-              )}
-            </>
-          )}
-        </View>
-      </View>
-
+        }
+        keyboardShouldPersistTaps="handled"
+      />
       <Modal
         animationType="slide"
         transparent={true}
@@ -538,7 +567,6 @@ export default function ClientDetailScreen() {
           </View>
         </View>
       </Modal>
-
       <Modal
         animationType="slide"
         transparent={true}
@@ -550,7 +578,7 @@ export default function ClientDetailScreen() {
             <ThemedText type="subtitle">Edit Notes</ThemedText>
             
             <TextInput
-              style={styles.notesTextInput}
+              style={styles.notesInput}
               placeholder="Enter notes for this client..."
               value={notes}
               onChangeText={setNotes}
@@ -571,15 +599,24 @@ export default function ClientDetailScreen() {
                 disabled={savingNotes}
               />
             </View>
-          </View>
-        </View>
+      </View>
+      </View>
       </Modal>
     </ThemedView>
   );
 }
 
-const renderHistoryItem = ({ item }: { item: ServiceHistoryItem }) => {
-  if (item.type === 'job') {
+const renderHistoryItem = ({ item }: { item: any }) => {
+  if (item.type === 'startingBalance') {
+    return (
+      <View style={styles.historyItem}>
+        <ThemedText style={styles.historyItemText}>
+          <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance: </ThemedText>
+          £{Number(item.amount).toFixed(2)}
+        </ThemedText>
+      </View>
+    );
+  } else if (item.type === 'job') {
     return (
       <View style={[styles.historyItem, styles.jobItem]}>
         <ThemedText style={styles.historyItemText}>
@@ -593,7 +630,7 @@ const renderHistoryItem = ({ item }: { item: ServiceHistoryItem }) => {
         </ThemedText>
       </View>
     );
-  } else {
+  } else if (item.type === 'payment') {
     return (
       <View style={[styles.historyItem, styles.paymentItem]}>
         <ThemedText style={styles.historyItemText}>
@@ -618,11 +655,11 @@ const renderHistoryItem = ({ item }: { item: ServiceHistoryItem }) => {
       </View>
     );
   }
+  return null;
 };
 
 const styles = StyleSheet.create({
   content: {
-    flex: 1,
     padding: 20,
     paddingTop: 60,
   },
@@ -817,6 +854,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
     paddingVertical: 5,
+  },
+  sectionHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 8,
+    gap: 8,
+  },
+  sectionHeadingText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#222',
+    flex: 0,
+  },
+  sectionDivider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
+    width: '100%',
+  },
+  notesInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+    color: '#222',
+    marginBottom: 12,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  scheduleContainer: {
+    marginTop: 24,
+    marginBottom: 8,
   },
 });
 

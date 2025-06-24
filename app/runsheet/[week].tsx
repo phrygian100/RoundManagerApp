@@ -373,22 +373,20 @@ export default function RunsheetWeekScreen() {
 
   const handleDayComplete = async (dayTitle: string) => {
     const dayJobs = sections.find(section => section.title === dayTitle)?.data || [];
-    const completedJobs = dayJobs.filter(job => job.status === 'completed');
-    
-    if (completedJobs.length === 0) return;
+    if (dayJobs.length === 0) return;
 
     try {
-      // Update job status to 'completed' to show in completed jobs
+      // Update all jobs for the day to 'completed'
       const batch = writeBatch(db);
-      completedJobs.forEach(job => {
+      dayJobs.forEach(job => {
         const jobRef = doc(db, 'jobs', job.id);
         batch.update(jobRef, { status: 'completed' });
       });
       await batch.commit();
 
       // Update local state
-      setJobs(prev => prev.map(job => 
-        completedJobs.some(completedJob => completedJob.id === job.id) 
+      setJobs(prev => prev.map(job =>
+        dayJobs.some(dayJob => dayJob.id === job.id)
           ? { ...job, status: 'completed' }
           : job
       ));
@@ -396,7 +394,7 @@ export default function RunsheetWeekScreen() {
       // Add day to completed days and save to Firestore
       const newCompletedDays = [...completedDays, dayTitle];
       setCompletedDays(newCompletedDays);
-      
+
       // Save completed days to Firestore
       const startDate = format(weekStart, 'yyyy-MM-dd');
       await setDoc(doc(db, 'completedWeeks', startDate), {
@@ -405,7 +403,7 @@ export default function RunsheetWeekScreen() {
         updatedAt: new Date()
       });
 
-      Alert.alert('Success', `${completedJobs.length} jobs moved to completed jobs for ${dayTitle}`);
+      Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}`);
     } catch (error) {
       console.error('Error completing day:', error);
       Alert.alert('Error', 'Failed to complete day. Please try again.');
@@ -664,9 +662,9 @@ export default function RunsheetWeekScreen() {
             </View>
           </View>
         </Modal>
-        {showDeferDatePicker && (
+        {showDeferDatePicker && deferJob && (
           <DateTimePicker
-            value={new Date()}
+            value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
             mode="date"
             display={Platform.OS === 'ios' ? 'spinner' : 'default'}
             minimumDate={new Date()}

@@ -1,9 +1,9 @@
-import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
@@ -33,6 +33,7 @@ export default function EditCustomerScreen() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [activeSection, setActiveSection] = useState<'details' | 'routine'>('details');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     const today = new Date();
@@ -177,7 +178,7 @@ export default function EditCustomerScreen() {
           address1,
           town,
           postcode,
-          address, // Keep this for backward compatibility if needed
+          address: `${address1}, ${town}, ${postcode}`,
           accountNumber,
           roundOrderNumber: Number(roundOrderNumber),
           quote: Number(quote),
@@ -254,7 +255,7 @@ export default function EditCustomerScreen() {
         </Pressable>
       </View>
 
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
         {activeSection === 'details' ? (
           <View style={styles.section}>
             <TextInput
@@ -350,21 +351,34 @@ export default function EditCustomerScreen() {
               keyboardType="numeric"
             />
 
-            <ThemedText style={styles.label}>Week Commencing</ThemedText>
-            <Picker
-              selectedValue={nextVisit}
-              onValueChange={(itemValue: string) => setNextVisit(itemValue)}
-              style={styles.picker}
+            <ThemedText style={styles.label}>Date</ThemedText>
+            <Pressable
+              style={styles.input}
+              onPress={() => setShowDatePicker(true)}
             >
-              {weekOptions.map((week) => (
-                <Picker.Item key={week} label={week} value={week} />
-              ))}
-            </Picker>
+              <ThemedText>
+                {nextVisit ? nextVisit : 'Select date'}
+              </ThemedText>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={nextVisit ? parseISO(nextVisit) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+                  }
+                }}
+              />
+            )}
           </View>
         )}
       </ScrollView>
 
-      <View style={styles.buttonContainer}>
+      <View style={[styles.buttonContainer, { marginBottom: 32 }]}>
         <Button title="Save Changes" onPress={handleSave} disabled={updating} />
         {updating && (
           <ThemedText style={styles.loadingText}>Updating customer...</ThemedText>

@@ -1,87 +1,94 @@
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
-
-const roles = ['client', 'provider'] as const;
-
-type Role = typeof roles[number];
+import { Alert, Pressable, StyleSheet, TextInput } from 'react-native';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function RegisterScreen() {
-  const [name, setName] = useState('');
+  const { signUp } = useAuth();
+  const router = useRouter();
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('client');
+  const [confirm, setConfirm] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    if (!name || !email || !phone || !password) {
-      Alert.alert('Error', 'Please fill out all fields.');
+  const handleRegister = async () => {
+    if (!email || !password || !confirm) {
+      Alert.alert('Error', 'Please complete all fields');
       return;
     }
-    // Registration logic will go here (Firebase Auth integration)
-    Alert.alert('Registered!', `Name: ${name}\nEmail: ${email}\nPhone: ${phone}\nRole: ${role}`);
+    if (password !== confirm) {
+      Alert.alert('Error', 'Passwords do not match');
+      return;
+    }
+    try {
+      setLoading(true);
+      await signUp(email, password);
+    } catch (error: any) {
+      Alert.alert('Registration failed', error.message || 'Unknown error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
-      />
+    <ThemedView style={styles.container}>
+      <ThemedText type="title">Create Account</ThemedText>
       <TextInput
         style={styles.input}
         placeholder="Email"
+        autoCapitalize="none"
+        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
+        secureTextEntry
         value={password}
         onChangeText={setPassword}
-        secureTextEntry
       />
-      <View style={styles.roleContainer}>
-        {roles.map((r) => (
-          <Button
-            key={r}
-            title={r.charAt(0).toUpperCase() + r.slice(1)}
-            onPress={() => setRole(r)}
-            color={role === r ? '#007AFF' : '#ccc'}
-          />
-        ))}
-      </View>
-      <Button title={loading ? 'Registering...' : 'Register'} onPress={handleRegister} disabled={loading} />
-    </View>
+      <TextInput
+        style={styles.input}
+        placeholder="Confirm Password"
+        secureTextEntry
+        value={confirm}
+        onChangeText={setConfirm}
+      />
+      <Pressable style={styles.button} onPress={handleRegister} disabled={loading}>
+        <ThemedText style={styles.buttonText}>{loading ? 'Creating...' : 'Register'}</ThemedText>
+      </Pressable>
+      <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
+        <ThemedText style={{ color: '#007AFF' }}>Back to login</ThemedText>
+      </Pressable>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
     padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#fff',
+    marginVertical: 8,
   },
-  roleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
 }); 

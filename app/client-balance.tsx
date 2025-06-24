@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
@@ -22,11 +22,21 @@ const ClientBalanceScreen = () => {
   const router = useRouter();
   const [totalCompleted, setTotalCompleted] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
+  const [startingBalance, setStartingBalance] = useState(0);
 
   const fetchData = useCallback(async () => {
     if (!clientId) return;
     setLoading(true);
     try {
+      // Fetch client document for startingBalance
+      const clientDoc = await getDoc(doc(db, 'clients', clientId));
+      if (clientDoc.exists()) {
+        const data = clientDoc.data();
+        setStartingBalance(Number(data.startingBalance) || 0);
+      } else {
+        setStartingBalance(0);
+      }
+
       // Fetch completed jobs
       const completedJobsQuery = query(
         collection(db, 'jobs'),
@@ -176,7 +186,7 @@ const ClientBalanceScreen = () => {
     return <ActivityIndicator size="large" style={{ flex: 1, justifyContent: 'center' }} />;
   }
 
-  const balance = totalPaid - totalCompleted;
+  const balance = totalPaid - totalCompleted + startingBalance;
 
   return (
     <ThemedView style={styles.container}>
@@ -188,6 +198,9 @@ const ClientBalanceScreen = () => {
              £{balance.toFixed(2)}
           </ThemedText>
         </ThemedText>
+        {startingBalance !== 0 && (
+          <ThemedText>Starting Balance: £{startingBalance.toFixed(2)}</ThemedText>
+        )}
         <ThemedText>Total Completed Jobs: £{totalCompleted.toFixed(2)}</ThemedText>
         <ThemedText>Total Paid: £{totalPaid.toFixed(2)}</ThemedText>
         <Button title="Go Back" onPress={() => router.back()} />

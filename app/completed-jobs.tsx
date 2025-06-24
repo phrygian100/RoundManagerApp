@@ -76,13 +76,28 @@ export default function CompletedJobsScreen() {
 
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'Other'].includes(item.serviceId);
 
-    let recurringJobLabel = '';
-    if (!isOneOffJob && client?.frequency) {
-        switch(client.frequency) {
-            case '4': recurringJobLabel = '4 Weekly Window Clean'; break;
-            case '8': recurringJobLabel = '8 Weekly Window Clean'; break;
-            case 'one-off': recurringJobLabel = 'One-off Window Clean'; break;
-        }
+    let jobTag = '';
+    if (item.serviceId === 'window-cleaning') {
+      if (client?.frequency === '4') {
+        jobTag = '4 Weekly Window Clean';
+      } else if (client?.frequency === '8') {
+        jobTag = '8 Weekly Window Clean';
+      } else if (client?.frequency === 'one-off') {
+        jobTag = 'One-off Window Clean';
+      } else {
+        jobTag = 'Window Cleaning';
+      }
+    } else if (item.serviceId) {
+      switch (item.serviceId) {
+        case 'Gutter cleaning': jobTag = 'Gutter Cleaning'; break;
+        case 'Conservatory roof': jobTag = 'Conservatory Roof'; break;
+        case 'Soffit and fascias': jobTag = 'Soffit and Fascias'; break;
+        case 'One-off window cleaning': jobTag = 'One-off Window Clean'; break;
+        case 'Other': jobTag = 'Other Service'; break;
+        default: jobTag = item.serviceId;
+      }
+    } else {
+      jobTag = 'Other Service';
     }
 
     const handleDelete = () => {
@@ -142,9 +157,9 @@ export default function CompletedJobsScreen() {
             <ThemedText style={styles.oneOffJobText}>{item.serviceId}</ThemedText>
           </View>
         )}
-        {recurringJobLabel ? (
+        {jobTag ? (
           <View style={styles.recurringJobLabel}>
-            <ThemedText style={styles.recurringJobText}>{recurringJobLabel}</ThemedText>
+            <ThemedText style={styles.recurringJobText}>{jobTag}</ThemedText>
           </View>
         ) : null}
         <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>

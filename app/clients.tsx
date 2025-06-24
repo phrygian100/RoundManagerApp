@@ -7,9 +7,10 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import type { Client } from '../types/client';
+import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from './types/models';
 
+type Client = BaseClient & { startingBalance?: number };
 type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none' | 'balance';
 
 export default function ClientsScreen() {
@@ -61,8 +62,8 @@ export default function ClientsScreen() {
           
           const totalBilled = clientJobs.reduce((sum, job) => sum + job.price, 0);
           const totalPaid = clientPayments.reduce((sum, payment) => sum + payment.amount, 0);
-          
-          balances[client.id] = totalPaid - totalBilled;
+          const startingBalance = Number(client.startingBalance) || 0;
+          balances[client.id] = totalPaid - totalBilled + startingBalance;
         });
 
         setClientBalances(balances);
@@ -95,13 +96,13 @@ export default function ClientsScreen() {
           jobsSnapshot.forEach(doc => {
             const job = doc.data();
             if (job.scheduledTime) {
-              const jobDate = new Date(job.scheduledTime);
+              const jobDate: Date = new Date(job.scheduledTime);
               if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
                 nextJobDate = jobDate;
               }
             }
           });
-          result[client.id] = nextJobDate ? nextJobDate.toISOString() : null;
+          result[client.id] = nextJobDate ? (nextJobDate as Date).toISOString() : null;
         } catch (error) {
           result[client.id] = null;
         }
@@ -189,9 +190,9 @@ export default function ClientsScreen() {
   };
 
   const renderClient = ({ item }: { item: Client }) => {
-    // Handle both old and new address formats
-    const displayAddress = item.address1 && item.town && item.postcode 
-      ? `${item.address1}, ${item.town}, ${item.postcode}`
+    const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
+    const displayAddress = addressParts.length > 0
+      ? addressParts.join(', ')
       : item.address || 'No address';
 
     const balance = clientBalances[item.id];
