@@ -28,17 +28,22 @@ export default function ExClientsScreen() {
   }, []);
   
   const handleRestoreClient = (clientId: string) => {
+    const client = exClients.find(c => c.id === clientId);
+    if (!client) return;
     Alert.alert(
       "Restore Client",
-      "Are you sure you want to restore this client? They will be moved back to the active client list.",
+      "Are you sure you want to restore this client? They will be moved back to the active client list and you will be prompted to set their round order.",
       [
         { text: "Cancel", style: "cancel" },
         {
           text: "Restore",
           onPress: async () => {
             try {
-              await updateDoc(doc(db, 'clients', clientId), {
-                status: 'active'
+              await updateDoc(doc(db, 'clients', clientId), { status: 'active' });
+              // After status is updated, navigate to round order manager
+              router.push({
+                pathname: '/round-order-manager',
+                params: { newClientData: JSON.stringify({ ...client, status: 'active', roundOrderNumber: null }) }
               });
             } catch (error) {
               console.error("Error restoring client: ", error);

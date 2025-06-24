@@ -12,4 +12,7 @@ export type Client = {
   status?: 'active' | 'ex-client';
   frequency?: '4' | '8' | 'one-off';
   nextVisit?: string;
+  email?: string;
+  dateAdded?: string;
+  source?: string;
 };

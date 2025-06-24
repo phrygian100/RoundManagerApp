@@ -1,4 +1,4 @@
-import { addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
+import { addWeeks, format, getDay, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
@@ -99,7 +99,7 @@ export async function getClientById(clientId: string): Promise<Client | null> {
  * Creates jobs for a specific client for the next 8 weeks worth of occurrences
  * This function ensures no duplicate jobs are created
  */
-export async function createJobsForClient(clientId: string, maxWeeks: number = 8): Promise<number> {
+export async function createJobsForClient(clientId: string, maxWeeks: number = 8, skipTodayIfComplete: boolean = false): Promise<number> {
   try {
     // Get the client data
     const client = await getClientById(clientId);
@@ -113,14 +113,28 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
     let visitDate = parseISO(client.nextVisit);
     const jobsToCreate: Omit<Job, 'id'>[] = [];
     
+    // Check if today is marked as complete if skipTodayIfComplete is true
+    let skipToday = false;
+    if (skipTodayIfComplete) {
+      try {
+        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+        const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+        const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+        if (completedDoc.exists()) {
+          const data = completedDoc.data();
+          const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+          const todayDay = daysOfWeek[today.getDay() - 1];
+          if (data.completedDays && data.completedDays.includes(todayDay)) {
+            skipToday = true;
+          }
+        }
+      } catch (e) {}
+    }
+    
     // Generate jobs for the specified number of weeks
     for (let i = 0; i < maxWeeks; i++) {
-      // Only skip if the visit date is more than 7 days in the past
-      // This allows jobs to be created for the current week
-      const weekAgo = new Date(today);
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      
-      if (isBefore(visitDate, weekAgo)) {
+      // Only generate jobs for today (if not complete) and future dates
+      if (isBefore(visitDate, today)) {
         visitDate = addWeeks(visitDate, Number(client.frequency));
         continue;
       }
@@ -147,8 +161,9 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
         return jobDateStr === weekStr;
       });
       
-      // Only create job if no existing job for this date
-      if (!jobExistsForDate) {
+      // Only create job if no existing job for this date and not skipping today if today is complete
+      const isToday = visitDate.getTime() === today.getTime();
+      if (!jobExistsForDate && !(skipToday && isToday)) {
         jobsToCreate.push({
           clientId: client.id,
           providerId: 'test-provider-1',
@@ -342,4 +357,23 @@ export async function generateRecurringJobs() {
     }
   });
   await Promise.all(jobsToCreate.map(job => addDoc(jobsRef, job)));
+}
+
+// Utility to check if today is marked as complete in completedWeeks
+export async function isTodayMarkedComplete(): Promise<boolean> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+  const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+  const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+  if (completedDoc.exists()) {
+    const data = completedDoc.data();
+    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    // getDay: 0=Sunday, 1=Monday, ...
+    const todayDay = daysOfWeek[getDay(today) === 0 ? 6 : getDay(today) - 1];
+    if (data.completedDays && data.completedDays.includes(todayDay)) {
+      return true;
+    }
+  }
+  return false;
 } 

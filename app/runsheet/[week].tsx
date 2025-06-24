@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import type { Client } from '../../types/client';
@@ -22,6 +23,10 @@ export default function RunsheetWeekScreen() {
   const [completedDays, setCompletedDays] = useState<string[]>([]);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [timePickerJob, setTimePickerJob] = useState<(Job & { client: Client | null }) | null>(null);
+  const [noteModalVisible, setNoteModalVisible] = useState(false);
+  const [noteModalText, setNoteModalText] = useState<string | null>(null);
+  const [deferJob, setDeferJob] = useState<Job & { client: Client | null } | null>(null);
+  const [showDeferDatePicker, setShowDeferDatePicker] = useState(false);
   const router = useRouter();
 
   // Parse week param
@@ -173,7 +178,21 @@ export default function RunsheetWeekScreen() {
         }
         return matches;
       })
-      .sort((a: any, b: any) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+      .sort((a: any, b: any) => {
+        // If both jobs have ETA, sort by ETA (earliest first)
+        if (a.eta && b.eta) {
+          // Parse as HH:mm
+          const [aHour, aMin] = a.eta.split(':').map(Number);
+          const [bHour, bMin] = b.eta.split(':').map(Number);
+          if (aHour !== bHour) return aHour - bHour;
+          return aMin - bMin;
+        }
+        // If only one has ETA, that one comes first
+        if (a.eta && !b.eta) return -1;
+        if (!a.eta && b.eta) return 1;
+        // Otherwise, sort by roundOrderNumber
+        return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
+      });
     
     if (jobsForDay.length > 0) {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
@@ -195,27 +214,60 @@ export default function RunsheetWeekScreen() {
       )
     );
     setLoading(false);
+
+    // Check if this was the last incomplete job for today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
+    if (todaySection) {
+      const allCompleted = todaySection.data.every(job =>
+        job.id === jobId ? !isCompleted : job.status === 'completed'
+      );
+      if (allCompleted) {
+        Alert.alert(
+          'Mark Day Complete?',
+          'You have completed all jobs for today. Would you like to mark your day as complete?',
+          [
+            { text: 'No', style: 'cancel' },
+            { text: 'Yes', onPress: () => handleDayComplete(todaySection.title) },
+          ]
+        );
+      }
+    }
   };
 
-  const handleDeferJob = async (job: Job & { client: Client | null }) => {
-    try {
-      // Get today's date in the same format as other jobs
-      const today = new Date();
-      const todayString = format(today, 'yyyy-MM-dd') + 'T09:00:00';
-      
-      // Update the job's scheduled time to today
-      await updateDoc(doc(db, 'jobs', job.id), { scheduledTime: todayString });
-      
-      // Update local state
-      setJobs(prevJobs => prevJobs.map(j => 
-        j.id === job.id ? { ...j, scheduledTime: todayString } : j
-      ));
-      
-      Alert.alert('Success', 'Job deferred to today');
-    } catch (error) {
-      console.error('Error deferring job:', error);
-      Alert.alert('Error', 'Failed to defer job. Please try again.');
+  const handleDeferJob = (job: Job & { client: Client | null }) => {
+    setDeferJob(job);
+    setShowDeferDatePicker(true);
+  };
+
+  const handleDeferDateChange = async (event: any, selectedDate?: Date) => {
+    setShowDeferDatePicker(false);
+    if (event.type === 'dismissed' || !selectedDate || !deferJob) {
+      setDeferJob(null);
+      return;
     }
+    // Prevent deferring to today if today is marked as complete
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    const isToday = selected.toDateString() === today.toDateString();
+    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
+    const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
+    if (isToday && todayIsCompleted) {
+      Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
+      setDeferJob(null);
+      return;
+    }
+    // Move job to selected date (09:00)
+    const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
+    await updateDoc(doc(db, 'jobs', deferJob.id), { scheduledTime: newDateString });
+    setJobs(prevJobs => prevJobs.map(j =>
+      j.id === deferJob.id ? { ...j, scheduledTime: newDateString } : j
+    ));
+    setDeferJob(null);
+    Alert.alert('Success', 'Job moved to selected date');
   };
 
   const handleJobPress = (job: Job & { client: Client | null }) => {
@@ -273,10 +325,23 @@ export default function RunsheetWeekScreen() {
     setActionSheetJob(null);
   };
 
-  const handleDeleteJob = async (jobId: string) => {
-    await deleteDoc(doc(db, 'jobs', jobId));
-    setJobs((prev) => prev.filter((job) => job.id !== jobId));
-    setActionSheetJob(null);
+  const handleDeleteJob = (jobId: string) => {
+    Alert.alert(
+      'Delete Job',
+      'Are you sure you want to permanently delete this job?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await deleteDoc(doc(db, 'jobs', jobId));
+            setJobs((prev) => prev.filter((job) => job.id !== jobId));
+            setActionSheetJob(null);
+          },
+        },
+      ]
+    );
   };
 
   const toggleDay = (title: string) => {
@@ -354,15 +419,16 @@ export default function RunsheetWeekScreen() {
     const client: any = item.client;
     // Find the first incomplete job in this section
     const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
-    const showCompleteButton = isCurrentWeek && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
-    const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
-    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
-
-    // Check if this job is from a past day (not completed and from a day before today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
-    const isPastDay = jobDate && jobDate < today && !isCompleted && isCurrentWeek;
+    // Determine if this job is for today
+    const isToday = jobDate && jobDate.toDateString() === today.toDateString();
+    const isFutureDay = jobDate && jobDate > today;
+    // Only show complete button for the first incomplete job on today, if today is not marked complete
+    const showCompleteButton = isCurrentWeek && isToday && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
+    const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
+    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
@@ -371,8 +437,7 @@ export default function RunsheetWeekScreen() {
       <View style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
-        isOneOffJob && !isCompleted && styles.oneOffJobRow,
-        isPastDay && styles.pastDayRow
+        isOneOffJob && !isCompleted && styles.oneOffJobRow
       ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
@@ -387,28 +452,23 @@ export default function RunsheetWeekScreen() {
             <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
           </Pressable>
         </View>
+        {/* Notes button */}
+        {client?.notes && client.notes.trim() !== '' && (
+          <Pressable
+            style={styles.notesButton}
+            onPress={() => {
+              setNoteModalText(client.notes);
+              setNoteModalVisible(true);
+            }}
+            accessibilityLabel="Show client notes"
+          >
+            <Text style={styles.notesButtonIcon}>!</Text>
+          </Pressable>
+        )}
         <View style={styles.controlsContainer}>
           <Pressable onPress={() => showPickerForJob(item)} style={styles.etaButton}>
             <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
           </Pressable>
-          <View style={styles.arrowContainer}>
-            {!isCompleted && !isDayCompleted && (
-              <>
-                <Pressable onPress={() => moveJob(sectionIndex, index, 'up')} disabled={index === 0} style={styles.arrowButton}>
-                  <Ionicons name="arrow-up" size={24} color={index === 0 ? '#ccc' : '#007AFF'} />
-                </Pressable>
-                <Pressable onPress={() => moveJob(sectionIndex, index, 'down')} disabled={index === section.data.length - 1} style={styles.arrowButton}>
-                  <Ionicons name="arrow-down" size={24} color={index === section.data.length - 1 ? '#ccc' : '#007AFF'} />
-                </Pressable>
-                <Pressable onPress={() => moveJob(sectionIndex, index, 'left')} disabled={sectionIndex === 0} style={styles.arrowButton}>
-                  <Ionicons name="arrow-back" size={24} color={sectionIndex === 0 ? '#ccc' : '#007AFF'} />
-                </Pressable>
-                <Pressable onPress={() => moveJob(sectionIndex, index, 'right')} disabled={sectionIndex === sections.length - 1} style={styles.arrowButton}>
-                  <Ionicons name="arrow-forward" size={24} color={sectionIndex === sections.length - 1 ? '#ccc' : '#007AFF'} />
-                </Pressable>
-              </>
-            )}
-          </View>
           {showCompleteButton && (
             <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
               <Text style={styles.completeButtonText}>Complete?</Text>
@@ -419,9 +479,9 @@ export default function RunsheetWeekScreen() {
               <Text style={styles.completeButtonText}>Undo</Text>
             </Pressable>
           )}
-          {isPastDay && (
+          {(isToday || isFutureDay) && !isDayCompleted && (
             <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
-              <Text style={styles.deferButtonText}>Defer</Text>
+              <Text style={styles.deferButtonText}>Move</Text>
             </Pressable>
           )}
         </View>
@@ -504,78 +564,116 @@ export default function RunsheetWeekScreen() {
   };
   const weekTitle = `Runsheet - Week Commencing ${getOrdinal(weekStart.getDate())} ${format(weekStart, 'MMMM')}`;
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>{weekTitle}</Text>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Text style={styles.homeButtonText}>🏠</Text>
-        </Pressable>
-      </View>
-      {loading ? (
-        <ActivityIndicator size="large" />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index, section }) =>
-            collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
-          }
-          renderSectionHeader={({ section: { title, data } }) => {
-            const dayIsPast = isDayInPast(title);
-            const dayIsCompleted = completedDays.includes(title);
-            const showDayCompleteButton = isDayComplete(title) && !dayIsCompleted && !dayIsPast;
+  // Utility to check if a day is completed
+  const isDayCompleted = (dayTitle: string) => completedDays.includes(dayTitle);
 
-            return (
-              <View style={styles.sectionHeaderContainer}>
-                <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
-                  <Text style={styles.sectionHeader}>
-                    {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
-                    {(dayIsCompleted || dayIsPast) && ' 🔒'}
-                  </Text>
-                </Pressable>
-                {showDayCompleteButton && (
-                  <Pressable 
-                    style={styles.dayCompleteButton} 
-                    onPress={() => handleDayComplete(title)}
-                  >
-                    <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={styles.container}>
+        <View style={styles.titleRow}>
+          <Pressable
+            style={{ backgroundColor: '#f5f5f5', padding: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0', marginRight: 8 }}
+            onPress={() => router.push('/workload-forecast')}
+            accessibilityLabel="Go to workload forecast"
+          >
+            <Ionicons name="calendar-outline" size={22} color="#007AFF" />
+          </Pressable>
+          <Text style={styles.title}>{weekTitle}</Text>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+            <Text style={styles.homeButtonText}>🏠</Text>
+          </Pressable>
+        </View>
+        {loading ? (
+          <ActivityIndicator size="large" />
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item, index, section }) =>
+              collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
+            }
+            renderSectionHeader={({ section: { title, data } }) => {
+              const dayIsPast = isDayInPast(title);
+              const dayIsCompleted = completedDays.includes(title);
+              const showDayCompleteButton = isDayComplete(title) && !dayIsCompleted && !dayIsPast;
+
+              return (
+                <View style={styles.sectionHeaderContainer}>
+                  <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
+                    <Text style={styles.sectionHeader}>
+                      {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
+                      {(dayIsCompleted || dayIsPast) && ' 🔒'}
+                    </Text>
                   </Pressable>
-                )}
-                {(dayIsCompleted || dayIsPast) && (
-                  <View style={styles.dayCompletedIndicator}>
-                    <Text style={styles.dayCompletedText}>Completed</Text>
-                  </View>
-                )}
-              </View>
-            );
-          }}
-          ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
-          style={{ flex: 1 }}
-          contentContainerStyle={{ flexGrow: 1 }}
-        />
-      )}
-      {showTimePicker && timePickerJob && (
-        <TimePickerModal
-          visible={showTimePicker}
-          onClose={() => {
-            setShowTimePicker(false);
-            setTimePickerJob(null);
-          }}
-          onConfirm={handleSetEta}
-          initialTime={timePickerJob.eta}
-        />
-      )}
-      {actionSheetJob && Platform.OS === 'android' && (
-        <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
-          <View style={styles.androidSheet} pointerEvents="box-none">
-            <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
-            <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
-            <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
-            <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+                  {showDayCompleteButton && (
+                    <Pressable 
+                      style={styles.dayCompleteButton} 
+                      onPress={() => handleDayComplete(title)}
+                    >
+                      <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+                    </Pressable>
+                  )}
+                  {(dayIsCompleted || dayIsPast) && (
+                    <View style={styles.dayCompletedIndicator}>
+                      <Text style={styles.dayCompletedText}>Completed</Text>
+                    </View>
+                  )}
+                </View>
+              );
+            }}
+            ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
+            style={{ flex: 1 }}
+            contentContainerStyle={{ flexGrow: 1 }}
+          />
+        )}
+        {showTimePicker && timePickerJob && (
+          <TimePickerModal
+            visible={showTimePicker}
+            onClose={() => {
+              setShowTimePicker(false);
+              setTimePickerJob(null);
+            }}
+            onConfirm={handleSetEta}
+            initialTime={timePickerJob.eta}
+          />
+        )}
+        {actionSheetJob && Platform.OS === 'android' && (
+          <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
+            <View style={styles.androidSheet} pointerEvents="box-none">
+              <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
+              <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
+              <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+              <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+            </View>
+          </Pressable>
+        )}
+        {/* Notes Modal */}
+        <Modal
+          visible={noteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setNoteModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.notesModalContent}>
+              <Text style={styles.notesModalTitle}>Client Notes</Text>
+              <Text style={styles.notesModalText}>{noteModalText}</Text>
+              <Pressable style={styles.notesModalClose} onPress={() => setNoteModalVisible(false)}>
+                <Text style={styles.notesModalCloseText}>Close</Text>
+              </Pressable>
+            </View>
           </View>
-        </Pressable>
-      )}
+        </Modal>
+        {showDeferDatePicker && (
+          <DateTimePicker
+            value={new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            minimumDate={new Date()}
+            onChange={handleDeferDateChange}
+          />
+        )}
+      </View>
     </View>
   );
 }
@@ -670,16 +768,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  arrowContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    maxWidth: 100,
-  },
-  arrowButton: {
-    padding: 4,
-  },
   completedRow: {
     backgroundColor: '#b6eab6',
   },
@@ -763,8 +851,56 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  pastDayRow: {
-    backgroundColor: '#ffd7d7', // Light red background for past day jobs
-    borderColor: '#ffb3b3',
+  notesButton: {
+    backgroundColor: '#ffcc00',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: 6,
+    marginTop: 8,
+    elevation: 2,
+  },
+  notesButtonIcon: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 18,
+    lineHeight: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notesModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 250,
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  notesModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 12,
+  },
+  notesModalText: {
+    fontSize: 16,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  notesModalClose: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  notesModalCloseText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

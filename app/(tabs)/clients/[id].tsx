@@ -3,13 +3,14 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { db } from '../../../core/firebase';
-import type { Client } from '../../../types/client';
+import { isTodayMarkedComplete } from '../../services/jobService';
+import type { Client } from '../../types/client';
 import type { Job, Payment } from '../../types/models';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
@@ -34,6 +35,8 @@ export default function ClientDetailScreen() {
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
+  const [todayComplete, setTodayComplete] = useState(false);
+  const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -55,8 +58,8 @@ export default function ClientDetailScreen() {
       setLoadingHistory(true);
       setBalance(null); // Reset balance on re-fetch
       try {
-        // Fetch jobs with status 'completed'
-        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id), where('status', '==', 'completed'));
+        // Fetch all jobs for this client (not just completed)
+        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id));
         const jobsSnapshot = await getDocs(jobsQuery);
         const jobsData = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'job' })) as (Job & { type: 'job' })[];
 
@@ -90,6 +93,62 @@ export default function ClientDetailScreen() {
     fetchServiceHistory();
   }, [client]);
 
+  useEffect(() => {
+    const checkTodayComplete = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const weekStart = new Date(today);
+      weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday as start of week
+      const weekStartStr = weekStart.toISOString().split('T')[0];
+      const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+      if (completedDoc.exists()) {
+        const data = completedDoc.data();
+        const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const todayDay = daysOfWeek[today.getDay() - 1];
+        if (data.completedDays && data.completedDays.includes(todayDay)) {
+          setTodayComplete(true);
+        } else {
+          setTodayComplete(false);
+        }
+      } else {
+        setTodayComplete(false);
+      }
+    };
+    checkTodayComplete();
+  }, []);
+
+  useEffect(() => {
+    if (!client) return;
+
+    // Fetch next scheduled visit (next pending job)
+    const fetchNextScheduledVisit = async () => {
+      try {
+        const jobsQuery = query(
+          collection(db, 'jobs'),
+          where('clientId', '==', client.id),
+          where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+        );
+        const jobsSnapshot = await getDocs(jobsQuery);
+        const now = new Date();
+        let nextJobDate: Date | null = null;
+        jobsSnapshot.forEach(doc => {
+          const job = doc.data();
+          if (job.scheduledTime) {
+            const jobDate = new Date(job.scheduledTime);
+            if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
+              nextJobDate = jobDate;
+            }
+          }
+        });
+        setNextScheduledVisit(nextJobDate ? nextJobDate.toISOString() : null);
+      } catch (error) {
+        setNextScheduledVisit(null);
+      }
+    };
+
+    fetchNextScheduledVisit();
+  }, [client]);
+
   useFocusEffect(
     useCallback(() => {
       setLoading(true);  // reset loading state
@@ -110,8 +169,43 @@ export default function ClientDetailScreen() {
             if (typeof id === 'string') {
               try {
                 await updateDoc(doc(db, 'clients', id), {
-                  status: 'ex-client'
+                  status: 'ex-client',
+                  roundOrderNumber: null
                 });
+                // Re-number roundOrderNumber for all active clients
+                const clientsSnapshot = await getDocs(collection(db, 'clients'));
+                const activeClients = clientsSnapshot.docs
+                  .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as import('../../types/client').Client))
+                  .filter(c => c.status !== 'ex-client' && c.roundOrderNumber != null)
+                  .sort((a, b) => (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0));
+                for (let i = 0; i < activeClients.length; i++) {
+                  const client = activeClients[i];
+                  if (client.roundOrderNumber !== i + 1) {
+                    await updateDoc(doc(db, 'clients', client.id), { roundOrderNumber: i + 1 });
+                  }
+                }
+                // Delete all jobs for this client that are scheduled for today or in the future and not completed
+                const jobsRef = collection(db, 'jobs');
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const jobsQuery = query(
+                  jobsRef,
+                  where('clientId', '==', id),
+                  where('status', '!=', 'completed')
+                );
+                const jobsSnapshot = await getDocs(jobsQuery);
+                const batch = writeBatch(db);
+                jobsSnapshot.forEach(jobDoc => {
+                  const jobData = jobDoc.data();
+                  if (jobData.scheduledTime) {
+                    const jobDate = new Date(jobData.scheduledTime);
+                    jobDate.setHours(0, 0, 0, 0);
+                    if (jobDate >= today) {
+                      batch.delete(jobDoc.ref);
+                    }
+                  }
+                });
+                await batch.commit();
                 router.replace('/clients');
               } catch (error) {
                 console.error('Error archiving client:', error);
@@ -177,6 +271,19 @@ export default function ClientDetailScreen() {
     }
 
     const finalJobType = jobType === 'Other' ? customJobType.trim() : jobType;
+
+    // Prevent adding a job for today if today is marked complete (using utility)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const jobDateOnly = new Date(jobDate);
+    jobDateOnly.setHours(0, 0, 0, 0);
+    if (jobDateOnly.getTime() === today.getTime()) {
+      const todayComplete = await isTodayMarkedComplete();
+      if (todayComplete) {
+        Alert.alert('Cannot add job', 'Today is marked as complete. You cannot add a job for today.');
+        return;
+      }
+    }
 
     const jobData = {
       clientId: id,
@@ -257,12 +364,14 @@ export default function ClientDetailScreen() {
             ) : client.frequency === 'one-off' ? (
               <ThemedText>No recurring work</ThemedText>
             ) : null}
-            {client.nextVisit && (
-              <ThemedText>Next scheduled visit: {new Date(client.nextVisit).toLocaleDateString('en-GB', {
+            {nextScheduledVisit ? (
+              <ThemedText>Next scheduled visit: {new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
                 day: '2-digit',
                 month: 'long',
                 year: 'numeric',
               })}</ThemedText>
+            ) : (
+              <ThemedText>Next scheduled visit: N/A</ThemedText>
             )}
             <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
             {client.email && (

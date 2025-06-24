@@ -1,13 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDocs, orderBy, query, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client } from '../types/client';
-import { createJobsForClient } from './services/jobService';
+import { isTodayMarkedComplete } from './services/jobService';
 
 type ClientWithPosition = Client & { 
   isNewClient?: boolean;
@@ -48,21 +48,23 @@ export default function RoundOrderManagerScreen() {
           displayPosition: doc.data().roundOrderNumber || 0,
         })) as ClientWithPosition[];
 
+        // Only include active clients
+        const activeClients = allClients.filter(c => c.status !== 'ex-client');
         if (newClientData) {
           // CREATE MODE
           activeClientData = JSON.parse(newClientData as string);
-          clientsList = allClients;
+          clientsList = activeClients;
         } else if (typeof editingClientId === 'string') {
           // EDIT MODE
-          const clientToEdit = allClients.find(c => c.id === editingClientId);
+          const clientToEdit = activeClients.find(c => c.id === editingClientId);
           if (clientToEdit) {
             activeClientData = clientToEdit;
             // Exclude the client being edited from the list
-            clientsList = allClients.filter(c => c.id !== editingClientId);
+            clientsList = activeClients.filter(c => c.id !== editingClientId);
             initialPosition = clientToEdit.roundOrderNumber;
           } else {
             // Fallback if client not found
-            clientsList = allClients;
+            clientsList = activeClients;
           }
         }
         
@@ -118,22 +120,77 @@ export default function RoundOrderManagerScreen() {
       });
       
       if (newClientData) {
-        // If it's a new client, we still need to add it to the database
+        // If restoring a client (has id), update the existing document
         const clientToAdd = updatedClients.find(c => 'isNewClient' in c && c.isNewClient);
-        if(clientToAdd) {
-            const {id, isNewClient, displayPosition, ...clientData} = clientToAdd;
-            const clientRef = await addDoc(collection(db, 'clients'), {
-                ...clientData,
-                roundOrderNumber: position,
-                status: 'active',
-                dateAdded: new Date().toISOString(),
-                source: clientData.source || '',
-                email: clientData.email || '',
+        if (clientToAdd) {
+          const { id, isNewClient, displayPosition, ...clientData } = clientToAdd;
+          if (id) {
+            // Restoring: update existing client
+            const clientRef = doc(db, 'clients', id);
+            batch.update(clientRef, {
+              ...clientData,
+              roundOrderNumber: position,
+              status: 'active',
             });
-
+            // After batch commit, regenerate jobs for this client (from today onwards)
+            const skipToday = await isTodayMarkedComplete();
+            await batch.commit();
+            // Regenerate jobs for this client (from today onwards)
             if (clientData.frequency !== 'one-off') {
-                await createJobsForClient(clientRef.id, 8);
+              // Custom job generation: only for dates from today onwards
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              let visitDate = clientData.nextVisit ? new Date(clientData.nextVisit) : today;
+              if (visitDate < today) {
+                // Move to the next valid date
+                const freq = Number(clientData.frequency);
+                while (visitDate < today) {
+                  visitDate.setDate(visitDate.getDate() + freq * 7);
+                }
+              }
+              // Generate up to 8 jobs from the next valid visitDate
+              const jobsToCreate = [];
+              for (let i = 0; i < 8; i++) {
+                const weekStr = visitDate.toISOString().split('T')[0];
+                // If today is to be skipped, skip job for today
+                if (!(skipToday && visitDate.getTime() === today.getTime())) {
+                  jobsToCreate.push({
+                    clientId: id,
+                    providerId: 'test-provider-1',
+                    serviceId: 'window-cleaning',
+                    propertyDetails: `${clientData.address1 || clientData.address || ''}, ${clientData.town || ''}, ${clientData.postcode || ''}`,
+                    scheduledTime: weekStr + 'T09:00:00',
+                    status: 'pending',
+                    price: typeof clientData.quote === 'number' ? clientData.quote : 25,
+                    paymentStatus: 'unpaid',
+                  });
+                }
+                visitDate.setDate(visitDate.getDate() + Number(clientData.frequency) * 7);
+              }
+              if (jobsToCreate.length > 0) {
+                const jobsRef = collection(db, 'jobs');
+                const addBatch = writeBatch(db);
+                jobsToCreate.forEach(job => {
+                  const newJobRef = doc(jobsRef);
+                  addBatch.set(newJobRef, job);
+                });
+                await addBatch.commit();
+              }
             }
+            // After job regeneration, navigate to the restored client's detail screen
+            router.push({ pathname: '/(tabs)/clients/[id]', params: { id } });
+            return; // Skip the rest of the batch.commit below, already committed
+          } else {
+            // Truly new client: return to add-client with all data and round order
+            router.push({
+              pathname: '/add-client',
+              params: {
+                ...clientData,
+                roundOrderNumber: String(position),
+              }
+            });
+            return;
+          }
         }
       }
 
@@ -145,6 +202,8 @@ export default function RoundOrderManagerScreen() {
       // Navigate back to clients list or client details
       if (editingClientId) {
         router.back();
+      } else if (newClientData) {
+        router.push({ pathname: '/add-client', params: { roundOrderNumber: String(position) } });
       } else {
         router.push('/clients');
       }
@@ -159,7 +218,9 @@ export default function RoundOrderManagerScreen() {
 
   const renderClientItem = ({ item, index }: { item: ClientWithPosition | Client; index: number }) => {
     const isNewClient = 'isNewClient' in item && item.isNewClient;
-    const address = item.address1 || item.address || 'No address';
+    const address = item.address1 && item.town && item.postcode
+      ? `${item.address1}, ${item.town}, ${item.postcode}`
+      : item.address || 'No address';
     const position = 'displayPosition' in item ? item.displayPosition : index + 1;
     
     return (
@@ -222,16 +283,19 @@ export default function RoundOrderManagerScreen() {
             data={displayList}
             renderItem={({item, index}) => {
               const isSelected = index === position -1;
+              const address = item.address1 && item.town && item.postcode
+                ? `${item.address1}, ${item.town}, ${item.postcode}`
+                : item.address || 'No address';
               return (
                 <View style={[styles.clientItem, isSelected && styles.newClientItem]}>
-                   <Text style={styles.positionText}>{index + 1}</Text>
-                   <Text style={[styles.addressText, isSelected && styles.newClientText]}>
-                    {'isNewClient' in item && item.isNewClient ? (activeClient?.name || "NEW CLIENT") : item.address1 || item.address}
-                   </Text>
+                  <Text style={styles.positionText}>{index + 1}</Text>
+                  <Text style={[styles.addressText, isSelected && styles.newClientText]}>
+                    {'isNewClient' in item && item.isNewClient ? (address) : address}
+                  </Text>
                 </View>
               )
             }}
-            keyExtractor={(item, index) => 
+            keyExtractor={(item, index) =>
               'isNewClient' in item && item.isNewClient ? 'new-client' : item.id || `client-${index}`
             }
             style={styles.list}
@@ -252,14 +316,18 @@ export default function RoundOrderManagerScreen() {
           <View style={styles.pickerHighlight} pointerEvents="none" />
         </View>
       </View>
-
-      <View style={styles.buttonContainer}>
-        <Pressable style={styles.cancelButton} onPress={() => router.back()}>
-          <Text style={styles.cancelButtonText}>Cancel</Text>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+        <Pressable style={styles.cancelButton} onPress={() => router.back()} disabled={loading}>
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Cancel</Text>
         </Pressable>
-        
-        <Pressable style={styles.confirmButton} onPress={handleConfirm}>
-          <Text style={styles.confirmButtonText}>Confirm Position</Text>
+        <Pressable
+          style={[styles.confirmButton, loading && { backgroundColor: '#ccc' }]}
+          onPress={handleConfirm}
+          disabled={loading}
+        >
+          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+            {loading ? 'Saving...' : 'Confirm Position'}
+          </Text>
         </Pressable>
       </View>
     </ThemedView>
@@ -345,10 +413,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2196f3',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
   cancelButton: {
     backgroundColor: '#ff6b6b',
     paddingHorizontal: 20,
@@ -356,10 +420,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flex: 0.48,
     alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   confirmButton: {
     backgroundColor: '#4caf50',
@@ -369,8 +429,4 @@ const styles = StyleSheet.create({
     flex: 0.48,
     alignItems: 'center',
   },
-  confirmButtonText: {
-    color: '#FFFFFF',
-    fontWeight: 'bold',
-  },
-}); 
+});

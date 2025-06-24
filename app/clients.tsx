@@ -21,6 +21,7 @@ export default function ClientsScreen() {
   const [loading, setLoading] = useState(true);
   const [clientBalances, setClientBalances] = useState<Record<string, number>>({});
   const [loadingBalances, setLoadingBalances] = useState(true);
+  const [nextVisits, setNextVisits] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, 'clients'), (querySnapshot) => {
@@ -73,6 +74,42 @@ export default function ClientsScreen() {
     };
 
     fetchClientBalances();
+  }, [clients]);
+
+  useEffect(() => {
+    if (clients.length === 0) return;
+
+    // Fetch next scheduled visit for each client
+    const fetchNextVisits = async () => {
+      const result: Record<string, string | null> = {};
+      for (const client of clients) {
+        try {
+          const jobsQuery = query(
+            collection(db, 'jobs'),
+            where('clientId', '==', client.id),
+            where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+          );
+          const jobsSnapshot = await getDocs(jobsQuery);
+          const now = new Date();
+          let nextJobDate: Date | null = null;
+          jobsSnapshot.forEach(doc => {
+            const job = doc.data();
+            if (job.scheduledTime) {
+              const jobDate = new Date(job.scheduledTime);
+              if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
+                nextJobDate = jobDate;
+              }
+            }
+          });
+          result[client.id] = nextJobDate ? nextJobDate.toISOString() : null;
+        } catch (error) {
+          result[client.id] = null;
+        }
+      }
+      setNextVisits(result);
+    };
+
+    fetchNextVisits();
   }, [clients]);
 
   useEffect(() => {
@@ -177,11 +214,11 @@ export default function ClientsScreen() {
           {item.frequency && (
             <ThemedText>Every {item.frequency} weeks</ThemedText>
           )}
-          {item.nextVisit && (
-            <ThemedText>
-              Next Visit: {format(parseISO(item.nextVisit), 'd MMMM yyyy')}
-            </ThemedText>
-          )}
+          <ThemedText>
+            Next Visit: {nextVisits[item.id]
+              ? format(parseISO(nextVisits[item.id]!), 'd MMMM yyyy')
+              : 'N/A'}
+          </ThemedText>
           {item.roundOrderNumber != null && (
             <ThemedText>Round Order: {String(item.roundOrderNumber)}</ThemedText>
           )}

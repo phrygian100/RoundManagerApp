@@ -134,7 +134,18 @@ const ClientBalanceScreen = () => {
                 try {
                   await deletePayment(item.id);
                   if (item.jobId) {
-                    await updateJobStatus(item.jobId, 'completed');
+                    try {
+                      await updateJobStatus(item.jobId, 'completed');
+                    } catch (jobError: any) {
+                      if (
+                        jobError.code === 'not-found' ||
+                        jobError.message?.includes('No document to update')
+                      ) {
+                        // Job already deleted, ignore
+                      } else {
+                        throw jobError;
+                      }
+                    }
                   }
                   fetchData(); 
                   Alert.alert('Success', 'Payment deleted.');

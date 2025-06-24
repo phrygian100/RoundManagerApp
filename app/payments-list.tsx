@@ -86,7 +86,18 @@ export default function PaymentsListScreen() {
 
                 // If a job is linked, revert its status to 'completed'
                 if (item.jobId) {
-                  await updateJobStatus(item.jobId, 'completed');
+                  try {
+                    await updateJobStatus(item.jobId, 'completed');
+                  } catch (jobError: any) {
+                    if (
+                      jobError.code === 'not-found' ||
+                      jobError.message?.includes('No document to update')
+                    ) {
+                      // Job already deleted, ignore
+                    } else {
+                      throw jobError;
+                    }
+                  }
                 }
 
                 Alert.alert('Success', 'Payment has been deleted.');
@@ -143,9 +154,14 @@ export default function PaymentsListScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
         <ThemedText type="title" style={styles.title}>Payments</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Pressable style={styles.addButton} onPress={() => router.push('/add-payment')}>
+            <ThemedText style={styles.addButtonText}>+ Add Payment</ThemedText>
+          </Pressable>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+          </Pressable>
+        </View>
       </View>
       <ThemedText style={styles.sectionSubtitle}>
         Total: £{calculatePaymentsTotal().toFixed(2)} ({payments.length} payments)
@@ -235,5 +251,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

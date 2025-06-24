@@ -1,9 +1,10 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Button, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -23,6 +24,9 @@ export default function AddPaymentScreen() {
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(false);
   const [isFromJob, setIsFromJob] = useState(false);
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientList, setShowClientList] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -73,6 +77,16 @@ export default function AddPaymentScreen() {
 
     fetchClients();
   }, []);
+
+  // Auto-fill reference when client is selected
+  useEffect(() => {
+    const selectedClient = clients.find(client => client.id === selectedClientId);
+    if (selectedClient && selectedClient.accountNumber) {
+      setReference(`Account: ${selectedClient.accountNumber}`);
+    } else if (selectedClient) {
+      setReference('');
+    }
+  }, [selectedClientId, clients]);
 
   const handleSave = async () => {
     if (!selectedClientId || !amount.trim() || !paymentDate.trim()) {
@@ -135,6 +149,16 @@ export default function AddPaymentScreen() {
 
   const selectedClient = clients.find(client => client.id === selectedClientId);
 
+  const filteredClients = clients.filter(client => {
+    const search = clientSearch.toLowerCase();
+    return (
+      client.name.toLowerCase().includes(search) ||
+      (client.address1 && client.address1.toLowerCase().includes(search)) ||
+      (client.town && client.town.toLowerCase().includes(search)) ||
+      (client.address && client.address.toLowerCase().includes(search))
+    );
+  });
+
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title" style={styles.title}>
@@ -156,22 +180,43 @@ export default function AddPaymentScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Client *</ThemedText>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={selectedClientId}
-                onValueChange={setSelectedClientId}
-                style={styles.picker}
-                enabled={!isFromJob} // Disable if coming from job
-              >
-                {clients.map((client) => (
-                  <Picker.Item
-                    key={client.id}
-                    label={getClientDisplayName(client)}
-                    value={client.id}
-                  />
-                ))}
-              </Picker>
-            </View>
+            {!isFromJob ? (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Search clients by name or address"
+                  value={clientSearch}
+                  onChangeText={text => {
+                    setClientSearch(text);
+                    setShowClientList(true);
+                  }}
+                  onFocus={() => setShowClientList(true)}
+                />
+                {showClientList && filteredClients.length > 0 && (
+                  <View style={styles.clientList}>
+                    {filteredClients.map(item => (
+                      <Pressable
+                        key={item.id}
+                        style={styles.clientListItem}
+                        onPress={() => {
+                          setSelectedClientId(item.id);
+                          setClientSearch(getClientDisplayName(item));
+                          setShowClientList(false);
+                        }}
+                      >
+                        <ThemedText>{getClientDisplayName(item)}</ThemedText>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+              </>
+            ) : (
+              <TextInput
+                style={[styles.input, { backgroundColor: '#f0f0f0', color: '#999' }]}
+                value={selectedClient ? getClientDisplayName(selectedClient) : ''}
+                editable={false}
+              />
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -188,13 +233,27 @@ export default function AddPaymentScreen() {
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Payment Date *</ThemedText>
-            <TextInput
+            <Pressable
               style={styles.input}
-              value={paymentDate}
-              onChangeText={setPaymentDate}
-              placeholder="YYYY-MM-DD"
-              placeholderTextColor="#999"
-            />
+              onPress={() => setShowDatePicker(true)}
+            >
+              <ThemedText>
+                {paymentDate ? paymentDate : 'Select date'}
+              </ThemedText>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={paymentDate ? new Date(paymentDate) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setPaymentDate(format(selectedDate, 'yyyy-MM-dd'));
+                  }
+                }}
+              />
+            )}
           </View>
 
           <View style={styles.inputGroup}>
@@ -217,12 +276,12 @@ export default function AddPaymentScreen() {
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Reference</ThemedText>
             <TextInput
-              style={[styles.input, isFromJob && styles.disabledInput]}
+              style={[styles.input, ((selectedClient && selectedClient.accountNumber) || isFromJob) && styles.disabledInput]}
               value={reference}
               onChangeText={setReference}
               placeholder={selectedClient?.accountNumber ? `Account: ${selectedClient.accountNumber}` : "Payment reference or cheque number"}
               placeholderTextColor="#999"
-              editable={!isFromJob}
+              editable={!(selectedClient && selectedClient.accountNumber) && !isFromJob}
             />
           </View>
 
@@ -328,5 +387,20 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  clientList: {
+    maxHeight: 180,
+    backgroundColor: '#fff',
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 2,
+    marginBottom: 8,
+    zIndex: 10,
+  },
+  clientListItem: {
+    padding: 12,
+    borderBottomColor: '#eee',
+    borderBottomWidth: 1,
   },
 }); 

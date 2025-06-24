@@ -1,9 +1,10 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { addWeeks, format, format as formatDate, parseISO, startOfWeek } from 'date-fns';
-import { useRouter } from 'expo-router';
+import { format, parseISO } from 'date-fns';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -16,6 +17,7 @@ function getOrdinal(n: number) {
 
 export default function AddClientScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const isMountedRef = useRef(true);
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -23,7 +25,6 @@ export default function AddClientScreen() {
   const [nextVisit, setNextVisit] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [quote, setQuote] = useState('');
-  const [mondayOptions, setMondayOptions] = useState<string[]>([]);
   const [accountNumber, setAccountNumber] = useState<number | null>(null);
   const [roundOrderNumber, setRoundOrderNumber] = useState<number | null>(null);
   const [totalClients, setTotalClients] = useState(0);
@@ -33,6 +34,7 @@ export default function AddClientScreen() {
   const [customSource, setCustomSource] = useState('');
   const [showCustomSourceInput, setShowCustomSourceInput] = useState(false);
   const [email, setEmail] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const sourceOptions = [
     'Google',
@@ -54,13 +56,10 @@ export default function AddClientScreen() {
   }, []);
 
   useEffect(() => {
-    const today = new Date();
-    const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
-    const mondays = Array.from({ length: 12 }, (_, i) =>
-      format(addWeeks(startOfThisWeek, i), 'yyyy-MM-dd')
-    );
-    setMondayOptions(mondays);
-    if (!nextVisit) setNextVisit(mondays[0]);
+    if (!nextVisit) {
+      const today = new Date();
+      setNextVisit(format(today, 'yyyy-MM-dd'));
+    }
 
     const fetchNextNumbers = async () => {
       try {
@@ -106,6 +105,21 @@ export default function AddClientScreen() {
     fetchNextNumbers();
   }, []);
 
+  useEffect(() => {
+    // If returning from round order manager, update all fields from params if present
+    if (params.roundOrderNumber) setRoundOrderNumber(Number(params.roundOrderNumber));
+    if (params.name) setName(String(params.name));
+    if (params.address) setAddress(String(params.address));
+    if (params.frequency) setFrequency(params.frequency as '4' | '8' | 'one-off');
+    if (params.nextVisit) setNextVisit(String(params.nextVisit));
+    if (params.mobileNumber) setMobileNumber(String(params.mobileNumber));
+    if (params.quote) setQuote(String(params.quote));
+    if (params.accountNumber) setAccountNumber(Number(params.accountNumber));
+    if (params.status) {/* ignore, always 'active' for new */}
+    if (params.source) setSource(String(params.source));
+    if (params.email) setEmail(String(params.email));
+  }, [params]);
+
   const handleSave = async () => {
     if (isSaving) {
       console.log('Already saving, preventing duplicate submission');
@@ -114,12 +128,6 @@ export default function AddClientScreen() {
 
     if (!name.trim() || !address.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
       Alert.alert('Error', 'Please fill out all fields.');
-      return;
-    }
-
-    // For 3rd client onwards, navigate to round order manager instead of saving directly
-    if (showRoundOrderButton) {
-      handleRoundOrderPress();
       return;
     }
 
@@ -166,7 +174,7 @@ export default function AddClientScreen() {
       // Create jobs for the new client (only for recurring clients, not one-off)
       if (frequencyValue !== 'one-off') {
         try {
-          const jobsCreated = await createJobsForClient(clientRef.id, 8);
+          const jobsCreated = await createJobsForClient(clientRef.id, 8, true);
           console.log(`Created ${jobsCreated} jobs for new client`);
         } catch (jobError) {
           console.error('Error creating jobs for new client:', jobError);
@@ -175,7 +183,7 @@ export default function AddClientScreen() {
       }
 
       console.log('Client creation completed successfully');
-      router.back();
+      router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientRef.id } });
     } catch (e) {
       console.error('Error saving client:', e);
       Alert.alert('Error', 'Could not save client.');
@@ -297,19 +305,11 @@ export default function AddClientScreen() {
         />
 
         <ThemedText style={styles.label}>Round Order</ThemedText>
-        {showRoundOrderButton ? (
-          <Pressable style={styles.roundOrderButton} onPress={handleRoundOrderPress}>
-            <ThemedText style={styles.roundOrderButtonText}>
-              Set Round Order Position
-            </ThemedText>
-          </Pressable>
-        ) : (
-          <TextInput
-            style={[styles.input, styles.disabledInput]}
-            value={roundOrderNumber ? String(roundOrderNumber) : 'Loading...'}
-            editable={false}
-          />
-        )}
+        <Pressable style={styles.roundOrderButton} onPress={handleRoundOrderPress}>
+          <ThemedText style={styles.roundOrderButtonText}>
+            {roundOrderNumber ? `Round Order: ${roundOrderNumber}` : 'Set Round Order Position'}
+          </ThemedText>
+        </Pressable>
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <Picker
@@ -322,21 +322,28 @@ export default function AddClientScreen() {
           <Picker.Item label="One-off" value="one-off" />
         </Picker>
 
-        <ThemedText style={styles.label}>Week Commencing</ThemedText>
-        <Picker
-          selectedValue={nextVisit}
-          onValueChange={setNextVisit}
-          style={styles.input}
+        <ThemedText style={styles.label}>Starting Date</ThemedText>
+        <Pressable
+          style={[styles.input, { justifyContent: 'center' }]}
+          onPress={() => setShowDatePicker(true)}
         >
-          {mondayOptions.map((monday) => {
-            const date = parseISO(monday);
-            const day = getOrdinal(date.getDate());
-            const month = formatDate(date, 'LLLL');
-            const year = date.getFullYear();
-            const label = `${day} ${month} ${year}`;
-            return <Picker.Item key={monday} label={label} value={monday} />;
-          })}
-        </Picker>
+          <ThemedText>
+            {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+          </ThemedText>
+        </Pressable>
+        {showDatePicker && (
+          <DateTimePicker
+            value={nextVisit ? parseISO(nextVisit) : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(event, selectedDate) => {
+              setShowDatePicker(false);
+              if (selectedDate) {
+                setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+              }
+            }}
+          />
+        )}
 
         <Pressable style={[styles.button, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
           <ThemedText style={styles.buttonText}>
