@@ -119,7 +119,7 @@ export default function PaymentsListScreen() {
     return (
       <View style={styles.paymentItem}>
         <Pressable style={styles.deleteButton} onPress={handleDelete}>
-          <ThemedText style={styles.deleteButtonText}>❌</ThemedText>
+          <ThemedText style={styles.deleteButtonText}>×</ThemedText>
         </Pressable>
         <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
         <ThemedText>{client?.name || 'Unknown client'}</ThemedText>
@@ -217,18 +217,13 @@ const styles = StyleSheet.create({
   deleteButton: {
     position: 'absolute',
     top: 8,
-    right: 8,
-    backgroundColor: '#ff4d4d',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
+    right: 12,
     zIndex: 1,
   },
   deleteButtonText: {
-    color: 'white',
-    fontSize: 12,
+    color: '#ff4d4d',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
   notes: {
     marginTop: 4,
