@@ -6,8 +6,8 @@ import { Alert, Dimensions, FlatList, Pressable, StyleSheet, Text, View } from '
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { isTodayMarkedComplete } from '../services/jobService';
 import type { Client } from '../types/client';
-import { isTodayMarkedComplete } from './services/jobService';
 
 type ClientWithPosition = Client & { 
   isNewClient?: boolean;

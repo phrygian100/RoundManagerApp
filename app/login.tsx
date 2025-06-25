@@ -1,82 +1,69 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, TextInput } from 'react-native';
-import { ThemedText } from '../components/ThemedText';
-import { ThemedView } from '../components/ThemedView';
-import { useAuth } from '../contexts/AuthContext';
+import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { supabase } from '../core/supabase';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
-  const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert('Error', 'Please enter both email and password.');
       return;
     }
+
     try {
       setLoading(true);
-      await signIn(email, password);
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      if (error) throw error;
+      // Navigate to home screen or wherever appropriate
+      router.replace('/');
     } catch (error: any) {
-      Alert.alert('Login failed', error.message || 'Unknown error');
+      console.error('Login error', error);
+      const message = error.message || 'Login failed.';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">Login</ThemedText>
+    <View style={styles.container}>
+      <Text style={styles.title}>Login</Text>
       <TextInput
         style={styles.input}
         placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
+        secureTextEntry
       />
-      <Pressable style={styles.button} onPress={handleLogin} disabled={loading}>
-        <ThemedText style={styles.buttonText}>{loading ? 'Logging in...' : 'Login'}</ThemedText>
-      </Pressable>
-      <Pressable onPress={() => router.push('/register')} style={{ marginTop: 12 }}>
-        <ThemedText style={{ color: '#007AFF' }}>Create an account</ThemedText>
-      </Pressable>
-    </ThemedView>
+      <Button title={loading ? 'Logging in...' : 'Login'} onPress={handleLogin} disabled={loading} />
+      <View style={{ height: 12 }} />
+      <Button title="Register" onPress={() => router.push('/register')} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
     padding: 12,
-    marginVertical: 8,
-  },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    marginBottom: 16,
+    backgroundColor: '#fff',
   },
 }); 

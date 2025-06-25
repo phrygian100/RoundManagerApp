@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Button, FlatList, StyleSheet, Text, View } from 'react-native';
-import { useProviderJobs } from './hooks/useProviderJobs';
+import { useProviderJobs } from '../hooks/useProviderJobs';
 
 // For testing, use a hardcoded providerId
 const TEST_PROVIDER_ID = 'test-provider-1';

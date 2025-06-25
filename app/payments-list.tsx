@@ -6,10 +6,10 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { updateJobStatus } from '../services/jobService';
+import { deletePayment, getAllPayments } from '../services/paymentService';
 import type { Client } from '../types/client';
-import { updateJobStatus } from './services/jobService';
-import { deletePayment, getAllPayments } from './services/paymentService';
-import type { Payment } from './types/models';
+import type { Payment } from '../types/models';
 
 export default function PaymentsListScreen() {
   const [loading, setLoading] = useState(true);

@@ -1,1 +1,46 @@
- 
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: 'client' | 'provider';
+  address?: string; // for clients
+  servicesOffered?: string[]; // for providers
+  availability?: string[]; // for providers, e.g., ["Mon AM", "Tue PM"]
+  rating?: number; // average rating for providers
+};
+
+export type Service = {
+  id: string;
+  name: string; // e.g., "Window Cleaning"
+  description: string;
+  basePrice: number;
+};
+
+export type Job = {
+  id: string;
+  clientId: string;
+  providerId?: string;
+  serviceId: string;
+  propertyDetails: string;
+  scheduledTime: string; // ISO date string
+  status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'accounted' | 'paid';
+  eta?: string; // e.g., "13:45"
+  price: number;
+  rating?: number; // client rating for this job
+  review?: string;
+  paymentStatus: 'unpaid' | 'paid' | 'released';
+};
+
+export type Payment = {
+  id: string;
+  clientId: string;
+  jobId?: string; // Link to the job if payment is for a specific job
+  amount: number;
+  date: string; // ISO date string
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'auto_balance';
+  reference?: string; // payment reference or cheque number
+  notes?: string;
+  createdAt: string; // ISO date string
+  updatedAt: string; // ISO date string
+}; 

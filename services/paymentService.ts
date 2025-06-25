@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
-import { db } from '../../core/firebase';
+import { db } from '../core/firebase';
 import type { Payment } from '../types/models';
 
 const PAYMENTS_COLLECTION = 'payments';

@@ -7,8 +7,8 @@ import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
-import { generateRecurringJobs } from '../services/jobService';
-import { deleteAllPayments } from '../services/paymentService';
+import { generateRecurringJobs } from '../../services/jobService';
+import { deleteAllPayments } from '../../services/paymentService';
 
 export default function SettingsScreen() {
   const router = useRouter();

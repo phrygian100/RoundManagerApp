@@ -8,9 +8,9 @@ import { Alert, Button, KeyboardAvoidingView, Platform, Pressable, ScrollView, S
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { createPayment } from '../services/paymentService';
 import type { Client } from '../types/client';
-import { createPayment } from './services/paymentService';
-import type { Payment } from './types/models';
+import type { Payment } from '../types/models';
 
 export default function AddPaymentScreen() {
   const router = useRouter();

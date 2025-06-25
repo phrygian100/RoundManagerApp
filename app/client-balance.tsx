@@ -6,9 +6,9 @@ import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, V
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { updateJobStatus } from './services/jobService';
-import { deletePayment } from './services/paymentService';
-import type { Job, Payment } from './types/models';
+import { updateJobStatus } from '../services/jobService';
+import { deletePayment } from '../services/paymentService';
+import type { Job, Payment } from '../types/models';
 
 type SectionData = {
   title: string;

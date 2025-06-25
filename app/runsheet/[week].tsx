@@ -7,9 +7,9 @@ import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
+import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import type { Client } from '../../types/client';
-import { getJobsForWeek, updateJobStatus } from '../services/jobService';
-import type { Job } from '../types/models';
+import type { Job } from '../../types/models';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 

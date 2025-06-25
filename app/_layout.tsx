@@ -1,29 +1,31 @@
-import { Redirect, Slot } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { Slot, usePathname, useRouter } from 'expo-router';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
-
-function AuthGate() {
-  const { user, loading } = useAuth();
-  if (loading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-  if (!user) {
-    return <Redirect href="/login" />;
-  }
-  return <Slot />;
-}
+import { supabase } from '../core/supabase';
 
 export default function RootLayout() {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      const loggedIn = !!session;
+      if (!loggedIn) {
+        if (pathname !== '/login' && pathname !== '/register') {
+          router.replace('/login');
+        }
+      } else {
+        if (pathname === '/login' || pathname === '/register') {
+          router.replace('/');
+        }
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, [pathname]);
+
   return (
-    <AuthProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthGate />
-      </GestureHandlerRootView>
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Slot />
+    </GestureHandlerRootView>
   );
 }

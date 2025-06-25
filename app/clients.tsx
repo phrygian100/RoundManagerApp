@@ -8,7 +8,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import type { Client as BaseClient } from '../types/client';
-import type { Job, Payment } from './types/models';
+import type { Job, Payment } from '../types/models';
 
 type Client = BaseClient & { startingBalance?: number };
 type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none' | 'balance';

@@ -2,7 +2,7 @@ import { addWeeks, format, parseISO, startOfWeek, subWeeks } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getJobsForWeek } from './services/jobService';
+import { getJobsForWeek } from '../services/jobService';
 
 export default function RunsheetHistoryScreen() {
   const router = useRouter();

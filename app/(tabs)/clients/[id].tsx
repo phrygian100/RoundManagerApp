@@ -10,9 +10,9 @@ import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
-import { isTodayMarkedComplete } from '../../services/jobService';
-import type { Client } from '../../types/client';
-import type { Job, Payment } from '../../types/models';
+import { isTodayMarkedComplete } from '../../../services/jobService';
+import type { Client } from '../../../types/client';
+import type { Job, Payment } from '../../../types/models';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
 
@@ -189,7 +189,7 @@ export default function ClientDetailScreen() {
                 // Re-number roundOrderNumber for all active clients
                 const clientsSnapshot = await getDocs(collection(db, 'clients'));
                 const activeClients = clientsSnapshot.docs
-                  .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as import('../../types/client').Client))
+                  .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as import('../../../types/client').Client))
                   .filter(c => c.status !== 'ex-client' && c.roundOrderNumber != null)
                   .sort((a, b) => (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0));
                 for (let i = 0; i < activeClients.length; i++) {

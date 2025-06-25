@@ -5,7 +5,7 @@ import { collection, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { db } from '../core/firebase';
-import type { Job } from './types/models';
+import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
   const [loading, setLoading] = useState(true);

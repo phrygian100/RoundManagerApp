@@ -6,9 +6,9 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { deleteJob } from '../services/jobService';
 import type { Client } from '../types/client';
-import { deleteJob } from './services/jobService';
-import type { Job } from './types/models';
+import type { Job } from '../types/models';
 
 export default function CompletedJobsScreen() {
   const [loading, setLoading] = useState(true);

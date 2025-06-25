@@ -8,7 +8,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } f
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { createJobsForClient } from './services/jobService';
+import { createJobsForClient } from '../services/jobService';
 
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;

@@ -1,94 +1,111 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, TextInput } from 'react-native';
-import { ThemedText } from '../components/ThemedText';
-import { ThemedView } from '../components/ThemedView';
-import { useAuth } from '../contexts/AuthContext';
+import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { supabase } from '../core/supabase';
+import { createUserProfile } from '../services/userService';
+
+const roles = ['client', 'provider'] as const;
+
+type Role = typeof roles[number];
 
 export default function RegisterScreen() {
-  const { signUp } = useAuth();
-  const router = useRouter();
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
+  const [role, setRole] = useState<Role>('client');
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleRegister = async () => {
-    if (!email || !password || !confirm) {
-      Alert.alert('Error', 'Please complete all fields');
-      return;
-    }
-    if (password !== confirm) {
-      Alert.alert('Error', 'Passwords do not match');
+    if (!name || !email || !phone || !password) {
+      Alert.alert('Error', 'Please fill out all fields.');
       return;
     }
     try {
       setLoading(true);
-      await signUp(email, password);
+      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (error) throw error;
+      const uid = data.user?.id || '';
+      // Save profile in Firestore
+      await createUserProfile({
+        id: uid,
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        role,
+      });
+      Alert.alert('Success', 'Account created!');
+      router.replace('/');
     } catch (error: any) {
-      Alert.alert('Registration failed', error.message || 'Unknown error');
+      console.error('Registration error', error);
+      const message = error.message || 'Registration failed.';
+      Alert.alert('Error', message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">Create Account</ThemedText>
+    <View style={styles.container}>
+      <Text style={styles.title}>Register</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Name"
+        value={name}
+        onChangeText={setName}
+      />
       <TextInput
         style={styles.input}
         placeholder="Email"
-        autoCapitalize="none"
-        keyboardType="email-address"
         value={email}
         onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Phone"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
       />
       <TextInput
         style={styles.input}
         placeholder="Password"
-        secureTextEntry
         value={password}
         onChangeText={setPassword}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Confirm Password"
         secureTextEntry
-        value={confirm}
-        onChangeText={setConfirm}
       />
-      <Pressable style={styles.button} onPress={handleRegister} disabled={loading}>
-        <ThemedText style={styles.buttonText}>{loading ? 'Creating...' : 'Register'}</ThemedText>
-      </Pressable>
-      <Pressable onPress={() => router.back()} style={{ marginTop: 12 }}>
-        <ThemedText style={{ color: '#007AFF' }}>Back to login</ThemedText>
-      </Pressable>
-    </ThemedView>
+      <View style={styles.roleContainer}>
+        {roles.map((r) => (
+          <Button
+            key={r}
+            title={r.charAt(0).toUpperCase() + r.slice(1)}
+            onPress={() => setRole(r)}
+            color={role === r ? '#007AFF' : '#ccc'}
+          />
+        ))}
+      </View>
+      <Button title={loading ? 'Registering...' : 'Register'} onPress={handleRegister} disabled={loading} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 24,
-  },
+  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
     padding: 12,
-    marginVertical: 8,
+    marginBottom: 16,
+    backgroundColor: '#fff',
   },
-  button: {
-    backgroundColor: '#007AFF',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  roleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
   },
 }); 
