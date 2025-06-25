@@ -1,10 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
@@ -15,9 +16,10 @@ export default function WorkloadForecastScreen() {
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
-      // Get all jobs in a single query instead of 52 separate queries
+      const ownerId = await getCurrentUserId();
       const jobsRef = collection(db, 'jobs');
-      const jobsSnapshot = await getDocs(jobsRef);
+      const jobsQuery = query(jobsRef, where('ownerId', '==', ownerId));
+      const jobsSnapshot = await getDocs(jobsQuery);
       const allJobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));
 
       // Calculate the date range for the next 52 weeks

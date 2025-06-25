@@ -1,6 +1,7 @@
 import { addWeeks, format, getDay, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 
@@ -27,14 +28,18 @@ export async function createRequiredIndexes(): Promise<void> {
 }
 
 export async function createJob(job: Omit<Job, 'id'>) {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) throw new Error('User not authenticated');
   const jobsRef = collection(db, JOBS_COLLECTION);
-  const docRef = await addDoc(jobsRef, job);
+  const docRef = await addDoc(jobsRef, { ...job, ownerId });
   return docRef.id;
 }
 
 export async function getJobsForProvider(providerId: string): Promise<Job[]> {
   const jobsRef = collection(db, JOBS_COLLECTION);
-  const q = query(jobsRef, where('providerId', '==', providerId));
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return [];
+  const q = query(jobsRef, where('ownerId', '==', ownerId), where('providerId', '==', providerId));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
 }
@@ -50,40 +55,30 @@ export async function deleteJob(jobId: string): Promise<void> {
 }
 
 export async function getJobsForWeek(startDate: string, endDate: string): Promise<Job[]> {
-  // scheduledTime is an ISO string (yyyy-MM-dd or yyyy-MM-ddTHH:mm:ss)
-  // We need to ensure we capture the full day range
   const jobsRef = collection(db, JOBS_COLLECTION);
-  
-  // Use endDate + 1 day to include the full last day of the week
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return [];
   const nextDay = new Date(endDate);
   nextDay.setDate(nextDay.getDate() + 1);
   const inclusiveEndDate = format(nextDay, 'yyyy-MM-dd');
-  
   const q = query(
     jobsRef,
+    where('ownerId', '==', ownerId),
     where('scheduledTime', '>=', startDate + 'T00:00:00'),
     where('scheduledTime', '<', inclusiveEndDate + 'T00:00:00')
   );
-  
-  console.log('🔍 getJobsForWeek query:', {
-    startDate: startDate + 'T00:00:00',
-    endDate: endDate,
-    inclusiveEndDate: inclusiveEndDate + 'T00:00:00'
-  });
-  
-  const querySnapshot = await getDocs(q);
-  const jobs = querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
-  
-  console.log('📋 getJobsForWeek found jobs:', jobs.length);
-  console.log('📋 Jobs details:', jobs.map(job => ({
-    id: job.id,
-    clientId: job.clientId,
-    scheduledTime: job.scheduledTime,
-    serviceId: job.serviceId,
-    status: job.status
-  })));
-  
-  return jobs;
+  try {
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+  } catch (error: any) {
+    console.warn('getJobsForWeek: primary query failed (likely missing composite index)', error);
+    // Fallback: fetch by ownerId only, then filter client-side by date range
+    const ownerOnlyQuery = query(jobsRef, where('ownerId', '==', ownerId));
+    const fallbackSnap = await getDocs(ownerOnlyQuery);
+    return fallbackSnap.docs
+      .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job))
+      .filter(job => job.scheduledTime >= startDate + 'T00:00:00' && job.scheduledTime < inclusiveEndDate + 'T00:00:00');
+  }
 }
 
 export async function getClientById(clientId: string): Promise<Client | null> {
@@ -117,9 +112,10 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
     let skipToday = false;
     if (skipTodayIfComplete) {
       try {
+        const ownerId = await getCurrentUserId();
         const weekStart = startOfWeek(today, { weekStartsOn: 1 });
         const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-        const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+        const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
         if (completedDoc.exists()) {
           const data = completedDoc.data();
           const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -143,8 +139,11 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
       
       // Check if a job already exists for this client on this date
       // Use a simpler query that doesn't require composite indexes
+      const ownerId = await getCurrentUserId();
+      if (!ownerId) continue;
       const existingJobsQuery = query(
         collection(db, JOBS_COLLECTION),
+        where('ownerId', '==', ownerId),
         where('clientId', '==', clientId)
       );
       
@@ -165,6 +164,7 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
       const isToday = visitDate.getTime() === today.getTime();
       if (!jobExistsForDate && !(skipToday && isToday)) {
         jobsToCreate.push({
+          ownerId,
           clientId: client.id,
           providerId: 'test-provider-1',
           serviceId: 'window-cleaning',
@@ -203,9 +203,12 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
 export async function createJobsForWeek(weekStartDate: string): Promise<number> {
   try {
     // Get all active clients
+    const ownerId = await getCurrentUserId();
+    if (!ownerId) return 0;
     const clientsQuery = query(
       collection(db, 'clients'),
-      where('status', '==', 'active')
+      where('status', '==', 'active'),
+      where('ownerId', '==', ownerId)
     );
     const clientsSnapshot = await getDocs(clientsQuery);
     
@@ -237,6 +240,7 @@ export async function createJobsForWeek(weekStartDate: string): Promise<number> 
         // Use a simpler query that doesn't require composite indexes
         const existingJobsQuery = query(
           collection(db, JOBS_COLLECTION),
+          where('ownerId', '==', ownerId),
           where('clientId', '==', client.id)
         );
         
@@ -326,7 +330,9 @@ export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; job
 }
 
 export async function generateRecurringJobs() {
-  const querySnapshot = await getDocs(collection(db, 'clients'));
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return;
+  const querySnapshot = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
   const today = new Date();
   const jobsRef = collection(db, 'jobs');
   
@@ -343,6 +349,7 @@ export async function generateRecurringJobs() {
       const weekStr = format(visitDate, 'yyyy-MM-dd');
 
       jobsToCreate.push({
+        ownerId,
         clientId: client.id,
         providerId: 'test-provider-1',
         serviceId: 'window-cleaning',
@@ -365,7 +372,8 @@ export async function isTodayMarkedComplete(): Promise<boolean> {
   today.setHours(0, 0, 0, 0);
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-  const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+  const ownerId = await getCurrentUserId();
+  const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
   if (completedDoc.exists()) {
     const data = completedDoc.data();
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

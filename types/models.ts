@@ -19,6 +19,7 @@ export type Service = {
 
 export type Job = {
   id: string;
+  ownerId?: string;
   clientId: string;
   providerId?: string;
   serviceId: string;
@@ -34,6 +35,7 @@ export type Job = {
 
 export type Payment = {
   id: string;
+  ownerId?: string;
   clientId: string;
   jobId?: string; // Link to the job if payment is for a specific job
   amount: number;

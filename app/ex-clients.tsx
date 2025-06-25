@@ -1,10 +1,11 @@
 import { useRouter } from 'expo-router';
-import { collection, doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import type { Client } from '../types/client';
 
 export default function ExClientsScreen() {
@@ -13,18 +14,25 @@ export default function ExClientsScreen() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'clients'), (querySnapshot) => {
-      const clientsData: Client[] = [];
-      querySnapshot.forEach((doc) => {
-        const client = { id: doc.id, ...doc.data() } as Client;
-        if (client.status === 'ex-client') {
-          clientsData.push(client);
-        }
+    const setupListener = async () => {
+      const ownerId = await getCurrentUserId();
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const unsubscribe = onSnapshot(clientsQuery, (querySnapshot) => {
+        const clientsData: Client[] = [];
+        querySnapshot.forEach((doc) => {
+          const client = { id: doc.id, ...doc.data() } as Client;
+          if (client.status === 'ex-client') {
+            clientsData.push(client);
+          }
+        });
+        setExClients(clientsData);
+        setLoading(false);
       });
-      setExClients(clientsData);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+      return unsubscribe;
+    };
+    let unsub: () => void;
+    setupListener().then(u => { unsub = u; });
+    return () => { if (unsub) unsub(); };
   }, []);
   
   const handleRestoreClient = (clientId: string) => {

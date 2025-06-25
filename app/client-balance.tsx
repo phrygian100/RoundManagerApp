@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, V
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import { updateJobStatus } from '../services/jobService';
 import { deletePayment } from '../services/paymentService';
 import type { Job, Payment } from '../types/models';
@@ -37,9 +38,11 @@ const ClientBalanceScreen = () => {
         setStartingBalance(0);
       }
 
+      const ownerId = await getCurrentUserId();
       // Fetch completed jobs
       const completedJobsQuery = query(
         collection(db, 'jobs'),
+        where('ownerId', '==', ownerId),
         where('clientId', '==', clientId),
         where('status', '==', 'completed')
       );
@@ -49,7 +52,7 @@ const ClientBalanceScreen = () => {
       setTotalCompleted(completedTotal);
 
       // Fetch payments
-      const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', clientId));
+      const paymentsQuery = query(collection(db, 'payments'), where('ownerId', '==', ownerId), where('clientId', '==', clientId));
       const paymentsSnapshot = await getDocs(paymentsQuery);
       const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Payment[];
       const paidTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);

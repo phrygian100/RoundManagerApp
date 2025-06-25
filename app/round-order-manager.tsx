@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, doc, getDocs, orderBy, query, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import { isTodayMarkedComplete } from '../services/jobService';
 import type { Client } from '../types/client';
 
@@ -35,12 +36,20 @@ export default function RoundOrderManagerScreen() {
         let clientsList: ClientWithPosition[] = [];
         let activeClientData: Client | null = null;
         
-        // Get all active clients ordered by round order
+        const ownerId = await getCurrentUserId();
         const clientsQuery = query(
           collection(db, 'clients'),
+          where('ownerId', '==', ownerId),
           orderBy('roundOrderNumber', 'asc')
         );
-        const clientsSnapshot = await getDocs(clientsQuery);
+        let clientsSnapshot;
+        try {
+          clientsSnapshot = await getDocs(clientsQuery);
+        } catch (err) {
+          console.warn('RoundOrderManager: missing index for clients order query, falling back', err);
+          const qs = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+          clientsSnapshot = qs;
+        }
         
         const allClients: ClientWithPosition[] = clientsSnapshot.docs.map(doc => ({
           ...doc.data(),
@@ -95,6 +104,8 @@ export default function RoundOrderManagerScreen() {
     try {
       setLoading(true);
       
+      const ownerId = await getCurrentUserId();
+
       if (!activeClient) {
         Alert.alert('Error', 'No client data available.');
         return;
@@ -155,6 +166,7 @@ export default function RoundOrderManagerScreen() {
                 // If today is to be skipped, skip job for today
                 if (!(skipToday && visitDate.getTime() === today.getTime())) {
                   jobsToCreate.push({
+                    ownerId,
                     clientId: id,
                     providerId: 'test-provider-1',
                     serviceId: 'window-cleaning',
@@ -218,9 +230,8 @@ export default function RoundOrderManagerScreen() {
 
   const renderClientItem = ({ item, index }: { item: ClientWithPosition | Client; index: number }) => {
     const isNewClient = 'isNewClient' in item && item.isNewClient;
-    const address = item.address1 && item.town && item.postcode
-      ? `${item.address1}, ${item.town}, ${item.postcode}`
-      : item.address || 'No address';
+    const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
     const position = 'displayPosition' in item ? item.displayPosition : index + 1;
     
     return (
@@ -283,9 +294,8 @@ export default function RoundOrderManagerScreen() {
             data={displayList}
             renderItem={({item, index}) => {
               const isSelected = index === position -1;
-              const address = item.address1 && item.town && item.postcode
-                ? `${item.address1}, ${item.town}, ${item.postcode}`
-                : item.address || 'No address';
+              const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
+              const address = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
               return (
                 <View style={[styles.clientItem, isSelected && styles.newClientItem]}>
                   <Text style={styles.positionText}>{index + 1}</Text>

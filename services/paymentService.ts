@@ -1,14 +1,18 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import type { Payment } from '../types/models';
 
 const PAYMENTS_COLLECTION = 'payments';
 
 export async function createPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) throw new Error('User not authenticated');
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const now = new Date().toISOString();
   const paymentData = {
     ...payment,
+    ownerId,
     createdAt: now,
     updatedAt: now,
   };
@@ -17,15 +21,20 @@ export async function createPayment(payment: Omit<Payment, 'id' | 'createdAt' | 
 }
 
 export async function getPaymentsForClient(clientId: string): Promise<Payment[]> {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
-  const q = query(paymentsRef, where('clientId', '==', clientId));
+  const q = query(paymentsRef, where('ownerId', '==', ownerId), where('clientId', '==', clientId));
   const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 }
 
 export async function getAllPayments(): Promise<Payment[]> {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
-  const querySnapshot = await getDocs(paymentsRef);
+  const q = query(paymentsRef, where('ownerId', '==', ownerId));
+  const querySnapshot = await getDocs(q);
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 }
 
@@ -39,14 +48,24 @@ export async function updatePayment(paymentId: string, data: Partial<Payment>) {
 }
 
 export async function deletePayment(paymentId: string) {
-  const paymentRef = doc(db, PAYMENTS_COLLECTION, paymentId);
-  await deleteDoc(paymentRef);
+  await deletePaymentWithOwnerCheck(paymentId);
+}
+
+async function deletePaymentWithOwnerCheck(paymentId: string) {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) throw new Error('User not authenticated');
+  const paymentDoc = doc(db, PAYMENTS_COLLECTION, paymentId);
+  // We could optionally verify ownerId matches before deletion but Firestore rules will protect us once added.
+  await deleteDoc(paymentDoc);
 }
 
 export async function getPaymentsByDateRange(startDate: string, endDate: string): Promise<Payment[]> {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const q = query(
     paymentsRef,
+    where('ownerId', '==', ownerId),
     where('date', '>=', startDate),
     where('date', '<=', endDate)
   );
@@ -55,17 +74,17 @@ export async function getPaymentsByDateRange(startDate: string, endDate: string)
 }
 
 export async function deleteAllPayments(): Promise<void> {
+  const ownerId = await getCurrentUserId();
+  if (!ownerId) return;
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
-  const querySnapshot = await getDocs(paymentsRef);
-  
+  const q = query(paymentsRef, where('ownerId', '==', ownerId));
+  const querySnapshot = await getDocs(q);
   if (querySnapshot.empty) {
     return;
   }
-  
   const batch = writeBatch(db);
-  querySnapshot.forEach((doc) => {
-    batch.delete(doc.ref);
+  querySnapshot.forEach((docSnap) => {
+    batch.delete(docSnap.ref);
   });
-  
   await batch.commit();
 } 

@@ -1,6 +1,7 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 
@@ -134,7 +135,10 @@ export function useClients() {
   return useFirestoreCache<Client[]>(
     'clients',
     async () => {
-      const querySnapshot = await getDocs(collection(db, 'clients'));
+      const ownerId = await getCurrentUserId();
+      if (!ownerId) return [];
+      const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const querySnapshot = await getDocs(q);
       return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
     }
   );
@@ -144,9 +148,12 @@ export function useJobsForWeek(startDate: string, endDate: string) {
   return useFirestoreCache<(Job & { client: Client | null })[]>(
     `jobs-${startDate}-${endDate}`,
     async () => {
+      const ownerId = await getCurrentUserId();
+      if (!ownerId) return [];
       const jobsRef = collection(db, 'jobs');
       const q = query(
         jobsRef,
+        where('ownerId', '==', ownerId),
         where('scheduledTime', '>=', startDate + 'T00:00:00'),
         where('scheduledTime', '<', endDate + 'T00:00:00')
       );
@@ -187,8 +194,10 @@ export function useAccountedJobs() {
   return useFirestoreCache<(Job & { client: Client | null })[]>(
     'accounted-jobs',
     async () => {
+      const ownerId = await getCurrentUserId();
+      if (!ownerId) return [];
       const jobsRef = collection(db, 'jobs');
-      const accountedJobsQuery = query(jobsRef, where('status', '==', 'accounted'));
+      const accountedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'accounted'));
       const querySnapshot = await getDocs(accountedJobsQuery);
       
       const jobs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));

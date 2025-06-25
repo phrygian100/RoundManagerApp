@@ -7,6 +7,7 @@ import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
+import { getCurrentUserId } from '../../core/supabase';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import type { Client } from '../../types/client';
 import type { Job } from '../../types/models';
@@ -97,7 +98,8 @@ export default function RunsheetWeekScreen() {
       
       // 5. Fetch and verify completed days for this week
       try {
-        const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', startDate));
+        const ownerId = await getCurrentUserId();
+        const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${startDate}`));
         if (completedDaysDoc.exists()) {
           const data = completedDaysDoc.data();
           const loadedCompletedDays = data.completedDays || [];
@@ -396,10 +398,11 @@ export default function RunsheetWeekScreen() {
       setCompletedDays(newCompletedDays);
 
       // Save completed days to Firestore
-      const startDate = format(weekStart, 'yyyy-MM-dd');
-      await setDoc(doc(db, 'completedWeeks', startDate), {
+      const ownerId = await getCurrentUserId();
+      const completedWeekRef = doc(db, 'completedWeeks', `${ownerId}_${format(weekStart, 'yyyy-MM-dd')}`);
+      await setDoc(completedWeekRef, {
         completedDays: newCompletedDays,
-        weekStart: startDate,
+        weekStart: format(weekStart, 'yyyy-MM-dd'),
         updatedAt: new Date()
       });
 

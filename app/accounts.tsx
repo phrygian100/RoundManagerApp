@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 
 export default function AccountsScreen() {
   const [loading, setLoading] = useState(true);
@@ -18,9 +19,11 @@ export default function AccountsScreen() {
     const fetchTotals = async () => {
       setLoading(true);
 
+      const ownerId = await getCurrentUserId();
+
       // Fetch completed jobs for total
       const jobsRef = collection(db, 'jobs');
-      const completedJobsQuery = query(jobsRef, where('status', '==', 'completed'));
+      const completedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'completed'));
       const completedJobsUnsubscribe = onSnapshot(completedJobsQuery, (querySnapshot) => {
         let total = 0;
         querySnapshot.forEach((doc) => {
@@ -32,7 +35,7 @@ export default function AccountsScreen() {
 
       // Fetch payments for total
       const paymentsRef = collection(db, 'payments');
-      const paymentsQuery = query(paymentsRef);
+      const paymentsQuery = query(paymentsRef, where('ownerId', '==', ownerId));
       const paymentsUnsubscribe = onSnapshot(paymentsQuery, (querySnapshot) => {
         let total = 0;
         querySnapshot.forEach((doc) => {

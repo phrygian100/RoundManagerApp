@@ -7,6 +7,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId, supabase } from '../core/supabase';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 
@@ -25,19 +26,24 @@ export default function ClientsScreen() {
   const [nextVisits, setNextVisits] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, 'clients'), (querySnapshot) => {
-      const clientsData: Client[] = [];
-      querySnapshot.forEach((doc) => {
-        const client = { id: doc.id, ...doc.data() } as Client;
-        if (client.status !== 'ex-client') {
-          clientsData.push(client);
-        }
+    const load = async () => {
+      const ownerId = (await supabase.auth.getSession()).data.session?.user.id;
+      const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const clientsData: Client[] = [];
+        querySnapshot.forEach((doc) => {
+          const client = { id: doc.id, ...doc.data() } as Client;
+          if (client.status !== 'ex-client') {
+            clientsData.push(client);
+          }
+        });
+        setClients(clientsData);
+        setFilteredClients(clientsData);
+        setLoading(false);
       });
-      setClients(clientsData);
-      setFilteredClients(clientsData);
-      setLoading(false);
-    });
-    return () => unsubscribe();
+      return unsubscribe;
+    };
+    load();
   }, []);
 
   useEffect(() => {
@@ -46,12 +52,12 @@ export default function ClientsScreen() {
     const fetchClientBalances = async () => {
       setLoadingBalances(true);
       try {
-        // Fetch all relevant jobs and payments in optimized queries
-        const jobsQuery = query(collection(db, 'jobs'), where('status', '==', 'completed'));
+        const ownerId = await getCurrentUserId();
+        const jobsQuery = query(collection(db, 'jobs'), where('ownerId', '==', ownerId), where('status', '==', 'completed'));
         const jobsSnapshot = await getDocs(jobsQuery);
         const allJobs = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Job[];
 
-        const paymentsQuery = query(collection(db, 'payments'));
+        const paymentsQuery = query(collection(db, 'payments'), where('ownerId', '==', ownerId));
         const paymentsSnapshot = await getDocs(paymentsQuery);
         const allPayments = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Payment[];
         
@@ -85,8 +91,10 @@ export default function ClientsScreen() {
       const result: Record<string, string | null> = {};
       for (const client of clients) {
         try {
+          const ownerId = await getCurrentUserId();
           const jobsQuery = query(
             collection(db, 'jobs'),
+            where('ownerId', '==', ownerId),
             where('clientId', '==', client.id),
             where('status', 'in', ['pending', 'scheduled', 'in_progress'])
           );

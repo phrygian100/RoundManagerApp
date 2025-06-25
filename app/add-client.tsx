@@ -2,12 +2,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
+import { addDoc, collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId, supabase } from '../core/supabase';
 import { createJobsForClient } from '../services/jobService';
 
 function getOrdinal(n: number) {
@@ -70,12 +71,27 @@ export default function AddClientScreen() {
         console.log('Fetching next numbers...');
         
         // Fetch next account number
-        const q = query(collection(db, 'clients'), orderBy('accountNumber', 'desc'), limit(1));
-        const querySnapshot = await getDocs(q);
+        const ownerId = await getCurrentUserId();
         let nextAccountNumber = 1;
-        if (!querySnapshot.empty) {
-          const highestClient = querySnapshot.docs[0].data();
-          nextAccountNumber = (highestClient.accountNumber || 0) + 1;
+        try {
+          const q = query(
+            collection(db, 'clients'),
+            where('ownerId', '==', ownerId),
+            orderBy('accountNumber', 'desc'),
+            limit(1)
+          );
+          const qs = await getDocs(q);
+          if (!qs.empty) {
+            const highestClient = qs.docs[0].data();
+            nextAccountNumber = (highestClient.accountNumber || 0) + 1;
+          }
+        } catch (err) {
+          console.warn('Composite index missing for accountNumber query, falling back', err);
+          const qs = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+          qs.forEach(docSnap => {
+            const num = docSnap.data().accountNumber || 0;
+            if (num >= nextAccountNumber) nextAccountNumber = num + 1;
+          });
         }
         
         if (isMountedRef.current) {
@@ -83,7 +99,7 @@ export default function AddClientScreen() {
         }
 
         // Get total number of clients to determine round order behavior
-        const allClientsSnapshot = await getDocs(collection(db, 'clients'));
+        const allClientsSnapshot = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
         const clientCount = allClientsSnapshot.size;
         console.log('Current client count:', clientCount);
         
@@ -166,6 +182,7 @@ export default function AddClientScreen() {
       console.log('Starting client creation...');
       
       // Create the client first
+      const ownerId = (await supabase.auth.getSession()).data.session?.user.id;
       const clientRef = await addDoc(collection(db, 'clients'), {
         name,
         address1,
@@ -184,6 +201,7 @@ export default function AddClientScreen() {
         source: source === 'Other' ? customSource : source,
         email,
         startingBalance: startingBalanceValue,
+        ownerId,
       });
 
       console.log('Client created with ID:', clientRef.id);

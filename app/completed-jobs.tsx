@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getCurrentUserId } from '../core/supabase';
 import { deleteJob } from '../services/jobService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
@@ -20,7 +21,8 @@ export default function CompletedJobsScreen() {
       setLoading(true);
       
       const jobsRef = collection(db, 'jobs');
-      const completedJobsQuery = query(jobsRef, where('status', '==', 'completed'));
+      const ownerId = await getCurrentUserId();
+      const completedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'completed'));
       
       const unsubscribe = onSnapshot(completedJobsQuery, async (querySnapshot) => {
         const jobsData: (Job & { client: Client | null })[] = [];

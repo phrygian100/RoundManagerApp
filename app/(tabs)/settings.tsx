@@ -1,12 +1,13 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useState } from 'react';
 import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
+import { getCurrentUserId } from '../../core/supabase';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
 
@@ -105,7 +106,9 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              const querySnapshot = await getDocs(collection(db, 'clients'));
+              const ownerId = await getCurrentUserId();
+              const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+              const querySnapshot = await getDocs(q);
               const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
               await Promise.all(deletePromises);
               Alert.alert('Success', 'All clients have been deleted.');
@@ -131,7 +134,9 @@ export default function SettingsScreen() {
           onPress: async () => {
             setLoading(true);
             try {
-              const jobsSnapshot = await getDocs(collection(db, 'jobs'));
+              const ownerId = await getCurrentUserId();
+              const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
+              const jobsSnapshot = await getDocs(qJobs);
               const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
               await Promise.all(deletePromises);
               Alert.alert('Success', 'All jobs have been deleted.');
@@ -241,7 +246,8 @@ export default function SettingsScreen() {
             setLoading(true);
             setLoadingMessage('Repairing client data...');
             try {
-              const clientsRef = collection(db, 'clients');
+              const ownerId = await getCurrentUserId();
+              const clientsRef = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
               const querySnapshot = await getDocs(clientsRef);
               
               const BATCH_SIZE = 450;
