@@ -7,7 +7,7 @@ import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
-import { getCurrentUserId } from '../../core/supabase';
+import { getCurrentUserId, supabase } from '../../core/supabase';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
 
@@ -292,6 +292,16 @@ export default function SettingsScreen() {
     );
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Logout error', error);
+      Alert.alert('Error', 'Failed to log out.');
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
@@ -339,11 +349,19 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
+        <Button title="Team Members" onPress={() => router.push('/team')} />
+      </View>
+
+      <View style={styles.buttonContainer}>
         <Button title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
       </View>
 
       <View style={styles.buttonContainer}>
         <Button title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <Button title="Log Out" onPress={handleLogout} />
       </View>
     </ThemedView>
   );

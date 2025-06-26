@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -38,10 +38,13 @@ export default function HomeScreen() {
     },
   ];
 
-  // Split buttons into rows of 2
-  const rows = [];
-  for (let i = 0; i < buttons.length; i += 2) {
-    rows.push(buttons.slice(i, i + 2));
+  // Determine how many buttons per row: use 3 on web for wider screens
+  const buttonsPerRow = Platform.OS === 'web' ? 3 : 2;
+
+  // Split buttons into rows
+  const rows: typeof buttons[] = [];
+  for (let i = 0; i < buttons.length; i += buttonsPerRow) {
+    rows.push(buttons.slice(i, i + buttonsPerRow));
   }
 
   return (
@@ -88,6 +91,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 2,
     minWidth: 0,
+    maxWidth: 250,
   },
   buttonDisabled: {
     backgroundColor: '#eee',
