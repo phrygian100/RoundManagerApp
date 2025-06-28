@@ -17,14 +17,20 @@ serve(async (req) => {
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
-    const { email, accountId, perms = {} } = await req.json();
+    const { email, accountId, perms = {}, inviteCode: providedCode } = await req.json();
     if (!email || !accountId) {
       return new Response('email and accountId required', { status: 400 });
     }
 
-    // 1. send invite email (creates user if not exists and emails link)
+    // 1. generate a short numeric code (6 digits) the member will enter during signup
+    const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+
+    // 2. send invite email (creates user if not exists and emails link)
     const { data: inviteData, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
       redirectTo: Deno.env.get('INVITE_REDIRECT_URL') || 'http://localhost:3000/set-password',
+      // Pass the inviteCode inside emailData so that the email template can include it (Supabase supports {{invite_code}} var)
+      emailRedirectTo: undefined,
+      data: { invite_code: inviteCode },
     });
     if (inviteErr) throw inviteErr;
 
@@ -39,6 +45,7 @@ serve(async (req) => {
         perms,
         status: 'invited',
         email,
+        invite_code: inviteCode,
         created_at: new Date().toISOString(),
       });
       if (upsertErr) throw upsertErr;

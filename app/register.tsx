@@ -13,6 +13,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
   const [role, setRole] = useState<Role>('client');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -27,6 +28,15 @@ export default function RegisterScreen() {
       const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
       if (error) throw error;
       const uid = data.user?.id || '';
+
+      // If invite code provided, claim it
+      if (inviteCode.trim()) {
+        const { error: acceptErr } = await supabase.functions.invoke('accept-invite', {
+          body: { uid, code: inviteCode.trim() },
+        });
+        if (acceptErr) throw acceptErr;
+      }
+
       // Save profile in Firestore
       await createUserProfile({
         id: uid,
@@ -76,6 +86,14 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Invitation code (optional)"
+        value={inviteCode}
+        onChangeText={setInviteCode}
+        keyboardType="numeric"
+        maxLength={8}
       />
       <View style={styles.roleContainer}>
         {roles.map((r) => (

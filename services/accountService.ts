@@ -34,23 +34,27 @@ export async function inviteMember(email: string): Promise<void> {
   // Call server-side edge function (keeps service-role key off the client)
   try {
     const { supabase } = await import('../core/supabase');
+    const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
     const { error } = await supabase.functions.invoke('invite-member', {
       body: {
         email,
         accountId: sess.accountId,
         perms: DEFAULT_PERMS,
+        inviteCode,
       },
     });
     if (error) throw error;
   } catch (err) {
     console.warn('Edge invite failed, falling back to Firestore-only invite', err);
-    // Minimal fallback so owner still sees a placeholder row
-    const memberRef = doc(db, `accounts/${sess.accountId}/members/${email}`);
+    const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+    // Minimal fallback so owner still sees a placeholder row plus code displayed in UI
+    const memberRef = doc(db, `accounts/${sess.accountId}/members/${inviteCode}`);
     await setDoc(memberRef, {
       email,
       role: 'member',
       perms: DEFAULT_PERMS,
       status: 'invited',
+      inviteCode,
       createdAt: new Date().toISOString(),
     });
   }
