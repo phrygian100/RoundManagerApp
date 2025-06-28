@@ -14,7 +14,7 @@ const corsHeaders = {
 };
 
 /**
- * POST { uid: string, code: string }
+ * POST { uid: string, code: string, password?: string }
  * Verifies the invitation code, links the user to the owner account, applies permissions
  */
 serve(async (req) => {
@@ -24,7 +24,7 @@ serve(async (req) => {
 
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-    const { uid, code } = await req.json();
+    const { uid, code, password } = await req.json();
     if (!uid || !code) return new Response('uid and code required', { status: 400 });
 
     // 1. find the pending member row with this invite_code
@@ -49,7 +49,12 @@ serve(async (req) => {
       is_owner: false,
       perms: member.perms || {},
     };
-    await supabase.auth.admin.updateUserById(uid, { user_metadata: claims });
+
+    // If a password was supplied, update it alongside metadata (allows invited users to set password)
+    const updateAttrs: any = { user_metadata: claims };
+    if (password) updateAttrs.password = password;
+
+    await supabase.auth.admin.updateUserById(uid, updateAttrs);
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

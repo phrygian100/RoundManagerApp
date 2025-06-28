@@ -32,7 +32,7 @@ export default function RegisterScreen() {
       // If invite code provided, claim it
       if (inviteCode.trim()) {
         const { error: acceptErr } = await supabase.functions.invoke('accept-invite', {
-          body: { uid, code: inviteCode.trim() },
+          body: { uid, code: inviteCode.trim(), password },
         });
         if (acceptErr) throw acceptErr;
       }
