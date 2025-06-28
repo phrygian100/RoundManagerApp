@@ -5,12 +5,12 @@
 // @ts-nocheck
 // Remote imports for Deno runtime (won't type-check in the Node toolchain)
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.29.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_URL')!,
   // Using custom secret name (SERVICE_ROLE_KEY) because Supabase reserves SUPABASE_* prefix for internal use
-  Deno.env.get('SERVICE_ROLE_KEY')!
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
 serve(async (req) => {
