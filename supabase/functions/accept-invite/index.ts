@@ -8,11 +8,20 @@ const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 /**
  * POST { uid: string, code: string }
  * Verifies the invitation code, links the user to the owner account, applies permissions
  */
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const { uid, code } = await req.json();
@@ -43,10 +52,10 @@ serve(async (req) => {
     await supabase.auth.admin.updateUserById(uid, { user_metadata: claims });
 
     return new Response(JSON.stringify({ ok: true }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error(err);
-    return new Response('error', { status: 500 });
+    return new Response('error', { status: 500, headers: corsHeaders });
   }
 }); 

@@ -13,7 +13,18 @@ const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
+// Allow browser calls from any origin
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
 serve(async (req) => {
+  // Handle CORS pre-flight
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
@@ -52,10 +63,10 @@ serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ ok: true, uid }), {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     console.error(err);
-    return new Response('error', { status: 500 });
+    return new Response('error', { status: 500, headers: corsHeaders });
   }
 }); 
