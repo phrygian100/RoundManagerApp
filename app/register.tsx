@@ -13,7 +13,6 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [inviteCode, setInviteCode] = useState('');
   const [role, setRole] = useState<Role>('client');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -25,24 +24,8 @@ export default function RegisterScreen() {
     }
     try {
       setLoading(true);
-      if (inviteCode.trim()) {
-        // 1. claim the invite which sets the password and confirms email
-        const { error: acceptErr } = await supabase.functions.invoke('accept-invite', {
-          body: { code: inviteCode.trim(), password },
-        });
-        if (acceptErr) throw acceptErr;
-
-        // 2. now sign in with the new credentials
-        const { error: loginErr } = await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-        if (loginErr) throw loginErr;
-      } else {
-        // Fallback to normal sign up if no invite code
-        const { error } = await supabase.auth.signUp({ email: email.trim(), password });
-        if (error) throw error;
-      }
+      const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+      if (error) throw error;
 
       const uid = (await supabase.auth.getUser()).data.user?.id || '';
 
@@ -95,14 +78,6 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Invitation code (optional)"
-        value={inviteCode}
-        onChangeText={setInviteCode}
-        keyboardType="numeric"
-        maxLength={8}
       />
       <View style={styles.roleContainer}>
         {roles.map((r) => (

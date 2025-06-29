@@ -363,6 +363,13 @@ export default function SettingsScreen() {
       <View style={styles.buttonContainer}>
         <Button title="Log Out" onPress={handleLogout} />
       </View>
+
+      <View style={styles.buttonContainer}>
+        <Button
+          title="Join owner account"
+          onPress={() => router.push('/enter-invite-code' as any)}
+        />
+      </View>
     </ThemedView>
   );
 }
