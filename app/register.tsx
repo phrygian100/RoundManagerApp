@@ -24,7 +24,11 @@ export default function RegisterScreen() {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+      const { error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { emailRedirectTo: `${location.origin}/login` },
+      });
       if (error) throw error;
 
       const uid = (await supabase.auth.getUser()).data.user?.id || '';
