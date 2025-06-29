@@ -24,8 +24,8 @@ serve(async (req) => {
 
   try {
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-    const { uid, code, password } = await req.json();
-    if (!uid || !code) return new Response('uid and code required', { status: 400 });
+    const { uid: uidFromBody, code, password } = await req.json();
+    if (!code) return new Response('code required', { status: 400 });
 
     // 1. find the pending member row with this invite_code
     const { data: member, error } = await supabase
@@ -36,7 +36,10 @@ serve(async (req) => {
       .single();
     if (error || !member) return new Response('invalid code', { status: 404 });
 
-    // 2. link the record to this uid and mark active
+    let uid = uidFromBody;
+    // 2. link the record to this uid (if provided) or use existing uid and mark active
+    if (!uid) uid = member.uid;
+
     const { error: updErr } = await supabase
       .from('members')
       .update({ uid, status: 'active' })
@@ -52,9 +55,15 @@ serve(async (req) => {
 
     // If a password was supplied, update it alongside metadata (allows invited users to set password)
     const updateAttrs: any = { user_metadata: claims };
-    if (password) updateAttrs.password = password;
+    if (password) {
+      updateAttrs.password = password;
+      // Mark email as confirmed so the invited user can sign in right away
+      updateAttrs.email_confirm = true;
+    }
 
-    await supabase.auth.admin.updateUserById(uid, updateAttrs);
+    if (uid) {
+      await supabase.auth.admin.updateUserById(uid, updateAttrs);
+    }
 
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

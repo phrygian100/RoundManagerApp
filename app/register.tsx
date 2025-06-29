@@ -25,17 +25,26 @@ export default function RegisterScreen() {
     }
     try {
       setLoading(true);
-      const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
-      if (error) throw error;
-      const uid = data.user?.id || '';
-
-      // If invite code provided, claim it
       if (inviteCode.trim()) {
+        // 1. claim the invite which sets the password and confirms email
         const { error: acceptErr } = await supabase.functions.invoke('accept-invite', {
-          body: { uid, code: inviteCode.trim(), password },
+          body: { code: inviteCode.trim(), password },
         });
         if (acceptErr) throw acceptErr;
+
+        // 2. now sign in with the new credentials
+        const { error: loginErr } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (loginErr) throw loginErr;
+      } else {
+        // Fallback to normal sign up if no invite code
+        const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+        if (error) throw error;
       }
+
+      const uid = (await supabase.auth.getUser()).data.user?.id || '';
 
       // Save profile in Firestore
       await createUserProfile({
