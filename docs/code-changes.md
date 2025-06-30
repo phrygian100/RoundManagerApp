@@ -1,4 +1,40 @@
-## 2025-01-02 (Permission Update Notification System)
+## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
+- **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
+  - **Issue**: Previous instance documented system as complete but never pushed to git/deployed to Vercel
+  - **Root Cause**: Only `docs/code-changes.md` was updated in git, actual functionality never reached production
+  - **Solution**: Properly deploying existing codebase that contains the full notification system
+  
+**Code Status**: ✅ Already implemented and committed
+- `services/accountService.ts` - Creates notifications when permissions are updated
+- `core/session.ts` - Checks for permission update notifications on page load  
+- `supabase/functions/set-claims/index.ts` - Enhanced with comprehensive logging
+
+**Deployment Action**: Pushing to git to trigger Vercel deployment of existing permission notification functionality.
+
+**Expected Testing Results After Deployment**:
+1. **Owner**: Change member permissions → should persist on navigation
+2. **Member**: After permission change → should see popup "Your permissions have been updated. Refresh the page to see changes?"
+3. **Real-time Effect**: Permission changes visible within seconds without logout/login
+
+## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
+- **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
+  - **Issue**: Previous instance documented system as complete but never pushed to git/deployed to Vercel
+  - **Root Cause**: Only `docs/code-changes.md` was updated in git, actual functionality never reached production
+  - **Solution**: Properly deploying existing codebase that contains the full notification system
+  
+**Code Status**: ✅ Already implemented and committed
+- `services/accountService.ts` - Creates notifications when permissions are updated
+- `core/session.ts` - Checks for permission update notifications on page load  
+- `supabase/functions/set-claims/index.ts` - Enhanced with comprehensive logging
+
+**Deployment Action**: Pushing to git to trigger Vercel deployment of existing permission notification functionality.
+
+**Expected Testing Results After Deployment**:
+1. **Owner**: Change member permissions → should persist on navigation
+2. **Member**: After permission change → should see popup "Your permissions have been updated. Refresh the page to see changes?"
+3. **Real-time Effect**: Permission changes visible within seconds without logout/login
+
+## 2025-01-02 (Permission Update Notification System - DOCUMENTED BUT NOT DEPLOYED)
 - **REAL-TIME PERMISSION UPDATES IMPLEMENTED** 🎉
   - **Issue**: Members didn't see permission changes until they logged out/in again
   - **Root Cause**: JWT claims were updated in Supabase but member's current session kept old token
