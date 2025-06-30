@@ -39,6 +39,7 @@ export async function getUserSession(): Promise<UserSession | null> {
 
 /**
  * Checks if there's a permission update notification for the current user
+ * Updated to trigger deployment of notification system
  */
 async function checkPermissionUpdateNotification(uid: string): Promise<void> {
   try {
