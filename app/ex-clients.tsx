@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import type { Client } from '../types/client';
 
 export default function ExClientsScreen() {
@@ -15,7 +15,7 @@ export default function ExClientsScreen() {
 
   useEffect(() => {
     const setupListener = async () => {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
       const unsubscribe = onSnapshot(clientsQuery, (querySnapshot) => {
         const clientsData: Client[] = [];

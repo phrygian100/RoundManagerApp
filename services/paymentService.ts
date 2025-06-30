@@ -1,12 +1,12 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import type { Payment } from '../types/models';
 
 const PAYMENTS_COLLECTION = 'payments';
 
 export async function createPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'>) {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) throw new Error('User not authenticated');
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const now = new Date().toISOString();
@@ -21,7 +21,7 @@ export async function createPayment(payment: Omit<Payment, 'id' | 'createdAt' | 
 }
 
 export async function getPaymentsForClient(clientId: string): Promise<Payment[]> {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const q = query(paymentsRef, where('ownerId', '==', ownerId), where('clientId', '==', clientId));
@@ -30,7 +30,7 @@ export async function getPaymentsForClient(clientId: string): Promise<Payment[]>
 }
 
 export async function getAllPayments(): Promise<Payment[]> {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const q = query(paymentsRef, where('ownerId', '==', ownerId));
@@ -52,7 +52,7 @@ export async function deletePayment(paymentId: string) {
 }
 
 async function deletePaymentWithOwnerCheck(paymentId: string) {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) throw new Error('User not authenticated');
   const paymentDoc = doc(db, PAYMENTS_COLLECTION, paymentId);
   // We could optionally verify ownerId matches before deletion but Firestore rules will protect us once added.
@@ -60,7 +60,7 @@ async function deletePaymentWithOwnerCheck(paymentId: string) {
 }
 
 export async function getPaymentsByDateRange(startDate: string, endDate: string): Promise<Payment[]> {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const q = query(
@@ -74,7 +74,7 @@ export async function getPaymentsByDateRange(startDate: string, endDate: string)
 }
 
 export async function deleteAllPayments(): Promise<void> {
-  const ownerId = await getCurrentUserId();
+  const ownerId = await getDataOwnerId();
   if (!ownerId) return;
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const q = query(paymentsRef, where('ownerId', '==', ownerId));

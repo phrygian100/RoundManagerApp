@@ -6,7 +6,7 @@ import { Alert, Dimensions, FlatList, Pressable, StyleSheet, Text, View } from '
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import { isTodayMarkedComplete } from '../services/jobService';
 import type { Client } from '../types/client';
 
@@ -36,7 +36,7 @@ export default function RoundOrderManagerScreen() {
         let clientsList: ClientWithPosition[] = [];
         let activeClientData: Client | null = null;
         
-        const ownerId = await getCurrentUserId();
+        const ownerId = await getDataOwnerId();
         const clientsQuery = query(
           collection(db, 'clients'),
           where('ownerId', '==', ownerId),
@@ -104,7 +104,7 @@ export default function RoundOrderManagerScreen() {
     try {
       setLoading(true);
       
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
 
       if (!activeClient) {
         Alert.alert('Error', 'No client data available.');

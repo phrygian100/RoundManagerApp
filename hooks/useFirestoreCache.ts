@@ -1,7 +1,7 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 
@@ -135,7 +135,7 @@ export function useClients() {
   return useFirestoreCache<Client[]>(
     'clients',
     async () => {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       if (!ownerId) return [];
       const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
       const querySnapshot = await getDocs(q);
@@ -148,7 +148,7 @@ export function useJobsForWeek(startDate: string, endDate: string) {
   return useFirestoreCache<(Job & { client: Client | null })[]>(
     `jobs-${startDate}-${endDate}`,
     async () => {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       if (!ownerId) return [];
       const jobsRef = collection(db, 'jobs');
       const q = query(
@@ -194,7 +194,7 @@ export function useAccountedJobs() {
   return useFirestoreCache<(Job & { client: Client | null })[]>(
     'accounted-jobs',
     async () => {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       if (!ownerId) return [];
       const jobsRef = collection(db, 'jobs');
       const accountedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'accounted'));

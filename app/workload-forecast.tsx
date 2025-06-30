@@ -5,7 +5,7 @@ import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
@@ -16,7 +16,7 @@ export default function WorkloadForecastScreen() {
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       const jobsRef = collection(db, 'jobs');
       const jobsQuery = query(jobsRef, where('ownerId', '==', ownerId));
       const jobsSnapshot = await getDocs(jobsQuery);

@@ -7,7 +7,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } f
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getCurrentUserId, supabase } from '../core/supabase';
+import { getDataOwnerId, supabase } from '../core/supabase';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 
@@ -52,7 +52,7 @@ export default function ClientsScreen() {
     const fetchClientBalances = async () => {
       setLoadingBalances(true);
       try {
-        const ownerId = await getCurrentUserId();
+        const ownerId = await getDataOwnerId();
         const jobsQuery = query(collection(db, 'jobs'), where('ownerId', '==', ownerId), where('status', '==', 'completed'));
         const jobsSnapshot = await getDocs(jobsQuery);
         const allJobs = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Job[];
@@ -91,7 +91,7 @@ export default function ClientsScreen() {
       const result: Record<string, string | null> = {};
       for (const client of clients) {
         try {
-          const ownerId = await getCurrentUserId();
+          const ownerId = await getDataOwnerId();
           const jobsQuery = query(
             collection(db, 'jobs'),
             where('ownerId', '==', ownerId),

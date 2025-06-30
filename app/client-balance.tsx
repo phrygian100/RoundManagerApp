@@ -6,7 +6,7 @@ import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, V
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import { updateJobStatus } from '../services/jobService';
 import { deletePayment } from '../services/paymentService';
 import type { Job, Payment } from '../types/models';
@@ -38,7 +38,7 @@ const ClientBalanceScreen = () => {
         setStartingBalance(0);
       }
 
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       // Fetch completed jobs
       const completedJobsQuery = query(
         collection(db, 'jobs'),
