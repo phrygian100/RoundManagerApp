@@ -19,12 +19,63 @@ const DEFAULT_PERMS: Record<string, boolean> = {
   editJobs: false,
 };
 
+/**
+ * Syncs members from Supabase (where edge functions write) to Firestore (where app reads)
+ */
+async function syncMembersFromSupabase(): Promise<void> {
+  const sess = await getUserSession();
+  if (!sess) return;
+
+  try {
+    const { supabase } = await import('../core/supabase');
+    console.log('Fetching members from Supabase for account:', sess.accountId);
+    
+    // Get members from Supabase
+    const { data: supabaseMembers, error } = await supabase
+      .from('members')
+      .select('*')
+      .eq('account_id', sess.accountId);
+    
+    if (error) {
+      console.error('Error fetching from Supabase:', error);
+      return;
+    }
+    
+    console.log('Found members in Supabase:', supabaseMembers);
+    
+    if (!supabaseMembers || supabaseMembers.length === 0) return;
+    
+    // Sync each member to Firestore
+    for (const member of supabaseMembers) {
+      const firestoreMemberRef = doc(db, `accounts/${sess.accountId}/members/${member.uid || member.invite_code}`);
+      await setDoc(firestoreMemberRef, {
+        email: member.email,
+        role: member.role,
+        perms: member.perms || DEFAULT_PERMS,
+        status: member.status,
+        inviteCode: member.invite_code,
+        createdAt: member.created_at,
+      }, { merge: true });
+      console.log('Synced member to Firestore:', member.email);
+    }
+  } catch (err) {
+    console.error('Error syncing members from Supabase:', err);
+  }
+}
+
 export async function listMembers(): Promise<MemberRecord[]> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
+  
+  // First sync from Supabase to Firestore
+  await syncMembersFromSupabase();
+  
+  // Then read from Firestore
   const membersRef = collection(db, `accounts/${sess.accountId}/members`);
   const snap = await getDocs(membersRef);
-  return snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })) as MemberRecord[];
+  const members = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })) as MemberRecord[];
+  console.log('Final members list from Firestore:', members);
+  return members;
 }
 
 export async function inviteMember(email: string): Promise<void> {

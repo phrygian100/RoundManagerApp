@@ -21,10 +21,12 @@ export default function TeamScreen() {
 
   const loadMembers = async () => {
     try {
+      console.log('Loading members...');
       const data = await listMembers();
+      console.log('Members loaded from Firestore:', data);
       setMembers(data);
     } catch (err) {
-      console.error(err);
+      console.error('Error loading members:', err);
     }
   };
 
@@ -103,6 +105,7 @@ export default function TeamScreen() {
             autoCapitalize="none"
           />
           <Button title="Invite" onPress={handleInvite} disabled={loading} />
+          <Button title="🔄 Refresh" onPress={loadMembers} />
         </View>
 
         <View style={styles.headerRow}>
