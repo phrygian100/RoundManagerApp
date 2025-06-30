@@ -14,8 +14,14 @@
 **Current Status:**
 - ✅ Invitation emails are being sent successfully via Resend
 - ✅ 6-digit codes are being delivered to invited users
-- 🔄 Investigating accept-invite flow (no logs suggests frontend issue)
-- 🔄 Added client-side debugging to troubleshoot join owner account process
+- 🔧 **BUTTON ISSUE IDENTIFIED & FIXED**: React Native Button component not working in web environment
+- 🔄 Replaced Button with TouchableOpacity for proper web compatibility
+- 🔄 Added comprehensive client-side debugging to troubleshoot join flow
+
+**Latest Fix (Button Issue):**
+- **Root Cause**: React Native `Button` component doesn't trigger `onPress` in web builds
+- **Solution**: Replaced with `TouchableOpacity` and custom styling for web compatibility
+- **Debugging Added**: Console logs at every step of the accept-invite process
 
 **Architecture Notes:**
 - Edge functions now properly use Supabase database instead of relying solely on Firestore

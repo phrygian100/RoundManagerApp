@@ -16,42 +16,40 @@ export default function EnterInviteCodeScreen() {
     }
     console.log('Code validation passed, showing warning dialog');
 
-    Alert.alert(
-      'Warning',
-      'Joining an owner account will delete your current personal data and convert your login to a member. Continue?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Continue',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              console.log('Starting accept invite process with code:', code.trim());
-              setLoading(true);
-              const uid = (await supabase.auth.getUser()).data.user?.id;
-              console.log('User ID:', uid);
-              if (!uid) throw new Error('Not signed in');
-
-              console.log('Calling accept-invite function...');
-              const { error } = await supabase.functions.invoke('accept-invite', {
-                body: { uid, code: code.trim() },
-              });
-              console.log('Function call result - error:', error);
-              if (error) throw error;
-
-              Alert.alert('Success', 'You are now a member of the owner account. Please log in again.');
-              await supabase.auth.signOut();
-              router.replace('/login');
-            } catch (err: any) {
-              console.error('Join owner error', err);
-              Alert.alert('Error', err.message || 'Failed to join owner account.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ],
+    // Using window.confirm for web compatibility instead of Alert.alert
+    const confirmed = window.confirm(
+      'WARNING: Joining an owner account will delete your current personal data and convert your login to a member. Continue?'
     );
+    
+    console.log('User confirmation result:', confirmed);
+    
+    if (confirmed) {
+      try {
+        console.log('Starting accept invite process with code:', code.trim());
+        setLoading(true);
+        const uid = (await supabase.auth.getUser()).data.user?.id;
+        console.log('User ID:', uid);
+        if (!uid) throw new Error('Not signed in');
+
+        console.log('Calling accept-invite function...');
+        const { error } = await supabase.functions.invoke('accept-invite', {
+          body: { uid, code: code.trim() },
+        });
+        console.log('Function call result - error:', error);
+        if (error) throw error;
+
+        Alert.alert('Success', 'You are now a member of the owner account. Please log in again.');
+        await supabase.auth.signOut();
+        router.replace('/login');
+      } catch (err: any) {
+        console.error('Join owner error', err);
+        Alert.alert('Error', err.message || 'Failed to join owner account.');
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      console.log('User cancelled the operation');
+    }
   };
 
   return (
