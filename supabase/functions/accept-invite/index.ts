@@ -8,16 +8,24 @@ const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+function buildCorsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? '*';
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+  } as Record<string, string>;
+}
 
 /**
  * POST { uid: string, code: string, password?: string }
  * Verifies the invitation code, links the user to the owner account, applies permissions
  */
 serve(async (req) => {
+  const corsHeaders = buildCorsHeaders(req);
+
+  // Handle CORS pre-flight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -70,6 +78,6 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error(err);
-    return new Response('error', { status: 500, headers: corsHeaders });
+    return new Response('error', { status: 500, headers: buildCorsHeaders(req) });
   }
 }); 

@@ -51,8 +51,12 @@ serve(async (req) => {
     if (inviteErr) {
       if (inviteErr.code === 'email_exists') {
         // user already exists; fetch uid, upsert member row, and send email via Resend
-        const { data: existing } = await supabase.auth.admin.getUserByEmail(email);
-        const existingUid = existing?.user?.id ?? null;
+        // `getUserByEmail` is not available in supabase-js v2 yet. We need to look the
+        // user up manually via `listUsers` and filter by email. We only fetch the
+        // first page (1000 users) which is sufficient for typical account sizes.
+        const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        if (listErr) throw listErr;
+        const existingUid = listData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())?.id ?? null;
         await upsertMember(existingUid, accountId, perms, email, inviteCode);
         await sendCustomInviteEmail(email, inviteCode);
         return new Response(JSON.stringify({ ok: true, uid: existingUid }), {
