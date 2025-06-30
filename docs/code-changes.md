@@ -1,3 +1,17 @@
+## 2025-01-02 (Teams Page Button Fix)
+- **TEAM PAGE BUTTONS NOW WORKING** 🎉
+  - **Issue**: Refresh and Delete member buttons not working in web environment
+  - **Root Cause**: React Native `Button` components remaining in `app/(tabs)/team.tsx` don't trigger `onPress` in web builds
+  - **Solution**: Replaced all Button components with TouchableOpacity for web compatibility
+  - **Fixed Buttons**:
+    - ✅ 🔄 Refresh button (green) - reloads team members list
+    - ✅ Invite button (blue) - sends member invitations
+    - ✅ 🗑 Delete buttons (red) - removes team members
+  - **Technical Details**: Added proper styling with disabled states and maintained all existing functionality
+  - **Files Modified**: `app/(tabs)/team.tsx` - replaced 3 Button instances with TouchableOpacity components
+
+**Result**: All team management functions now work properly in web environment, completing the Button→TouchableOpacity migration started in `enter-invite-code.tsx`.
+
 ## 2025-01-02 (Final Resolution)
 - **INVITATION EMAIL SYSTEM FULLY WORKING** 🎉
   - **Phase 1**: Fixed environment variable inconsistency (SUPABASE_SERVICE_ROLE_KEY standardization)

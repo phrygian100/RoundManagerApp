@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, FlatList, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { PermissionGate } from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -86,7 +86,9 @@ export default function TeamScreen() {
           />
         </View>
       ))}
-      <Button title="🗑" onPress={() => handleRemove(item.uid)} />
+      <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
+        <Text style={styles.deleteButtonText}>🗑</Text>
+      </TouchableOpacity>
     </View>
   );
 
@@ -104,8 +106,16 @@ export default function TeamScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-          <Button title="Invite" onPress={handleInvite} disabled={loading} />
-          <Button title="🔄 Refresh" onPress={loadMembers} />
+          <TouchableOpacity 
+            style={[styles.button, loading && styles.buttonDisabled]} 
+            onPress={handleInvite} 
+            disabled={loading}
+          >
+            <Text style={styles.buttonText}>Invite</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.refreshButton} onPress={loadMembers}>
+            <Text style={styles.refreshButtonText}>🔄 Refresh</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.headerRow}>
@@ -130,6 +140,44 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60 },
   inviteRow: { flexDirection: 'row', marginBottom: 16, alignItems: 'center' },
   input: { flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, marginRight: 8, borderRadius: 6 },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 8,
+    borderRadius: 6,
+    marginRight: 8,
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  refreshButton: {
+    backgroundColor: '#34C759',
+    padding: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  refreshButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#FF3B30',
+    padding: 6,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 30,
+  },
+  deleteButtonText: {
+    fontSize: 16,
+  },
   headerRow: { flexDirection: 'row', marginBottom: 8 },
   headerPerm: { width: 80, fontWeight: 'bold', textAlign: 'center' },
   memberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
