@@ -55,7 +55,11 @@ serve(async (req) => {
         // user up manually via `listUsers` and filter by email. We only fetch the
         // first page (1000 users) which is sufficient for typical account sizes.
         const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-        if (listErr) throw listErr;
+        if (listErr) {
+          // Throw a new, explicit error to ensure we get a proper stack trace.
+          // The Supabase client seems to be throwing an empty object on failure.
+          throw new Error('supabase.auth.admin.listUsers() failed. Original error: ' + JSON.stringify(listErr));
+        }
         const existingUid = listData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())?.id ?? null;
         await upsertMember(existingUid, accountId, perms, email, inviteCode);
         await sendCustomInviteEmail(email, inviteCode);
@@ -75,8 +79,14 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    console.error(err);
-    return new Response('error', { status: 500, headers: buildCorsHeaders(req) });
+    console.error('--- INVITE MEMBER FUNCTION FAILED ---');
+    console.error('Caught object:', err);
+    try {
+      console.error('Stringified for inspection:', JSON.stringify(err));
+    } catch (e) {
+      console.error('Could not stringify the error object.');
+    }
+    return new Response('Internal Server Error', { status: 500, headers: corsHeaders });
   }
 });
 
