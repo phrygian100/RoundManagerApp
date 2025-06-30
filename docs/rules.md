@@ -1,0 +1,8 @@
+# Project contribution rules
+
+1. After **every** code change (function, service, component, config, etc.) you must append a concise entry to `docs/code-changes.md` describing:
+   - The date (YYYY-MM-DD)
+   - What was changed (file / feature)
+   - Why the change was made
+
+Failure to update the changelog blocks the PR / commit review. 
