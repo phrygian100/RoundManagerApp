@@ -1,3 +1,15 @@
+## 2025-01-02
+- **CRITICAL FIX: Environment Variable Inconsistency Resolved**
+  - Standardized all edge functions to use `SUPABASE_SERVICE_ROLE_KEY` environment variable
+  - Fixed `set-claims` function which was incorrectly using `SERVICE_ROLE_KEY`
+  - Updated `invite-member` function import version for consistency
+  - Added debugging logs to `invite-member` to verify environment variable availability
+  - All edge functions successfully redeployed: `invite-member`, `accept-invite`, `set-claims`
+
+**Root Cause Analysis**: The primary issue was environment variable naming inconsistency across edge functions. This likely caused the `invite-member` function to fail silently when the Supabase admin client couldn't authenticate due to undefined service role key.
+
+**Expected Resolution**: With standardized environment variables and debugging logs, the invitation email functionality should now work correctly. The silent 500 errors should be resolved.
+
 ## 2025-06-30
 - Fixed invite-member function:
   - Accept provided inviteCode fallback.
