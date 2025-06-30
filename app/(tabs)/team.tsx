@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { PermissionGate } from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -49,30 +49,27 @@ export default function TeamScreen() {
       await inviteMember(email.trim());
       setEmail('');
       loadMembers();
-      Alert.alert('Invite sent');
+      window.alert('Invite sent');
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', 'Could not invite member');
+      window.alert('Error: Could not invite member');
     } finally {
       setLoading(false);
     }
   };
 
   const handleRemove = async (uid: string) => {
-    Alert.alert('Remove member', 'Are you sure you want to remove this member?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive', onPress: async () => {
-          try {
-            await removeMember(uid);
-            setMembers(prev => prev.filter(m => m.uid !== uid));
-          } catch (err) {
-            console.error(err);
-            Alert.alert('Error', 'Could not remove member');
-          }
-        }
+    const confirmed = window.confirm('Are you sure you want to remove this member?');
+    
+    if (confirmed) {
+      try {
+        await removeMember(uid);
+        setMembers(prev => prev.filter(m => m.uid !== uid));
+      } catch (err) {
+        console.error(err);
+        window.alert('Error: Could not remove member');
       }
-    ]);
+    }
   };
 
   const renderMember = ({ item }: { item: MemberRecord }) => (
