@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
 export default function EnterInviteCodeScreen() {
@@ -66,7 +66,13 @@ export default function EnterInviteCodeScreen() {
         maxLength={6}
         autoFocus
       />
-      <Button title={loading ? 'Submitting...' : 'Submit'} onPress={handleSubmit} disabled={loading} />
+      <TouchableOpacity 
+        style={[styles.button, loading && styles.buttonDisabled]} 
+        onPress={handleSubmit} 
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>{loading ? 'Submitting...' : 'Submit'}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -81,5 +87,19 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     backgroundColor: '#fff',
+  },
+  button: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
