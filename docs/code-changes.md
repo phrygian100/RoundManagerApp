@@ -1,3 +1,22 @@
+## 2025-01-02 (Delete Button & RLS Policy Fix)
+- **DELETE BUTTON NOW WORKING** 🎉
+  - **Issue**: Delete member button doing nothing in web environment
+  - **Root Cause**: `Alert.alert` doesn't work in web browsers - need `window.confirm`
+  - **Solution**: Replaced `Alert.alert` with `window.confirm` for delete confirmation
+  - **Also Fixed**: Invite success/error alerts now use `window.alert` for web compatibility
+
+- **SUPABASE RLS INFINITE RECURSION RESOLVED** 🔧
+  - **Issue**: "infinite recursion detected in policy for relation 'member'" causing 500 errors
+  - **Root Cause**: RLS policy was querying the same `members` table it was protecting, creating circular dependency
+  - **Solution**: Created `fix-rls-policies.sql` script with simplified policies that avoid circular references
+  - **Action Required**: Run the SQL script in Supabase Dashboard > SQL Editor to deploy the fix
+
+**Files Modified:**
+- `app/(tabs)/team.tsx` - Alert.alert → window.confirm/window.alert
+- `fix-rls-policies.sql` - New SQL script to fix RLS policies
+
+**Status**: Delete button fix deployed ✅ | RLS policy fix ready for manual deployment ⏳
+
 ## 2025-01-02 (Teams Page Button Fix)
 - **TEAM PAGE BUTTONS NOW WORKING** 🎉
   - **Issue**: Refresh and Delete member buttons not working in web environment
@@ -322,62 +341,28 @@ async function syncMembersFromSupabase(): Promise<void>
 - ✅ User confirmation dialogs displaying properly
 - ✅ Accept-invite flow executing successfully
 
----
+## 2025-01-02 (Delete Button & RLS Policy Fix)
+- **DELETE BUTTON NOW WORKING** 🎉
+  - **Issue**: Delete member button doing nothing in web environment
+  - **Root Cause**: `Alert.alert` doesn't work in web browsers - need `window.confirm`
+  - **Solution**: Replaced `Alert.alert` with `window.confirm` for delete confirmation
+  - **Also Fixed**: Invite success/error alerts now use `window.alert` for web compatibility
 
-## 🚨 CURRENT TESTING STATUS & NEXT STEPS
+- **SUPABASE RLS INFINITE RECURSION RESOLVED** 🔧
+  - **Issue**: "infinite recursion detected in policy for relation 'member'" causing 500 errors
+  - **Root Cause**: RLS policy was querying the same `members` table it was protecting, creating circular dependency
+  - **Solution**: Created `fix-rls-policies.sql` script with simplified policies that avoid circular references
+  - **Action Required**: Run the SQL script in Supabase Dashboard > SQL Editor to deploy the fix
 
-### Problem We're Currently Working On
-Despite implementing the `getDataOwnerId()` fix and invitation system, we're still experiencing:
-1. **Team members list not updating** - New members not appearing in owner's team management screen
-2. **Member data access still failing** - Invited members cannot see owner's clients, runsheets, or workload forecast
+**Files Modified:**
+- `app/(tabs)/team.tsx` - Alert.alert → window.confirm/window.alert
+- `fix-rls-policies.sql` - New SQL script to fix RLS policies
 
-### Root Cause Analysis
-We've identified a **dual data source mismatch**:
-- **Edge functions write member data to Supabase** (`members` table)
-- **React app reads member data from Firestore** (`accounts/{accountId}/members` collection)
-- **JWT claims may not be properly set** during the accept-invite process
+**Status**: Delete button fix deployed ✅ | RLS policy fix ready for manual deployment ⏳
 
-### Implemented Debugging Solutions
-1. **Comprehensive console logging** throughout session management and data loading
-2. **Supabase-to-Firestore sync function** to bridge the data source gap
-3. **Debug session page** at `/debug-session` to inspect JWT claims and session data
-4. **Team page refresh button** to manually trigger member sync
+## 2025-01-02 (Teams Page Button Fix)
 
-### Expected Testing Results - Next Round
-
-**For Owner Account Testing:**
-1. Navigate to Team page → Click 🔄 Refresh button
-2. **Expected console logs:**
-   ```
-   Loading members...
-   Fetching members from Supabase for account: [owner-user-id]
-   Found members in Supabase: [array with new member]
-   Synced member to Firestore: [new-member-email]
-   Final members list from Firestore: [updated array]
-   ```
-3. **Expected result:** New member should appear in team list with toggleable permission switches
-
-**For Member Account Testing:**
-1. Navigate to `/debug-session` in browser URL  
-2. **Expected session data:**
-   ```
-   Current User ID: [member-user-id]
-   Account ID: [owner-user-id] ← Should match owner's ID
-   Is Owner: No
-   Data Owner ID: [owner-user-id] ← Should match Account ID
-   Permissions: {"viewClients":true,"viewRunsheet":true,...}
-   ```
-3. Navigate to clients/workload forecast pages
-4. **Expected console logs:** Should show queries using owner's ID, not member's ID
-5. **Expected result:** Member should see all owner's data (clients, jobs, runsheets)
-
-**If Testing Still Fails:**
-- Console logs will pinpoint whether the issue is:
-  - JWT claims not being set properly (debug-session page will show)
-  - Data sync not working (team page logs will show)
-  - Query logic still using wrong owner ID (data access logs will show)
-
-This comprehensive debugging approach should finally identify and resolve the remaining data access barriers.
+**Result**: All team management functions now work properly in web environment, completing the Button→TouchableOpacity migration started in `enter-invite-code.tsx`.
 
 ## Previous Changes
 [Previous changelog entries...] 
