@@ -8,4 +8,5 @@
 Redeployed invite-member (version 10) after patch to handle `email_exists` properly and send Resend email.
 
 ## 2025-06-30 (second patch)
-- Replaced deprecated `getUserByEmail` call in invite-member Edge Function with manual lookup via `admin.listUsers` to prevent runtime TypeError. 
+- Replaced deprecated `getUserByEmail` call in invite-member Edge Function with manual lookup via `admin.listUsers` to prevent runtime TypeError.
+- Manually redeployed `invite-member` function via Supabase CLI to ensure the fix went live, as Vercel builds do not automatically deploy Edge Functions. 
