@@ -9,10 +9,12 @@ export default function EnterInviteCodeScreen() {
   const router = useRouter();
 
   const handleSubmit = async () => {
+    console.log('handleSubmit called with code:', code);
     if (code.trim().length < 6) {
       Alert.alert('Error', 'Please enter a valid 6-digit code.');
       return;
     }
+    console.log('Code validation passed, showing warning dialog');
 
     Alert.alert(
       'Warning',
