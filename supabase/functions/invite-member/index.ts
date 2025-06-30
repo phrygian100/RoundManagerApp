@@ -67,7 +67,9 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } else {
-        throw inviteErr;
+        // The invite call failed for a reason other than the email existing.
+        // Throw a new, explicit error to make sure it gets logged.
+        throw new Error('supabase.auth.admin.inviteUserByEmail() failed. Original error: ' + JSON.stringify(inviteErr));
       }
     }
 
