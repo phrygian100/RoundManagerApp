@@ -4,10 +4,11 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { PermissionGate } from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId, supabase } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 
@@ -27,7 +28,7 @@ export default function ClientsScreen() {
 
   useEffect(() => {
     const load = async () => {
-      const ownerId = (await supabase.auth.getSession()).data.session?.user.id;
+      const ownerId = await getDataOwnerId();
       const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
       const unsubscribe = onSnapshot(q, (querySnapshot) => {
         const clientsData: Client[] = [];
@@ -239,62 +240,64 @@ export default function ClientsScreen() {
   if (loading) {
     return (
       <ThemedView style={styles.container}>
-        <ActivityIndicator />
+        <ActivityIndicator size="large" />
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.titleRow}>
-        <ThemedText type="title" style={styles.title}>Clients</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-        </Pressable>
-      </View>
-      <ThemedView style={styles.headerRow}>
-        <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
-        <View style={{ flexDirection: 'row' }}>
-          <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
-            <View style={styles.sortIcon}>
-              <Ionicons name="funnel" size={20} color="#666" />
-            </View>
-            <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
-          </Pressable>
-          <Pressable style={styles.sortButton} onPress={() => router.push('/ex-clients')}>
-            <ThemedText style={styles.sortText}>Ex-Clients</ThemedText>
+    <PermissionGate perm="viewClients" fallback={<ThemedView style={styles.container}><ThemedText>You don't have permission to view clients.</ThemedText></ThemedView>}>
+      <ThemedView style={styles.container}>
+        <View style={styles.titleRow}>
+          <ThemedText type="title" style={styles.title}>Clients</ThemedText>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
           </Pressable>
         </View>
-      </ThemedView>
-      <ThemedView style={styles.searchRow}>
-        <ThemedView style={styles.searchContainer}>
-          <View style={styles.searchIcon}>
-            <Ionicons name="search" size={20} color="#666" />
+        <ThemedView style={styles.headerRow}>
+          <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
+          <View style={{ flexDirection: 'row' }}>
+            <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
+              <View style={styles.sortIcon}>
+                <Ionicons name="funnel" size={20} color="#666" />
+              </View>
+              <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
+            </Pressable>
+            <Pressable style={styles.sortButton} onPress={() => router.push('/ex-clients')}>
+              <ThemedText style={styles.sortText}>Ex-Clients</ThemedText>
+            </Pressable>
           </View>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search clients..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor="#999"
-          />
         </ThemedView>
+        <ThemedView style={styles.searchRow}>
+          <ThemedView style={styles.searchContainer}>
+            <View style={styles.searchIcon}>
+              <Ionicons name="search" size={20} color="#666" />
+            </View>
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search clients..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#999"
+            />
+          </ThemedView>
+        </ThemedView>
+        <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
+          <ThemedText style={styles.buttonText}>Add Client</ThemedText>
+        </Pressable>
+        <FlatList
+          data={filteredClients}
+          renderItem={renderClient}
+          keyExtractor={(item) => item.id}
+          style={styles.list}
+          ListEmptyComponent={
+            <ThemedText style={styles.emptyText}>
+              {searchQuery ? 'No clients found matching your search.' : 'No clients found.'}
+            </ThemedText>
+          }
+        />
       </ThemedView>
-      <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
-        <ThemedText style={styles.buttonText}>Add Client</ThemedText>
-      </Pressable>
-      <FlatList
-        data={filteredClients}
-        renderItem={renderClient}
-        keyExtractor={(item) => item.id}
-        style={styles.list}
-        ListEmptyComponent={
-          <ThemedText style={styles.emptyText}>
-            {searchQuery ? 'No clients found matching your search.' : 'No clients found.'}
-          </ThemedText>
-        }
-      />
-    </ThemedView>
+    </PermissionGate>
   );
 }
 

@@ -114,8 +114,47 @@ export async function inviteMember(email: string): Promise<void> {
 export async function updateMemberPerms(uid: string, perms: Record<string, boolean>): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
+  
+  console.log('Updating permissions for uid:', uid, 'perms:', perms);
+  
+  // Update Firestore
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
   await updateDoc(memberRef, { perms });
+  
+  // Also update Supabase so it syncs with JWT claims
+  try {
+    const { supabase } = await import('../core/supabase');
+    const { error } = await supabase
+      .from('members')
+      .update({ perms })
+      .eq('uid', uid)
+      .eq('account_id', sess.accountId);
+    
+    if (error) {
+      console.error('Error updating permissions in Supabase:', error);
+    } else {
+      console.log('Successfully updated permissions in Supabase');
+    }
+    
+    // Update JWT claims immediately for the affected user
+    const { error: claimsError } = await supabase.functions.invoke('set-claims', {
+      body: { uid, accountId: sess.accountId }
+    });
+    
+    if (claimsError) {
+      console.error('Error updating JWT claims:', claimsError);
+    } else {
+      console.log('Successfully triggered claims update');
+    }
+    
+    // If the current user is the one being updated, refresh their session
+    if (uid === sess.uid) {
+      console.log('Refreshing current user session to apply new permissions');
+      await supabase.auth.refreshSession();
+    }
+  } catch (err) {
+    console.error('Error syncing permissions to Supabase:', err);
+  }
 }
 
 export async function removeMember(uid: string): Promise<void> {

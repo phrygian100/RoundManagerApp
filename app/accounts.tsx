@@ -2,10 +2,11 @@ import { useRouter } from 'expo-router';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { PermissionGate } from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getCurrentUserId } from '../core/supabase';
+import { getDataOwnerId } from '../core/supabase';
 
 export default function AccountsScreen() {
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function AccountsScreen() {
     const fetchTotals = async () => {
       setLoading(true);
 
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
 
       // Fetch completed jobs for total
       const jobsRef = collection(db, 'jobs');
@@ -65,27 +66,29 @@ export default function AccountsScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.titleRow}>
-        <ThemedText type="title" style={styles.title}>Accounts</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-        </Pressable>
-      </View>
-      
-      <View style={styles.dashboard}>
-        <Pressable style={styles.dashButton} onPress={() => router.push('/completed-jobs')}>
-          <ThemedText style={styles.dashButtonText}>Completed Jobs</ThemedText>
-          <ThemedText style={styles.dashButtonSubText}>£{completedJobsTotal.toFixed(2)}</ThemedText>
-        </Pressable>
-        <Pressable style={styles.dashButton} onPress={() => router.push('/payments-list')}>
-          <ThemedText style={styles.dashButtonText}>All Payments</ThemedText>
-          <ThemedText style={styles.dashButtonSubText}>
-            Total: £{paymentsTotal.toFixed(2)} ({paymentsCount} payments)
-          </ThemedText>
-        </Pressable>
-      </View>
-    </ThemedView>
+    <PermissionGate perm="viewPayments" fallback={<ThemedView style={styles.container}><ThemedText>You don't have permission to view accounts.</ThemedText></ThemedView>}>
+      <ThemedView style={styles.container}>
+        <View style={styles.titleRow}>
+          <ThemedText type="title" style={styles.title}>Accounts</ThemedText>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+          </Pressable>
+        </View>
+        
+        <View style={styles.dashboard}>
+          <Pressable style={styles.dashButton} onPress={() => router.push('/completed-jobs')}>
+            <ThemedText style={styles.dashButtonText}>Completed Jobs</ThemedText>
+            <ThemedText style={styles.dashButtonSubText}>£{completedJobsTotal.toFixed(2)}</ThemedText>
+          </Pressable>
+          <Pressable style={styles.dashButton} onPress={() => router.push('/payments-list')}>
+            <ThemedText style={styles.dashButtonText}>All Payments</ThemedText>
+            <ThemedText style={styles.dashButtonSubText}>
+              Total: £{paymentsTotal.toFixed(2)} ({paymentsCount} payments)
+            </ThemedText>
+          </Pressable>
+        </View>
+      </ThemedView>
+    </PermissionGate>
   );
 }
 
