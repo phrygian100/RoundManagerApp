@@ -9,7 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_URL')!,
-  // Using custom secret name (SERVICE_ROLE_KEY) because Supabase reserves SUPABASE_* prefix for internal use
+  // Using SUPABASE_SERVICE_ROLE_KEY for consistency across all edge functions
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
@@ -32,6 +32,10 @@ serve(async (req) => {
   }
 
   try {
+    // Debug: Log environment variable availability
+    console.log('SUPABASE_URL exists:', !!Deno.env.get('SUPABASE_URL'));
+    console.log('SUPABASE_SERVICE_ROLE_KEY exists:', !!Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'));
+    
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
 
     const { email, accountId, perms = {}, inviteCode: providedCode } = await req.json();

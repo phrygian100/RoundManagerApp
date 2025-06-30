@@ -4,11 +4,11 @@
 // Requires env vars SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.29.3';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SERVICE_ROLE_KEY')!
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 );
 
 type AuthPayload = {
