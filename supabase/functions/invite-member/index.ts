@@ -47,10 +47,12 @@ serve(async (req) => {
     const inviteCode = providedCode || String(Math.floor(100000 + Math.random() * 900000));
 
     // 2. send invite email (creates user if not exists and emails link)
+    console.log('Attempting inviteUserByEmail for:', email);
     const { data: inviteData, error: inviteErr } = await supabase.auth.admin.inviteUserByEmail(email, {
       redirectTo: Deno.env.get('INVITE_REDIRECT_URL') || 'https://'+ (Deno.env.get('SITE_DOMAIN')||'example.com') +'/set-password',
       data: { invite_code: inviteCode },
     });
+    console.log('inviteUserByEmail result - data:', !!inviteData, 'error:', !!inviteErr);
 
     if (inviteErr) {
       if (inviteErr.code === 'email_exists') {
@@ -58,15 +60,20 @@ serve(async (req) => {
         // `getUserByEmail` is not available in supabase-js v2 yet. We need to look the
         // user up manually via `listUsers` and filter by email. We only fetch the
         // first page (1000 users) which is sufficient for typical account sizes.
+        console.log('Email exists, attempting listUsers...');
         const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
+        console.log('listUsers result - data:', !!listData, 'error:', !!listErr);
         if (listErr) {
           // Throw a new, explicit error to ensure we get a proper stack trace.
           // The Supabase client seems to be throwing an empty object on failure.
           throw new Error('supabase.auth.admin.listUsers() failed. Original error: ' + JSON.stringify(listErr));
         }
         const existingUid = listData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())?.id ?? null;
+        console.log('Found existing user:', !!existingUid);
         await upsertMember(existingUid, accountId, perms, email, inviteCode);
+        console.log('upsertMember completed');
         await sendCustomInviteEmail(email, inviteCode);
+        console.log('sendCustomInviteEmail completed');
         return new Response(JSON.stringify({ ok: true, uid: existingUid }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -97,8 +104,15 @@ serve(async (req) => {
 });
 
 async function sendCustomInviteEmail(to: string, code: string) {
+  console.log('Starting sendCustomInviteEmail for:', to);
+  
   const apiKey = Deno.env.get('RESEND_API_KEY');
-  if (!apiKey) return;
+  console.log('RESEND_API_KEY exists:', !!apiKey);
+  
+  if (!apiKey) {
+    console.error('RESEND_API_KEY not found - email will not be sent');
+    return;
+  }
 
   const body = {
     from: Deno.env.get('EMAIL_FROM') || 'no-reply@tgmwindowcleaning.co.uk',
@@ -107,14 +121,29 @@ async function sendCustomInviteEmail(to: string, code: string) {
     html: `<h2>You've been invited!</h2><p>You have been invited to download the app as a member.</p><p>Your code is <strong>${code}</strong></p>`,
   };
 
-  await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-  });
+  console.log('Sending email via Resend to:', to);
+  
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+    
+    const result = await response.text();
+    console.log('Resend API response status:', response.status);
+    console.log('Resend API response:', result);
+    
+    if (!response.ok) {
+      throw new Error(`Resend API failed: ${response.status} - ${result}`);
+    }
+  } catch (error) {
+    console.error('Email sending failed:', error);
+    throw error;
+  }
 }
 
 async function upsertMember(

@@ -24,13 +24,17 @@ export default function EnterInviteCodeScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Starting accept invite process with code:', code.trim());
               setLoading(true);
               const uid = (await supabase.auth.getUser()).data.user?.id;
+              console.log('User ID:', uid);
               if (!uid) throw new Error('Not signed in');
 
+              console.log('Calling accept-invite function...');
               const { error } = await supabase.functions.invoke('accept-invite', {
                 body: { uid, code: code.trim() },
               });
+              console.log('Function call result - error:', error);
               if (error) throw error;
 
               Alert.alert('Success', 'You are now a member of the owner account. Please log in again.');

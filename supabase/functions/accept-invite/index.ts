@@ -31,18 +31,25 @@ serve(async (req) => {
   }
 
   try {
+    console.log('accept-invite called');
     if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
     const { uid: uidFromBody, code, password } = await req.json();
+    console.log('Received code:', code, 'uid:', uidFromBody);
     if (!code) return new Response('code required', { status: 400 });
 
     // 1. find the pending member row with this invite_code
+    console.log('Looking for invite code in database...');
     const { data: member, error } = await supabase
       .from('members')
       .select('*')
       .eq('invite_code', code)
       .eq('status', 'invited')
       .single();
-    if (error || !member) return new Response('invalid code', { status: 404 });
+    console.log('Member lookup result - found:', !!member, 'error:', !!error);
+    if (error || !member) {
+      console.log('Invalid code or not found');
+      return new Response('invalid code', { status: 404 });
+    }
 
     let uid = uidFromBody;
     // 2. link the record to this uid (if provided) or use existing uid and mark active
