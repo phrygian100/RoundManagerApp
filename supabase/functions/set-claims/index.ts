@@ -1,6 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 // Supabase Edge Function: set-claims
-// Triggered on auth events; sets custom JWT claims (account_id, is_owner, perms)
+// Triggered on auth events OR manual calls; sets custom JWT claims (account_id, is_owner, perms)
 // Requires env vars SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
@@ -18,22 +18,52 @@ type AuthPayload = {
   };
 };
 
+type ManualPayload = {
+  uid: string;
+  accountId: string;
+};
+
 serve(async (req) => {
   try {
-    const payload = await req.json() as AuthPayload;
-    const uid = payload.session.user.id;
+    console.log('set-claims function called');
+    const payload = await req.json();
+    console.log('Payload received:', JSON.stringify(payload));
+    
+    let uid: string;
+    
+    // Handle both auth events and manual calls
+    if (payload.event) {
+      // Auth event payload
+      const authPayload = payload as AuthPayload;
+      uid = authPayload.session.user.id;
+      console.log('Processing auth event for uid:', uid);
+    } else {
+      // Manual call payload
+      const manualPayload = payload as ManualPayload;
+      uid = manualPayload.uid;
+      console.log('Processing manual call for uid:', uid);
+    }
 
-    // 1. find member doc
+    console.log('Looking up member record for uid:', uid);
+    
+    // Find member doc
     const { data: member, error } = await supabase
-      .from('members') // placeholder table; Firestore used in app; you may migrate this logic server-side later.
+      .from('members')
       .select('*')
       .eq('uid', uid)
       .single();
 
-    if (error || !member) {
-      // No member record yet -> do nothing
-      return new Response('no member', { status: 200 });
+    if (error) {
+      console.error('Error finding member:', error);
+      return new Response('member lookup error: ' + JSON.stringify(error), { status: 400 });
     }
+    
+    if (!member) {
+      console.log('No member record found for uid:', uid);
+      return new Response('no member record found', { status: 200 });
+    }
+
+    console.log('Found member record:', JSON.stringify(member));
 
     const claims: any = {
       account_id: member.account_id,
@@ -41,13 +71,21 @@ serve(async (req) => {
       perms: member.perms || {},
     };
 
-    await supabase.auth.admin.updateUserById(uid, {
+    console.log('Setting JWT claims:', JSON.stringify(claims));
+
+    const { error: updateError } = await supabase.auth.admin.updateUserById(uid, {
       user_metadata: claims,
     });
 
-    return new Response('claims set');
+    if (updateError) {
+      console.error('Error updating user metadata:', updateError);
+      return new Response('update error: ' + JSON.stringify(updateError), { status: 500 });
+    }
+
+    console.log('Successfully updated JWT claims for uid:', uid);
+    return new Response('claims updated successfully');
   } catch (err) {
-    console.error(err);
-    return new Response('error', { status: 500 });
+    console.error('set-claims function error:', err);
+    return new Response('internal error: ' + String(err), { status: 500 });
   }
 }); 

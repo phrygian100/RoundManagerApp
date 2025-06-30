@@ -147,10 +147,28 @@ export async function updateMemberPerms(uid: string, perms: Record<string, boole
       console.log('Successfully triggered claims update');
     }
     
-    // If the current user is the one being updated, refresh their session
+    // Store a notification for the member that their permissions changed
+    // This will be checked when they next load a page
+    try {
+      const notificationRef = doc(db, `accounts/${sess.accountId}/notifications/${uid}`);
+      await setDoc(notificationRef, {
+        type: 'permissions_updated',
+        timestamp: new Date().toISOString(),
+        message: 'Your permissions have been updated. Please refresh the page to see changes.',
+      }, { merge: true });
+      console.log('Created permission update notification for member');
+    } catch (notifError) {
+      console.error('Error creating notification:', notifError);
+    }
+    
+    // If the current user is the one being updated, refresh their session immediately
     if (uid === sess.uid) {
       console.log('Refreshing current user session to apply new permissions');
       await supabase.auth.refreshSession();
+      // Reload the page to ensure new permissions take effect
+      if (typeof window !== 'undefined') {
+        window.location.reload();
+      }
     }
   } catch (err) {
     console.error('Error syncing permissions to Supabase:', err);
