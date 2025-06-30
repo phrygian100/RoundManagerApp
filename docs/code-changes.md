@@ -364,6 +364,48 @@ async function syncMembersFromSupabase(): Promise<void>
 
 **Result**: Members can now properly access owner's data when they have permissions, and permission changes persist immediately across sessions.
 
+## 2025-01-02 (Permission Update Notification System)
+- **REAL-TIME PERMISSION UPDATES** 🎉
+  - **Issue**: Members didn't see permission changes until they logged out/in again
+  - **Root Cause**: JWT claims were updated in Supabase but member's current session kept old token
+  - **Solution**: Added notification system that alerts members when permissions change
+  - **How it works**:
+    - When owner changes member permissions → creates notification in Firestore
+    - Next time member loads any page → checks for notifications
+    - If permission update found → refreshes JWT session + prompts user to reload page
+    - Notification gets deleted after being processed
+  - **Enhanced**: `set-claims` edge function with better logging and manual call support
+
+**Files Modified:**
+- `supabase/functions/set-claims/index.ts` - Enhanced to handle manual calls + added logging
+- `services/accountService.ts` - Creates notifications when permissions are updated
+- `core/session.ts` - Checks for permission notifications on session load
+
+**Result**: Members now get immediately notified when their permissions change and can refresh to see new access levels without having to log out/in.
+
+## 2025-01-02 (Member Data Access & Permission Persistence Fix)
+- **MEMBER DATA ACCESS FULLY WORKING** 🎉
+  - **Issue**: Members could see runsheet jobs but not clients or accounts despite having permissions
+  - **Root Cause**: `clients.tsx` and `accounts.tsx` were using `getCurrentUserId()` instead of `getDataOwnerId()`
+  - **Solution**: Updated both pages to use `getDataOwnerId()` so members query owner's data correctly
+  - **Added**: PermissionGate protection to both clients and accounts pages
+
+- **PERMISSION TOGGLES NOW PERSIST** 🔧
+  - **Issue**: Permission slider changes in team management weren't being saved/persisting
+  - **Root Cause**: `updateMemberPerms()` only updated Firestore, not Supabase (where JWT claims are stored)
+  - **Solution**: Enhanced `updateMemberPerms()` to:
+    - Update both Firestore AND Supabase members table
+    - Trigger `set-claims` edge function to update JWT claims immediately
+    - Refresh current user's session if they're the one being updated
+  - **Added**: Comprehensive logging to track permission update process
+
+**Files Modified:**
+- `app/clients.tsx` - Added PermissionGate + getDataOwnerId() usage
+- `app/accounts.tsx` - Added PermissionGate + getDataOwnerId() usage  
+- `services/accountService.ts` - Enhanced updateMemberPerms() with Supabase sync
+
+**Result**: Members can now properly access owner's data when they have permissions, and permission changes persist immediately across sessions.
+
 ## 2025-01-02 (Delete Button & RLS Policy Fix)
 - **DELETE BUTTON NOW WORKING** 🎉
   - **Issue**: Delete member button doing nothing in web environment
