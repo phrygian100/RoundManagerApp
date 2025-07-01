@@ -1,6 +1,9 @@
 import { format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
+import { PermissionGate } from '../components/PermissionGate';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
 
 export default function RunsheetScreen() {
   const router = useRouter();
@@ -12,6 +15,9 @@ export default function RunsheetScreen() {
     router.replace(`/runsheet/${weekParam}`);
   }, [router]);
 
-  // This component will redirect immediately, so we don't need to render anything
-  return null;
+  return (
+    <PermissionGate perm="viewRunsheet" fallback={<ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}><ThemedText>You don't have permission to view runsheets.</ThemedText></ThemedView>}>
+      {null}
+    </PermissionGate>
+  );
 } 

@@ -4,6 +4,9 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PermissionGate } from '../components/PermissionGate';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/supabase';
 import type { Job } from '../types/models';
@@ -89,30 +92,30 @@ export default function WorkloadForecastScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Workload Forecast</Text>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Text style={styles.homeButtonText}>🏠</Text>
-        </Pressable>
-      </View>
-      <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
-      <FlatList
-        data={weeks}
-        keyExtractor={(item) => item.week}
-        renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No scheduled clients found.</Text>}
-      />
-    </View>
+    <PermissionGate perm="viewRunsheet" fallback={<ThemedView style={styles.center}><ThemedText>You don't have permission to view workload forecast.</ThemedText></ThemedView>}>
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" />
+        </View>
+      ) : (
+        <View style={styles.container}>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>Workload Forecast</Text>
+            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+              <Text style={styles.homeButtonText}>🏠</Text>
+            </Pressable>
+          </View>
+          <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
+          <FlatList
+            data={weeks}
+            keyExtractor={(item) => item.week}
+            renderItem={renderItem}
+            ListEmptyComponent={<Text style={styles.empty}>No scheduled clients found.</Text>}
+          />
+        </View>
+      )}
+    </PermissionGate>
   );
 }
 

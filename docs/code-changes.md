@@ -1,3 +1,27 @@
+## 2025-01-02 (Unified Permission Gates Implementation) 🛡️
+- **IMPLEMENTED UNIFIED PERMISSION SYSTEM - ALL PAGES NOW PROTECTED**
+  - **Issue**: Inconsistent permission enforcement - some pages accessible even when permissions disabled
+  - **Root Cause**: Only some pages used `PermissionGate` component, others had no permission checks
+  - **Pages That Were Unprotected**: Workload Forecast, Runsheet (main + weekly) - always accessible ❌
+  - **Pages That Were Protected**: Clients, Accounts, Team - correctly blocked ✅
+  
+  **Solution**: Added `PermissionGate` wrapper with `viewRunsheet` permission to all runsheet-related pages:
+  - `app/workload-forecast.tsx` - Now requires `viewRunsheet` permission
+  - `app/runsheet.tsx` - Now requires `viewRunsheet` permission
+  - `app/runsheet/[week].tsx` - Now requires `viewRunsheet` permission
+  
+**Files Modified:**
+- `app/workload-forecast.tsx` - Added PermissionGate with viewRunsheet permission
+- `app/runsheet.tsx` - Added PermissionGate with viewRunsheet permission  
+- `app/runsheet/[week].tsx` - Added PermissionGate with viewRunsheet permission
+
+**Expected Result**: 
+- When member permissions are set to NONE → All pages show "You don't have permission" message
+- Consistent behavior across all pages - no more random access
+- Unified permission enforcement using single PermissionGate pattern
+
+**Testing**: Owner sets all permissions to OFF → Member should be blocked from ALL pages except home
+
 ## 2025-01-02 (Permission Notifications UX Fix) ✨
 - **FIXED NOTIFICATION REFRESH MECHANISM - ROUTING ISSUE RESOLVED**
   - **Issue**: After permission notification popup, `window.location.reload()` caused 404 errors and broken navigation
