@@ -5,6 +5,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { getUserSession } from '../core/session';
 
+// Force deployment trigger - temp debug version
 export default function RunsheetScreen() {
   const router = useRouter();
   const [sessionLoaded, setSessionLoaded] = useState(false);
