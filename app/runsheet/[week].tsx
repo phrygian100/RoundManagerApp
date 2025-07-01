@@ -569,8 +569,7 @@ export default function RunsheetWeekScreen() {
   const isDayCompleted = (dayTitle: string) => completedDays.includes(dayTitle);
 
   return (
-    <PermissionGate perm="viewRunsheet" fallback={<ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}><ThemedText>You don't have permission to view runsheets.</ThemedText></ThemedView>}>
-      <View style={{ flex: 1 }}>
+    <View style={{ flex: 1 }}>
       <View style={styles.container}>
         <View style={styles.titleRow}>
           <Pressable
@@ -677,7 +676,6 @@ export default function RunsheetWeekScreen() {
         )}
       </View>
     </View>
-    </PermissionGate>
   );
 }
 

@@ -35,10 +35,10 @@ export default function RunsheetScreen() {
           // Generate current week and redirect
           const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
           const weekParam = format(currentWeek, 'yyyy-MM-dd');
-          console.log('🚀 RUNSHEET: Redirecting to week:', weekParam);
+          console.log('🚀 RUNSHEET: Redirecting to week (param):', weekParam);
           
-          // Use replace to redirect
-          router.replace(`/runsheet/${weekParam}`);
+          // Use replace with explicit pathname + params to avoid issues with special characters in the slug
+          router.replace({ pathname: '/runsheet/[week]', params: { week: weekParam } });
         } else {
           setError('No permission to view runsheets');
           setLoading(false);
