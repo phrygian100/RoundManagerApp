@@ -12,11 +12,9 @@ export type MemberRecord = {
 };
 
 const DEFAULT_PERMS: Record<string, boolean> = {
-  viewRunsheet: true,
   viewClients: true,
-  viewCompletedJobs: false,
+  viewRunsheet: true,
   viewPayments: false,
-  editJobs: false,
 };
 
 /**

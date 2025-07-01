@@ -7,10 +7,9 @@ import { ThemedView } from '../../components/ThemedView';
 import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberPerms } from '../../services/accountService';
 
 const PERM_KEYS = [
-  { key: 'viewRunsheet', label: 'Runsheet' },
   { key: 'viewClients', label: 'Clients' },
-  { key: 'viewCompletedJobs', label: 'Completed Jobs' },
-  { key: 'viewPayments', label: 'Payments' },
+  { key: 'viewRunsheet', label: 'Runsheets' },
+  { key: 'viewPayments', label: 'Accounts' },
 ];
 
 export default function TeamScreen() {

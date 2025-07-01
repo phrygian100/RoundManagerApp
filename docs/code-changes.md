@@ -1,3 +1,55 @@
+## 2025-01-02 (Permission System Simplification) 🎯
+- **UNIFIED PERMISSION SYSTEM UI - FIXED DISCREPANCY BETWEEN INTERFACE & FUNCTIONALITY**
+  - **Issue**: Team interface showed 4 permissions but code only used 3, causing confusion and inconsistent behavior
+  - **Problem**: Interface showed "Runsheet, Clients, Completed Jobs, Payments" but system used different permission mapping
+  - **Root Cause**: UI was showing granular permissions that weren't actually implemented in the codebase
+  
+  **Solution**: Simplified to 3 logical permission groups that match actual functionality:
+  - **Clients** → `viewClients` permission (clients page)
+  - **Runsheets** → `viewRunsheet` permission (runsheet + workload forecast pages)  
+  - **Accounts** → `viewPayments` permission (accounts page with payments + completed jobs)
+  
+**Files Modified:**
+- `app/(tabs)/team.tsx` - Updated PERM_KEYS to show 3 unified permissions
+- `services/accountService.ts` - Simplified DEFAULT_PERMS to match new UI
+
+**Removed Unused Permissions:**
+- `viewCompletedJobs` - Not used anywhere in codebase
+- `editJobs` - Not used anywhere in codebase  
+
+**Expected Result**: 
+- Team interface now shows exactly what the system enforces
+- Clear 1:1 mapping between UI toggles and actual page access
+- No more confusion about which permissions control which pages
+
+**Testing**: Permission toggles in team interface now directly correspond to page access behavior
+
+## 2025-01-02 (Permission System Simplification) 🎯
+- **UNIFIED PERMISSION SYSTEM UI - FIXED DISCREPANCY BETWEEN INTERFACE & FUNCTIONALITY**
+  - **Issue**: Team interface showed 4 permissions but code only used 3, causing confusion and inconsistent behavior
+  - **Problem**: Interface showed "Runsheet, Clients, Completed Jobs, Payments" but system used different permission mapping
+  - **Root Cause**: UI was showing granular permissions that weren't actually implemented in the codebase
+  
+  **Solution**: Simplified to 3 logical permission groups that match actual functionality:
+  - **Clients** → `viewClients` permission (clients page)
+  - **Runsheets** → `viewRunsheet` permission (runsheet + workload forecast pages)  
+  - **Accounts** → `viewPayments` permission (accounts page with payments + completed jobs)
+  
+**Files Modified:**
+- `app/(tabs)/team.tsx` - Updated PERM_KEYS to show 3 unified permissions
+- `services/accountService.ts` - Simplified DEFAULT_PERMS to match new UI
+
+**Removed Unused Permissions:**
+- `viewCompletedJobs` - Not used anywhere in codebase
+- `editJobs` - Not used anywhere in codebase  
+
+**Expected Result**: 
+- Team interface now shows exactly what the system enforces
+- Clear 1:1 mapping between UI toggles and actual page access
+- No more confusion about which permissions control which pages
+
+**Testing**: Permission toggles in team interface now directly correspond to page access behavior
+
 ## 2025-01-02 (Unified Permission Gates Implementation) 🛡️
 - **IMPLEMENTED UNIFIED PERMISSION SYSTEM - ALL PAGES NOW PROTECTED**
   - **Issue**: Inconsistent permission enforcement - some pages accessible even when permissions disabled
@@ -51,24 +103,6 @@
 - `supabase/functions/set-claims/index.ts` - Added CORS support for browser requests
 
 **Result**: ✅ CORS issue resolved - permission notifications now work properly
-
-## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
-- **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
-  - **Issue**: Previous instance documented system as complete but never pushed to git/deployed to Vercel
-  - **Root Cause**: Only `docs/code-changes.md` was updated in git, actual functionality never reached production
-  - **Solution**: Properly deploying existing codebase that contains the full notification system
-  
-**Code Status**: ✅ Already implemented and committed
-- `services/accountService.ts` - Creates notifications when permissions are updated
-- `core/session.ts` - Checks for permission update notifications on page load  
-- `supabase/functions/set-claims/index.ts` - Enhanced with comprehensive logging
-
-**Deployment Action**: Pushing to git to trigger Vercel deployment of existing permission notification functionality.
-
-**Expected Testing Results After Deployment**:
-1. **Owner**: Change member permissions → should persist on navigation
-2. **Member**: After permission change → should see popup "Your permissions have been updated. Refresh the page to see changes?"
-3. **Real-time Effect**: Permission changes visible within seconds without logout/login
 
 ## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
 - **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
