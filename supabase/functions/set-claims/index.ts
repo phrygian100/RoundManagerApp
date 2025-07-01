@@ -134,6 +134,19 @@ serve(async (req) => {
       });
     }
 
+    // If forceReset, delete any member rows for this uid to avoid it being recreated
+    if (manualPayload.forceReset) {
+      const { error: delErr } = await supabase
+        .from('members')
+        .delete()
+        .eq('uid', uid);
+      if (delErr) {
+        console.error('Error deleting member rows during forceReset:', delErr);
+      } else {
+        console.log('Deleted member rows for uid during forceReset');
+      }
+    }
+
     console.log('Successfully updated JWT claims for uid:', uid);
     return new Response('claims updated successfully', { headers: corsHeaders });
   } catch (err) {
