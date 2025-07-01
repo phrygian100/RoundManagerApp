@@ -4,32 +4,19 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { PermissionGate } from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getUserSession } from '../core/session';
 import { getDataOwnerId } from '../core/supabase';
 import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
   const [loading, setLoading] = useState(true);
   const [weeks, setWeeks] = useState<{ week: string; count: number }[]>([]);
-  const [hasPermission, setHasPermission] = useState(false);
   const router = useRouter();
 
-  // Check permissions on load
-  useEffect(() => {
-    const checkPermission = async () => {
-      const session = await getUserSession();
-      // Owners always have access, OR check specific permission for members
-      setHasPermission(!!(session?.isOwner || session?.perms?.viewRunsheet));
-    };
-    checkPermission();
-  }, []);
-
   const fetchJobs = useCallback(async () => {
-    if (!hasPermission) return;
-    
     setLoading(true);
     try {
       const ownerId = await getDataOwnerId();
@@ -65,33 +52,19 @@ export default function WorkloadForecastScreen() {
     } finally {
       setLoading(false);
     }
-  }, [hasPermission]);
+  }, []);
 
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      if (hasPermission) {
-        fetchJobs();
-      }
-    }, [fetchJobs, hasPermission])
+      fetchJobs();
+    }, [fetchJobs])
   );
 
   // Initial load
   useEffect(() => {
-    if (hasPermission) {
-      fetchJobs();
-    } else {
-      setLoading(false);
-    }
-  }, [fetchJobs, hasPermission]);
-
-  if (!hasPermission) {
-    return (
-      <ThemedView style={styles.center}>
-        <ThemedText>You don't have permission to view workload forecast.</ThemedText>
-      </ThemedView>
-    );
-  }
+    fetchJobs();
+  }, [fetchJobs]);
 
   const renderItem = ({ item }: { item: { week: string; count: number } }) => {
     const date = parseISO(item.week);
@@ -128,21 +101,30 @@ export default function WorkloadForecastScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.titleRow}>
-        <Text style={styles.title}>Workload Forecast</Text>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Text style={styles.homeButtonText}>🏠</Text>
-        </Pressable>
+    <PermissionGate 
+      perm="viewRunsheet" 
+      fallback={
+        <ThemedView style={styles.center}>
+          <ThemedText>You don't have permission to view workload forecast.</ThemedText>
+        </ThemedView>
+      }
+    >
+      <View style={styles.container}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Workload Forecast</Text>
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <Text style={styles.homeButtonText}>🏠</Text>
+          </Pressable>
+        </View>
+        <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
+        <FlatList
+          data={weeks}
+          keyExtractor={(item) => item.week}
+          renderItem={renderItem}
+          ListEmptyComponent={<Text style={styles.empty}>No scheduled clients found.</Text>}
+        />
       </View>
-      <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
-      <FlatList
-        data={weeks}
-        keyExtractor={(item) => item.week}
-        renderItem={renderItem}
-        ListEmptyComponent={<Text style={styles.empty}>No scheduled clients found.</Text>}
-      />
-    </View>
+    </PermissionGate>
   );
 }
 

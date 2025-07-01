@@ -1,25 +1,139 @@
+🚨 **URGENT HANDOVER NOTE - CRITICAL OWNER ACCESS BUG** 🚨
+
+**ISSUE**: Owner accounts are still blocked from runsheet/workload forecast pages despite attempted fix. This is a critical bug that must be resolved immediately.
+
+**DEBUGGING NEEDED**: 
+1. Check what `getUserSession()` returns for owners - add console.log debugging
+2. Verify `session.isOwner` is actually `true` for owner accounts  
+3. Investigate if JWT claims are properly set for owners in Supabase
+4. Check if recent session refresh changes broke owner detection
+
+**IMMEDIATE ACTION**: Next developer should add debugging to `runsheet.tsx` and `workload-forecast.tsx` to inspect the actual session object structure for owner accounts.
+
+---
+
 ## 2025-01-02 (CRITICAL: Fix Owner Access Blocked) 🚨
-- **EMERGENCY FIX: OWNERS CAN NOW ACCESS ALL PAGES AGAIN**
+- **EMERGENCY FIX ATTEMPTED BUT FAILED: OWNERS STILL BLOCKED**
   - **Issue**: Owners blocked from runsheet and workload forecast with "You don't have permission" message
   - **Root Cause**: Custom permission checks only looked at `session.perms.viewRunsheet`, ignored `session.isOwner`
-  - **Critical Error**: Owners should NEVER be blocked from any functionality
-  
-  **Solution**: Added owner bypass logic to custom permission checks:
-  - **Before**: `if (session?.perms?.viewRunsheet)` ❌ (blocked owners)
-  - **After**: `if (session?.isOwner || session?.perms?.viewRunsheet)` ✅ (owners always allowed)
+  - **Fix Attempted**: Added owner bypass logic: `session?.isOwner || session?.perms?.viewRunsheet`
+  - **Result**: ❌ **FIX FAILED** - Owners still see "You don't have permission" messages
   
 **Files Modified:**
 - `app/runsheet.tsx` - Added owner bypass: `session?.isOwner || session?.perms?.viewRunsheet`
 - `app/workload-forecast.tsx` - Added owner bypass: `session?.isOwner || session?.perms?.viewRunsheet`
 
-**Note**: `PermissionGate` component already had correct logic, issue was only in custom permission checks
+**STATUS**: ❌ UNRESOLVED - Owners still cannot access runsheets/workload forecast
 
-**Expected Result**: 
-- ✅ **Owners**: Full access to ALL pages regardless of permission settings
-- ✅ **Members**: Access based on specific permissions granted by owner
-- ✅ **Consistent with PermissionGate behavior**: Owners bypass all permission checks
+---
 
-**Testing**: Owner account should access runsheets and workload forecast immediately
+## 🚨 HANDOVER NOTE: CRITICAL OWNER ACCESS BUG - URGENT DEBUGGING REQUIRED
+
+**Problem**: Owner accounts are incorrectly blocked from accessing runsheet and workload forecast pages with "You don't have permission" messages. This should NEVER happen - owners should have full access to everything.
+
+**Background Context**:
+1. **Permission System Architecture**: 
+   - `PermissionGate` component works correctly (owners can access clients, accounts, team pages)
+   - Custom permission checks in `runsheet.tsx` and `workload-forecast.tsx` are failing
+   - Issue appeared after implementing unified permission gates across all pages
+
+2. **Current Logic Flow**:
+   - `getUserSession()` should return `{ isOwner: true, perms: {...} }` for owners
+   - Permission check: `session?.isOwner || session?.perms?.viewRunsheet`
+   - If false, shows "You don't have permission" message
+
+**Debugging Steps Taken**:
+1. ✅ Added owner bypass logic to permission checks
+2. ✅ Verified PermissionGate component has correct logic (`sess.isOwner` bypass)
+3. ❌ Issue persists - owners still blocked
+
+**Critical Questions for Next Developer**:
+1. **What does `getUserSession()` actually return for owners?** Add console logging to see session data
+2. **Is `session.isOwner` actually `true` for owners?** Check the session object structure
+3. **Are there caching issues?** Session data might be stale after recent JWT changes
+4. **Is the owner's JWT correctly populated?** Check if `set-claims` function properly sets owner status
+
+**Debugging Commands to Add**:
+```javascript
+// In runsheet.tsx and workload-forecast.tsx
+const session = await getUserSession();
+console.log('DEBUG - Full session object:', session);
+console.log('DEBUG - isOwner value:', session?.isOwner);
+console.log('DEBUG - perms object:', session?.perms);
+console.log('DEBUG - viewRunsheet perm:', session?.perms?.viewRunsheet);
+```
+
+**Most Likely Root Causes**:
+1. **JWT Claims Issue**: Owner's JWT doesn't have `is_owner: true` set correctly
+2. **Session Refresh Problem**: `getUserSession()` returning stale/incorrect data after recent changes
+3. **Supabase Members Table**: Owner record might be missing or incorrect in members table
+4. **Edge Function Issue**: `set-claims` function not properly handling owner accounts
+
+**Immediate Workaround**: Use `PermissionGate` components instead of custom permission checks, as those work correctly for owners.
+
+**Files to Investigate**:
+- `core/session.ts` - `getUserSession()` function logic
+- `supabase/functions/set-claims/index.ts` - JWT claims setting for owners
+- Supabase members table - Check owner record exists and has correct role
+- Browser dev tools - Check actual JWT token contents in session
+
+**Expected Timeline**: This should be a quick fix once the actual session data is examined. The logic is correct, but the data isn't matching expectations.
+
+---
+
+## 🚨 HANDOVER NOTE: CRITICAL OWNER ACCESS BUG
+
+**Problem**: Owner accounts are incorrectly blocked from accessing runsheet and workload forecast pages with "You don't have permission" messages. This should NEVER happen - owners should have full access to everything.
+
+**Background Context**:
+1. **Permission System Architecture**: 
+   - `PermissionGate` component works correctly (owners can access clients, accounts, team pages)
+   - Custom permission checks in `runsheet.tsx` and `workload-forecast.tsx` are failing
+   - Issue appeared after implementing unified permission gates across all pages
+
+2. **Current Logic Flow**:
+   - `getUserSession()` should return `{ isOwner: true, perms: {...} }` for owners
+   - Permission check: `session?.isOwner || session?.perms?.viewRunsheet`
+   - If false, shows "You don't have permission" message
+
+**Debugging Steps Taken**:
+1. ✅ Added owner bypass logic to permission checks
+2. ✅ Verified PermissionGate component has correct logic (`sess.isOwner` bypass)
+3. ❌ Issue persists - owners still blocked
+
+**Critical Questions for Next Developer**:
+1. **What does `getUserSession()` actually return for owners?** Add console logging to see session data
+2. **Is `session.isOwner` actually `true` for owners?** Check the session object structure
+3. **Are there caching issues?** Session data might be stale after recent JWT changes
+4. **Is the owner's JWT correctly populated?** Check if `set-claims` function properly sets owner status
+
+**Debugging Commands to Add**:
+```javascript
+// In runsheet.tsx and workload-forecast.tsx
+const session = await getUserSession();
+console.log('DEBUG - Full session object:', session);
+console.log('DEBUG - isOwner value:', session?.isOwner);
+console.log('DEBUG - perms object:', session?.perms);
+console.log('DEBUG - viewRunsheet perm:', session?.perms?.viewRunsheet);
+```
+
+**Most Likely Root Causes**:
+1. **JWT Claims Issue**: Owner's JWT doesn't have `is_owner: true` set correctly
+2. **Session Refresh Problem**: `getUserSession()` returning stale/incorrect data after recent changes
+3. **Supabase Members Table**: Owner record might be missing or incorrect in members table
+4. **Edge Function Issue**: `set-claims` function not properly handling owner accounts
+
+**Immediate Workaround**: Use `PermissionGate` components instead of custom permission checks, as those work correctly for owners.
+
+**Files to Investigate**:
+- `core/session.ts` - `getUserSession()` function logic
+- `supabase/functions/set-claims/index.ts` - JWT claims setting for owners
+- Supabase members table - Check owner record exists and has correct role
+- Browser dev tools - Check actual JWT token contents in session
+
+**Expected Timeline**: This should be a quick fix once the actual session data is examined. The logic is correct, but the data isn't matching expectations.
+
+---
 
 ## 2025-01-02 (Critical Permission System Fixes) 🔧
 - **FIXED RUNSHEET 404 ERRORS & JWT REFRESH ISSUES**
