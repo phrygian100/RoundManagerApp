@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Button, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
@@ -313,31 +313,40 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleLeaveTeam = () => {
-    Alert.alert(
-      'Leave Team',
-      'Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Leave',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const sess = await getUserSession();
-              if (!sess) return;
-              await leaveTeamSelf();
-              Alert.alert('Left Team', 'Your account has been reset. Please reload the app.');
-              await supabase.auth.refreshSession();
-              router.replace('/');
-            } catch (err) {
-              console.error('Error leaving team:', err);
-              Alert.alert('Error', 'Could not leave team.');
-            }
-          },
-        },
-      ]
-    );
+  const handleLeaveTeam = async () => {
+    const confirm = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Leave Team',
+            'Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Leave', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirm) return;
+
+    try {
+      console.log('== LEAVE TEAM CONFIRMED ==');
+      await leaveTeamSelf();
+      if (Platform.OS === 'web') {
+        window.alert('You have left the team. Please reload the page.');
+      } else {
+        Alert.alert('Left Team', 'Your account has been reset.');
+      }
+      await supabase.auth.refreshSession();
+      router.replace('/');
+    } catch (err) {
+      console.error('Error leaving team:', err);
+      if (Platform.OS === 'web') {
+        window.alert('Error: Could not leave team. See console for details.');
+      } else {
+        Alert.alert('Error', 'Could not leave team.');
+      }
+    }
   };
 
   return (
