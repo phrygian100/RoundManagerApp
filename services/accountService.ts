@@ -176,6 +176,49 @@ export async function updateMemberPerms(uid: string, perms: Record<string, boole
 export async function removeMember(uid: string): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
+  
+  // 1. Delete from Firestore
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
   await deleteDoc(memberRef);
+  
+  try {
+    const { supabase } = await import('../core/supabase');
+    
+    // 2. Delete from Supabase members table
+    const { error: deleteErr } = await supabase
+      .from('members')
+      .delete()
+      .eq('uid', uid)
+      .eq('account_id', sess.accountId);
+    
+    if (deleteErr) {
+      console.error('Error deleting member in Supabase:', deleteErr);
+    } else {
+      console.log('Deleted member row from Supabase');
+    }
+    
+    // 3. Reset JWT claims for the removed user (makes them an owner of their own account)
+    const { error: claimsError } = await supabase.functions.invoke('set-claims', {
+      body: { uid, accountId: uid }, // accountId === uid indicates personal owner account
+    });
+    
+    if (claimsError) {
+      console.error('Error resetting JWT claims for removed member:', claimsError);
+    }
+    
+    // 4. Notify the removed user so they refresh session
+    try {
+      const notificationRef = doc(db, `accounts/${sess.accountId}/notifications/${uid}`);
+      await setDoc(notificationRef, {
+        type: 'member_removed',
+        timestamp: new Date().toISOString(),
+        message: 'You have been removed from the team. Your account has been reset to personal mode.',
+      }, { merge: true });
+      console.log('Created member_removed notification for user');
+    } catch (notifErr) {
+      console.error('Error creating member removal notification:', notifErr);
+    }
+  } catch (err) {
+    console.error('Error removing member (Supabase sync):', err);
+  }
 } 

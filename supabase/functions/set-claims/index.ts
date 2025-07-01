@@ -75,21 +75,31 @@ serve(async (req) => {
     
     const member = members?.[0]; // Take most recent record
     
-    if (!member) {
-      console.log('No member record found for uid:', uid);
-      return new Response('no member record found', { 
-        status: 200,
-        headers: corsHeaders
-      });
+    let claims: any;
+    if (member) {
+      console.log('Found member record:', JSON.stringify(member));
+      claims = {
+        account_id: member.account_id,
+        is_owner: member.role === 'owner',
+        perms: member.perms || {},
+      };
+    } else {
+      // No member record – treat as personal owner reset if manual accountId provided
+      const manualPayload = payload as ManualPayload;
+      if (!manualPayload.accountId) {
+        console.log('No member record and no accountId provided, nothing to update');
+        return new Response('no member record found', {
+          status: 200,
+          headers: corsHeaders,
+        });
+      }
+      console.log('No member record found, resetting claims to personal account owner');
+      claims = {
+        account_id: manualPayload.accountId,
+        is_owner: true,
+        perms: {},
+      };
     }
-
-    console.log('Found member record:', JSON.stringify(member));
-
-    const claims: any = {
-      account_id: member.account_id,
-      is_owner: member.role === 'owner',
-      perms: member.perms || {},
-    };
 
     console.log('Setting JWT claims:', JSON.stringify(claims));
 
