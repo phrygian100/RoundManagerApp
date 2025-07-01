@@ -57,12 +57,11 @@ async function checkPermissionUpdateNotification(uid: string): Promise<void> {
         // Refresh the session to get updated JWT claims
         await supabase.auth.refreshSession();
         
-        // Show user notification
+        // Show user notification and redirect to home
         if (typeof window !== 'undefined') {
-          const shouldRefresh = window.confirm('Your permissions have been updated. Refresh the page to see changes?');
-          if (shouldRefresh) {
-            window.location.reload();
-          }
+          window.alert('Your permissions have been updated. You will be redirected to the home page.');
+          // Navigate to home instead of reload to avoid routing issues
+          window.location.href = '/';
         }
         
         // Delete the notification so it doesn't trigger again

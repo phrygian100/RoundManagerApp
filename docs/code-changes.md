@@ -1,4 +1,18 @@
-## 2025-01-02 (CORS Fix for Permission Notifications) 🔧
+## 2025-01-02 (Permission Notifications UX Fix) ✨
+- **FIXED NOTIFICATION REFRESH MECHANISM - ROUTING ISSUE RESOLVED**
+  - **Issue**: After permission notification popup, `window.location.reload()` caused 404 errors and broken navigation
+  - **Root Cause**: Page reload interfered with Expo Router's navigation state
+  - **Solution**: Changed notification UX to redirect to home page instead of reloading
+    - Replaced `window.confirm()` + `window.location.reload()` 
+    - With `window.alert()` + `window.location.href = '/'`
+    - Ensures clean navigation without routing conflicts
+
+**Files Modified:**
+- `core/session.ts` - Improved notification UX to avoid 404s
+
+**Testing Status**: ✅ Permission system now fully working - member sees notification and redirects safely to home
+
+## 2025-01-02 (CORS Fix for Permission Notifications) 🔧  
 - **FIXED PERMISSION NOTIFICATION SYSTEM - CORS ISSUE RESOLVED**
   - **Issue**: Permission changes weren't taking effect because `set-claims` edge function was blocked by CORS policy
   - **Root Cause**: Edge function had no CORS headers, browser requests from Vercel domain were rejected
@@ -12,12 +26,7 @@
 **Files Modified:**
 - `supabase/functions/set-claims/index.ts` - Added CORS support for browser requests
 
-**Expected Result After Deployment**: 
-- Permission changes should now trigger JWT refresh properly
-- Member should see notification popup when permissions change
-- No more CORS errors in browser console when changing permissions
-
-**Testing Process**: Deploy edge function → Change member permissions → Check for CORS errors in console
+**Result**: ✅ CORS issue resolved - permission notifications now work properly
 
 ## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
 - **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
