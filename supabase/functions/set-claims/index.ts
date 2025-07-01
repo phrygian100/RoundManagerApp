@@ -58,12 +58,12 @@ serve(async (req) => {
 
     console.log('Looking up member record for uid:', uid);
     
-    // Find member doc
-    const { data: member, error } = await supabase
+    // Find member doc (handle duplicates by taking most recent)
+    const { data: members, error } = await supabase
       .from('members')
       .select('*')
       .eq('uid', uid)
-      .single();
+      .order('created_at', { ascending: false });
 
     if (error) {
       console.error('Error finding member:', error);
@@ -72,6 +72,8 @@ serve(async (req) => {
         headers: corsHeaders
       });
     }
+    
+    const member = members?.[0]; // Take most recent record
     
     if (!member) {
       console.log('No member record found for uid:', uid);
