@@ -198,7 +198,7 @@ export async function removeMember(uid: string): Promise<void> {
     
     // 3. Reset JWT claims for the removed user (makes them an owner of their own account)
     const { error: claimsError } = await supabase.functions.invoke('set-claims', {
-      body: { uid, accountId: uid }, // accountId === uid indicates personal owner account
+      body: { uid, accountId: uid, forceReset: true },
     });
     
     if (claimsError) {

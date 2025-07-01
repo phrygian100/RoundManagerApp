@@ -21,6 +21,7 @@ type AuthPayload = {
 type ManualPayload = {
   uid: string;
   accountId: string;
+  forceReset?: boolean;
 };
 
 // CORS headers for browser requests
@@ -98,6 +99,24 @@ serve(async (req) => {
         account_id: manualPayload.accountId,
         is_owner: true,
         perms: {},
+      };
+    }
+
+    const manualPayload = payload as ManualPayload;
+
+    if (manualPayload.forceReset) {
+      console.log('forceReset flag detected – overriding member record');
+      claims = {
+        account_id: manualPayload.accountId,
+        is_owner: true,
+        perms: {},
+      };
+    } else if (member) {
+      console.log('Found member record:', JSON.stringify(member));
+      claims = {
+        account_id: member.account_id,
+        is_owner: member.role === 'owner',
+        perms: member.perms || {},
       };
     }
 
