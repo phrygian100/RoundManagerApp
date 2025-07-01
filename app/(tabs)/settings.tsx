@@ -2,19 +2,30 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Button, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
+import { getUserSession } from '../../core/session';
 import { getCurrentUserId, supabase } from '../../core/supabase';
+import { removeMember } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
+
+  // Determine if current user is owner
+  useEffect(() => {
+    (async () => {
+      const sess = await getUserSession();
+      setIsOwner(sess?.isOwner ?? true);
+    })();
+  }, []);
 
   const handleImport = async () => {
     try {
@@ -302,6 +313,33 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleLeaveTeam = () => {
+    Alert.alert(
+      'Leave Team',
+      'Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const sess = await getUserSession();
+              if (!sess) return;
+              await removeMember(sess.uid);
+              Alert.alert('Left Team', 'Your account has been reset. Please reload the app.');
+              await supabase.auth.refreshSession();
+              router.replace('/');
+            } catch (err) {
+              console.error('Error leaving team:', err);
+              Alert.alert('Error', 'Could not leave team.');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
@@ -370,6 +408,12 @@ export default function SettingsScreen() {
           onPress={() => router.push('/enter-invite-code' as any)}
         />
       </View>
+
+      {!isOwner && (
+        <View style={{ marginTop: 24 }}>
+          <Button title="Leave Team" color="#FF3B30" onPress={handleLeaveTeam} />
+        </View>
+      )}
     </ThemedView>
   );
 }
