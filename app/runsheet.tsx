@@ -1,7 +1,7 @@
 import { format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
-import { PermissionGate } from '../components/PermissionGate';
+import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 

@@ -7,7 +7,7 @@ interface PermissionGateProps {
   children: React.ReactNode;
 }
 
-export const PermissionGate: React.FC<PermissionGateProps> = ({ perm, fallback = null, children }) => {
+const PermissionGate: React.FC<PermissionGateProps> = ({ perm, fallback = null, children }) => {
   const [allowed, setAllowed] = React.useState<boolean | null>(null);
 
   React.useEffect(() => {
@@ -28,4 +28,6 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({ perm, fallback =
   if (allowed === null) return null; // or a spinner
   if (!allowed) return <>{fallback}</>;
   return <>{children}</>;
-}; 
+};
+
+export default PermissionGate; 
