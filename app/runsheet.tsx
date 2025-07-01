@@ -12,7 +12,8 @@ export default function RunsheetScreen() {
   useEffect(() => {
     const checkPermissionAndRedirect = async () => {
       const session = await getUserSession();
-      if (session?.perms?.viewRunsheet) {
+      // Owners always have access, OR check specific permission for members
+      if (session?.isOwner || session?.perms?.viewRunsheet) {
         setHasPermission(true);
         // Only redirect if permissions are granted
         const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });

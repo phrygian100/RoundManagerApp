@@ -21,7 +21,8 @@ export default function WorkloadForecastScreen() {
   useEffect(() => {
     const checkPermission = async () => {
       const session = await getUserSession();
-      setHasPermission(!!session?.perms?.viewRunsheet);
+      // Owners always have access, OR check specific permission for members
+      setHasPermission(!!(session?.isOwner || session?.perms?.viewRunsheet));
     };
     checkPermission();
   }, []);

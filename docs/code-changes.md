@@ -1,3 +1,26 @@
+## 2025-01-02 (CRITICAL: Fix Owner Access Blocked) 🚨
+- **EMERGENCY FIX: OWNERS CAN NOW ACCESS ALL PAGES AGAIN**
+  - **Issue**: Owners blocked from runsheet and workload forecast with "You don't have permission" message
+  - **Root Cause**: Custom permission checks only looked at `session.perms.viewRunsheet`, ignored `session.isOwner`
+  - **Critical Error**: Owners should NEVER be blocked from any functionality
+  
+  **Solution**: Added owner bypass logic to custom permission checks:
+  - **Before**: `if (session?.perms?.viewRunsheet)` ❌ (blocked owners)
+  - **After**: `if (session?.isOwner || session?.perms?.viewRunsheet)` ✅ (owners always allowed)
+  
+**Files Modified:**
+- `app/runsheet.tsx` - Added owner bypass: `session?.isOwner || session?.perms?.viewRunsheet`
+- `app/workload-forecast.tsx` - Added owner bypass: `session?.isOwner || session?.perms?.viewRunsheet`
+
+**Note**: `PermissionGate` component already had correct logic, issue was only in custom permission checks
+
+**Expected Result**: 
+- ✅ **Owners**: Full access to ALL pages regardless of permission settings
+- ✅ **Members**: Access based on specific permissions granted by owner
+- ✅ **Consistent with PermissionGate behavior**: Owners bypass all permission checks
+
+**Testing**: Owner account should access runsheets and workload forecast immediately
+
 ## 2025-01-02 (Critical Permission System Fixes) 🔧
 - **FIXED RUNSHEET 404 ERRORS & JWT REFRESH ISSUES**
   - **Issue**: Runsheet causing 404 errors, workload forecast always blocked, repeated permission notifications
