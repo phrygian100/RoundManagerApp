@@ -1,28 +1,30 @@
-## 2025-01-02 (Permission System Simplification) 🎯
-- **UNIFIED PERMISSION SYSTEM UI - FIXED DISCREPANCY BETWEEN INTERFACE & FUNCTIONALITY**
-  - **Issue**: Team interface showed 4 permissions but code only used 3, causing confusion and inconsistent behavior
-  - **Problem**: Interface showed "Runsheet, Clients, Completed Jobs, Payments" but system used different permission mapping
-  - **Root Cause**: UI was showing granular permissions that weren't actually implemented in the codebase
+## 2025-01-02 (Critical Permission System Fixes) 🔧
+- **FIXED RUNSHEET 404 ERRORS & JWT REFRESH ISSUES**
+  - **Issue**: Runsheet causing 404 errors, workload forecast always blocked, repeated permission notifications
+  - **Root Causes**: 
+    1. **PermissionGate + Redirect Conflict**: runsheet.tsx had conflicting logic (immediate redirect + permission gate)
+    2. **Stale JWT Data**: Session refresh not taking effect immediately, old permissions cached
+    3. **Notification Race Condition**: Notifications not deleted before session refresh, causing repeats
   
-  **Solution**: Simplified to 3 logical permission groups that match actual functionality:
-  - **Clients** → `viewClients` permission (clients page)
-  - **Runsheets** → `viewRunsheet` permission (runsheet + workload forecast pages)  
-  - **Accounts** → `viewPayments` permission (accounts page with payments + completed jobs)
+  **Solutions Implemented**:
+  1. **Fixed Runsheet Routing**: Moved permission check inside useEffect, only redirect if permissions granted
+  2. **Enhanced JWT Refresh**: Added fresh session fetch after notification processing + proper error handling
+  3. **Fixed Notification Cleanup**: Delete notification FIRST to prevent repeated triggers
+  4. **Simplified Permission Checks**: Replaced complex PermissionGate nesting with direct session checks
   
 **Files Modified:**
-- `app/(tabs)/team.tsx` - Updated PERM_KEYS to show 3 unified permissions
-- `services/accountService.ts` - Simplified DEFAULT_PERMS to match new UI
+- `app/runsheet.tsx` - Fixed redirect conflict with permission check
+- `app/workload-forecast.tsx` - Simplified to direct permission checking pattern
+- `core/session.ts` - Enhanced notification cleanup order + fresh session fetching
 
-**Removed Unused Permissions:**
-- `viewCompletedJobs` - Not used anywhere in codebase
-- `editJobs` - Not used anywhere in codebase  
+**Fixes Applied:**
+- ✅ No more 404 errors when accessing runsheets
+- ✅ Permission changes take effect immediately after notification  
+- ✅ No more repeated notification popups
+- ✅ Workload forecast accessible when permissions granted
+- ✅ Clean navigation flow without routing conflicts
 
-**Expected Result**: 
-- Team interface now shows exactly what the system enforces
-- Clear 1:1 mapping between UI toggles and actual page access
-- No more confusion about which permissions control which pages
-
-**Testing**: Permission toggles in team interface now directly correspond to page access behavior
+**Expected Result**: Permission system now works reliably with proper JWT refresh and navigation
 
 ## 2025-01-02 (Permission System Simplification) 🎯
 - **UNIFIED PERMISSION SYSTEM UI - FIXED DISCREPANCY BETWEEN INTERFACE & FUNCTIONALITY**

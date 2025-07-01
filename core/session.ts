@@ -13,13 +13,33 @@ export type UserSession = {
  * Returns the current session enriched with custom claims (account_id, is_owner, perms).
  * If the user is not authenticated it resolves to null.
  */
-export async function getUserSession(): Promise<UserSession | null> {
+export async function getUserSession(skipNotificationCheck = false): Promise<UserSession | null> {
   const { data } = await supabase.auth.getSession();
   const user = data.session?.user;
   if (!user) return null;
   
-  // Check for permission update notifications
-  await checkPermissionUpdateNotification(user.id);
+  // Check for permission update notifications (unless we're already in the check)
+  if (!skipNotificationCheck) {
+    await checkPermissionUpdateNotification(user.id);
+    
+    // After notification check, get fresh session data
+    const { data: freshData } = await supabase.auth.getSession();
+    const freshUser = freshData.session?.user;
+    if (!freshUser) return null;
+    
+    const freshClaims: any = (freshUser as any).user_metadata || {};
+    console.log('Fresh JWT Claims from user_metadata:', freshClaims);
+    const accountId = freshClaims.account_id || freshClaims.accountId || freshUser.id;
+    const isOwner = freshClaims.is_owner !== undefined ? !!freshClaims.is_owner : accountId === freshUser.id;
+    const session = {
+      uid: freshUser.id,
+      accountId,
+      isOwner,
+      perms: freshClaims.perms || {},
+    };
+    console.log('Final fresh session object:', session);
+    return session;
+  }
   
   const claims: any = (user as any).user_metadata || {};
   console.log('JWT Claims from user_metadata:', claims);
@@ -54,8 +74,16 @@ async function checkPermissionUpdateNotification(uid: string): Promise<void> {
       if (notification.type === 'permissions_updated') {
         console.log('Permission update notification found, refreshing session...');
         
+        // Delete the notification FIRST to prevent repeated triggers
+        await deleteDoc(notificationRef);
+        
         // Refresh the session to get updated JWT claims
-        await supabase.auth.refreshSession();
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          console.error('Error refreshing session:', error);
+        } else {
+          console.log('Session refreshed successfully');
+        }
         
         // Show user notification and redirect to home
         if (typeof window !== 'undefined') {
@@ -63,9 +91,6 @@ async function checkPermissionUpdateNotification(uid: string): Promise<void> {
           // Navigate to home instead of reload to avoid routing issues
           window.location.href = '/';
         }
-        
-        // Delete the notification so it doesn't trigger again
-        await deleteDoc(notificationRef);
       }
     }
   } catch (error) {
@@ -77,18 +102,5 @@ async function checkPermissionUpdateNotification(uid: string): Promise<void> {
  * Quick session getter that doesn't check notifications (to avoid recursion)
  */
 async function getUserSessionQuick(): Promise<UserSession | null> {
-  const { data } = await supabase.auth.getSession();
-  const user = data.session?.user;
-  if (!user) return null;
-  
-  const claims: any = (user as any).user_metadata || {};
-  const accountId = claims.account_id || claims.accountId || user.id;
-  const isOwner = claims.is_owner !== undefined ? !!claims.is_owner : accountId === user.id;
-  
-  return {
-    uid: user.id,
-    accountId,
-    isOwner,
-    perms: claims.perms || {},
-  };
+  return getUserSession(true); // Skip notification check
 } 
