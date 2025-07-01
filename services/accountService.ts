@@ -220,4 +220,42 @@ export async function removeMember(uid: string): Promise<void> {
   } catch (err) {
     console.error('Error removing member (Supabase sync):', err);
   }
+}
+
+export async function leaveTeamSelf(): Promise<void> {
+  // Member self-service: leave current team and reset to personal owner account
+  const sess = await getUserSession();
+  if (!sess) throw new Error('Not authenticated');
+  if (sess.isOwner) {
+    // Owners cannot leave their own team – nothing to do
+    console.warn('leaveTeamSelf called by owner – ignoring');
+    return;
+  }
+
+  // Best-effort Firestore cleanup – if security rules prevent this it should not block the reset
+  try {
+    const memberRef = doc(db, `accounts/${sess.accountId}/members/${sess.uid}`);
+    await deleteDoc(memberRef);
+    console.log('Deleted Firestore member doc for self');
+  } catch (err) {
+    console.warn('Could not delete Firestore member doc (likely permission issue):', err);
+  }
+
+  try {
+    const { supabase } = await import('../core/supabase');
+
+    // Call set-claims to reset JWT claims and delete member rows server-side
+    const { error } = await supabase.functions.invoke('set-claims', {
+      body: { uid: sess.uid, accountId: sess.uid, forceReset: true },
+    });
+    if (error) {
+      console.error('Error invoking set-claims for leaveTeamSelf:', error);
+      throw error;
+    }
+
+    console.log('Successfully invoked set-claims, user should now be personal owner');
+  } catch (err) {
+    console.error('leaveTeamSelf error:', err);
+    throw err;
+  }
 } 

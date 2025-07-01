@@ -9,7 +9,7 @@ import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
 import { getUserSession } from '../../core/session';
 import { getCurrentUserId, supabase } from '../../core/supabase';
-import { removeMember } from '../../services/accountService';
+import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
 
@@ -326,7 +326,7 @@ export default function SettingsScreen() {
             try {
               const sess = await getUserSession();
               if (!sess) return;
-              await removeMember(sess.uid);
+              await leaveTeamSelf();
               Alert.alert('Left Team', 'Your account has been reset. Please reload the app.');
               await supabase.auth.refreshSession();
               router.replace('/');
