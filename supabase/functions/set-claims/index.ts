@@ -23,7 +23,19 @@ type ManualPayload = {
   accountId: string;
 };
 
+// CORS headers for browser requests
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
 serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     console.log('set-claims function called');
     const payload = await req.json();
@@ -55,12 +67,18 @@ serve(async (req) => {
 
     if (error) {
       console.error('Error finding member:', error);
-      return new Response('member lookup error: ' + JSON.stringify(error), { status: 400 });
+      return new Response('member lookup error: ' + JSON.stringify(error), { 
+        status: 400,
+        headers: corsHeaders
+      });
     }
     
     if (!member) {
       console.log('No member record found for uid:', uid);
-      return new Response('no member record found', { status: 200 });
+      return new Response('no member record found', { 
+        status: 200,
+        headers: corsHeaders
+      });
     }
 
     console.log('Found member record:', JSON.stringify(member));
@@ -79,13 +97,19 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Error updating user metadata:', updateError);
-      return new Response('update error: ' + JSON.stringify(updateError), { status: 500 });
+      return new Response('update error: ' + JSON.stringify(updateError), { 
+        status: 500,
+        headers: corsHeaders
+      });
     }
 
     console.log('Successfully updated JWT claims for uid:', uid);
-    return new Response('claims updated successfully');
+    return new Response('claims updated successfully', { headers: corsHeaders });
   } catch (err) {
     console.error('set-claims function error:', err);
-    return new Response('internal error: ' + String(err), { status: 500 });
+    return new Response('internal error: ' + String(err), { 
+      status: 500,
+      headers: corsHeaders
+    });
   }
 }); 

@@ -1,3 +1,24 @@
+## 2025-01-02 (CORS Fix for Permission Notifications) 🔧
+- **FIXED PERMISSION NOTIFICATION SYSTEM - CORS ISSUE RESOLVED**
+  - **Issue**: Permission changes weren't taking effect because `set-claims` edge function was blocked by CORS policy
+  - **Root Cause**: Edge function had no CORS headers, browser requests from Vercel domain were rejected
+  - **Console Error**: `"Access to fetch at 'supabase.co/functions/v1/set-claims' has been blocked by CORS policy"`
+  - **Solution**: Added proper CORS headers to `set-claims` edge function:
+    - Added `Access-Control-Allow-Origin: *` 
+    - Added `Access-Control-Allow-Headers` for auth headers
+    - Added OPTIONS preflight request handling
+    - Added CORS headers to all response paths
+
+**Files Modified:**
+- `supabase/functions/set-claims/index.ts` - Added CORS support for browser requests
+
+**Expected Result After Deployment**: 
+- Permission changes should now trigger JWT refresh properly
+- Member should see notification popup when permissions change
+- No more CORS errors in browser console when changing permissions
+
+**Testing Process**: Deploy edge function → Change member permissions → Check for CORS errors in console
+
 ## 2025-01-02 (Permission Notification System - ACTUAL DEPLOYMENT) 🚀
 - **DEPLOYING PERMISSION UPDATE NOTIFICATION SYSTEM** 
   - **Issue**: Previous instance documented system as complete but never pushed to git/deployed to Vercel
