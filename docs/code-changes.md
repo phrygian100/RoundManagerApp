@@ -840,3 +840,25 @@ The system is now stable and working. Focus on **feature development** rather th
     - `app/runsheet/[week].tsx`
   - **Deployment**: Commit `fix(runsheet): correct routing redirect and remove redundant PermissionGate` pushed to `master` and successfully deployed on Vercel.
   - **Result**: Runsheet loads correctly for owners and permitted members; verified in browser after deployment. 
+
+## 2025-07-01 (Member Removal Reset + Dynamic Home Buttons) 🚀
+- **COMPLETE ACCOUNT RESET ON MEMBER REMOVAL**
+  - Removed members are now fully cleaned up:
+    1. Firestore member doc deleted.
+    2. Supabase `members` row deleted.
+    3. `set-claims` Edge Function invoked with `{ uid, accountId: uid }` to reset JWT claims so the user becomes owner of a personal account.
+    4. `member_removed` notification stored so the user gets alerted and refreshes.
+  - Edge Function updated to handle "no member record" reset calls and apply default owner claims.
+- **PERMISSION-AWARE HOME SCREEN**
+  - Home screen buttons now build dynamically based on the current user session.
+    * `viewClients` → shows/ hides "Client List" & "Add New Client".
+    * `viewRunsheet` → shows/ hides "Runsheet" & "Workload Forecast".
+    * `viewPayments` → shows/ hides "Accounts".
+    * Owners always see everything; Settings is always visible.
+  - Implemented in `app/(tabs)/index.tsx` using `getUserSession()`.
+- **Files Modified:**
+  - `services/accountService.ts`
+  - `supabase/functions/set-claims/index.ts`
+  - `app/(tabs)/index.tsx`
+- **Deployment:** Features committed and pushed to `master`; remember to redeploy `set-claims` Edge Function via Supabase CLI.
+- **Result:** Removing a team member truly revokes access and resets their account; members only see navigation buttons for areas they're permitted to access. 
