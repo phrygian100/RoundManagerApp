@@ -188,8 +188,7 @@ export async function removeMember(uid: string): Promise<void> {
     const { error: deleteErr } = await supabase
       .from('members')
       .delete()
-      .eq('uid', uid)
-      .eq('account_id', sess.accountId);
+      .eq('uid', uid);
     
     if (deleteErr) {
       console.error('Error deleting member in Supabase:', deleteErr);
