@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -127,8 +127,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dashButton: {
-    width: '100%',
-    aspectRatio: 1.5,
+    width: Platform.OS === 'web' ? '48%' : '100%',
+    aspectRatio: Platform.OS === 'web' ? 1 : 1.5,
     backgroundColor: 'white',
     borderRadius: 16,
     padding: 20,
