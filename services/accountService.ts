@@ -9,6 +9,7 @@ export type MemberRecord = {
   perms: Record<string, boolean>;
   status: 'invited' | 'active' | 'disabled';
   createdAt: string;
+  vehicleId?: string | null;
 };
 
 const DEFAULT_PERMS: Record<string, boolean> = {
@@ -258,4 +259,11 @@ export async function leaveTeamSelf(): Promise<void> {
     console.error('leaveTeamSelf error:', err);
     throw err;
   }
+}
+
+export async function updateMemberVehicle(uid: string, vehicleId: string | null): Promise<void> {
+  const sess = await getUserSession();
+  if (!sess) throw new Error('Not authenticated');
+  const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
+  await updateDoc(memberRef, { vehicleId });
 } 

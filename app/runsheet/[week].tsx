@@ -8,7 +8,10 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platf
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/supabase';
+import { listMembers, MemberRecord } from '../../services/accountService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
+import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
+import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
 import type { Job } from '../../types/models';
 import { displayAccountNumber } from '../../utils/account';
@@ -19,6 +22,9 @@ export default function RunsheetWeekScreen() {
   const { week } = useLocalSearchParams();
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
+  const [memberMap, setMemberMap] = useState<Record<string, MemberRecord>>({});
+  const [rotaMap, setRotaMap] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
@@ -95,6 +101,24 @@ export default function RunsheetWeekScreen() {
       console.log('✅ Final jobs with clients:', jobsWithClients.length);
       console.log('✅ Jobs with missing clients:', jobsWithClients.filter(job => !job.client).length);
 
+      // Load vehicles and member assignments
+      try {
+        const [vehicleList, memberList] = await Promise.all([
+          listVehicles(),
+          listMembers(),
+        ]);
+        setVehicles(vehicleList);
+        const map: Record<string, MemberRecord> = {};
+        memberList.forEach((m: MemberRecord) => { map[m.uid] = m; });
+        setMemberMap(map);
+
+        // Load rota for this week
+        const rota = await fetchRotaRange(weekStart, weekEnd);
+        setRotaMap(rota);
+      } catch (err) {
+        console.error('Error loading vehicles/members/rota:', err);
+      }
+
       setJobs(jobsWithClients);
       
       // 5. Fetch and verify completed days for this week
@@ -165,6 +189,49 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(true);
   };
 
+  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[]): any[] => {
+    if (vehicles.length === 0) return jobsForDay;
+    // Build active vehicles list with capacities
+    const dateKey = format(dayDate, 'yyyy-MM-dd');
+    const rotaForDay = rotaMap[dateKey] || {};
+    type VehicleBlock = { vehicle: VehicleRecord; remaining: number; jobs: any[] };
+    const activeBlocks: VehicleBlock[] = [];
+    vehicles.forEach(v => {
+      const assignedMembers = Object.values(memberMap).filter(m => m.vehicleId === v.id);
+      if (assignedMembers.length === 0) return; // skip unassigned vehicles
+      const available = assignedMembers.filter(m => rotaForDay[m.uid] === 'on').length;
+      if (available === 0) return; // inactive this day
+      const capacity = v.dailyRate * (available / assignedMembers.length);
+      activeBlocks.push({ vehicle: v, remaining: capacity, jobs: [] });
+    });
+    if (activeBlocks.length === 0) return jobsForDay; // fallback
+
+    // Allocate jobs sequentially in current round order
+    const sortedJobs = [...jobsForDay].sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+    let blockIndex = 0;
+    sortedJobs.forEach(job => {
+      if (blockIndex >= activeBlocks.length) {
+        // overflow append to last block
+        activeBlocks[activeBlocks.length - 1].jobs.push(job);
+        return;
+      }
+      const block = activeBlocks[blockIndex];
+      block.jobs.push(job);
+      block.remaining -= (job.price || 0);
+      if (block.remaining <= 0 && blockIndex < activeBlocks.length - 1) {
+        blockIndex += 1;
+      }
+    });
+
+    // Flatten result with subtitles
+    const result: any[] = [];
+    activeBlocks.forEach(block => {
+      result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dateKey}`, name: block.vehicle.name });
+      result.push(...block.jobs);
+    });
+    return result;
+  };
+
   // Group jobs by day of week
   const sections = daysOfWeek.map((day, i) => {
     const dayDate = addDays(weekStart, i);
@@ -201,9 +268,10 @@ export default function RunsheetWeekScreen() {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
+    const allocated = allocateJobsForDay(dayDate, jobsForDay);
     return {
       title: day,
-      data: jobsForDay,
+      data: allocated,
       dayDate,
     };
   });
@@ -223,7 +291,7 @@ export default function RunsheetWeekScreen() {
     today.setHours(0, 0, 0, 0);
     const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
     if (todaySection) {
-      const allCompleted = todaySection.data.every(job =>
+      const allCompleted = todaySection.data.filter(j => !(j as any).__type).every(job =>
         job.id === jobId ? !isCompleted : job.status === 'completed'
       );
       if (allCompleted) {
@@ -415,12 +483,19 @@ export default function RunsheetWeekScreen() {
   };
 
   const renderItem = ({ item, index, section }: any) => {
+    if ((item as any).__type === 'vehicle') {
+      return (
+        <View style={{ paddingVertical: 4, backgroundColor: '#F0F0F0' }}>
+          <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
+        </View>
+      );
+    }
     const sectionIndex = sections.findIndex(s => s.title === section.title);
     const isCompleted = item.status === 'completed';
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
     // Find the first incomplete job in this section
-    const firstIncompleteIndex = section.data.findIndex((job: any) => job.status !== 'completed');
+    const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && job.status !== 'completed');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;

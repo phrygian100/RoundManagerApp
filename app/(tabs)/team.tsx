@@ -1,10 +1,12 @@
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
-import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberPerms } from '../../services/accountService';
+import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
+import { addVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
 
 const PERM_KEYS = [
   { key: 'viewClients', label: 'Clients' },
@@ -16,6 +18,10 @@ export default function TeamScreen() {
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
+  const [vehicleName, setVehicleName] = useState('');
+  const [vehicleRate, setVehicleRate] = useState('');
   const router = useRouter();
 
   const loadMembers = async () => {
@@ -29,8 +35,18 @@ export default function TeamScreen() {
     }
   };
 
+  const loadVehicles = async () => {
+    try {
+      const data = await listVehicles();
+      setVehicles(data);
+    } catch (err) {
+      console.error('Error loading vehicles:', err);
+    }
+  };
+
   useEffect(() => {
     loadMembers();
+    loadVehicles();
   }, []);
 
   const handleToggle = async (uid: string, permKey: string, value: boolean) => {
@@ -82,6 +98,21 @@ export default function TeamScreen() {
           />
         </View>
       ))}
+      <View style={{ width: 120 }}>
+        <Picker
+          selectedValue={item.vehicleId || 'none'}
+          onValueChange={async (val) => {
+            const newVal = val === 'none' ? null : val;
+            await updateMemberVehicle(item.uid, newVal);
+            setMembers(prev => prev.map(m => (m.uid === item.uid ? { ...m, vehicleId: newVal } : m)));
+          }}
+        >
+          <Picker.Item label="None" value="none" />
+          {vehicles.map(v => (
+            <Picker.Item key={v.id} label={v.name} value={v.id} />
+          ))}
+        </Picker>
+      </View>
       <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
         <Text style={styles.deleteButtonText}>🗑</Text>
       </TouchableOpacity>
@@ -119,7 +150,16 @@ export default function TeamScreen() {
           {PERM_KEYS.map(p => (
             <Text key={p.key} style={styles.headerPerm}>{p.label}</Text>
           ))}
+          <Text style={[styles.headerPerm, { width: 120 }]}>Vehicle</Text>
         </View>
+        {vehicles.length > 0 && (
+          <View style={{ marginVertical: 16 }}>
+            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Vehicles</Text>
+            {vehicles.map(v => (
+              <Text key={v.id}>{`${v.name} – £${v.dailyRate.toFixed(0)}`}</Text>
+            ))}
+          </View>
+        )}
         <FlatList
           data={members}
           keyExtractor={m => m.uid}
@@ -127,6 +167,56 @@ export default function TeamScreen() {
           style={{ flex: 1 }}
           contentContainerStyle={{ paddingBottom: 24 }}
         />
+        <Modal visible={showVehicleModal} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Vehicle</Text>
+              <TextInput
+                placeholder="Name / Registration"
+                value={vehicleName}
+                onChangeText={setVehicleName}
+                style={styles.input}
+              />
+              <TextInput
+                placeholder="Daily income rate (£)"
+                value={vehicleRate}
+                onChangeText={setVehicleRate}
+                style={styles.input}
+                keyboardType="numeric"
+              />
+              <Text style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
+                This is the amount of work will be automatically assigned to this van per day
+              </Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
+                <TouchableOpacity style={[styles.button, { marginRight: 8 }]} onPress={() => setShowVehicleModal(false)}>
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.button, !(vehicleName && vehicleRate) && styles.buttonDisabled]}
+                  disabled={!(vehicleName && vehicleRate)}
+                  onPress={async () => {
+                    try {
+                      await addVehicle(vehicleName.trim(), Number(vehicleRate));
+                      setVehicleName('');
+                      setVehicleRate('');
+                      setShowVehicleModal(false);
+                      loadVehicles();
+                    } catch (err) {
+                      console.error('Error adding vehicle:', err);
+                      window.alert('Error adding vehicle');
+                    }
+                  }}
+                >
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        <TouchableOpacity style={[styles.button, { marginTop: 16 }]} onPress={() => setShowVehicleModal(true)}>
+          <Text style={styles.buttonText}>Add Vehicle</Text>
+        </TouchableOpacity>
       </ThemedView>
     </PermissionGate>
   );
@@ -178,4 +268,17 @@ const styles = StyleSheet.create({
   headerPerm: { width: 80, fontWeight: 'bold', textAlign: 'center' },
   memberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   email: { flex: 1 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 16,
+    width: '100%',
+  },
 }); 

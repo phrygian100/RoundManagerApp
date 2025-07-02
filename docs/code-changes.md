@@ -1,3 +1,45 @@
+## 2025-07-03 (Vehicles + Rota + Capacity-Aware Runsheets) 🚐🗓️
+The three-phase feature set is now live, bringing vehicle management, rota availability and capacity-aware job allocation to the app while keeping all existing functionality intact.
+
+### Phase 1 – Vehicle Management (Team screen)
+1. **Add Vehicle** modal (owner-only) collects *name/registration* + *daily income rate (£)*.
+2. **Vehicles** sub-section lists each saved van (name + rate).
+3. **Vehicle picker** added to every member row for assignments (or *None*).
+4. **Permissions**: only owners can create/edit vehicles or change assignments; members can view their own assignment.
+5. **Data**:
+   • `accounts/{accountId}/vehicles/{vehicleId}` → `{ id, name, dailyRate }`
+   • Member docs now include `vehicleId` (string|null).
+
+### Phase 2 – Rota Screen (availability)
+1. New **Rota** button on Home (visible to owners & members).
+2. 7-day grid: rows = members, cols = days (Mon–Sun).
+3. Cell cycles **on → off → n/a** on tap.
+4. **Editing**: owner ⇢ any row; member ⇢ own row.
+5. Stored at `accounts/{accountId}/rota/{yyyy-MM-dd}` as `{ memberId: status }`.
+
+### Phase 3 – Capacity-Aware Runsheet Allocation
+1. Runsheet now loads vehicles, member map and rota for the week.
+2. **Active vehicles** = at least one assigned member whose status is *on* that day.
+3. **Dynamic capacity**: `effective = dailyRate × (available / totalAssigned)` – e.g. van (£300) with 1/2 crew ⇒ £150 cap.
+4. Jobs streamed in round order into vehicle blocks until capacity filled; overflow continues to next van/day.
+5. UI subtitle row (grey) shows the van's name/registration before its block; £ totals remain in Accounts.
+6. Header rows are ignored by job controls (complete, ETA, move).
+
+### Files Added / Updated
+• `services/vehicleService.ts`  – CRUD & type.  
+• `services/accountService.ts`   – `vehicleId` field + `updateMemberVehicle`.  
+• `app/(tabs)/team.tsx`         – Vehicle modal, list & picker.  
+• `services/rotaService.ts`     – availability helpers.  
+• `app/rota.tsx`                – new screen.  
+• `app/(tabs)/index.tsx`        – Rota home button.  
+• `app/runsheet/[week].tsx`     – capacity algorithm & headers.
+
+**Outcome**
+• Owners can organise crews into vans, schedule availability and see runsheets grouped by vehicle capacity.  
+• Feature set is fully UI-guarded – if no vehicles/rota are configured, runsheet falls back to legacy behaviour.
+
+---
+
 ## 2025-01-07 (CRITICAL BUG FULLY RESOLVED: Owner Access + Deployment Issues Fixed) ✅
 - **OWNER ACCESS BUG COMPLETELY RESOLVED** 🎉
   - **Issue**: Owner accounts incorrectly blocked from runsheet/workload forecast pages with white screen
@@ -973,3 +1015,45 @@ git reset --hard backup-pre-rota-20250702
 2. Phase 2 – Rota screen & availability persistence.  
 3. Phase 3 – Runsheet capacity algorithm & UI subtitles.  
 Each phase will be shipped behind completed UI so production remains functional at every step.
+
+## 2025-07-03 (Vehicles + Rota + Capacity-Aware Runsheets) 🚐🗓️
+The three-phase feature set is now live, bringing vehicle management, rota availability and capacity-aware job allocation to the app while keeping all existing functionality intact.
+
+### Phase 1 – Vehicle Management (Team screen)
+1. **Add Vehicle** modal (owner-only) collects *name/registration* + *daily income rate (£)*.
+2. **Vehicles** sub-section lists each saved van (name + rate).
+3. **Vehicle picker** added to every member row for assignments (or *None*).
+4. **Permissions**: only owners can create/edit vehicles or change assignments; members can view their own assignment.
+5. **Data**:
+   • `accounts/{accountId}/vehicles/{vehicleId}` → `{ id, name, dailyRate }`
+   • Member docs now include `vehicleId` (string|null).
+
+### Phase 2 – Rota Screen (availability)
+1. New **Rota** button on Home (visible to owners & members).
+2. 7-day grid: rows = members, cols = days (Mon–Sun).
+3. Cell cycles **on → off → n/a** on tap.
+4. **Editing**: owner ⇢ any row; member ⇢ own row.
+5. Stored at `accounts/{accountId}/rota/{yyyy-MM-dd}` as `{ memberId: status }`.
+
+### Phase 3 – Capacity-Aware Runsheet Allocation
+1. Runsheet now loads vehicles, member map and rota for the week.
+2. **Active vehicles** = at least one assigned member whose status is *on* that day.
+3. **Dynamic capacity**: `effective = dailyRate × (available / totalAssigned)` – e.g. van (£300) with 1/2 crew ⇒ £150 cap.
+4. Jobs streamed in round order into vehicle blocks until capacity filled; overflow continues to next van/day.
+5. UI subtitle row (grey) shows the van's name/registration before its block; £ totals remain in Accounts.
+6. Header rows are ignored by job controls (complete, ETA, move).
+
+### Files Added / Updated
+• `services/vehicleService.ts`  – CRUD & type.  
+• `services/accountService.ts`   – `vehicleId` field + `updateMemberVehicle`.  
+• `app/(tabs)/team.tsx`         – Vehicle modal, list & picker.  
+• `services/rotaService.ts`     – availability helpers.  
+• `app/rota.tsx`                – new screen.  
+• `app/(tabs)/index.tsx`        – Rota home button.  
+• `app/runsheet/[week].tsx`     – capacity algorithm & headers.
+
+**Outcome**
+• Owners can organise crews into vans, schedule availability and see runsheets grouped by vehicle capacity.  
+• Feature set is fully UI-guarded – if no vehicles/rota are configured, runsheet falls back to legacy behaviour.
+
+---
