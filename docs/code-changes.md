@@ -1058,10 +1058,9 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
 
 ---
 
-## 2025-07-03 (patch) – Rota navigation UX
-- Swapped left/right arrow behaviour so:
-  • Left arrow = previous week (earlier dates).
-  • Right arrow = next week (later dates).
-- Updated disabled logic (range ±52 weeks).
+## 2025-07-03 (patch 2) – Rota availability persistence
+- Fixed an over-eager cleanup routine that deleted rota documents for the week being edited when navigating forward/back.
+  • `cleanupOldRota()` now only runs when viewing the *current* week and deletes docs older than the present week, not the browsed week.
+  • Availability changes persist as you page through weeks.
 
 ---

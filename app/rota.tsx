@@ -50,8 +50,11 @@ export default function RotaScreen() {
     const rotaData = await fetchRotaRange(dates[0], dates[6]);
     setRota(rotaData);
 
-    // Archive past dates (everything before this week)
-    await cleanupOldRota(start);
+    // Archive past dates (everything before **current** week) – run only when viewing weekOffset 0
+    if (weekOffset === 0) {
+      const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+      await cleanupOldRota(currentWeekStart);
+    }
 
     setUserId(sess?.uid || null);
     setCanEditAll(!!sess?.isOwner);
