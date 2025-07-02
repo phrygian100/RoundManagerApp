@@ -11,6 +11,7 @@ import { getDataOwnerId } from '../../core/supabase';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import type { Client } from '../../types/client';
 import type { Job } from '../../types/models';
+import { displayAccountNumber } from '../../utils/account';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -451,6 +452,9 @@ export default function RunsheetWeekScreen() {
               </View>
             )}
             <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
+            {client?.accountNumber !== undefined && (
+              <Text style={styles.accountNumberText}>{displayAccountNumber(client.accountNumber)}</Text>
+            )}
           </Pressable>
         </View>
         {/* Notes button */}
@@ -903,5 +907,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  accountNumberText: {
+    fontSize: 14,
+    color: '#666',
   },
 }); 
