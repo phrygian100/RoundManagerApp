@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Dimensions, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Dimensions, FlatList, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
-const { width, height } = Dimensions.get('window');
-const ITEM_HEIGHT = 50;
+const { width } = Dimensions.get('window');
+const ITEM_HEIGHT = Platform.OS === 'web' ? 40 : 50;
 const VISIBLE_ITEMS = 5;
 
 const hours = Array.from({ length: 16 }, (_, i) => String(i + 5).padStart(2, '0')); // 05 to 20
@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
   },
   pickerContainer: {
-    width: width * 0.8,
+    width: Platform.OS === 'web' ? 400 : width * 0.8,
     backgroundColor: 'white',
     borderRadius: 20,
     padding: 20,
@@ -122,7 +122,7 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT * VISIBLE_ITEMS,
   },
   separator: {
-    fontSize: 30,
+    fontSize: Platform.OS === 'web' ? 24 : 30,
     fontWeight: 'bold',
     marginHorizontal: 10,
   },
@@ -135,11 +135,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   itemText: {
-    fontSize: 24,
+    fontSize: Platform.OS === 'web' ? 18 : 24,
     color: '#ccc',
   },
   selectedItemText: {
-    fontSize: 36,
+    fontSize: Platform.OS === 'web' ? 28 : 36,
     color: '#000',
     fontWeight: 'bold',
   },
