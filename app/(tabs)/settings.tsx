@@ -4,6 +4,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch }
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Platform, Pressable, StyleSheet, View } from 'react-native';
+import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
@@ -28,41 +29,83 @@ export default function SettingsScreen() {
   }, []);
 
   const handleImport = async () => {
+    const requiredFields = ['Address Line 1','Name','Mobile Number','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date','Starting Balance'];
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'text/csv' });
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
       if (result.canceled || !result.assets || !result.assets[0]) return;
       const file = result.assets[0];
-      const response = await fetch(file.uri);
-      const csvText = await response.text();
-      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-      if (parsed.errors.length) {
-        console.error('CSV Parsing Errors:', parsed.errors);
-        Alert.alert('Import Error', 'There was a problem parsing the CSV file. Check console for details.');
+      let rows: any[] = [];
+
+      if (file.name.endsWith('.csv')) {
+        const response = await fetch(file.uri);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors.length) {
+          console.error('CSV Parsing Errors:', parsed.errors);
+          Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
+          return;
+        }
+        rows = parsed.data as any[];
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const response = await fetch(file.uri);
+        const ab = await response.arrayBuffer();
+        const workbook = XLSX.read(ab, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      } else {
+        Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
         return;
       }
-      let imported = 0;
-      let skipped: any[] = [];
 
-      for (let i = 0; i < parsed.data.length; i++) {
-        const row = parsed.data[i];
+      // Validate rows
+      const validRows: any[] = [];
+      const skipped: any[] = [];
+      rows.forEach(r => {
+        // Check required fields
+        const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
+        if (missing.length) {
+          skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+        } else {
+          validRows.push(r);
+        }
+      });
+
+      // Confirm import
+      const proceed = await new Promise<boolean>(resolve => {
+        Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
+          { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
+          { text: 'Import', onPress: ()=>resolve(true)}
+        ]);
+      });
+      if (!proceed) return;
+
+      let imported = 0;
+      
+      for (let i = 0; i < validRows.length; i++) {
+        const row = validRows[i];
         const clientData: any = {
           name: (row as any)['Name']?.trim(),
-          address: (row as any)['Address']?.trim(),
-          mobileNumber: (row as any)['Mobile Number']?.trim(),
+          address: (row as any)['Address Line 1']?.trim(),
+          town: (row as any)['Town']?.trim(),
+          postcode: (row as any)['Postcode']?.trim(),
+          mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
           quote: 0,
           frequency: (row as any)['Visit Frequency']?.trim(),
           nextVisit: '',
-          roundOrderNumber: i,
+          roundOrderNumber: Number((row as any)['Round Order']) || i,
           email: (row as any)['Email']?.trim(),
+          source: (row as any)['Source']?.trim(),
+          startingBalance: Number((row as any)['Starting Balance']||0),
+          accountNumber: (row as any)['Account Number']?.trim(),
         };
 
-        const quoteString = (row as any)['Quote']?.trim();
+        const quoteString = (row as any)['Quote (£)']?.toString().trim();
         if (quoteString) {
           const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
           clientData.quote = parseFloat(sanitizedQuote) || 0;
         }
 
-        const nextDueString = (row as any)['Next Due']?.trim();
+        const nextDueString = (row as any)['Starting Date']?.toString().trim();
         if (nextDueString) {
           const parts = nextDueString.split('/');
           if (parts.length === 3) {
@@ -76,12 +119,14 @@ export default function SettingsScreen() {
         }
 
         if (clientData.name && clientData.address && clientData.nextVisit) {
+          const ownerId = await getCurrentUserId();
           try {
             await addDoc(collection(db, 'clients'), {
               ...clientData,
               dateAdded: new Date().toISOString(),
               source: clientData.source || '',
               email: clientData.email || '',
+              ownerId,
             });
             imported++;
           } catch (e) {
