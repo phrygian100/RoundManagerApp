@@ -1,3 +1,4 @@
+import { Picker } from '@react-native-picker/picker';
 import React, { useState } from 'react';
 import { Dimensions, FlatList, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -34,7 +35,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ visible, onClose, onC
 
   return (
     <Modal
-      transparent={true}
+      transparent
       animationType="fade"
       visible={visible}
       onRequestClose={onClose}
@@ -42,47 +43,73 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ visible, onClose, onC
       <View style={styles.modalContainer}>
         <View style={styles.pickerContainer}>
           <Text style={styles.title}>Select ETA</Text>
-          <View style={styles.pickerWrapper}>
-            <FlatList
-              data={hours}
-              renderItem={({ item }) => renderItem(item, item === selectedHour)}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={false}
-              snapToInterval={ITEM_HEIGHT}
-              decelerationRate="fast"
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                setSelectedHour(hours[index]);
-              }}
-              getItemLayout={(_, index) => ({
-                length: ITEM_HEIGHT,
-                offset: ITEM_HEIGHT * index,
-                index,
-              })}
-              initialScrollIndex={hours.indexOf(initialHour)}
-              contentContainerStyle={styles.listContentContainer}
-            />
-            <Text style={styles.separator}>:</Text>
-            <FlatList
-              data={minutes}
-              renderItem={({ item }) => renderItem(item, item === selectedMinute)}
-              keyExtractor={(item) => item}
-              showsVerticalScrollIndicator={false}
-              snapToInterval={ITEM_HEIGHT}
-              decelerationRate="fast"
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                setSelectedMinute(minutes[index]);
-              }}
-              getItemLayout={(_, index) => ({
-                length: ITEM_HEIGHT,
-                offset: ITEM_HEIGHT * index,
-                index,
-              })}
-              initialScrollIndex={minutes.indexOf(initialMinute)}
-              contentContainerStyle={styles.listContentContainer}
-            />
-          </View>
+
+          {Platform.OS === 'web' ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}>
+              <Picker
+                selectedValue={selectedHour}
+                onValueChange={(val) => setSelectedHour(val as string)}
+                style={{ width: 120 }}
+              >
+                {hours.map((h) => (
+                  <Picker.Item key={h} label={h} value={h} />
+                ))}
+              </Picker>
+              <Text style={styles.separator}>:</Text>
+              <Picker
+                selectedValue={selectedMinute}
+                onValueChange={(val) => setSelectedMinute(val as string)}
+                style={{ width: 120 }}
+              >
+                {minutes.map((m) => (
+                  <Picker.Item key={m} label={m} value={m} />
+                ))}
+              </Picker>
+            </View>
+          ) : (
+            <View style={styles.pickerWrapper}>
+              <FlatList
+                data={hours}
+                renderItem={({ item }) => renderItem(item, item === selectedHour)}
+                keyExtractor={(item) => item}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+                  setSelectedHour(hours[index]);
+                }}
+                getItemLayout={(_, index) => ({
+                  length: ITEM_HEIGHT,
+                  offset: ITEM_HEIGHT * index,
+                  index,
+                })}
+                initialScrollIndex={hours.indexOf(initialHour)}
+                contentContainerStyle={styles.listContentContainer}
+              />
+              <Text style={styles.separator}>:</Text>
+              <FlatList
+                data={minutes}
+                renderItem={({ item }) => renderItem(item, item === selectedMinute)}
+                keyExtractor={(item) => item}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={ITEM_HEIGHT}
+                decelerationRate="fast"
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+                  setSelectedMinute(minutes[index]);
+                }}
+                getItemLayout={(_, index) => ({
+                  length: ITEM_HEIGHT,
+                  offset: ITEM_HEIGHT * index,
+                  index,
+                })}
+                initialScrollIndex={minutes.indexOf(initialMinute)}
+                contentContainerStyle={styles.listContentContainer}
+              />
+            </View>
+          )}
+
           <View style={styles.buttonContainer}>
             <Pressable style={[styles.button, styles.cancelButton]} onPress={onClose}>
               <Text style={styles.buttonText}>Cancel</Text>
