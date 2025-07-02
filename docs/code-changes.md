@@ -926,3 +926,50 @@ The system is now stable and working. Focus on **feature development** rather th
 **Estimated Effort**: 1-2 hours to build function, wire up, test.
 
 Good luck! 🛠️
+
+## 2025-07-02 (Upcoming Feature – Vehicles, Rota & Capacity-Based Runsheets) 📝
+The following specification is **not yet implemented** – it documents the agreed design for the next development phase so another developer (or future me) can pick it up.
+
+### 1. Vehicle Management
+* Location: **Team Members** screen (owner-only).
+* UI additions:
+  1. "Add Vehicle" button ➜ opens modal with:
+     • **Name / Registration** (string)
+     • **Daily Income Rate** (number, £) with helper text: _"This is the amount of work automatically assigned to this van per day."_
+  2. Below the member list, render a **Vehicles** sub-header and a row for each saved vehicle showing name + rate.
+  3. Each member row gains a dropdown (or picker) labelled **Vehicle** to assign them to one of the saved vehicles or _None_.
+* Data model:
+  • Firestore collection `accounts/{accountId}/vehicles/{vehicleId}`
+    `{ id, name, dailyRate }`
+  • Member docs gain `vehicleId` (string|null).
+* Permissions: only owner can create / edit vehicles or change assignments; members can view their current assignment.
+
+### 2. Rota Screen
+* New Home-screen button **Rota** – visible to all users.
+* Grid view (mobile & web): rows = every member (owner included), columns = calendar days.
+* Cell states cycle **on / off / N/A**; stored in
+  `accounts/{accountId}/rota/{yyyy-MM-dd}` ➜ `{ memberId: 'on'|'off'|'n/a' }`.
+* Owner can edit every row; members can edit only their own row.
+
+### 3. Capacity-Aware Runsheet Allocation
+* When generating each day's runsheet:
+  1. Determine active vehicles = vehicles that have ≥1 assigned member whose rota status for the day is **on**.
+  2. Fill jobs in current round order, allocating them to vehicles sequentially until each vehicle's cumulative **price** reaches its `dailyRate`.
+  3. Once all active vehicles hit capacity, remaining jobs **spill into the next day**. On the final day overflow simply appends after the last block (current behaviour).
+* UI: within each day section, insert subtitles like _"VU62 WFD – £300"_ before that vehicle's block of jobs.
+* Fallback rules:
+  • If **no vehicles** are configured or no active vehicles on a given day ➜ current flat list behaviour.
+  • If weekly job value exceeds total weekly capacity ➜ overflow continues on Sunday after the last subtitle.
+
+### Rollback / Tag
+A safety tag `backup-pre-rota-20250702` was pushed (commit `0090cca`). Reverting is as simple as:
+```bash
+git checkout master
+git reset --hard backup-pre-rota-20250702
+```
+
+### Implementation Plan Snapshot
+1. Phase 1 – Vehicle CRUD + member assignment (update Team UI, create services).  
+2. Phase 2 – Rota screen & availability persistence.  
+3. Phase 3 – Runsheet capacity algorithm & UI subtitles.  
+Each phase will be shipped behind completed UI so production remains functional at every step.
