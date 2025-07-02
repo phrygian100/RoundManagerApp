@@ -4,6 +4,7 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch }
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+// @ts-expect-error - xlsx has no typed declarations included by default
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -168,87 +169,93 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleDeleteAllClients = () => {
-    Alert.alert(
-      'Delete All Clients',
-      'Are you sure you want to delete ALL client records? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const ownerId = await getCurrentUserId();
-              const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
-              const querySnapshot = await getDocs(q);
-              const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
-              await Promise.all(deletePromises);
-              Alert.alert('Success', 'All clients have been deleted.');
-            } catch (error) {
-              console.error('Error deleting clients:', error);
-              Alert.alert('Error', 'Could not delete all clients.');
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteAllClients = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete ALL client records? This action cannot be undone.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete All Clients',
+            'Are you sure you want to delete ALL client records? This action cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      const ownerId = await getCurrentUserId();
+      const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const querySnapshot = await getDocs(q);
+      const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
+      await Promise.all(deletePromises);
+      Alert.alert('Success', 'All clients have been deleted.');
+    } catch (error) {
+      console.error('Error deleting clients:', error);
+      Alert.alert('Error', 'Could not delete all clients.');
+    }
   };
 
-  const handleDeleteAllJobs = () => {
-    Alert.alert(
-      'Delete All Jobs',
-      'Are you sure you want to delete ALL jobs? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const ownerId = await getCurrentUserId();
-              const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
-              const jobsSnapshot = await getDocs(qJobs);
-              const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
-              await Promise.all(deletePromises);
-              Alert.alert('Success', 'All jobs have been deleted.');
-            } catch (error) {
-              console.error('Error deleting jobs:', error);
-              Alert.alert('Error', 'Could not delete all jobs.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteAllJobs = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to delete ALL jobs? This action cannot be undone.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete All Jobs',
+            'Are you sure you want to delete ALL jobs? This action cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const ownerId = await getCurrentUserId();
+      const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
+      const jobsSnapshot = await getDocs(qJobs);
+      const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
+      await Promise.all(deletePromises);
+      Alert.alert('Success', 'All jobs have been deleted.');
+    } catch (error) {
+      console.error('Error deleting jobs:', error);
+      Alert.alert('Error', 'Could not delete all jobs.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDeleteAllPayments = () => {
-    Alert.alert(
-      'Delete All Payments',
-      'This will permanently delete all payment records. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete All',
-          style: 'destructive',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await deleteAllPayments();
-              Alert.alert('Success', 'All payments have been deleted.');
-            } catch (error) {
-              console.error('Error deleting payments:', error);
-              Alert.alert('Error', 'Could not delete payments.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleDeleteAllPayments = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('This will permanently delete all payment records. This action cannot be undone.')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            'Delete All Payments',
+            'This will permanently delete all payment records. This action cannot be undone.',
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await deleteAllPayments();
+      Alert.alert('Success', 'All payments have been deleted.');
+    } catch (error) {
+      console.error('Error deleting payments:', error);
+      Alert.alert('Error', 'Could not delete payments.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerateJobs = async () => {
