@@ -11,6 +11,7 @@ import { db } from '../core/firebase';
 import { createPayment } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Payment } from '../types/models';
+import { displayAccountNumber } from '../utils/account';
 
 export default function AddPaymentScreen() {
   const router = useRouter();
@@ -47,7 +48,7 @@ export default function AddPaymentScreen() {
           // Auto-populate reference with client's account number
           const selectedClient = clientsData.find(client => client.id === params.clientId);
           if (selectedClient?.accountNumber) {
-            setReference(`Account: ${selectedClient.accountNumber}`);
+            setReference(`Account: ${displayAccountNumber(selectedClient.accountNumber)}`);
           } else if (params.reference) {
             setReference(params.reference as string);
           }
@@ -59,7 +60,8 @@ export default function AddPaymentScreen() {
           
           // Pre-populate reference with account number if available
           if (params.accountNumber) {
-            setReference(`Account: ${params.accountNumber}`);
+            const acc = Array.isArray(params.accountNumber) ? params.accountNumber[0] : params.accountNumber;
+            setReference(`Account: ${displayAccountNumber(acc)}`);
           }
           
           // Pre-populate notes with address if available
@@ -82,7 +84,7 @@ export default function AddPaymentScreen() {
   useEffect(() => {
     const selectedClient = clients.find(client => client.id === selectedClientId);
     if (selectedClient && selectedClient.accountNumber) {
-      setReference(`Account: ${selectedClient.accountNumber}`);
+      setReference(`Account: ${displayAccountNumber(selectedClient.accountNumber)}`);
     } else if (selectedClient) {
       setReference('');
     }
@@ -279,7 +281,7 @@ export default function AddPaymentScreen() {
               style={[styles.input, ((selectedClient && selectedClient.accountNumber) || isFromJob) && styles.disabledInput]}
               value={reference}
               onChangeText={setReference}
-              placeholder={selectedClient?.accountNumber ? `Account: ${selectedClient.accountNumber}` : "Payment reference or cheque number"}
+              placeholder={selectedClient?.accountNumber ? `Account: ${displayAccountNumber(selectedClient.accountNumber)}` : "Payment reference or cheque number"}
               placeholderTextColor="#999"
               editable={!(selectedClient && selectedClient.accountNumber) && !isFromJob}
             />

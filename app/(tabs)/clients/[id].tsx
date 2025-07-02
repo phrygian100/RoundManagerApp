@@ -13,6 +13,7 @@ import { db } from '../../../core/firebase';
 import { isTodayMarkedComplete } from '../../../services/jobService';
 import type { Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
+import { displayAccountNumber } from '../../../utils/account';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
 
@@ -384,7 +385,7 @@ export default function ClientDetailScreen() {
             <View style={styles.infoAndButtonsRow}>
               <View style={styles.clientInfo}>
       <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-                <ThemedText>Account Number: {client.accountNumber ?? 'N/A'}</ThemedText>
+                <ThemedText>Account Number: {displayAccountNumber(client.accountNumber)}</ThemedText>
                 <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
       {typeof client.quote === 'number' && !isNaN(client.quote) ? (
         <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>

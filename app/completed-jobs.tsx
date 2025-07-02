@@ -10,6 +10,7 @@ import { getDataOwnerId } from '../core/supabase';
 import { deleteJob } from '../services/jobService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
+import { displayAccountNumber } from '../utils/account';
 
 export default function CompletedJobsScreen() {
   const [loading, setLoading] = useState(true);
@@ -144,7 +145,7 @@ export default function CompletedJobsScreen() {
           amount: item.price,
           clientName: client.name,
           address: address,
-          accountNumber: client.accountNumber || '',
+          accountNumber: displayAccountNumber(client.accountNumber) || '',
         },
       });
     };
