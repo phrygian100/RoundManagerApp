@@ -113,6 +113,11 @@ export default function RotaScreen() {
               <Pressable disabled={weekOffset <= -51} onPress={() => setWeekOffset(weekOffset - 1)} style={{ padding: 8 }}>
                 <Ionicons name="chevron-back" size={24} color={weekOffset <= -51 ? '#ccc' : '#007AFF'} />
               </Pressable>
+              {weekOffset !== 0 && (
+                <Pressable onPress={() => setWeekOffset(0)} style={{ padding: 8 }} accessibilityLabel="Jump to current week">
+                  <Ionicons name="return-down-back" size={22} color="#007AFF" />
+                </Pressable>
+              )}
               <Text style={{ fontWeight: 'bold' }}>{format(headerStart, 'd MMM yyyy')} - {format(addDays(headerStart,6),'d MMM')}</Text>
               <Pressable disabled={weekOffset >= 51} onPress={() => setWeekOffset(weekOffset + 1)} style={{ padding: 8 }}>
                 <Ionicons name="chevron-forward" size={24} color={weekOffset >= 51 ? '#ccc' : '#007AFF'} />

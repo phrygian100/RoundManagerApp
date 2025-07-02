@@ -1063,4 +1063,9 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
   • `cleanupOldRota()` now only runs when viewing the *current* week and deletes docs older than the present week, not the browsed week.
   • Availability changes persist as you page through weeks.
 
+## 2025-07-03 (patch 3) – Rota quick-jump
+- Added "return" arrow between week nav arrows.
+  • Visible only when not on the current week.
+  • Taps instantly reset view to weekOffset 0 (current week).
+
 ---
