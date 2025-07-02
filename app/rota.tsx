@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { addDays, format, startOfWeek } from 'date-fns';
+import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getUserSession } from '../core/session';
@@ -19,10 +21,12 @@ export default function RotaScreen() {
   const [rota, setRota] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [canEditAll, setCanEditAll] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const router = useRouter();
 
   const loadData = async () => {
     // Build week dates (Mon–Sun)
-    const today = new Date();
+    const today = addDays(new Date(), weekOffset * 7);
     const start = startOfWeek(today, { weekStartsOn: 1 });
     const dates: Date[] = [];
     for (let i = 0; i < 7; i++) {
@@ -55,13 +59,13 @@ export default function RotaScreen() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [weekOffset]);
 
   // Re-fetch on focus (permissions / availability may change)
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [])
+    }, [weekOffset])
   );
 
   const handleCellPress = async (dateKey: string, member: MemberRecord) => {
@@ -98,6 +102,25 @@ export default function RotaScreen() {
   return (
     <ScrollView horizontal style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }}>
+        {/* Week selector */}
+        {(() => {
+          const headerStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
+          return (
+            <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>
+              <Pressable disabled={weekOffset >= 51} onPress={() => setWeekOffset(weekOffset + 1)} style={{ padding: 8 }}>
+                <Ionicons name="chevron-back" size={24} color={weekOffset >= 51 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+              <Text style={{ fontWeight: 'bold' }}>{format(headerStart, 'd MMM yyyy')} - {format(addDays(headerStart,6),'d MMM')}</Text>
+              <Pressable disabled={weekOffset <= 0} onPress={() => setWeekOffset(weekOffset - 1)} style={{ padding: 8 }}>
+                <Ionicons name="chevron-forward" size={24} color={weekOffset <= 0 ? '#ccc' : '#007AFF'} />
+              </Pressable>
+              <Pressable onPress={() => router.push('/rota-history' as any)} style={{ marginLeft: 16 }}>
+                <Text style={{ color: '#007AFF', textDecorationLine: 'underline' }}>Rota History</Text>
+              </Pressable>
+            </View>
+          );
+        })()}
+
         {/* Header Row: members */}
         <View style={styles.headerRow}>
           <View style={[styles.headerCell, { width: 100 }]}> 
