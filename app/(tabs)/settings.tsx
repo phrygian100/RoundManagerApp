@@ -38,6 +38,8 @@ export default function SettingsScreen() {
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
 
+  const requiredFields = ['Address Line 1','Name','Mobile Number','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date','Starting Balance'];
+
   // Determine if current user is owner
   useEffect(() => {
     (async () => {
@@ -47,13 +49,149 @@ export default function SettingsScreen() {
   }, []);
 
   const handleImport = async () => {
-    const requiredFields = ['Address Line 1','Name','Mobile Number','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date','Starting Balance'];
+    if (Platform.OS === 'web') {
+      // Use native file input for better browser compatibility
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,.xlsx,.xls';
+
+      await new Promise<void>((resolve) => {
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            resolve();
+            return;
+          }
+
+          try {
+            let rows: any[] = [];
+
+            if (file.name.endsWith('.csv')) {
+              const text = await file.text();
+              const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+              if (parsed.errors.length) {
+                console.error('CSV Parsing Errors:', parsed.errors);
+                window.alert('Import Error: problem parsing csv');
+                resolve();
+                return;
+              }
+              rows = parsed.data as any[];
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+              const arrayBuffer = await file.arrayBuffer();
+              const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+              const sheetName = workbook.SheetNames[0];
+              rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            } else {
+              window.alert('Unsupported file type');
+              resolve();
+              return;
+            }
+
+            // Validate rows
+            const validRows: any[] = [];
+            const skipped: any[] = [];
+            rows.forEach(r => {
+              // Check required fields
+              const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
+              if (missing.length) {
+                skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+              } else {
+                validRows.push(r);
+              }
+            });
+
+            // Confirm import
+            const proceed = await new Promise<boolean>(resolve => {
+              Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
+                { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
+                { text: 'Import', onPress: ()=>resolve(true)}
+              ]);
+            });
+            if (!proceed) return;
+
+            let imported = 0;
+            
+            for (let i = 0; i < validRows.length; i++) {
+              const row = validRows[i];
+              const clientData: any = {
+                name: (row as any)['Name']?.trim(),
+                address: (row as any)['Address Line 1']?.trim(),
+                town: (row as any)['Town']?.trim(),
+                postcode: (row as any)['Postcode']?.trim(),
+                mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+                quote: 0,
+                frequency: (row as any)['Visit Frequency']?.trim(),
+                nextVisit: '',
+                roundOrderNumber: Number((row as any)['Round Order']) || i,
+                email: (row as any)['Email']?.trim(),
+                source: (row as any)['Source']?.trim(),
+                startingBalance: Number((row as any)['Starting Balance']||0),
+                accountNumber: (row as any)['Account Number']?.trim(),
+              };
+
+              const quoteString = (row as any)['Quote (£)']?.toString().trim();
+              if (quoteString) {
+                const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
+                clientData.quote = parseFloat(sanitizedQuote) || 0;
+              }
+
+              const nextDueString = (row as any)['Starting Date']?.toString().trim();
+              if (nextDueString) {
+                const parts = nextDueString.split('/');
+                if (parts.length === 3) {
+                  const [day, month, year] = parts;
+                  if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                    clientData.nextVisit = `${year}-${month}-${day}`;
+                  }
+                } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  clientData.nextVisit = nextDueString;
+                }
+              }
+
+              if (clientData.name && clientData.address && clientData.nextVisit) {
+                const ownerId = await getCurrentUserId();
+                try {
+                  await addDoc(collection(db, 'clients'), {
+                    ...clientData,
+                    dateAdded: new Date().toISOString(),
+                    source: clientData.source || '',
+                    email: clientData.email || '',
+                    ownerId,
+                  });
+                  imported++;
+                } catch (e) {
+                  console.error('Firestore write error:', e, 'for row:', row);
+                  skipped.push(row);
+                }
+              } else {
+                  skipped.push(row);
+              }
+            }
+
+            let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+            if (skipped.length > 0) {
+              message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+              console.log('Skipped rows:', skipped);
+            }
+            Alert.alert('Import Result', message);
+
+          } catch (err) {
+            console.error('Web import error', err);
+            window.alert('Import failed');
+          } finally {
+            resolve();
+          }
+        };
+        input.click();
+      });
+      return;
+    }
+
     try {
       const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
       if (result.canceled || !result.assets || !result.assets[0]) return;
       const file = result.assets[0];
-      let rows: any[] = [];
-
+      console.log('Selected file:', file.name);
       if (file.name.endsWith('.csv')) {
         const response = await fetch(file.uri);
         const csvText = await response.text();
@@ -63,106 +201,194 @@ export default function SettingsScreen() {
           Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
           return;
         }
-        rows = parsed.data as any[];
+        let rows: any[] = parsed.data as any[];
+
+        // Validate rows
+        const validRows: any[] = [];
+        const skipped: any[] = [];
+        rows.forEach(r => {
+          // Check required fields
+          const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
+          if (missing.length) {
+            skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+          } else {
+            validRows.push(r);
+          }
+        });
+
+        // Confirm import
+        const proceed = await new Promise<boolean>(resolve => {
+          Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
+            { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
+            { text: 'Import', onPress: ()=>resolve(true)}
+          ]);
+        });
+        if (!proceed) return;
+
+        let imported = 0;
+        
+        for (let i = 0; i < validRows.length; i++) {
+          const row = validRows[i];
+          const clientData: any = {
+            name: (row as any)['Name']?.trim(),
+            address: (row as any)['Address Line 1']?.trim(),
+            town: (row as any)['Town']?.trim(),
+            postcode: (row as any)['Postcode']?.trim(),
+            mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+            quote: 0,
+            frequency: (row as any)['Visit Frequency']?.trim(),
+            nextVisit: '',
+            roundOrderNumber: Number((row as any)['Round Order']) || i,
+            email: (row as any)['Email']?.trim(),
+            source: (row as any)['Source']?.trim(),
+            startingBalance: Number((row as any)['Starting Balance']||0),
+            accountNumber: (row as any)['Account Number']?.trim(),
+          };
+
+          const quoteString = (row as any)['Quote (£)']?.toString().trim();
+          if (quoteString) {
+            const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
+            clientData.quote = parseFloat(sanitizedQuote) || 0;
+          }
+
+          const nextDueString = (row as any)['Starting Date']?.toString().trim();
+          if (nextDueString) {
+            const parts = nextDueString.split('/');
+            if (parts.length === 3) {
+              const [day, month, year] = parts;
+              if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                clientData.nextVisit = `${year}-${month}-${day}`;
+              }
+            } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              clientData.nextVisit = nextDueString;
+            }
+          }
+
+          if (clientData.name && clientData.address && clientData.nextVisit) {
+            const ownerId = await getCurrentUserId();
+            try {
+              await addDoc(collection(db, 'clients'), {
+                ...clientData,
+                dateAdded: new Date().toISOString(),
+                source: clientData.source || '',
+                email: clientData.email || '',
+                ownerId,
+              });
+              imported++;
+            } catch (e) {
+              console.error('Firestore write error:', e, 'for row:', row);
+              skipped.push(row);
+            }
+          } else {
+              skipped.push(row);
+          }
+        }
+
+        let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+        if (skipped.length > 0) {
+          message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+          console.log('Skipped rows:', skipped);
+        }
+        Alert.alert('Import Result', message);
+
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const response = await fetch(file.uri);
         const ab = await response.arrayBuffer();
         const workbook = XLSX.read(ab, { type: 'array' });
         const sheetName = workbook.SheetNames[0];
-        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+        let rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        // Validate rows
+        const validRows: any[] = [];
+        const skipped: any[] = [];
+        rows.forEach(r => {
+          // Check required fields
+          const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
+          if (missing.length) {
+            skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+          } else {
+            validRows.push(r);
+          }
+        });
+
+        // Confirm import
+        const proceed = await new Promise<boolean>(resolve => {
+          Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
+            { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
+            { text: 'Import', onPress: ()=>resolve(true)}
+          ]);
+        });
+        if (!proceed) return;
+
+        let imported = 0;
+        
+        for (let i = 0; i < validRows.length; i++) {
+          const row = validRows[i];
+          const clientData: any = {
+            name: (row as any)['Name']?.trim(),
+            address: (row as any)['Address Line 1']?.trim(),
+            town: (row as any)['Town']?.trim(),
+            postcode: (row as any)['Postcode']?.trim(),
+            mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+            quote: 0,
+            frequency: (row as any)['Visit Frequency']?.trim(),
+            nextVisit: '',
+            roundOrderNumber: Number((row as any)['Round Order']) || i,
+            email: (row as any)['Email']?.trim(),
+            source: (row as any)['Source']?.trim(),
+            startingBalance: Number((row as any)['Starting Balance']||0),
+            accountNumber: (row as any)['Account Number']?.trim(),
+          };
+
+          const quoteString = (row as any)['Quote (£)']?.toString().trim();
+          if (quoteString) {
+            const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
+            clientData.quote = parseFloat(sanitizedQuote) || 0;
+          }
+
+          const nextDueString = (row as any)['Starting Date']?.toString().trim();
+          if (nextDueString) {
+            const parts = nextDueString.split('/');
+            if (parts.length === 3) {
+              const [day, month, year] = parts;
+              if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                clientData.nextVisit = `${year}-${month}-${day}`;
+              }
+            } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              clientData.nextVisit = nextDueString;
+            }
+          }
+
+          if (clientData.name && clientData.address && clientData.nextVisit) {
+            const ownerId = await getCurrentUserId();
+            try {
+              await addDoc(collection(db, 'clients'), {
+                ...clientData,
+                dateAdded: new Date().toISOString(),
+                source: clientData.source || '',
+                email: clientData.email || '',
+                ownerId,
+              });
+              imported++;
+            } catch (e) {
+              console.error('Firestore write error:', e, 'for row:', row);
+              skipped.push(row);
+            }
+          } else {
+              skipped.push(row);
+          }
+        }
+
+        let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+        if (skipped.length > 0) {
+          message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+          console.log('Skipped rows:', skipped);
+        }
+        Alert.alert('Import Result', message);
+
       } else {
         Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
-        return;
       }
-
-      // Validate rows
-      const validRows: any[] = [];
-      const skipped: any[] = [];
-      rows.forEach(r => {
-        // Check required fields
-        const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
-        if (missing.length) {
-          skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
-        } else {
-          validRows.push(r);
-        }
-      });
-
-      // Confirm import
-      const proceed = await new Promise<boolean>(resolve => {
-        Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
-          { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
-          { text: 'Import', onPress: ()=>resolve(true)}
-        ]);
-      });
-      if (!proceed) return;
-
-      let imported = 0;
-      
-      for (let i = 0; i < validRows.length; i++) {
-        const row = validRows[i];
-        const clientData: any = {
-          name: (row as any)['Name']?.trim(),
-          address: (row as any)['Address Line 1']?.trim(),
-          town: (row as any)['Town']?.trim(),
-          postcode: (row as any)['Postcode']?.trim(),
-          mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
-          quote: 0,
-          frequency: (row as any)['Visit Frequency']?.trim(),
-          nextVisit: '',
-          roundOrderNumber: Number((row as any)['Round Order']) || i,
-          email: (row as any)['Email']?.trim(),
-          source: (row as any)['Source']?.trim(),
-          startingBalance: Number((row as any)['Starting Balance']||0),
-          accountNumber: (row as any)['Account Number']?.trim(),
-        };
-
-        const quoteString = (row as any)['Quote (£)']?.toString().trim();
-        if (quoteString) {
-          const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
-          clientData.quote = parseFloat(sanitizedQuote) || 0;
-        }
-
-        const nextDueString = (row as any)['Starting Date']?.toString().trim();
-        if (nextDueString) {
-          const parts = nextDueString.split('/');
-          if (parts.length === 3) {
-            const [day, month, year] = parts;
-            if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
-              clientData.nextVisit = `${year}-${month}-${day}`;
-            }
-          } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            clientData.nextVisit = nextDueString;
-          }
-        }
-
-        if (clientData.name && clientData.address && clientData.nextVisit) {
-          const ownerId = await getCurrentUserId();
-          try {
-            await addDoc(collection(db, 'clients'), {
-              ...clientData,
-              dateAdded: new Date().toISOString(),
-              source: clientData.source || '',
-              email: clientData.email || '',
-              ownerId,
-            });
-            imported++;
-          } catch (e) {
-            console.error('Firestore write error:', e, 'for row:', row);
-            skipped.push(row);
-          }
-        } else {
-            skipped.push(row);
-        }
-      }
-
-      let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
-      if (skipped.length > 0) {
-        message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
-        console.log('Skipped rows:', skipped);
-      }
-      Alert.alert('Import Result', message);
-
     } catch (e) {
       console.error('Import process error:', e);
       Alert.alert('Import Error', 'Failed to import CSV.');
