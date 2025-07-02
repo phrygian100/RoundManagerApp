@@ -3,7 +3,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getUserSession } from '../core/session';
 import { listMembers, MemberRecord } from '../services/accountService';
 import { AvailabilityStatus, cleanupOldRota, fetchRotaRange, setAvailability } from '../services/rotaService';
@@ -23,6 +24,7 @@ export default function RotaScreen() {
   const [userId, setUserId] = useState<string | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   const loadData = async () => {
     // Build week dates (Mon–Sun)
@@ -103,6 +105,7 @@ export default function RotaScreen() {
   };
 
   return (
+    <SafeAreaView style={{ flex:1, paddingTop: insets.top }}>
     <ScrollView horizontal style={{ flex: 1 }}>
       <ScrollView style={{ flex: 1 }}>
         {/* Week selector */}
@@ -110,6 +113,11 @@ export default function RotaScreen() {
           const headerStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>
+              {/* Home button */}
+              <Pressable onPress={() => router.replace('/')} style={{ padding: 8 }} accessibilityLabel="Home">
+                <Ionicons name="home" size={24} color="#007AFF" />
+              </Pressable>
+
               <Pressable disabled={weekOffset <= -51} onPress={() => setWeekOffset(weekOffset - 1)} style={{ padding: 8 }}>
                 <Ionicons name="chevron-back" size={24} color={weekOffset <= -51 ? '#ccc' : '#007AFF'} />
               </Pressable>
@@ -168,6 +176,7 @@ export default function RotaScreen() {
         })}
       </ScrollView>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

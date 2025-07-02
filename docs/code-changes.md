@@ -1068,4 +1068,8 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
   • Visible only when not on the current week.
   • Taps instantly reset view to weekOffset 0 (current week).
 
+## 2025-07-03 (patch 4) – Mobile header polish
+- Wrapped Rota screen in `SafeAreaView` and added top padding via `useSafeAreaInsets` so header is not hidden by Android/iOS status bars.
+- Added consistent Home button on the left of the week selector (same as other pages).
+
 ---
