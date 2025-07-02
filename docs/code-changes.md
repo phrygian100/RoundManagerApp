@@ -1073,3 +1073,7 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
 - Added consistent Home button on the left of the week selector (same as other pages).
 
 ---
+
+## 2025-07-04 – Runsheet vehicle headers
+- Availability default behaviour: if a member has no rota entry for a given day they are assumed **on**.
+  • Ensures newly created vehicles appear as headers even before rota is set.
