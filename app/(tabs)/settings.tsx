@@ -54,6 +54,8 @@ export default function SettingsScreen() {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = '.csv,.xlsx,.xls';
+      input.style.display = 'none';
+      document.body.appendChild(input);
 
       await new Promise<void>((resolve) => {
         input.onchange = async () => {
