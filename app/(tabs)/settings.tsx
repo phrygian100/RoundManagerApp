@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
-import { Alert, Button, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -13,6 +13,23 @@ import { getCurrentUserId, supabase } from '../../core/supabase';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
+
+const StyledButton = ({ title, onPress, disabled = false, color }: { title: string; onPress: () => void | Promise<void>; disabled?: boolean; color?: string; }) => {
+  const bgColor = disabled
+    ? '#ccc'
+    : color === 'red'
+    ? '#FF3B30'
+    : '#007AFF';
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      disabled={disabled}
+      style={[styles.btnBase, { backgroundColor: bgColor }]}
+    >
+      <Text style={styles.btnText}>{title}</Text>
+    </TouchableOpacity>
+  );
+};
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -404,28 +421,28 @@ export default function SettingsScreen() {
       </View>
       
       <View style={styles.buttonContainer}>
-        <Button title="Import Clients from CSV" onPress={handleImport} />
+        <StyledButton title="Import Clients from CSV" onPress={handleImport} />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
-          title={loading ? "Loading..." : "Generate Recurring Jobs"}
+        <StyledButton
+          title={loading ? 'Loading...' : 'Generate Recurring Jobs'}
           onPress={handleGenerateJobs}
           disabled={loading}
         />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
-          title={loading ? "Loading..." : "Weekly Rollover (Test)"}
+        <StyledButton
+          title={loading ? 'Loading...' : 'Weekly Rollover (Test)'}
           onPress={handleWeeklyRollover}
           disabled={loading}
         />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
-          title={loading ? "Loading..." : "Delete All Payments"}
+        <StyledButton
+          title={loading ? 'Loading...' : 'Delete All Payments'}
           onPress={handleDeleteAllPayments}
           disabled={loading}
           color="red"
@@ -433,7 +450,7 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
+        <StyledButton
           title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'}
           onPress={handleRepairClients}
           disabled={loading}
@@ -441,23 +458,23 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Team Members" onPress={() => router.push('/team')} />
+        <StyledButton title="Team Members" onPress={() => router.push('/team')} />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
+        <StyledButton title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
+        <StyledButton title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button title="Log Out" onPress={handleLogout} />
+        <StyledButton title="Log Out" onPress={handleLogout} />
       </View>
 
       <View style={styles.buttonContainer}>
-        <Button
+        <StyledButton
           title="Join owner account"
           onPress={() => router.push('/enter-invite-code' as any)}
         />
@@ -465,7 +482,7 @@ export default function SettingsScreen() {
 
       {!isOwner && (
         <View style={{ marginTop: 24 }}>
-          <Button title="Leave Team" color="#FF3B30" onPress={handleLeaveTeam} />
+          <StyledButton title="Leave Team" color="red" onPress={handleLeaveTeam} />
         </View>
       )}
     </ThemedView>
@@ -492,5 +509,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  btnBase: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  btnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 }); 
