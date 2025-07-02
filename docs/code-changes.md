@@ -1057,3 +1057,11 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
 • Feature set is fully UI-guarded – if no vehicles/rota are configured, runsheet falls back to legacy behaviour.
 
 ---
+
+## 2025-07-03 (patch) – Rota navigation UX
+- Swapped left/right arrow behaviour so:
+  • Left arrow = previous week (earlier dates).
+  • Right arrow = next week (later dates).
+- Updated disabled logic (range ±52 weeks).
+
+---

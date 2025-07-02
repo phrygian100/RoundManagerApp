@@ -107,12 +107,12 @@ export default function RotaScreen() {
           const headerStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
           return (
             <View style={{ flexDirection: 'row', alignItems: 'center', padding: 8 }}>
-              <Pressable disabled={weekOffset >= 51} onPress={() => setWeekOffset(weekOffset + 1)} style={{ padding: 8 }}>
-                <Ionicons name="chevron-back" size={24} color={weekOffset >= 51 ? '#ccc' : '#007AFF'} />
+              <Pressable disabled={weekOffset <= -51} onPress={() => setWeekOffset(weekOffset - 1)} style={{ padding: 8 }}>
+                <Ionicons name="chevron-back" size={24} color={weekOffset <= -51 ? '#ccc' : '#007AFF'} />
               </Pressable>
               <Text style={{ fontWeight: 'bold' }}>{format(headerStart, 'd MMM yyyy')} - {format(addDays(headerStart,6),'d MMM')}</Text>
-              <Pressable disabled={weekOffset <= 0} onPress={() => setWeekOffset(weekOffset - 1)} style={{ padding: 8 }}>
-                <Ionicons name="chevron-forward" size={24} color={weekOffset <= 0 ? '#ccc' : '#007AFF'} />
+              <Pressable disabled={weekOffset >= 51} onPress={() => setWeekOffset(weekOffset + 1)} style={{ padding: 8 }}>
+                <Ionicons name="chevron-forward" size={24} color={weekOffset >= 51 ? '#ccc' : '#007AFF'} />
               </Pressable>
               <Pressable onPress={() => router.push('/rota-history' as any)} style={{ marginLeft: 16 }}>
                 <Text style={{ color: '#007AFF', textDecorationLine: 'underline' }}>Rota History</Text>
