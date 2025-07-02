@@ -1,5 +1,5 @@
 import { formatISO, isBefore, isEqual, parseISO } from 'date-fns';
-import { collection, doc, getDocs, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
 
@@ -44,4 +44,22 @@ export async function setAvailability(date: string, memberId: string, status: Av
   const docRef = doc(db, `accounts/${sess.accountId}/rota/${date}`);
   // Use setDoc merge to avoid overwriting others
   await setDoc(docRef, { [memberId]: status }, { merge: true });
+}
+
+/**
+ * Deletes rota documents older than the provided cutoff date (exclusive).
+ */
+export async function cleanupOldRota(cutoff: Date): Promise<void> {
+  const sess = await getUserSession();
+  if (!sess) return;
+  const rotaCol = collection(db, `accounts/${sess.accountId}/rota`);
+  const snap = await getDocs(rotaCol);
+  const batchDeletes: Promise<void>[] = [];
+  snap.docs.forEach(d => {
+    const dateVal = parseISO(d.id);
+    if (isBefore(dateVal, cutoff)) {
+      batchDeletes.push(deleteDoc(d.ref));
+    }
+  });
+  await Promise.all(batchDeletes);
 } 

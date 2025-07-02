@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { getUserSession } from '../core/session';
 import { listMembers, MemberRecord } from '../services/accountService';
-import { AvailabilityStatus, fetchRotaRange, setAvailability } from '../services/rotaService';
+import { AvailabilityStatus, cleanupOldRota, fetchRotaRange, setAvailability } from '../services/rotaService';
 
 const STATUS_ORDER: AvailabilityStatus[] = ['on', 'off', 'n/a'];
 
@@ -45,6 +45,9 @@ export default function RotaScreen() {
 
     const rotaData = await fetchRotaRange(dates[0], dates[6]);
     setRota(rotaData);
+
+    // Archive past dates (everything before this week)
+    await cleanupOldRota(start);
 
     setUserId(sess?.uid || null);
     setCanEditAll(!!sess?.isOwner);
@@ -93,36 +96,37 @@ export default function RotaScreen() {
   };
 
   return (
-    <ScrollView horizontal style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1 }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
-        {/* Header Row */}
+    <ScrollView horizontal style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }}>
+        {/* Header Row: members */}
         <View style={styles.headerRow}>
-          <View style={[styles.headerCell, { width: 140 }]}> 
-            <Text style={styles.headerText}>Member</Text>
+          <View style={[styles.headerCell, { width: 100 }]}> 
+            <Text style={styles.headerText}>Day</Text>
           </View>
-          {weekDates.map(date => (
-            <View key={date.toISOString()} style={styles.headerCell}>
-              <Text style={styles.headerText}>{format(date, 'EEE d/M')}</Text>
+          {members.map(m => (
+            <View key={m.uid} style={[styles.headerCell, { minWidth: 120 }]}> 
+              <Text style={styles.headerText}>{m.email.split('@')[0]}</Text>
             </View>
           ))}
         </View>
 
-        {/* Member Rows */}
-        {members.map(member => {
-          const editableRow = canEditAll || member.uid === userId;
+        {/* Day rows */}
+        {weekDates.map(date => {
+          const dateKey = format(date, 'yyyy-MM-dd');
           return (
-            <View key={member.uid} style={styles.row}>
-              <View style={[styles.nameCell, { width: 140 }]}> 
-                <Text>{member.email.split('@')[0]}</Text>
+            <View key={dateKey} style={styles.row}>
+              {/* Day label */}
+              <View style={[styles.nameCell, { width: 100 }]}> 
+                <Text>{format(date, 'EEE d/M')}</Text>
               </View>
-              {weekDates.map(date => {
-                const key = format(date, 'yyyy-MM-dd');
-                const status: AvailabilityStatus = rota[key]?.[member.uid] || 'n/a';
+              {members.map(member => {
+                const status: AvailabilityStatus = rota[dateKey]?.[member.uid] || 'n/a';
+                const editable = canEditAll || member.uid === userId;
                 return (
                   <Pressable
-                    key={key}
-                    style={[styles.cell, { backgroundColor: getStatusColor(status) }, !editableRow && styles.cellDisabled]}
-                    onPress={() => editableRow && handleCellPress(key, member)}
+                    key={member.uid}
+                    style={[styles.cell, { backgroundColor: getStatusColor(status) }, !editable && styles.cellDisabled]}
+                    onPress={() => editable && handleCellPress(dateKey, member)}
                   >
                     <Text style={styles.cellText}>{status === 'n/a' ? '' : status}</Text>
                   </Pressable>
