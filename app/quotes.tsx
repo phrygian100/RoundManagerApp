@@ -36,6 +36,8 @@ export default function QuotesScreen() {
   const [webDate, setWebDate] = useState<Date | null>(null);
   const [detailsModal, setDetailsModal] = useState<{ visible: boolean, quote: Quote | null }>({ visible: false, quote: null });
   const [detailsForm, setDetailsForm] = useState({ frequency: '4 weekly', value: '', notes: '' });
+  const [addClientModal, setAddClientModal] = useState<{ visible: boolean, quote: Quote | null }>({ visible: false, quote: null });
+  const [clientForm, setClientForm] = useState({ name: '', address: '', town: '', mobileNumber: '', quote: '', frequency: '' });
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -108,6 +110,42 @@ export default function QuotesScreen() {
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
   };
 
+  // Handler to open Add Client modal with pre-filled data
+  const handleOpenAddClient = (quote: Quote) => {
+    setClientForm({
+      name: quote.name || '',
+      address: quote.address || '',
+      town: quote.town || '',
+      mobileNumber: quote.number || '',
+      quote: quote.value || '',
+      frequency: quote.frequency || '',
+    });
+    setAddClientModal({ visible: true, quote });
+  };
+
+  // Handler to save client and mark quote as complete
+  const handleSaveClient = async () => {
+    if (!addClientModal.quote) return;
+    // Create client in Firestore
+    await addDoc(collection(db, 'clients'), {
+      name: clientForm.name,
+      address: clientForm.address,
+      town: clientForm.town,
+      mobileNumber: clientForm.mobileNumber,
+      quote: Number(clientForm.quote),
+      frequency: clientForm.frequency,
+      startDate: addClientModal.quote.date,
+    });
+    // Mark quote as complete
+    const ref = doc(db, 'quotes', addClientModal.quote.id);
+    await updateDoc(ref, { status: 'complete' });
+    setAddClientModal({ visible: false, quote: null });
+    setClientForm({ name: '', address: '', town: '', mobileNumber: '', quote: '', frequency: '' });
+    // Refresh quotes
+    const snap = await getDocs(collection(db, 'quotes'));
+    setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+  };
+
   // Group quotes by status
   const scheduledQuotes = quotes.filter(q => q.status === 'scheduled');
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
@@ -138,6 +176,7 @@ export default function QuotesScreen() {
         renderItem={({ item }: { item: Quote }) => (
           <TouchableOpacity>
             <Text>{item.name} - {item.address}, {item.town} ({item.date})</Text>
+            <Button title="Next" onPress={() => handleOpenAddClient(item)} />
           </TouchableOpacity>
         )}
         ListEmptyComponent={<Text>No pending quotes.</Text>}
@@ -223,6 +262,20 @@ export default function QuotesScreen() {
           <TextInput placeholder="Notes" value={detailsForm.notes} onChangeText={v => setDetailsForm(f => ({ ...f, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
           <Button title="Save" onPress={handleSaveDetails} />
           <Button title="Cancel" onPress={() => setDetailsModal({ visible: false, quote: null })} color="red" />
+        </View>
+      </Modal>
+      {/* Add Client Modal for Pending Quotes */}
+      <Modal visible={addClientModal.visible} animationType="slide">
+        <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
+          <Text style={{ fontSize: 20, marginBottom: 10 }}>Add Client</Text>
+          <TextInput placeholder="Name" value={clientForm.name} onChangeText={v => setClientForm(f => ({ ...f, name: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          <TextInput placeholder="Address" value={clientForm.address} onChangeText={v => setClientForm(f => ({ ...f, address: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          <TextInput placeholder="Town" value={clientForm.town} onChangeText={v => setClientForm(f => ({ ...f, town: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          <TextInput placeholder="Mobile Number" value={clientForm.mobileNumber} onChangeText={v => setClientForm(f => ({ ...f, mobileNumber: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          <TextInput placeholder="Quote £ value" value={clientForm.quote} onChangeText={v => setClientForm(f => ({ ...f, quote: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+          <TextInput placeholder="Visit Frequency" value={clientForm.frequency} onChangeText={v => setClientForm(f => ({ ...f, frequency: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          <Button title="Save Client" onPress={handleSaveClient} />
+          <Button title="Cancel" onPress={() => setAddClientModal({ visible: false, quote: null })} color="red" />
         </View>
       </Modal>
     </View>
