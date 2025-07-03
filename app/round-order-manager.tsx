@@ -261,11 +261,32 @@ export default function RoundOrderManagerScreen() {
     handlePositionChange(index + 1);
   };
 
-  // Web-specific scroll handling for better compatibility
+  // Helper to get the center index based on scroll offset
+  const getCenterIndex = (y: number) => {
+    // The center of the picker window is at (VISIBLE_ITEMS / 2) * ITEM_HEIGHT
+    const centerOffset = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
+    return Math.round((y + centerOffset - ITEM_HEIGHT / 2) / ITEM_HEIGHT);
+  };
+
+  // Web-specific scroll handler: update position based on center item
   const onScrollWeb = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    handlePositionChange(index + 1);
+    const centerIndex = getCenterIndex(y);
+    handlePositionChange(centerIndex + 1);
+  };
+
+  // On scroll end, snap to the nearest item so it's perfectly centered
+  const onScrollEndWeb = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const centerIndex = getCenterIndex(y);
+    // Snap to this index
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({
+        offset: ITEM_HEIGHT * centerIndex,
+        animated: true,
+      });
+    }
+    handlePositionChange(centerIndex + 1);
   };
 
   if (loading) {
@@ -319,8 +340,9 @@ export default function RoundOrderManagerScreen() {
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
-            onMomentumScrollEnd={Platform.OS === 'web' ? onScrollWeb : onScroll}
-            onScrollEndDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
+            ref={flatListRef}
+            onMomentumScrollEnd={Platform.OS === 'web' ? onScrollEndWeb : onScroll}
+            onScrollEndDrag={Platform.OS === 'web' ? onScrollEndWeb : undefined}
             onScrollBeginDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
             onScroll={Platform.OS === 'web' ? onScrollWeb : undefined}
             scrollEventThrottle={Platform.OS === 'web' ? 16 : undefined}
