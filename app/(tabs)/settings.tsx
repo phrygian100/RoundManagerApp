@@ -46,6 +46,27 @@ if (typeof window !== 'undefined') {
   });
 }
 
+// Cross-platform helpers
+function showAlert(title: string, message: string) {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+  } else {
+    Alert.alert(title, message);
+  }
+}
+
+async function showConfirm(title: string, message: string): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    return window.confirm(`${title}\n\n${message}`);
+  }
+  return new Promise<boolean>((resolve) => {
+    Alert.alert(title, message, [
+      { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+      { text: 'OK', onPress: () => resolve(true) },
+    ]);
+  });
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -90,7 +111,7 @@ export default function SettingsScreen() {
               const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
               if (parsed.errors.length) {
                 console.error('CSV Parsing Errors:', parsed.errors);
-                window.alert('Import Error: problem parsing csv');
+                showAlert('Import Error', 'problem parsing csv');
                 resolve();
                 return;
               }
@@ -101,7 +122,7 @@ export default function SettingsScreen() {
               const sheetName = workbook.SheetNames[0];
               rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
             } else {
-              window.alert('Unsupported file type');
+              showAlert('Unsupported file', 'Please select a CSV or Excel file.');
               resolve();
               return;
             }
@@ -120,12 +141,7 @@ export default function SettingsScreen() {
             });
 
             // Confirm import
-            const proceed = await new Promise<boolean>(resolve => {
-              Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
-                { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
-                { text: 'Import', onPress: ()=>resolve(true)}
-              ]);
-            });
+            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
             if (!proceed) return;
 
             let imported = 0;
@@ -192,11 +208,11 @@ export default function SettingsScreen() {
               message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
               console.log('Skipped rows:', skipped);
             }
-            Alert.alert('Import Result', message);
+            showAlert('Import Result', message);
 
           } catch (err) {
             console.error('Web import error', err);
-            window.alert('Import failed');
+            showAlert('Error', 'Import failed');
           } finally {
             resolve();
           }
@@ -236,12 +252,7 @@ export default function SettingsScreen() {
         });
 
         // Confirm import
-        const proceed = await new Promise<boolean>(resolve => {
-          Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
-            { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
-            { text: 'Import', onPress: ()=>resolve(true)}
-          ]);
-        });
+        const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
         if (!proceed) return;
 
         let imported = 0;
@@ -308,7 +319,7 @@ export default function SettingsScreen() {
           message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
           console.log('Skipped rows:', skipped);
         }
-        Alert.alert('Import Result', message);
+        showAlert('Import Result', message);
 
       } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
         const response = await fetch(file.uri);
@@ -331,12 +342,7 @@ export default function SettingsScreen() {
         });
 
         // Confirm import
-        const proceed = await new Promise<boolean>(resolve => {
-          Alert.alert('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`, [
-            { text: 'Cancel', style: 'cancel', onPress: ()=>resolve(false)},
-            { text: 'Import', onPress: ()=>resolve(true)}
-          ]);
-        });
+        const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
         if (!proceed) return;
 
         let imported = 0;
@@ -403,7 +409,7 @@ export default function SettingsScreen() {
           message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
           console.log('Skipped rows:', skipped);
         }
-        Alert.alert('Import Result', message);
+        showAlert('Import Result', message);
 
       } else {
         Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
