@@ -369,13 +369,15 @@ export default function RunsheetWeekScreen() {
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            options: ['Message ETA', 'Navigate', 'View Details', 'Cancel'],
-            cancelButtonIndex: 3,
+            options: ['Message ETA', 'Navigate', 'View Details', 'Delete', 'Cancel'],
+            destructiveButtonIndex: 3,
+            cancelButtonIndex: 4,
           },
           (buttonIndex) => {
             if (buttonIndex === 0) handleMessageETA(job);
             if (buttonIndex === 1) handleNavigate(job.client);
             if (buttonIndex === 2) job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/');
+            if (buttonIndex === 3) handleDeleteQuoteJob(job);
           }
         );
       } else {
@@ -487,6 +489,22 @@ export default function RunsheetWeekScreen() {
         },
       ]
     );
+  };
+
+  // Delete logic for quote jobs (removes both job and associated quote)
+  const handleDeleteQuoteJob = async (job: any) => {
+    if (window.confirm('Are you sure you want to permanently delete this quote job?')) {
+      if (job.quoteId) {
+        try {
+          await deleteDoc(doc(db, 'quotes', job.quoteId));
+        } catch (e) {
+          console.warn('Failed to delete quote document:', e);
+        }
+      }
+      await deleteDoc(doc(db, 'jobs', job.id));
+      setJobs((prev) => prev.filter((j) => j.id !== job.id));
+      setActionSheetJob(null);
+    }
   };
 
   const toggleDay = (title: string) => {
@@ -838,6 +856,7 @@ export default function RunsheetWeekScreen() {
                   <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
                   <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
                   <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
+                  <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
                 </>
               ) : (
                 <>
