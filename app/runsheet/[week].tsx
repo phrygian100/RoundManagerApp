@@ -95,10 +95,15 @@ export default function RunsheetWeekScreen() {
       console.log('👥 Client IDs:', Array.from(clientsMap.keys()));
       
       // 4. Map clients back to their jobs
-      const jobsWithClients = jobsForWeek.map(job => ({
-        ...job,
-        client: clientsMap.get(job.clientId) || null,
-      }));
+      const jobsWithClients = jobsForWeek.map(job => {
+        if (job.serviceId === 'quote') {
+          return { ...job, client: null };
+        }
+        return {
+          ...job,
+          client: clientsMap.get(job.clientId) || null,
+        };
+      });
 
       console.log('✅ Final jobs with clients:', jobsWithClients.length);
       console.log('✅ Jobs with missing clients:', jobsWithClients.filter(job => !job.client).length);
@@ -343,7 +348,7 @@ export default function RunsheetWeekScreen() {
     Alert.alert('Success', 'Job moved to selected date');
   };
 
-  const isQuoteJob = (job: any) => job && job.type === 'quote';
+  const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
 
   const handleJobPress = (job: any) => {
     if (isQuoteJob(job)) {
@@ -352,8 +357,8 @@ export default function RunsheetWeekScreen() {
         '',
         [
           { text: 'Message ETA', onPress: () => handleMessageETA(job) },
-          { text: 'Navigate', onPress: () => handleNavigate({ id: '', name: job.name, address1: job.address, town: '', postcode: '', accountNumber: '', roundOrderNumber: 0 }) },
-          { text: 'View Details', onPress: () => router.push('/quotes') },
+          { text: 'Navigate', onPress: () => handleNavigate(job.client) },
+          { text: 'View Details', onPress: () => job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/') },
           { text: 'Cancel', style: 'cancel' },
         ]
       );
@@ -520,6 +525,8 @@ export default function RunsheetWeekScreen() {
                 <Text style={{ color: '#1565c0', fontWeight: 'bold' }}>Quote</Text>
               </View>
               <Text style={styles.clientName}>{item.name}</Text>
+              <Text>{item.address}</Text>
+              <Text>{item.town}</Text>
               <Text>{item.number}</Text>
             </Pressable>
           </View>
