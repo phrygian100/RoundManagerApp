@@ -2,9 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/supabase';
@@ -35,6 +35,8 @@ export default function RunsheetWeekScreen() {
   const [noteModalText, setNoteModalText] = useState<string | null>(null);
   const [deferJob, setDeferJob] = useState<Job & { client: Client | null } | null>(null);
   const [showDeferDatePicker, setShowDeferDatePicker] = useState(false);
+  const [quoteCompleteModal, setQuoteCompleteModal] = useState<{ job: any, visible: boolean }>({ job: null, visible: false });
+  const [quoteForm, setQuoteForm] = useState({ frequency: '', cost: '', roundOrder: '' });
   const router = useRouter();
 
   // Parse week param
@@ -341,7 +343,22 @@ export default function RunsheetWeekScreen() {
     Alert.alert('Success', 'Job moved to selected date');
   };
 
-  const handleJobPress = (job: Job & { client: Client | null }) => {
+  const isQuoteJob = (job: any) => job && job.type === 'quote';
+
+  const handleJobPress = (job: any) => {
+    if (isQuoteJob(job)) {
+      Alert.alert(
+        'Quote Options',
+        '',
+        [
+          { text: 'Message ETA', onPress: () => handleMessageETA(job) },
+          { text: 'Navigate', onPress: () => handleNavigate({ id: '', name: job.name, address1: job.address, town: '', postcode: '', accountNumber: '', roundOrderNumber: 0 }) },
+          { text: 'View Details', onPress: () => router.push('/quotes') },
+          { text: 'Cancel', style: 'cancel' },
+        ]
+      );
+      return;
+    }
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -483,6 +500,43 @@ export default function RunsheetWeekScreen() {
   };
 
   const renderItem = ({ item, index, section }: any) => {
+    if (isQuoteJob(item)) {
+      // Only show complete for first incomplete quote job on today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
+      const isToday = jobDate && jobDate.toDateString() === today.toDateString();
+      const sectionIndex = sections.findIndex(s => s.title === section.title);
+      const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && job.status !== 'completed');
+      const isDayCompleted = completedDays.includes(section.title);
+      return (
+        <View style={[styles.clientRow, { backgroundColor: '#e3f2fd' }]}> {/* blue highlight for quote */}
+          <View style={{ flex: 1 }}>
+            <Pressable onPress={() => handleJobPress(item)}>
+              <View style={styles.addressBlock}>
+                <Text style={styles.addressTitle}>{item.address}</Text>
+              </View>
+              <View style={{ backgroundColor: '#90caf9', padding: 4, borderRadius: 6, marginBottom: 4 }}>
+                <Text style={{ color: '#1565c0', fontWeight: 'bold' }}>Quote</Text>
+              </View>
+              <Text style={styles.clientName}>{item.name}</Text>
+              <Text>{item.number}</Text>
+            </Pressable>
+          </View>
+          <View style={styles.controlsContainer}>
+            <Pressable onPress={() => showPickerForJob(item)} style={styles.etaButton}>
+              <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
+            </Pressable>
+            {isCurrentWeek && isToday && index === firstIncompleteIndex && !item.status && !isDayCompleted && (
+              <Pressable onPress={() => setQuoteCompleteModal({ job: item, visible: true })} style={styles.completeButton}>
+                <Text style={styles.completeButtonText}>Complete?</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      );
+    }
+
     if ((item as any).__type === 'vehicle') {
       return (
         <View style={{ paddingVertical: 4, backgroundColor: '#F0F0F0' }}>
@@ -753,6 +807,38 @@ export default function RunsheetWeekScreen() {
             onChange={handleDeferDateChange}
           />
         )}
+        {/* Quote Completion Modal */}
+        <Modal visible={quoteCompleteModal.visible} transparent animationType="fade" onRequestClose={() => setQuoteCompleteModal({ job: null, visible: false })}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 320 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Convert Quote to Client</Text>
+              <TextInput placeholder="Frequency (4/8/one-off)" value={quoteForm.frequency} onChangeText={v => setQuoteForm(f => ({ ...f, frequency: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+              <TextInput placeholder="Cost (£)" value={quoteForm.cost} onChangeText={v => setQuoteForm(f => ({ ...f, cost: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+              <TextInput placeholder="Round Order" value={quoteForm.roundOrder} onChangeText={v => setQuoteForm(f => ({ ...f, roundOrder: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+              <Button title="Create Client" onPress={async () => {
+                // Create client
+                const { job } = quoteCompleteModal;
+                const clientDoc = await addDoc(collection(db, 'clients'), {
+                  name: job.name,
+                  address: job.address,
+                  mobileNumber: job.number,
+                  startDate: job.scheduledTime,
+                  frequency: quoteForm.frequency,
+                  quote: Number(quoteForm.cost),
+                  roundOrderNumber: Number(quoteForm.roundOrder),
+                });
+                // Remove quote and job
+                await deleteDoc(doc(db, 'quotes', job.quoteId));
+                await deleteDoc(doc(db, 'jobs', job.id));
+                setQuoteCompleteModal({ job: null, visible: false });
+                setQuoteForm({ frequency: '', cost: '', roundOrder: '' });
+                Alert.alert('Client created from quote!');
+                // Optionally refresh jobs/clients here
+              }} />
+              <Button title="Cancel" onPress={() => setQuoteCompleteModal({ job: null, visible: false })} color="red" />
+            </View>
+          </View>
+        </Modal>
       </View>
     </View>
   );
