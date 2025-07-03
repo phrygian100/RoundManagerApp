@@ -1111,6 +1111,20 @@ Importing the regenerated `example-clients.csv` on web now succeeds and stores c
 
 This should equip the next developer to finish the workflow by ensuring jobs are automatically generated post-import, thereby populating runsheets and the "Next scheduled visit" field.
 
+## 2025-01-07 (Web Action Sheet Fix for Quote Jobs) 🔧
+- **FIXED WEB ACTION SHEET FOR QUOTE JOBS**
+  - **Issue**: Quote jobs on web version weren't showing action sheet with "Message ETA", "Navigate", "View Details" options
+  - **Root Cause**: Quote jobs were using `Alert.alert` which doesn't work on web, instead of the proper action sheet system
+  - **Solution**: Updated quote job handling to use the same action sheet system as regular jobs
+  - **Enhanced**: Updated `handleMessageETA` and `handleNavigate` functions to work with quote job data
+  
+**Files Modified:**
+- `app/runsheet/[week].tsx` - Fixed action sheet for web compatibility and quote job handling
+
+**Expected Result**: Quote jobs should now show proper action sheet on web with all functionality working (Message ETA, Navigate, View Details).
+
+---
+
 ## 2025-01-07 (Quote Jobs Fix - Missing ownerId Field) 🔧
 - **FIXED QUOTE JOBS NOT APPEARING IN RUNSHEETS**
   - **Issue**: Quote jobs were being created but not appearing in the runsheet for the selected date

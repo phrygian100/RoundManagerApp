@@ -366,16 +366,21 @@ export default function RunsheetWeekScreen() {
 
   const handleJobPress = (job: any) => {
     if (isQuoteJob(job)) {
-      Alert.alert(
-        'Quote Options',
-        '',
-        [
-          { text: 'Message ETA', onPress: () => handleMessageETA(job) },
-          { text: 'Navigate', onPress: () => handleNavigate(job.client) },
-          { text: 'View Details', onPress: () => job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/') },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
+      if (Platform.OS === 'ios') {
+        ActionSheetIOS.showActionSheetWithOptions(
+          {
+            options: ['Message ETA', 'Navigate', 'View Details', 'Cancel'],
+            cancelButtonIndex: 3,
+          },
+          (buttonIndex) => {
+            if (buttonIndex === 0) handleMessageETA(job);
+            if (buttonIndex === 1) handleNavigate(job.client);
+            if (buttonIndex === 2) job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/');
+          }
+        );
+      } else {
+        setActionSheetJob(job);
+      }
       return;
     }
     if (Platform.OS === 'ios') {
@@ -398,9 +403,26 @@ export default function RunsheetWeekScreen() {
   };
 
   const handleNavigate = (client: Client | null) => {
-    if (!client) return;
-    const addressParts = [client.address1 || client.address, client.town, client.postcode].filter(Boolean);
-    const address = addressParts.join(', ');
+    let address: string = '';
+    
+    if (client) {
+      // For regular jobs, use client address
+      const addressParts = [client.address1 || client.address, client.town, client.postcode].filter(Boolean);
+      address = addressParts.join(', ');
+    } else {
+      // For quote jobs, use quote address
+      const job = actionSheetJob;
+      if (job && isQuoteJob(job)) {
+        const addressParts = [(job as any).address, (job as any).town].filter(Boolean);
+        address = addressParts.join(', ');
+      }
+    }
+    
+    if (!address) {
+      Alert.alert('No address', 'No address available for this job.');
+      return;
+    }
+    
     const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     Linking.openURL(url);
     setActionSheetJob(null);
@@ -413,20 +435,36 @@ export default function RunsheetWeekScreen() {
   };
 
   const handleMessageETA = (job: (Job & { client: Client | null })) => {
-    const { client, eta: jobEta } = job;
-    if (!client || !client.mobileNumber) return;
+    let mobileNumber: string | null = null;
+    let name: string = '';
     
+    if (isQuoteJob(job)) {
+      // For quote jobs, use the quote's number and name
+      mobileNumber = (job as any).number;
+      name = (job as any).name;
+    } else {
+      // For regular jobs, use the client's mobile number and name
+      mobileNumber = job.client?.mobileNumber || null;
+      name = job.client?.name || '';
+    }
+    
+    if (!mobileNumber) {
+      Alert.alert('No mobile number', 'No mobile number available for this job.');
+      return;
+    }
+    
+    const { eta: jobEta } = job;
     const etaText = jobEta 
       ? `Roughly estimated time of arrival: \n${jobEta}` 
       : 'We will be with you as soon as possible tomorrow.';
 
-    const template = `Hello ${client.name},\n\nCourtesy message to let you know window cleaning is due tomorrow.\n${etaText}\n\nMany thanks,`;
+    const template = `Hello ${name},\n\nCourtesy message to let you know window cleaning is due tomorrow.\n${etaText}\n\nMany thanks,`;
 
     let smsUrl = '';
     if (Platform.OS === 'ios') {
-      smsUrl = `sms:${client.mobileNumber}&body=${encodeURIComponent(template)}`;
+      smsUrl = `sms:${mobileNumber}&body=${encodeURIComponent(template)}`;
     } else {
-      smsUrl = `smsto:${client.mobileNumber}?body=${encodeURIComponent(template)}`;
+      smsUrl = `smsto:${mobileNumber}?body=${encodeURIComponent(template)}`;
     }
     Linking.openURL(smsUrl);
     setActionSheetJob(null);
@@ -792,13 +830,23 @@ export default function RunsheetWeekScreen() {
             initialTime={timePickerJob.eta}
           />
         )}
-        {actionSheetJob && Platform.OS === 'android' && (
+        {actionSheetJob && (Platform.OS === 'android' || Platform.OS === 'web') && (
           <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
             <View style={styles.androidSheet} pointerEvents="box-none">
-              <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
-              <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
-              <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
-              <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+              {isQuoteJob(actionSheetJob) ? (
+                <>
+                  <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                  <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
+                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
+                </>
+              ) : (
+                <>
+                  <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
+                  <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
+                  <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                  <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+                </>
+              )}
             </View>
           </Pressable>
         )}
@@ -853,7 +901,11 @@ export default function RunsheetWeekScreen() {
                 await deleteDoc(doc(db, 'jobs', job.id));
                 setQuoteCompleteModal({ job: null, visible: false });
                 setQuoteForm({ frequency: '', cost: '', roundOrder: '' });
-                Alert.alert('Client created from quote!');
+                if (Platform.OS === 'web') {
+                  window.alert('Client created from quote!');
+                } else {
+                  Alert.alert('Client created from quote!');
+                }
                 // Optionally refresh jobs/clients here
               }} />
               <Button title="Cancel" onPress={() => setQuoteCompleteModal({ job: null, visible: false })} color="red" />
