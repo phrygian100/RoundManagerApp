@@ -318,20 +318,9 @@ export default function RoundOrderManagerScreen() {
       <View style={styles.listContainer}>
         <View style={styles.pickerWrapper}>
           <FlatList
+            ref={flatListRef}
             data={displayList}
-            renderItem={({item, index}) => {
-              const isSelected = index === position -1;
-              const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
-              const address = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
-              return (
-                <View style={[styles.clientItem, isSelected && styles.newClientItem]}>
-                  <Text style={styles.positionText}>{index + 1}</Text>
-                  <Text style={[styles.addressText, isSelected && styles.newClientText]}>
-                    {'isNewClient' in item && item.isNewClient ? (address) : address}
-                  </Text>
-                </View>
-              )
-            }}
+            renderItem={renderClientItem}
             keyExtractor={(item, index) =>
               'isNewClient' in item && item.isNewClient ? 'new-client' : item.id || `client-${index}`
             }
@@ -339,7 +328,6 @@ export default function RoundOrderManagerScreen() {
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
-            ref={flatListRef}
             onMomentumScrollEnd={Platform.OS === 'web' ? onScrollEndWeb : onScroll}
             onScrollEndDrag={Platform.OS === 'web' ? onScrollEndWeb : undefined}
             onScrollBeginDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
@@ -439,11 +427,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     height: ITEM_HEIGHT,
   },
-  newClientItem: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#2196f3',
-    borderWidth: 2,
-  },
   positionText: {
     width: 40,
     fontSize: 16,
@@ -455,10 +438,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
-  },
-  newClientText: {
-    fontWeight: 'bold',
-    color: '#2196f3',
   },
   cancelButton: {
     backgroundColor: '#ff6b6b',
