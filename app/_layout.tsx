@@ -1,6 +1,7 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { QuoteToClientProvider } from '../contexts/QuoteToClientContext';
 import { supabase } from '../core/supabase';
 
 export default function RootLayout() {
@@ -24,8 +25,10 @@ export default function RootLayout() {
   }, [pathname]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <Slot />
-    </GestureHandlerRootView>
+    <QuoteToClientProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Slot />
+      </GestureHandlerRootView>
+    </QuoteToClientProvider>
   );
 }
