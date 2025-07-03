@@ -5,7 +5,7 @@ import { FlatList, Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity,
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
-import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
+import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberDailyRate, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
 import { addVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
 
 const PERM_KEYS = [
@@ -21,7 +21,6 @@ export default function TeamScreen() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [vehicleName, setVehicleName] = useState('');
-  const [vehicleRate, setVehicleRate] = useState('');
   const router = useRouter();
 
   const loadMembers = async () => {
@@ -113,6 +112,22 @@ export default function TeamScreen() {
           ))}
         </Picker>
       </View>
+      <TextInput
+        style={[styles.rateInput]}
+        keyboardType="numeric"
+        placeholder="£/day"
+        value={String(item.dailyRate ?? '')}
+        onChangeText={(val) => {
+          const num = Number(val);
+          setMembers(prev => prev.map(m => (m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m)));
+        }}
+        onBlur={async () => {
+          const num = Number(item.dailyRate);
+          if (!isNaN(num)) {
+            await updateMemberDailyRate(item.uid, num);
+          }
+        }}
+      />
       <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
         <Text style={styles.deleteButtonText}>🗑</Text>
       </TouchableOpacity>
@@ -151,12 +166,13 @@ export default function TeamScreen() {
             <Text key={p.key} style={styles.headerPerm}>{p.label}</Text>
           ))}
           <Text style={[styles.headerPerm, { width: 120 }]}>Vehicle</Text>
+          <Text style={[styles.headerPerm, { width: 80 }]}>£/day</Text>
         </View>
         {vehicles.length > 0 && (
           <View style={{ marginVertical: 16 }}>
             <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Vehicles</Text>
             {vehicles.map(v => (
-              <Text key={v.id}>{`${v.name} – £${v.dailyRate.toFixed(0)}`}</Text>
+              <Text key={v.id}>{v.name}</Text>
             ))}
           </View>
         )}
@@ -177,28 +193,17 @@ export default function TeamScreen() {
                 onChangeText={setVehicleName}
                 style={styles.input}
               />
-              <TextInput
-                placeholder="Daily income rate (£)"
-                value={vehicleRate}
-                onChangeText={setVehicleRate}
-                style={styles.input}
-                keyboardType="numeric"
-              />
-              <Text style={{ fontSize: 12, color: '#666', marginBottom: 12 }}>
-                This is the amount of work will be automatically assigned to this van per day
-              </Text>
               <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
                 <TouchableOpacity style={[styles.button, { marginRight: 8 }]} onPress={() => setShowVehicleModal(false)}>
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[styles.button, !(vehicleName && vehicleRate) && styles.buttonDisabled]}
-                  disabled={!(vehicleName && vehicleRate)}
+                  style={[styles.button, !(vehicleName) && styles.buttonDisabled]}
+                  disabled={!(vehicleName)}
                   onPress={async () => {
                     try {
-                      await addVehicle(vehicleName.trim(), Number(vehicleRate));
+                      await addVehicle(vehicleName.trim(), 0);
                       setVehicleName('');
-                      setVehicleRate('');
                       setShowVehicleModal(false);
                       loadVehicles();
                     } catch (err) {
@@ -281,4 +286,5 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
   },
+  rateInput: { borderWidth: 1, borderColor: '#ccc', padding: 4, width: 80, textAlign: 'center', borderRadius: 6 },
 }); 

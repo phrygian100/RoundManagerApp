@@ -22,7 +22,7 @@ export async function listVehicles(): Promise<VehicleRecord[]> {
 /**
  * Adds a new vehicle for the current account.
  */
-export async function addVehicle(name: string, dailyRate: number): Promise<void> {
+export async function addVehicle(name: string, dailyRate: number = 0): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
   const vehiclesCol = collection(db, `accounts/${sess.accountId}/vehicles`);

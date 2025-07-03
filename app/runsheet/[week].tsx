@@ -199,9 +199,9 @@ export default function RunsheetWeekScreen() {
     vehicles.forEach(v => {
       const assignedMembers = Object.values(memberMap).filter(m => m.vehicleId === v.id);
       if (assignedMembers.length === 0) return; // skip unassigned vehicles
-      const available = assignedMembers.filter(m => (rotaForDay[m.uid] ?? 'on') === 'on').length;
-      if (available === 0) return; // inactive this day
-      const capacity = v.dailyRate * (available / assignedMembers.length);
+      const availableMembers = assignedMembers.filter(m => (rotaForDay[m.uid] ?? 'on') === 'on');
+      if (availableMembers.length === 0) return; // inactive this day
+      const capacity = availableMembers.reduce((sum, m) => sum + (m.dailyRate || 0), 0);
       activeBlocks.push({ vehicle: v, remaining: capacity, jobs: [] });
     });
     if (activeBlocks.length === 0) return jobsForDay; // fallback

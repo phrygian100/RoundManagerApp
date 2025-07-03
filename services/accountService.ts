@@ -10,6 +10,8 @@ export type MemberRecord = {
   status: 'invited' | 'active' | 'disabled';
   createdAt: string;
   vehicleId?: string | null;
+  /** Cost capacity this member can handle per day (£). */
+  dailyRate?: number;
 };
 
 const DEFAULT_PERMS: Record<string, boolean> = {
@@ -266,4 +268,12 @@ export async function updateMemberVehicle(uid: string, vehicleId: string | null)
   if (!sess) throw new Error('Not authenticated');
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
   await updateDoc(memberRef, { vehicleId });
+}
+
+export async function updateMemberDailyRate(uid: string, dailyRate: number): Promise<void> {
+  const sess = await getUserSession();
+  if (!sess) throw new Error('Not authenticated');
+
+  const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
+  await updateDoc(memberRef, { dailyRate });
 } 
