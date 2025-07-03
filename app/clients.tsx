@@ -92,10 +92,10 @@ export default function ClientsScreen() {
       const result: Record<string, string | null> = {};
       for (const client of clients) {
         try {
-          const ownerId = await getDataOwnerId();
+          // ownerId filter is unnecessary and requires an extra composite index.
+          // Align with the query used in the client-detail screen.
           const jobsQuery = query(
             collection(db, 'jobs'),
-            where('ownerId', '==', ownerId),
             where('clientId', '==', client.id),
             where('status', 'in', ['pending', 'scheduled', 'in_progress'])
           );
