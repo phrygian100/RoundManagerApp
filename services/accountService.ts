@@ -75,6 +75,33 @@ export async function listMembers(): Promise<MemberRecord[]> {
   const membersRef = collection(db, `accounts/${sess.accountId}/members`);
   const snap = await getDocs(membersRef);
   const members = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })) as MemberRecord[];
+  
+  // Ensure owner row exists
+  const ownerExists = members.some(m => m.role === 'owner');
+  if (!ownerExists) {
+    try {
+      const { supabase } = await import('../core/supabase');
+      const { data: sessData } = await supabase.auth.getSession();
+      const authUser = sessData.session?.user;
+      if (authUser) {
+        const ownerDocRef = doc(db, `accounts/${sess.accountId}/members/${authUser.id}`);
+        const ownerData: MemberRecord = {
+          uid: authUser.id,
+          email: authUser.email || 'owner@example.com',
+          role: 'owner',
+          perms: DEFAULT_PERMS,
+          status: 'active',
+          createdAt: new Date().toISOString(),
+          vehicleId: null,
+          dailyRate: 0,
+        } as MemberRecord;
+        await setDoc(ownerDocRef, ownerData, { merge: true });
+        members.push(ownerData);
+      }
+    } catch (err) {
+      console.error('Error ensuring owner member doc:', err);
+    }
+  }
   console.log('Final members list from Firestore:', members);
   return members;
 }
