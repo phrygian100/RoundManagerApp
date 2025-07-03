@@ -263,9 +263,9 @@ export default function RoundOrderManagerScreen() {
 
   // Helper to get the center index based on scroll offset
   const getCenterIndex = (y: number) => {
-    // The center of the picker window is at (VISIBLE_ITEMS / 2) * ITEM_HEIGHT
-    const centerOffset = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
-    return Math.round((y + centerOffset - ITEM_HEIGHT / 2) / ITEM_HEIGHT);
+    // The center of the picker window is at (VISIBLE_ITEMS // 2) * ITEM_HEIGHT
+    // FlatList offset 0 means the first item is at the top, so to get the center item:
+    return Math.round(y / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
   };
 
   // Web-specific scroll handler: update position based on center item
