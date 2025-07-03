@@ -2,9 +2,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
+import 'react-datepicker/dist/react-datepicker.css';
 import { Button, FlatList, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { db } from '../core/firebase';
-// ... import Firestore and navigation helpers ...
 
 type Quote = {
   id: string;
@@ -15,12 +15,19 @@ type Quote = {
   date: string;
 };
 
+let DatePicker: any = null;
+if (Platform.OS === 'web') {
+  DatePicker = require('react-datepicker').default;
+  require('react-datepicker/dist/react-datepicker.css');
+}
+
 export default function QuotesScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '' });
   const [quotes, setQuotes] = useState<Quote[]>([]); // TODO: fetch from Firestore
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [webDate, setWebDate] = useState<Date | null>(null);
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -86,16 +93,24 @@ export default function QuotesScreen() {
             <Text>{form.date ? form.date : 'Select Date'}</Text>
           </TouchableOpacity>
           {showDatePicker && (
-            Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={form.date}
-                onChange={e => {
-                  setForm(f => ({ ...f, date: e.target.value }));
-                  setShowDatePicker(false);
-                }}
-                style={{ marginBottom: 8, padding: 8 }}
-              />
+            Platform.OS === 'web' && DatePicker ? (
+              <View style={{ position: 'absolute', top: 200, left: 0, right: 0, zIndex: 1000, backgroundColor: '#fff', padding: 16, borderRadius: 8, alignItems: 'center' }}>
+                <DatePicker
+                  selected={webDate}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const yyyy = date.getFullYear();
+                      const mm = String(date.getMonth() + 1).padStart(2, '0');
+                      const dd = String(date.getDate()).padStart(2, '0');
+                      setForm(f => ({ ...f, date: `${yyyy}-${mm}-${dd}` }));
+                      setWebDate(date);
+                    }
+                    setShowDatePicker(false);
+                  }}
+                  inline
+                />
+                <Button title="Cancel" onPress={() => setShowDatePicker(false)} color="red" />
+              </View>
             ) : (
               <DateTimePicker
                 value={form.date ? new Date(form.date) : new Date()}
