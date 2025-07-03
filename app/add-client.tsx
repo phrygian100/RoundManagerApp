@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
@@ -276,6 +276,8 @@ export default function AddClientScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
+        <Button title="Test Button" onPress={() => console.log('Test button pressed')} />
+
         <View style={styles.titleRow}>
           <ThemedText type="title">Add New Client</ThemedText>
           <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
@@ -430,11 +432,10 @@ export default function AddClientScreen() {
           keyboardType="numeric"
         />
 
-        <Pressable style={[styles.button, isSaving && styles.buttonDisabled]} onPress={handleSave} disabled={isSaving}>
-          <ThemedText style={styles.buttonText}>
-            {isSaving ? 'Saving...' : 'Save Client'}
-          </ThemedText>
-        </Pressable>
+        <Button
+          title={isSaving ? 'Saving...' : 'Save Client'}
+          onPress={handleSave}
+        />
       </ScrollView>
     </ThemedView>
   );
