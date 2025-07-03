@@ -31,6 +31,7 @@ export default function HomeScreen() {
         { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
         { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
         { label: 'Settings', path: '/settings', permKey: null },
+        { label: 'Quotes', path: '/quotes', permKey: null },
       ];
 
       const allowed = baseButtons.filter((btn) => {
@@ -70,6 +71,7 @@ export default function HomeScreen() {
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
           { label: 'Settings', path: '/settings', permKey: null },
+          { label: 'Quotes', path: '/quotes', permKey: null },
         ];
 
         const allowed = buttonDefs.filter(b => !b.permKey || isOwner || !!perms[b.permKey]);
