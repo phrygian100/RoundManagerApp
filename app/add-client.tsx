@@ -151,8 +151,11 @@ export default function AddClientScreen() {
       setTown(quoteData.town || '');
       setMobileNumber(quoteData.number || '');
       setQuote(quoteData.value || '');
-      setFrequency((quoteData.frequency as '4' | '8' | 'one-off') || '4');
-      // If you have notes or startDate fields, set them here as well
+      // Normalize frequency
+      let freq = quoteData.frequency || '';
+      if (freq === '4 weekly') freq = '4';
+      if (freq === '8 weekly') freq = '8';
+      setFrequency((freq as '4' | '8' | 'one-off') || '4');
       // setNotes(quoteData.notes || '');
       // setNextVisit(quoteData.date || '');
     }
