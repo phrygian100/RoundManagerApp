@@ -37,7 +37,9 @@ for (let i = 1; i <= 200; i++) {
   const accountNumber = 1000 + i;
   const roundOrder = i;
   const visitFrequency = 4;
-  const startingDate = '2025-07-02';
+  // Generate a date string between 3 and 31 July 2025 (dd/mm/yyyy)
+  const day = 3 + ((i - 1) % 29); // cycles 3..31
+  const startingDate = `${day.toString().padStart(2,'0')}/07/2025`;
   const startingBalance = 0;
 
   rows.push([
