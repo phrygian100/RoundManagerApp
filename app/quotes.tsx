@@ -5,6 +5,7 @@ import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Button, FlatList, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { db } from '../core/firebase';
+import { getDataOwnerId } from '../core/supabase';
 
 type Quote = {
   id: string;
@@ -38,10 +39,22 @@ export default function QuotesScreen() {
   }, []);
 
   const handleCreateQuote = async () => {
+    // Get the current owner ID
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      console.error('No owner ID found');
+      return;
+    }
+
+    console.log('Creating quote job with ownerId:', ownerId, 'for date:', form.date);
+
     // Save quote to Firestore
     const docRef = await addDoc(collection(db, 'quotes'), form);
+    console.log('Quote saved with ID:', docRef.id);
+    
     // Create a 'Quote' job on the runsheet for the selected date
-    await addDoc(collection(db, 'jobs'), {
+    const jobData = {
+      ownerId,
       clientId: 'QUOTE_' + docRef.id,
       scheduledTime: form.date + 'T09:00:00',
       status: 'pending',
@@ -53,7 +66,12 @@ export default function QuotesScreen() {
       town: form.town,
       number: form.number,
       quoteId: docRef.id,
-    });
+    };
+    
+    console.log('Creating job with data:', jobData);
+    const jobRef = await addDoc(collection(db, 'jobs'), jobData);
+    console.log('Quote job created with ID:', jobRef.id);
+    
     setModalVisible(false);
     setForm({ name: '', address: '', town: '', number: '', date: '' });
     // Refresh quotes

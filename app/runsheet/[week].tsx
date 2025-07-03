@@ -60,8 +60,22 @@ export default function RunsheetWeekScreen() {
         clientId: job.clientId,
         scheduledTime: job.scheduledTime,
         status: job.status,
-        serviceId: job.serviceId
+        serviceId: job.serviceId,
+        ownerId: job.ownerId
       })));
+      
+      // Log quote jobs specifically
+      const quoteJobs = jobsForWeek.filter(job => job.serviceId === 'quote');
+      console.log('📋 Quote jobs found:', quoteJobs.length);
+      if (quoteJobs.length > 0) {
+        console.log('📋 Quote jobs details:', quoteJobs.map(job => ({
+          id: job.id,
+          name: (job as any).name,
+          address: (job as any).address,
+          scheduledTime: job.scheduledTime,
+          ownerId: job.ownerId
+        })));
+      }
       
       if (jobsForWeek.length === 0) {
         setJobs([]);

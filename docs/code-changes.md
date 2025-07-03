@@ -1110,3 +1110,20 @@ Importing the regenerated `example-clients.csv` on web now succeeds and stores c
 - `d34ca2e`, `1da4e1e` – file-input fixes.
 
 This should equip the next developer to finish the workflow by ensuring jobs are automatically generated post-import, thereby populating runsheets and the "Next scheduled visit" field.
+
+## 2025-01-07 (Quote Jobs Fix - Missing ownerId Field) 🔧
+- **FIXED QUOTE JOBS NOT APPEARING IN RUNSHEETS**
+  - **Issue**: Quote jobs were being created but not appearing in the runsheet for the selected date
+  - **Root Cause**: Quote jobs were missing the `ownerId` field, which is required by `getJobsForWeek()` function
+  - **Solution**: Added `ownerId` field to quote job creation in `app/quotes.tsx`
+  - **Added**: Debugging logs to track quote job creation and fetching process
+  
+**Files Modified:**
+- `app/quotes.tsx` - Added `getDataOwnerId()` import and `ownerId` field to job creation
+- `app/runsheet/[week].tsx` - Added debugging logs for quote job detection
+
+**Expected Result**: Quote jobs should now appear in the runsheet for the selected date with proper "Quote" labeling and functionality.
+
+---
+
+## [Unresolved] Quotes Feature & Runsheet Integration (July 2025)
