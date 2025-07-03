@@ -42,10 +42,11 @@ export default function QuotesScreen() {
     const docRef = await addDoc(collection(db, 'quotes'), form);
     // Create a 'Quote' job on the runsheet for the selected date
     await addDoc(collection(db, 'jobs'), {
-      clientId: null,
+      clientId: 'QUOTE_' + docRef.id,
       scheduledTime: form.date + 'T09:00:00',
       status: 'pending',
       type: 'quote',
+      serviceId: 'quote',
       label: 'Quote',
       name: form.name,
       address: form.address,
