@@ -203,6 +203,14 @@ export default function SettingsScreen() {
               }
             }
 
+            // After creating clients, immediately generate jobs so runsheets & "Next scheduled visit" populate
+            try {
+              console.log('[IMPORT] Generating recurring jobs for newly imported clients');
+              await generateRecurringJobs();
+            } catch (err) {
+              console.error('[IMPORT] generateRecurringJobs failed', err);
+            }
+
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
             if (skipped.length > 0) {
               message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
@@ -314,6 +322,14 @@ export default function SettingsScreen() {
           }
         }
 
+        // Generate jobs for the newly imported clients
+        try {
+          console.log('[IMPORT] Generating recurring jobs for newly imported clients');
+          await generateRecurringJobs();
+        } catch (err) {
+          console.error('[IMPORT] generateRecurringJobs failed', err);
+        }
+
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
           message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
@@ -402,6 +418,14 @@ export default function SettingsScreen() {
           } else {
               skipped.push(row);
           }
+        }
+
+        // Generate jobs for the newly imported clients
+        try {
+          console.log('[IMPORT] Generating recurring jobs for newly imported clients');
+          await generateRecurringJobs();
+        } catch (err) {
+          console.error('[IMPORT] generateRecurringJobs failed', err);
         }
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;

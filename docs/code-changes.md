@@ -1074,6 +1074,39 @@ The three-phase feature set is now live, bringing vehicle management, rota avail
 
 ---
 
-## 2025-07-04 – Runsheet vehicle headers
-- Availability default behaviour: if a member has no rota entry for a given day they are assumed **on**.
-  • Ensures newly created vehicles appear as headers even before rota is set.
+## 2025-07-04 (CSV Import Flow – Web Fixes) 📑
+- **Cross-platform Alerts/Confirms**: replaced `Alert.alert` with `window.alert/confirm` on web, ensuring prompts render.
+- **Hidden File Input**: switched to native `<input type="file">` for browser compatibility; added diagnostics.
+- **Example CSV Regenerated**: `docs/example-clients.csv` now holds 200 rows with `Starting Date` cycling **03/07/2025 → 31/07/2025** in **dd/mm/yyyy** format; generator updated.
+- **Import Success**: Import now logs progress and successfully creates 200 client docs in Firestore.
+- **Remaining Issue**: Jobs are NOT auto-created after import; runsheets stay empty until **Generate Recurring Jobs** button is pressed.
+
+### Files Updated
+• `app/(tabs)/settings.tsx` – new helpers, file-input flow, diagnostics.
+• `scripts/generate-clients.js` – date range logic.
+• `docs/example-clients.csv` – refreshed data.
+
+---
+
+## 🛠️ Handover Briefing – CSV Import & Job Generation
+**Context**
+Importing the regenerated `example-clients.csv` on web now succeeds and stores clients with correct `nextVisit` dates. However those dates are not visible in the UI (shows *N/A*) and no jobs appear on runsheets.
+
+**Key Findings**
+1. *Client detail* screen doesn't read `nextVisit`. Instead it looks for the **earliest pending job** (see `fetchNextScheduledVisit` in `app/(tabs)/clients/[id].tsx`).
+2. Jobs are created only by calling `generateRecurringJobs()` (Settings → "Generate Recurring Jobs") or during weekly rollover – not automatically after import.
+3. Therefore, after a fresh import there are no jobs, so UI shows *N/A* and runsheets are empty even though `nextVisit` is correctly stored.
+4. Date format is confirmed accepted (`dd/mm/yyyy` ➜ parsed & converted to ISO during import).
+
+**Next Steps Suggested**
+• Call `generateRecurringJobs()` automatically at the end of a successful import, or prompt the user immediately.
+• Alternatively move job-creation logic to a Supabase/Edge cron so it runs nightly.
+• After implementing, verify `jobs` collection populates and runsheet headers appear.
+
+**Relevant Commits**
+- `bca78e7` – regenerated CSV & generator.
+- `2a751ec` – cross-platform alerts.
+- `bf363eb` – import diagnostics.
+- `d34ca2e`, `1da4e1e` – file-input fixes.
+
+This should equip the next developer to finish the workflow by ensuring jobs are automatically generated post-import, thereby populating runsheets and the "Next scheduled visit" field.
