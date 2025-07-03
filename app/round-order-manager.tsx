@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Picker } from '@react-native-picker/picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
@@ -297,10 +298,20 @@ export default function RoundOrderManagerScreen() {
 
       <View style={styles.listContainer}>
         {Platform.OS === 'web' && (
-          <View style={styles.webPositionIndicator}>
-            <ThemedText style={styles.webPositionText}>
-              Selected Position: {position}
-            </ThemedText>
+          <View style={styles.webPickerContainer}>
+            <Picker
+              selectedValue={position}
+              onValueChange={(value) => handlePositionChange(Number(value))}
+              style={styles.webPicker}
+            >
+              {displayList.map((client, idx) => (
+                <Picker.Item
+                  key={idx}
+                  label={`Position ${idx + 1}: ${client.address1 || client.address || 'No address'}`}
+                  value={idx + 1}
+                />
+              ))}
+            </Picker>
           </View>
         )}
         <View style={styles.pickerWrapper}>
@@ -461,17 +472,13 @@ const styles = StyleSheet.create({
     flex: 0.48,
     alignItems: 'center',
   },
-  webPositionIndicator: {
-    backgroundColor: '#007AFF',
-    padding: 8,
+  webPickerContainer: {
+    backgroundColor: '#f0f8ff',
+    padding: 12,
     borderRadius: 8,
-    marginBottom: 12,
-    alignSelf: 'stretch',
-    alignItems: 'center',
+    marginBottom: 16,
   },
-  webPositionText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
+  webPicker: {
+    width: '100%',
   },
 });
