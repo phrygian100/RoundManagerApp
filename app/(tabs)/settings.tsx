@@ -32,6 +32,20 @@ const StyledButton = ({ title, onPress, disabled = false, color }: { title: stri
   );
 };
 
+// --- WEB DIAGNOSTIC: Global file input change logger ---
+if (typeof window !== 'undefined') {
+  window.addEventListener('change', (e) => {
+    const tgt = e.target as HTMLInputElement;
+    if (tgt && tgt.type === 'file') {
+      // Log basic file info when any file input changes
+      const f = tgt.files?.[0];
+      if (f) {
+        console.log('[GLOBAL] file-input change event fired', f.name, f.size, f.type);
+      }
+    }
+  });
+}
+
 export default function SettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -55,10 +69,12 @@ export default function SettingsScreen() {
       input.type = 'file';
       input.accept = '.csv,.xlsx,.xls';
       input.style.display = 'none';
+      console.log('[IMPORT] created hidden file input');
       document.body.appendChild(input);
 
       await new Promise<void>((resolve) => {
         input.onchange = async () => {
+          console.log('[IMPORT] input onchange fired');
           const file = input.files?.[0];
           if (!file) {
             resolve();
@@ -66,6 +82,7 @@ export default function SettingsScreen() {
           }
 
           try {
+            console.log('[IMPORT] Selected file:', file?.name);
             let rows: any[] = [];
 
             if (file.name.endsWith('.csv')) {
