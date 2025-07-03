@@ -27,6 +27,7 @@ export default function RoundOrderManagerScreen() {
   const [position, setPosition] = useState(1);
   const [activeClient, setActiveClient] = useState<Client | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const [displayList, setDisplayList] = useState<ClientWithPosition[]>([]);
 
   useEffect(() => {
     const loadClients = async () => {
@@ -80,6 +81,15 @@ export default function RoundOrderManagerScreen() {
         setClients(clientsList);
         setActiveClient(activeClientData);
         setPosition(initialPosition);
+
+        if (clientsList.length > 0 && activeClientData) {
+          const initialDisplayList = [
+            ...clientsList.slice(0, position - 1),
+            { ...activeClientData, isNewClient: true, displayPosition: position },
+            ...clientsList.slice(position - 1)
+          ].map((client, index) => ({...client, displayPosition: index + 1}));
+          setDisplayList(initialDisplayList);
+        }
 
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -248,53 +258,31 @@ export default function RoundOrderManagerScreen() {
     );
   };
 
-  // Create the display list with new client inserted
-  const displayList = [
-    ...clients.slice(0, position - 1),
-    { ...activeClient!, isNewClient: true, displayPosition: position },
-    ...clients.slice(position - 1)
-  ].map((client, index) => ({...client, displayPosition: index + 1}));
-
   const onScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
     const index = Math.round(y / ITEM_HEIGHT);
     handlePositionChange(index + 1);
   };
 
-  // Helper to get the center index based on scroll offset
-  const getCenterIndex = (y: number) => {
-    const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
-    return Math.round((y - topPadding) / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
-  };
-
-  // Web-specific scroll handler: update position based on center item
+  // Web scroll handler: recalculate NEW CLIENT position based on blue overlay
   const onScrollWeb = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
     const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
-    // Calculate the index that should be centered
-    const centerIndex = Math.round((y - topPadding) / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
-    // Snap to this index immediately
-    if (flatListRef.current) {
-      flatListRef.current.scrollToOffset({
-        offset: (centerIndex - Math.floor(VISIBLE_ITEMS / 2)) * ITEM_HEIGHT + topPadding,
-        animated: false,
-      });
+    // Calculate which index is under the blue overlay (center)
+    const centerIndex = Math.round(y / ITEM_HEIGHT);
+    const newPosition = centerIndex + 1;
+    
+    // Rebuild display list with NEW CLIENT at the center position
+    if (activeClient && clients.length > 0) {
+      const newDisplayList = [
+        ...clients.slice(0, centerIndex),
+        { ...activeClient, isNewClient: true, displayPosition: newPosition },
+        ...clients.slice(centerIndex)
+      ].map((client, index) => ({...client, displayPosition: index + 1}));
+      
+      setDisplayList(newDisplayList);
+      handlePositionChange(newPosition);
     }
-    handlePositionChange(centerIndex + 1);
-  };
-
-  // On scroll end, snap to the nearest item so it's perfectly centered
-  const onScrollEndWeb = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const centerIndex = getCenterIndex(y);
-    // Snap to this index
-    if (flatListRef.current) {
-      flatListRef.current.scrollToOffset({
-        offset: ITEM_HEIGHT * centerIndex,
-        animated: true,
-      });
-    }
-    handlePositionChange(centerIndex + 1);
   };
 
   if (loading) {
