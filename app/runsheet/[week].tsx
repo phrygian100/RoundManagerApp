@@ -681,7 +681,7 @@ export default function RunsheetWeekScreen() {
                 <View style={styles.sectionHeaderContainer}>
                   <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
                     <Text style={styles.sectionHeader}>
-                      {title} ({data.length}) {collapsedDays.includes(title) ? '+' : '-'}
+                      {title} ({data.filter(item => !item.__type).length}) {collapsedDays.includes(title) ? '+' : '-'}
                       {(dayIsCompleted || dayIsPast) && ' 🔒'}
                     </Text>
                   </Pressable>
