@@ -240,7 +240,7 @@ export default function AddClientScreen() {
       }
 
       console.log('Client creation completed successfully');
-      router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientRef.id } });
+      router.replace('/');
     } catch (e) {
       console.error('Error saving client:', e);
       Alert.alert('Error', 'Could not save client.');
