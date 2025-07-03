@@ -2,11 +2,12 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
+import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getCurrentUserId, supabase } from '../core/supabase';
 import { createJobsForClient } from '../services/jobService';
@@ -40,6 +41,7 @@ export default function AddClientScreen() {
   const [email, setEmail] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [startingBalance, setStartingBalance] = useState('0');
+  const { quoteData, clearQuoteData } = useQuoteToClient();
 
   const sourceOptions = [
     'Google',
@@ -142,6 +144,20 @@ export default function AddClientScreen() {
     if (params.email) setEmail(String(params.email));
   }, [params]);
 
+  useEffect(() => {
+    if (quoteData) {
+      setName(quoteData.name || '');
+      setAddress1(quoteData.address || '');
+      setTown(quoteData.town || '');
+      setMobileNumber(quoteData.number || '');
+      setQuote(quoteData.value || '');
+      setFrequency((quoteData.frequency as '4' | '8' | 'one-off') || '4');
+      // If you have notes or startDate fields, set them here as well
+      // setNotes(quoteData.notes || '');
+      // setNextVisit(quoteData.date || '');
+    }
+  }, [quoteData]);
+
   const handleSave = async () => {
     if (isSaving) {
       console.log('Already saving, preventing duplicate submission');
@@ -215,6 +231,12 @@ export default function AddClientScreen() {
           console.error('Error creating jobs for new client:', jobError);
           // Don't fail the client creation if job creation fails
         }
+      }
+
+      // After saving client, if quoteData is present, mark quote as complete
+      if (quoteData) {
+        await updateDoc(doc(db, 'quotes', quoteData.id), { status: 'complete' });
+        clearQuoteData();
       }
 
       console.log('Client creation completed successfully');
