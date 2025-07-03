@@ -1140,4 +1140,33 @@ This should equip the next developer to finish the workflow by ensuring jobs are
 
 ---
 
-## [Unresolved] Quotes Feature & Runsheet Integration (July 2025)
+## 2025-07-03 (Quote-to-Client Workflow, Web Button Fix, and Frequency Normalization) 🚀
+- **Implemented seamless quote-to-client workflow:**
+  - Added a shared React context (`QuoteToClientContext`) to hold quote data when converting a quote to a client.
+  - When the user clicks "Next" on a pending quote, the quote data is stored in context and the user is navigated to the Add Client form.
+  - The Add Client form reads from context and pre-fills all relevant fields (name, address, town, mobile, quote value, frequency, etc.).
+  - After saving the client, the quote's status is updated to "complete" and the context is cleared.
+  - The user is redirected to the home screen after successful client creation.
+- **Fixed Save Client button on web:**
+  - Replaced `<Pressable>` with a standard `<Button>` for the Save Client action to ensure reliable click handling on web.
+  - Added debug logging and a test button to confirm event handling.
+- **Fixed frequency normalization bug:**
+  - Added logic to normalize frequency values from quotes (e.g., "4 weekly" → "4", "8 weekly" → "8") before validation in the Add Client form.
+  - This resolves the "invalid frequency" validation error when converting a quote to a client.
+- **Improved error handling and debugging:**
+  - Added detailed console logs to the Add Client save handler to trace execution and catch silent errors.
+  - Improved validation feedback for required fields and frequency values.
+- **Provider integration:**
+  - Wrapped the app in `QuoteToClientProvider` in `app/_layout.tsx` so all screens have access to the quote-to-client context.
+
+**Files Modified:**
+- `contexts/QuoteToClientContext.tsx` - New context for quote-to-client data passing
+- `app/_layout.tsx` - Wrapped app in context provider
+- `app/quotes.tsx` - Uses context to pass quote data to Add Client form
+- `app/add-client.tsx` - Pre-fills fields from context, normalizes frequency, fixes Save Client button for web, adds debug logs, and redirects to home after save
+
+**Result:**
+- Users can now convert quotes to clients in a multi-step, robust, and web-compatible workflow.
+- All fields are pre-filled, validation is reliable, and navigation works as expected on web and mobile.
+
+---

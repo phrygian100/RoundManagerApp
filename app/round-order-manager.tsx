@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Dimensions, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -261,6 +261,13 @@ export default function RoundOrderManagerScreen() {
     handlePositionChange(index + 1);
   };
 
+  // Web-specific scroll handling for better compatibility
+  const onScrollWeb = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    const index = Math.round(y / ITEM_HEIGHT);
+    handlePositionChange(index + 1);
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -289,6 +296,13 @@ export default function RoundOrderManagerScreen() {
       </View>
 
       <View style={styles.listContainer}>
+        {Platform.OS === 'web' && (
+          <View style={styles.webPositionIndicator}>
+            <ThemedText style={styles.webPositionText}>
+              Selected Position: {position}
+            </ThemedText>
+          </View>
+        )}
         <View style={styles.pickerWrapper}>
           <FlatList
             data={displayList}
@@ -312,7 +326,10 @@ export default function RoundOrderManagerScreen() {
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
-            onMomentumScrollEnd={onScroll}
+            onMomentumScrollEnd={Platform.OS === 'web' ? onScrollWeb : onScroll}
+            onScrollEndDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
+            onScrollBeginDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
+            scrollEventThrottle={Platform.OS === 'web' ? 16 : undefined}
             getItemLayout={(data, index) => ({
               length: ITEM_HEIGHT,
               offset: ITEM_HEIGHT * index,
@@ -389,6 +406,11 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+    ...(Platform.OS === 'web' && {
+      // Web-specific scroll improvements
+      scrollBehavior: 'smooth',
+      WebkitOverflowScrolling: 'touch',
+    }),
   },
   clientItem: {
     flexDirection: 'row',
@@ -438,5 +460,18 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flex: 0.48,
     alignItems: 'center',
+  },
+  webPositionIndicator: {
+    backgroundColor: '#007AFF',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 12,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+  },
+  webPositionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
