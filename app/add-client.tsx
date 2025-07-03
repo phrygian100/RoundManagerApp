@@ -159,18 +159,21 @@ export default function AddClientScreen() {
   }, [quoteData]);
 
   const handleSave = async () => {
+    console.log('handleSave: Save Client button pressed');
     if (isSaving) {
       console.log('Already saving, preventing duplicate submission');
       return;
     }
 
     if (!name.trim() || !address1.trim() || !town.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
+      console.log('Validation failed: missing required fields');
       Alert.alert('Error', 'Please fill out all required fields.');
       return;
     }
 
     const startingBalanceValue = Number(startingBalance);
     if (isNaN(startingBalanceValue)) {
+      console.log('Validation failed: invalid starting balance');
       Alert.alert('Error', 'Starting Balance must be a valid number.');
       return;
     }
@@ -182,6 +185,7 @@ export default function AddClientScreen() {
       frequencyValue = Number(frequency);
 
       if (isNaN(frequencyValue) || frequencyValue <= 0) {
+        console.log('Validation failed: invalid frequency');
         Alert.alert('Error', 'Frequency must be 4, 8, or one-off.');
         return;
       }
@@ -189,6 +193,7 @@ export default function AddClientScreen() {
 
     const quoteValue = Number(quote);
     if (isNaN(quoteValue) || quoteValue < 0) {
+      console.log('Validation failed: invalid quote value');
       Alert.alert('Error', 'Quote must be a valid number.');
       return;
     }
@@ -235,15 +240,17 @@ export default function AddClientScreen() {
 
       // After saving client, if quoteData is present, mark quote as complete
       if (quoteData) {
+        console.log('Updating quote status to complete for quote id:', quoteData.id);
         await updateDoc(doc(db, 'quotes', quoteData.id), { status: 'complete' });
         clearQuoteData();
       }
 
-      console.log('Client creation completed successfully');
+      console.log('Client creation completed successfully, navigating to home');
       router.replace('/');
-    } catch (e) {
-      console.error('Error saving client:', e);
+    } catch (error) {
+      console.log('Error in handleSave:', error);
       Alert.alert('Error', 'Could not save client.');
+      console.error('Error saving client:', error);
     } finally {
       setIsSaving(false);
     }
