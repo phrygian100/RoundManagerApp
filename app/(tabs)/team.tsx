@@ -92,8 +92,10 @@ export default function TeamScreen() {
       {PERM_KEYS.map(p => (
         <View key={p.key} style={{ alignItems: 'center' }}>
           <Switch
-            value={!!item.perms?.[p.key]}
-            onValueChange={val => handleToggle(item.uid, p.key, val)}
+            value={item.role === 'owner' ? true : !!item.perms?.[p.key]}
+            onValueChange={item.role === 'owner' ? () => {} : (val) => { handleToggle(item.uid, p.key, val); }}
+            disabled={item.role === 'owner'}
+            trackColor={item.role === 'owner' ? { true: '#bdbdbd', false: '#bdbdbd' } : undefined}
           />
         </View>
       ))}
