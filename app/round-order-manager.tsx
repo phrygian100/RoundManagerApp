@@ -270,7 +270,16 @@ export default function RoundOrderManagerScreen() {
   // Web-specific scroll handler: update position based on center item
   const onScrollWeb = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
-    const centerIndex = getCenterIndex(y);
+    const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
+    // Calculate the index that should be centered
+    const centerIndex = Math.round((y - topPadding) / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
+    // Snap to this index immediately
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({
+        offset: (centerIndex - Math.floor(VISIBLE_ITEMS / 2)) * ITEM_HEIGHT + topPadding,
+        animated: false,
+      });
+    }
     handlePositionChange(centerIndex + 1);
   };
 
@@ -328,9 +337,6 @@ export default function RoundOrderManagerScreen() {
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
-            onMomentumScrollEnd={Platform.OS === 'web' ? onScrollEndWeb : onScroll}
-            onScrollEndDrag={Platform.OS === 'web' ? onScrollEndWeb : undefined}
-            onScrollBeginDrag={Platform.OS === 'web' ? onScrollWeb : undefined}
             onScroll={Platform.OS === 'web' ? onScrollWeb : undefined}
             scrollEventThrottle={Platform.OS === 'web' ? 16 : undefined}
             getItemLayout={(data, index) => ({
