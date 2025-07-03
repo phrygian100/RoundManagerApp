@@ -99,6 +99,7 @@ export default function QuotesScreen() {
       frequency: detailsForm.frequency,
       value: detailsForm.value,
       notes: detailsForm.notes,
+      status: 'pending',
     });
     setDetailsModal({ visible: false, quote: null });
     setDetailsForm({ frequency: '4 weekly', value: '', notes: '' });
