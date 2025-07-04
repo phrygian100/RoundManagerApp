@@ -271,10 +271,12 @@ export default function RoundOrderManagerScreen() {
     const y = event.nativeEvent.contentOffset.y;
     const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
     
-    // Calculate which position the blue overlay represents
-    const overlayPosition = Math.round((y + topPadding) / ITEM_HEIGHT) + 1;
+    // Calculate which item is at the center (where blue overlay is)
+    // We need to subtract the padding to get the actual item position
+    const itemAtCenter = Math.round((y - topPadding) / ITEM_HEIGHT);
+    const selectedPosition = Math.max(1, itemAtCenter + 1);
     const maxPosition = clients.length + 1;
-    const clampedPosition = Math.max(1, Math.min(maxPosition, overlayPosition));
+    const clampedPosition = Math.min(maxPosition, selectedPosition);
     
     handlePositionChange(clampedPosition);
   };
