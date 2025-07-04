@@ -11,7 +11,6 @@ import { isTodayMarkedComplete } from '../services/jobService';
 import type { Client } from '../types/client';
 
 type ClientWithPosition = Client & { 
-  isNewClient?: boolean;
   displayPosition: number;
 };
 
@@ -24,10 +23,9 @@ export default function RoundOrderManagerScreen() {
   const { newClientData, editingClientId } = useLocalSearchParams();
   const [clients, setClients] = useState<ClientWithPosition[]>([]);
   const [loading, setLoading] = useState(true);
-  const [position, setPosition] = useState(1);
+  const [selectedPosition, setSelectedPosition] = useState(1);
   const [activeClient, setActiveClient] = useState<Client | null>(null);
   const flatListRef = useRef<FlatList>(null);
-  const [displayList, setDisplayList] = useState<ClientWithPosition[]>([]);
 
   useEffect(() => {
     const loadClients = async () => {
@@ -60,36 +58,51 @@ export default function RoundOrderManagerScreen() {
 
         // Only include active clients
         const activeClients = allClients.filter(c => c.status !== 'ex-client');
+        
         if (newClientData) {
           // CREATE MODE
           activeClientData = JSON.parse(newClientData as string);
-          clientsList = activeClients;
+          clientsList = activeClients.map((client, index) => ({
+            ...client,
+            displayPosition: index + 1
+          }));
+          initialPosition = 1; // Default to first position
         } else if (typeof editingClientId === 'string') {
           // EDIT MODE
           const clientToEdit = activeClients.find(c => c.id === editingClientId);
           if (clientToEdit) {
             activeClientData = clientToEdit;
             // Exclude the client being edited from the list
-            clientsList = activeClients.filter(c => c.id !== editingClientId);
+            clientsList = activeClients
+              .filter(c => c.id !== editingClientId)
+              .map((client, index) => ({
+                ...client,
+                displayPosition: index + 1
+              }));
             initialPosition = clientToEdit.roundOrderNumber;
           } else {
             // Fallback if client not found
-            clientsList = activeClients;
+            clientsList = activeClients.map((client, index) => ({
+              ...client,
+              displayPosition: index + 1
+            }));
           }
         }
         
         setClients(clientsList);
         setActiveClient(activeClientData);
-        setPosition(initialPosition);
+        setSelectedPosition(initialPosition);
 
-        if (clientsList.length > 0 && activeClientData) {
-          const initialDisplayList = [
-            ...clientsList.slice(0, position - 1),
-            { ...activeClientData, isNewClient: true, displayPosition: position },
-            ...clientsList.slice(position - 1)
-          ].map((client, index) => ({...client, displayPosition: index + 1}));
-          setDisplayList(initialDisplayList);
-        }
+        // Scroll to initial position after a short delay
+        setTimeout(() => {
+          if (flatListRef.current && initialPosition > 0) {
+            const scrollToIndex = Math.max(0, initialPosition - 1);
+            flatListRef.current.scrollToOffset({
+              offset: scrollToIndex * ITEM_HEIGHT,
+              animated: false
+            });
+          }
+        }, 100);
 
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -105,8 +118,8 @@ export default function RoundOrderManagerScreen() {
   const handlePositionChange = (newPosition: number) => {
     const maxPosition = clients.length + 1;
     const clampedPosition = Math.max(1, Math.min(maxPosition, newPosition));
-    if (clampedPosition !== position) {
-      setPosition(clampedPosition);
+    if (clampedPosition !== selectedPosition) {
+      setSelectedPosition(clampedPosition);
     }
   };
 
@@ -126,10 +139,9 @@ export default function RoundOrderManagerScreen() {
       
       // Create new client list with the new client inserted at the selected position
       const updatedClients = [...clients];
-      updatedClients.splice(position - 1, 0, { 
+      updatedClients.splice(selectedPosition - 1, 0, { 
         ...activeClient, 
-        isNewClient: true,
-        displayPosition: position 
+        displayPosition: selectedPosition 
       });
       
       // Update round order numbers for all clients
@@ -142,15 +154,14 @@ export default function RoundOrderManagerScreen() {
       
       if (newClientData) {
         // If restoring a client (has id), update the existing document
-        const clientToAdd = updatedClients.find(c => 'isNewClient' in c && c.isNewClient);
-        if (clientToAdd) {
-          const { id, isNewClient, displayPosition, ...clientData } = clientToAdd;
+        if (activeClient) {
+          const { id, ...clientData } = activeClient;
           if (id) {
             // Restoring: update existing client
             const clientRef = doc(db, 'clients', id);
             batch.update(clientRef, {
               ...clientData,
-              roundOrderNumber: position,
+              roundOrderNumber: selectedPosition,
               status: 'active',
             });
             // After batch commit, regenerate jobs for this client (from today onwards)
@@ -208,7 +219,7 @@ export default function RoundOrderManagerScreen() {
               pathname: '/add-client',
               params: {
                 ...clientData,
-                roundOrderNumber: String(position),
+                roundOrderNumber: String(selectedPosition),
               }
             });
             return;
@@ -225,7 +236,7 @@ export default function RoundOrderManagerScreen() {
       if (editingClientId) {
         router.back();
       } else if (newClientData) {
-        router.push({ pathname: '/add-client', params: { roundOrderNumber: String(position) } });
+        router.push({ pathname: '/add-client', params: { roundOrderNumber: String(selectedPosition) } });
       } else {
         router.push('/clients');
       }
@@ -239,20 +250,18 @@ export default function RoundOrderManagerScreen() {
   };
 
   const renderClientItem = ({ item, index }: { item: ClientWithPosition | Client; index: number }) => {
-    const isNewClient = 'isNewClient' in item && item.isNewClient;
     const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
     const address = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
-    const position = 'displayPosition' in item ? item.displayPosition : index + 1;
+    const actualPosition = index + 1;
+    
+    // Adjust position display to account for NEW CLIENT insertion
+    const displayPosition = actualPosition >= selectedPosition ? actualPosition + 1 : actualPosition;
     
     return (
-      <View style={[
-        styles.clientItem
-      ]}>
-        <Text style={styles.positionText}>{position}</Text>
-        <Text style={[
-          styles.addressText
-        ]}>
-          {isNewClient ? 'NEW CLIENT' : address}
+      <View style={styles.clientItem}>
+        <Text style={styles.positionText}>{displayPosition}</Text>
+        <Text style={styles.addressText}>
+          {address}
         </Text>
       </View>
     );
@@ -260,29 +269,14 @@ export default function RoundOrderManagerScreen() {
 
   const onScroll = (event: any) => {
     const y = event.nativeEvent.contentOffset.y;
-    const index = Math.round(y / ITEM_HEIGHT);
-    handlePositionChange(index + 1);
-  };
-
-  // Web scroll handler: recalculate NEW CLIENT position based on blue overlay
-  const onScrollWeb = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
     const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
-    // Calculate which index is under the blue overlay (center)
-    const centerIndex = Math.round(y / ITEM_HEIGHT);
-    const newPosition = centerIndex + 1;
     
-    // Rebuild display list with NEW CLIENT at the center position
-    if (activeClient && clients.length > 0) {
-      const newDisplayList = [
-        ...clients.slice(0, centerIndex),
-        { ...activeClient, isNewClient: true, displayPosition: newPosition },
-        ...clients.slice(centerIndex)
-      ].map((client, index) => ({...client, displayPosition: index + 1}));
-      
-      setDisplayList(newDisplayList);
-      handlePositionChange(newPosition);
-    }
+    // Calculate which position the blue overlay represents
+    const overlayPosition = Math.round((y + topPadding) / ITEM_HEIGHT) + 1;
+    const maxPosition = clients.length + 1;
+    const clampedPosition = Math.max(1, Math.min(maxPosition, overlayPosition));
+    
+    handlePositionChange(clampedPosition);
   };
 
   if (loading) {
@@ -302,13 +296,13 @@ export default function RoundOrderManagerScreen() {
 
       <View style={styles.instructions}>
         <ThemedText style={styles.instructionText}>
-          • Scroll to see where the new client will be inserted
+          • Scroll to choose where to insert the new client
         </ThemedText>
         <ThemedText style={styles.instructionText}>
-          • The blue highlighted client shows the new client
+          • The blue highlight shows the selected position
         </ThemedText>
         <ThemedText style={styles.instructionText}>
-          • All clients below will move down by one position
+          • All clients at or below this position will move down by one
         </ThemedText>
       </View>
 
@@ -316,17 +310,17 @@ export default function RoundOrderManagerScreen() {
         <View style={styles.pickerWrapper}>
           <FlatList
             ref={flatListRef}
-            data={displayList}
+            data={clients}
             renderItem={renderClientItem}
             keyExtractor={(item, index) =>
-              'isNewClient' in item && item.isNewClient ? 'new-client' : item.id || `client-${index}`
+              item.id || `client-${index}`
             }
             style={styles.list}
             showsVerticalScrollIndicator={false}
             snapToInterval={ITEM_HEIGHT}
             decelerationRate="fast"
-            onScroll={Platform.OS === 'web' ? onScrollWeb : undefined}
-            scrollEventThrottle={Platform.OS === 'web' ? 16 : undefined}
+            onScroll={onScroll}
+            scrollEventThrottle={16}
             getItemLayout={(data, index) => ({
               length: ITEM_HEIGHT,
               offset: ITEM_HEIGHT * index,
@@ -337,7 +331,12 @@ export default function RoundOrderManagerScreen() {
               paddingBottom: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
             }}
           />
-          <View style={styles.pickerHighlight} pointerEvents="none" />
+          <View style={styles.pickerHighlight} pointerEvents="none">
+            <Text style={styles.highlightPositionText}>{selectedPosition}</Text>
+            <Text style={styles.highlightClientText}>
+              {activeClient ? 'NEW CLIENT' : 'Position ' + selectedPosition}
+            </Text>
+          </View>
         </View>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
@@ -400,6 +399,21 @@ const styles = StyleSheet.create({
     borderTopWidth: 2,
     borderBottomWidth: 2,
     borderColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  highlightPositionText: {
+    width: 40,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  highlightClientText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
   list: {
     flex: 1,

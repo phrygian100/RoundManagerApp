@@ -1170,3 +1170,148 @@ This should equip the next developer to finish the workflow by ensuring jobs are
 - All fields are pre-filled, validation is reliable, and navigation works as expected on web and mobile.
 
 ---
+
+## 2025-01-07 (Round Order Picker Web Compatibility - ONGOING ISSUE) 🚨
+- **ATTEMPTED WEB COMPATIBILITY FIXES FOR ROUND ORDER PICKER**
+  - **Issue**: Round order picker not working correctly in web environment - scroll events don't properly update selection
+  - **Root Problem**: Mouse wheel scrolling doesn't sync with position selection, causing drift between visual highlight and actual selection
+  - **Attempts Made**:
+    1. Added Platform-specific scroll handling with multiple event handlers (onScrollEndDrag, onScrollBeginDrag, onScroll)
+    2. Implemented web-specific position indicator and scroll sensitivity improvements
+    3. Replaced with Picker dropdown for web (rejected - poor UX for large lists)
+    4. Fixed center index calculation multiple times to account for FlatList padding
+    5. Implemented immediate snap-to-item logic on scroll
+    6. Redesigned with separate displayList state to keep NEW CLIENT entry under blue overlay
+  - **Current Status**: UNRESOLVED - Selection still drifts from visual highlight during scroll
+  - **Files Modified**: `app/round-order-manager.tsx`
+  - **Next Steps**: Requires fundamental rethink of web scroll handling approach
+
+---
+
+## 🚨 HANDOVER NOTE: ROUND ORDER PICKER WEB COMPATIBILITY ISSUE - EXPERT ASSISTANCE REQUIRED
+
+### **Problem Summary**
+The round order picker (`app/round-order-manager.tsx`) works perfectly on mobile but fails to function correctly in web browsers. The core issue is that mouse wheel scrolling does not properly sync with position selection, causing the visual highlight and actual selection to become increasingly out of sync.
+
+### **Technical Context**
+The round order picker is a wheel-style selector that allows users to choose where to insert a new client in the round order. It consists of:
+
+1. **A FlatList** displaying existing clients in round order
+2. **A blue overlay highlight** fixed in the center of the picker window  
+3. **A "NEW CLIENT" entry** that should always appear under the blue highlight
+4. **Scroll-based selection** where the item under the blue highlight is the selected position
+
+### **Expected Behavior**
+- User scrolls with mouse wheel/trackpad
+- The "NEW CLIENT" entry should always remain under the blue highlight (center of picker)
+- When user clicks "Confirm Position," the selected round order should match the position number shown in the blue highlight
+- No drift or desync between visual selection and actual selection
+
+### **Actual Behavior**
+- On initial load, NEW CLIENT appears at position 4 (correct)
+- As user scrolls, NEW CLIENT entry drifts away from the blue highlight
+- Visual highlight shows one position (e.g., position 22) but confirm results in different position (e.g., position 26-110)
+- The further you scroll, the more out of sync the selection becomes
+
+### **Root Cause Analysis**
+The issue stems from fundamental differences between mobile and web scroll handling:
+
+1. **Mobile**: Touch scrolling with momentum and snap-to-item works naturally with FlatList
+2. **Web**: Mouse wheel events are discrete and don't trigger the same scroll momentum/snap behavior
+3. **FlatList Padding**: The list uses `contentContainerStyle` padding to center items, but scroll offset calculations don't properly account for this in web environment
+4. **Two-Component Problem**: The blue highlight (fixed overlay) and NEW CLIENT entry (part of scrolling list) become desynchronized
+
+### **Attempted Solutions (All Failed)**
+
+#### **Attempt 1: Enhanced Scroll Event Handling**
+- Added multiple scroll event handlers: `onScroll`, `onScrollEndDrag`, `onScrollBeginDrag`
+- Added `scrollEventThrottle={16}` for web
+- **Result**: No improvement in sync
+
+#### **Attempt 2: Dropdown Replacement**
+- Replaced FlatList with `@react-native-picker/picker` for web
+- **Result**: Worked functionally but poor UX for large lists (200+ items), rejected by user
+
+#### **Attempt 3: Center Index Calculation Fixes**
+- Multiple iterations of fixing the center index calculation:
+  ```js
+  // Attempt 3a
+  const centerIndex = Math.round(y / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
+  
+  // Attempt 3b  
+  const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
+  const centerIndex = Math.round((y - topPadding) / ITEM_HEIGHT) + Math.floor(VISIBLE_ITEMS / 2);
+  
+  // Attempt 3c
+  const centerIndex = Math.round((y + topPadding) / ITEM_HEIGHT);
+  ```
+- **Result**: Each formula reduced but didn't eliminate the offset
+
+#### **Attempt 4: Snap-to-Item Logic**
+- Added `scrollToOffset` calls to snap list to nearest item on every scroll
+- **Result**: Caused jerky scrolling, didn't solve sync issue
+
+#### **Attempt 5: Dynamic DisplayList Rebuilding**
+- Moved displayList to state, rebuilt on every scroll event to reposition NEW CLIENT
+- **Result**: Still doesn't keep NEW CLIENT under blue highlight
+
+### **Current Code State**
+The current implementation in `app/round-order-manager.tsx` includes:
+- Platform-specific scroll handling (`Platform.OS === 'web'`)
+- Dynamic displayList state that rebuilds on scroll
+- Fixed blue highlight overlay (`styles.pickerHighlight`)
+- Web-specific scroll handler (`onScrollWeb`) that recalculates NEW CLIENT position
+
+### **Key Constants**
+```js
+const ITEM_HEIGHT = 60;
+const VISIBLE_ITEMS = 7;
+```
+
+### **Critical Questions for Next Expert**
+
+1. **FlatList Web Behavior**: How does FlatList's scroll offset (`event.nativeEvent.contentOffset.y`) behave differently on web vs mobile?
+
+2. **Padding Calculation**: The list uses padding of `ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2)` - is this causing the offset in web calculations?
+
+3. **Event Timing**: Are scroll events on web firing at different times/frequencies than mobile, causing state update lag?
+
+4. **Alternative Approaches**: Should we abandon FlatList for web and use a custom ScrollView or pure HTML/CSS solution?
+
+### **Debugging Recommendations**
+
+1. **Add Comprehensive Logging**:
+   ```js
+   console.log('Scroll Y:', y);
+   console.log('Calculated Center Index:', centerIndex);
+   console.log('NEW CLIENT Position:', newPosition);
+   console.log('DisplayList Length:', displayList.length);
+   ```
+
+2. **Test with Minimal Data**: Try with only 10-20 clients to see if issue persists with smaller lists
+
+3. **Compare Mobile vs Web**: Log the same values on mobile to see behavioral differences
+
+4. **Visual Debugging**: Add temporary visual indicators to show calculated vs actual positions
+
+### **Potential Solutions to Explore**
+
+1. **Pure Web Implementation**: Use a different picker component entirely for web (not FlatList)
+2. **Fixed Item Approach**: Instead of moving NEW CLIENT in the list, calculate position based on fixed blue overlay position
+3. **Scroll Virtualization**: Use a web-specific virtualized list component
+4. **CSS-Based Picker**: Implement web picker using pure CSS scroll-snap
+
+### **Success Criteria**
+- NEW CLIENT entry always appears exactly under blue highlight
+- Scroll position matches visual highlight position
+- Confirm button selects the visually highlighted position
+- No drift or accumulating offset errors
+- Smooth scrolling experience on web
+
+### **Files to Focus On**
+- `app/round-order-manager.tsx` (main implementation)
+- `components/TimePickerModal.tsx` (reference for working web picker)
+
+**Expected Timeline**: This is a complex cross-platform compatibility issue that may require 1-2 days of focused debugging and potentially a complete rewrite of the web scroll handling logic.
+
+---
