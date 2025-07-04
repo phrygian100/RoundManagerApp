@@ -249,37 +249,76 @@ export default function RoundOrderManagerScreen() {
     }
   };
 
-  const renderClientItem = ({ item, index }: { item: ClientWithPosition | Client; index: number }) => {
-    const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
-    const address = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
-    const actualPosition = index + 1;
+  const renderPositionList = () => {
+    const maxPosition = clients.length + 1;
+    const centerIndex = Math.floor(VISIBLE_ITEMS / 2);
+    const startPosition = Math.max(1, selectedPosition - centerIndex);
+    const endPosition = Math.min(maxPosition, startPosition + VISIBLE_ITEMS - 1);
     
-    // Adjust position display to account for NEW CLIENT insertion
-    const displayPosition = actualPosition >= selectedPosition ? actualPosition + 1 : actualPosition;
+    const displayItems = [];
     
-    return (
-      <View style={styles.clientItem}>
-        <Text style={styles.positionText}>{displayPosition}</Text>
-        <Text style={styles.addressText}>
-          {address}
-        </Text>
-      </View>
-    );
+    for (let pos = startPosition; pos <= endPosition; pos++) {
+      let displayText = '';
+      
+      if (pos === selectedPosition) {
+        displayText = 'NEW CLIENT';
+      } else if (pos > selectedPosition) {
+        // Show clients that will be at this position after NEW CLIENT is inserted
+        const clientIndex = pos - 2; // -1 for position->index, -1 for NEW CLIENT insertion
+        if (clientIndex >= 0 && clientIndex < clients.length) {
+          const client = clients[clientIndex];
+          const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
+          displayText = addressParts.length > 0 ? addressParts.join(', ') : (client.address || 'No address');
+        } else {
+          displayText = `Position ${pos}`;
+        }
+      } else {
+        // Show clients that will stay at this position
+        const clientIndex = pos - 1;
+        if (clientIndex >= 0 && clientIndex < clients.length) {
+          const client = clients[clientIndex];
+          const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
+          displayText = addressParts.length > 0 ? addressParts.join(', ') : (client.address || 'No address');
+        } else {
+          displayText = `Position ${pos}`;
+        }
+      }
+      
+      displayItems.push(
+        <View key={pos} style={styles.clientItem}>
+          <Text style={styles.positionText}>{pos}</Text>
+          <Text style={styles.addressText}>
+            {displayText}
+          </Text>
+        </View>
+      );
+    }
+    
+    return displayItems;
   };
 
-  const onScroll = (event: any) => {
-    const y = event.nativeEvent.contentOffset.y;
-    const topPadding = ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2);
-    
-    // Calculate which item is at the center (where blue overlay is)
-    // We need to subtract the padding to get the actual item position
-    const itemAtCenter = Math.round((y - topPadding) / ITEM_HEIGHT);
-    const selectedPosition = Math.max(1, itemAtCenter + 1);
-    const maxPosition = clients.length + 1;
-    const clampedPosition = Math.min(maxPosition, selectedPosition);
-    
-    handlePositionChange(clampedPosition);
+  const handleKeyPress = (event: any) => {
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowUp' ? -1 : 1;
+      const newPosition = selectedPosition + direction;
+      const maxPosition = clients.length + 1;
+      const clampedPosition = Math.max(1, Math.min(maxPosition, newPosition));
+      handlePositionChange(clampedPosition);
+    }
   };
+
+  // Focus management for keyboard events
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      handleKeyPress(event);
+    };
+
+    if (Platform.OS === 'web') {
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [selectedPosition]);
 
   if (loading) {
     return (
@@ -298,7 +337,7 @@ export default function RoundOrderManagerScreen() {
 
       <View style={styles.instructions}>
         <ThemedText style={styles.instructionText}>
-          • Scroll to choose where to insert the new client
+          • Use ↑ and ↓ arrow keys or buttons to choose where to insert the new client
         </ThemedText>
         <ThemedText style={styles.instructionText}>
           • The blue highlight shows the selected position
@@ -309,36 +348,36 @@ export default function RoundOrderManagerScreen() {
       </View>
 
       <View style={styles.listContainer}>
+        <View style={styles.navigationButtons}>
+          <Pressable 
+            style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
+            onPress={() => handlePositionChange(selectedPosition - 1)}
+            disabled={selectedPosition <= 1}
+          >
+            <Text style={styles.navButtonText}>↑</Text>
+          </Pressable>
+        </View>
+        
         <View style={styles.pickerWrapper}>
-          <FlatList
-            ref={flatListRef}
-            data={clients}
-            renderItem={renderClientItem}
-            keyExtractor={(item, index) =>
-              item.id || `client-${index}`
-            }
-            style={styles.list}
-            showsVerticalScrollIndicator={false}
-            snapToInterval={ITEM_HEIGHT}
-            decelerationRate="fast"
-            onScroll={onScroll}
-            scrollEventThrottle={16}
-            getItemLayout={(data, index) => ({
-              length: ITEM_HEIGHT,
-              offset: ITEM_HEIGHT * index,
-              index,
-            })}
-            contentContainerStyle={{
-              paddingTop: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-              paddingBottom: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-            }}
-          />
+          <View style={styles.list}>
+            {renderPositionList()}
+          </View>
           <View style={styles.pickerHighlight} pointerEvents="none">
             <Text style={styles.highlightPositionText}>{selectedPosition}</Text>
             <Text style={styles.highlightClientText}>
               {activeClient ? 'NEW CLIENT' : 'Position ' + selectedPosition}
             </Text>
           </View>
+        </View>
+        
+        <View style={styles.navigationButtons}>
+          <Pressable 
+            style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
+            onPress={() => handlePositionChange(selectedPosition + 1)}
+            disabled={selectedPosition >= clients.length + 1}
+          >
+            <Text style={styles.navButtonText}>↓</Text>
+          </Pressable>
         </View>
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
@@ -464,5 +503,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     flex: 0.48,
     alignItems: 'center',
+  },
+  navigationButtons: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  navButton: {
+    backgroundColor: '#007AFF',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginVertical: 4,
+  },
+  navButtonDisabled: {
+    backgroundColor: '#ccc',
+  },
+  navButtonText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
