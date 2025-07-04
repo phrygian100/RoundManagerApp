@@ -1,3 +1,4 @@
+import WheelPicker from '@quidone/react-native-wheel-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
@@ -93,16 +94,18 @@ export default function RoundOrderManagerScreen() {
         setActiveClient(activeClientData);
         setSelectedPosition(initialPosition);
 
-        // Scroll to initial position after a short delay
-        setTimeout(() => {
-          if (flatListRef.current && initialPosition > 0) {
-            const scrollToIndex = Math.max(0, initialPosition - 1);
-            flatListRef.current.scrollToOffset({
-              offset: scrollToIndex * ITEM_HEIGHT,
-              animated: false
-            });
-          }
-        }, 100);
+        // Scroll to initial position after a short delay (mobile only)
+        if (Platform.OS !== 'web') {
+          setTimeout(() => {
+            if (flatListRef.current && initialPosition > 0) {
+              const scrollToIndex = Math.max(0, initialPosition - 1);
+              flatListRef.current.scrollToOffset({
+                offset: scrollToIndex * ITEM_HEIGHT,
+                animated: false
+              });
+            }
+          }, 100);
+        }
 
       } catch (error) {
         console.error('Error loading clients:', error);
@@ -297,6 +300,74 @@ export default function RoundOrderManagerScreen() {
     return displayItems;
   };
 
+  // Mobile-specific functions - Simplest possible implementation
+  const createMobileDisplayList = () => {
+    const displayList = [];
+    
+    // Create a simple list: just clients with NEW CLIENT inserted at selected position
+    clients.forEach((client, index) => {
+      if (index + 1 === selectedPosition) {
+        // Insert NEW CLIENT before this client
+        displayList.push({
+          id: 'new-client',
+          isNewClient: true,
+          address: 'NEW CLIENT'
+        });
+      }
+      
+      displayList.push({
+        ...client,
+        isNewClient: false
+      });
+    });
+    
+    // If NEW CLIENT should be at the end
+    if (selectedPosition > clients.length) {
+      displayList.push({
+        id: 'new-client',
+        isNewClient: true,
+        address: 'NEW CLIENT'
+      });
+    }
+    
+    return displayList;
+  };
+
+  const renderMobileItem = ({ item, index }: { item: any; index: number }) => {
+    const isNewClient = item.isNewClient;
+    let displayText = '';
+    let position = index + 1;
+    
+    if (isNewClient) {
+      displayText = 'NEW CLIENT';
+      position = selectedPosition;
+    } else {
+      const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
+      displayText = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
+      // Adjust position for clients after NEW CLIENT
+      if (index >= selectedPosition - 1) {
+        position = index;
+      }
+    }
+    
+    return (
+      <View style={styles.clientItem}>
+        <Text style={styles.positionText}>{position}</Text>
+        <Text style={styles.addressText}>{displayText}</Text>
+      </View>
+    );
+  };
+
+  const onScrollMobile = (event: any) => {
+    const y = event.nativeEvent.contentOffset.y;
+    
+    // Simplest calculation: divide scroll by item height to get index
+    const index = Math.round(y / ITEM_HEIGHT);
+    const newPosition = index + 1;
+    
+    handlePositionChange(newPosition);
+  };
+
   // Navigation functions
   const moveUp = () => {
     console.log('Moving up from position:', selectedPosition);
@@ -317,24 +388,37 @@ export default function RoundOrderManagerScreen() {
     }
   };
 
-  // Focus management for keyboard events
+  // Focus management for keyboard events (web only)
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      console.log('Key pressed:', event.key);
-      if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        moveUp();
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        moveDown();
-      }
-    };
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleKeyDown = (event: KeyboardEvent) => {
+        console.log('Key pressed:', event.key);
+        if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          moveUp();
+        } else if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          moveDown();
+        }
+      };
 
-    if (Platform.OS === 'web') {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
   }, [selectedPosition, clients.length]);
+
+  // Create wheel picker data
+  const wheelPickerData = clients.map((client, index) => ({
+    value: index + 1,
+    label: `${index + 1}. ${client.name}`,
+  }));
+
+  // Add the "NEW CLIENT" option at the selected position
+  const wheelPickerDataWithNewClient = [...wheelPickerData];
+  wheelPickerDataWithNewClient.splice(selectedPosition - 1, 0, {
+    value: selectedPosition,
+    label: `${selectedPosition}. NEW CLIENT`,
+  });
 
   if (loading) {
     return (
@@ -353,7 +437,10 @@ export default function RoundOrderManagerScreen() {
 
       <View style={styles.instructions}>
         <ThemedText style={styles.instructionText}>
-          • Use ↑ and ↓ arrow keys or buttons to choose where to insert the new client
+          • {Platform.OS === 'web' 
+            ? 'Use ↑ and ↓ arrow keys or the buttons to choose where to insert the new client'
+            : 'Scroll to choose where to insert the new client'
+          }
         </ThemedText>
         <ThemedText style={styles.instructionText}>
           • The blue highlight shows the selected position
@@ -364,37 +451,55 @@ export default function RoundOrderManagerScreen() {
       </View>
 
       <View style={styles.listContainer}>
-        <View style={styles.navigationButtons}>
-          <Pressable 
-            style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
-            onPress={moveUp}
-            disabled={selectedPosition <= 1}
-          >
-            <Text style={styles.navButtonText}>↑</Text>
-          </Pressable>
-        </View>
-        
-        <View style={styles.pickerWrapper}>
-          <View style={styles.list}>
-            {renderPositionList()}
+        {Platform.OS === 'web' ? (
+          // Web version: Arrow keys + buttons
+          <>
+            <View style={styles.navigationButtons}>
+              <Pressable 
+                style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
+                onPress={moveUp}
+                disabled={selectedPosition <= 1}
+              >
+                <Text style={styles.navButtonText}>↑</Text>
+              </Pressable>
+            </View>
+            
+            <View style={styles.pickerWrapper}>
+              <View style={styles.list}>
+                {renderPositionList()}
+              </View>
+              <View style={styles.pickerHighlight} pointerEvents="none">
+                <Text style={styles.highlightPositionText}>{selectedPosition}</Text>
+                <Text style={styles.highlightClientText}>
+                  {activeClient ? 'NEW CLIENT' : 'Position ' + selectedPosition}
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.navigationButtons}>
+              <Pressable 
+                style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
+                onPress={moveDown}
+                disabled={selectedPosition >= clients.length + 1}
+              >
+                <Text style={styles.navButtonText}>↓</Text>
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          // Mobile version: Wheel Picker
+          <View style={styles.wheelPickerContainer}>
+            <WheelPicker
+              data={wheelPickerDataWithNewClient}
+              value={selectedPosition}
+              onValueChanged={({ item }: { item: { value: number; label: string } }) => setSelectedPosition(item.value)}
+              itemHeight={60}
+              visibleItemCount={7}
+              itemTextStyle={styles.wheelPickerItem}
+              style={styles.wheelPicker}
+            />
           </View>
-          <View style={styles.pickerHighlight} pointerEvents="none">
-            <Text style={styles.highlightPositionText}>{selectedPosition}</Text>
-            <Text style={styles.highlightClientText}>
-              {activeClient ? 'NEW CLIENT' : 'Position ' + selectedPosition}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.navigationButtons}>
-          <Pressable 
-            style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
-            onPress={moveDown}
-            disabled={selectedPosition >= clients.length + 1}
-          >
-            <Text style={styles.navButtonText}>↓</Text>
-          </Pressable>
-        </View>
+        )}
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
         <Pressable style={styles.cancelButton} onPress={() => router.back()} disabled={loading}>
@@ -541,4 +646,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
   },
+  wheelPickerContainer: {
+    flex: 1,
+    marginVertical: 20,
+    justifyContent: 'center',
+  },
+  wheelPicker: {
+    height: 400,
+  },
+  wheelPickerItem: {
+    fontSize: 16,
+    color: '#333',
+  },
+
 });

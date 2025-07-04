@@ -6,3 +6,5 @@
    - Why the change was made
 
 Failure to update the changelog blocks the PR / commit review. 
+
+2. Changes to UI or functionality must preserve platform specific integrity. Updates for web or mobile must not degrade or break the other platforms experience. Always ensure functions do not disrupt platform specific functionality or layouts. If you are unsure you are working on changes for the mobile or web version, always ask.
