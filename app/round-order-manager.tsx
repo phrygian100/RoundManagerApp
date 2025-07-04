@@ -297,13 +297,22 @@ export default function RoundOrderManagerScreen() {
     return displayItems;
   };
 
-  const handleKeyPress = (event: any) => {
-    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      event.preventDefault();
-      const direction = event.key === 'ArrowUp' ? -1 : 1;
-      const newPosition = selectedPosition + direction;
-      const maxPosition = clients.length + 1;
-      const clampedPosition = Math.max(1, Math.min(maxPosition, newPosition));
+  // Navigation functions
+  const moveUp = () => {
+    console.log('Moving up from position:', selectedPosition);
+    const newPosition = selectedPosition - 1;
+    const clampedPosition = Math.max(1, newPosition);
+    if (clampedPosition !== selectedPosition) {
+      handlePositionChange(clampedPosition);
+    }
+  };
+
+  const moveDown = () => {
+    console.log('Moving down from position:', selectedPosition);
+    const newPosition = selectedPosition + 1;
+    const maxPosition = clients.length + 1;
+    const clampedPosition = Math.min(maxPosition, newPosition);
+    if (clampedPosition !== selectedPosition) {
       handlePositionChange(clampedPosition);
     }
   };
@@ -311,14 +320,21 @@ export default function RoundOrderManagerScreen() {
   // Focus management for keyboard events
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      handleKeyPress(event);
+      console.log('Key pressed:', event.key);
+      if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveUp();
+      } else if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveDown();
+      }
     };
 
     if (Platform.OS === 'web') {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [selectedPosition]);
+  }, [selectedPosition, clients.length]);
 
   if (loading) {
     return (
@@ -351,7 +367,7 @@ export default function RoundOrderManagerScreen() {
         <View style={styles.navigationButtons}>
           <Pressable 
             style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
-            onPress={() => handlePositionChange(selectedPosition - 1)}
+            onPress={moveUp}
             disabled={selectedPosition <= 1}
           >
             <Text style={styles.navButtonText}>↑</Text>
@@ -373,7 +389,7 @@ export default function RoundOrderManagerScreen() {
         <View style={styles.navigationButtons}>
           <Pressable 
             style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
-            onPress={() => handlePositionChange(selectedPosition + 1)}
+            onPress={moveDown}
             disabled={selectedPosition >= clients.length + 1}
           >
             <Text style={styles.navButtonText}>↓</Text>
