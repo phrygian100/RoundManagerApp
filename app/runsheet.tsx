@@ -1,6 +1,7 @@
 import { format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getUserSession } from '../core/session';
 
 export default function RunsheetScreen() {
@@ -55,35 +56,43 @@ export default function RunsheetScreen() {
 
   if (loading) {
     return (
-      <div style={{ padding: '20px', fontSize: '16px' }}>
-        <h2>🔄 Loading Runsheet...</h2>
-        <p>Checking permissions and redirecting...</p>
-        {debugInfo && <p style={{ color: '#666' }}>Debug: {debugInfo}</p>}
-      </div>
+      <View style={styles.container}>
+        <Text style={styles.heading}>🔄 Loading Runsheet...</Text>
+        <Text>Checking permissions and redirecting...</Text>
+        {debugInfo ? <Text style={styles.debug}>Debug: {debugInfo}</Text> : null}
+      </View>
     );
   }
 
   if (error) {
     return (
-      <div style={{ padding: '20px', fontSize: '16px' }}>
-        <h2>❌ Access Denied</h2>
-        <p>{error}</p>
-        {debugInfo && <p style={{ color: '#666' }}>Debug: {debugInfo}</p>}
-        <button onClick={() => router.replace('/')} style={{ padding: '10px 20px', marginTop: '10px' }}>
-          🏠 Go Home
-        </button>
-      </div>
+      <View style={styles.container}>
+        <Text style={styles.heading}>❌ Access Denied</Text>
+        <Text>{error}</Text>
+        {debugInfo ? <Text style={styles.debug}>Debug: {debugInfo}</Text> : null}
+        <TouchableOpacity onPress={() => router.replace('/')} style={styles.button}>
+          <Text style={styles.buttonText}>🏠 Go Home</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
   // This should not be reached due to redirect, but just in case
   return (
-    <div style={{ padding: '20px', fontSize: '16px' }}>
-      <h2>🔄 Redirecting to current week...</h2>
-      <p>If you see this message, the redirect may have failed.</p>
-      <button onClick={() => router.replace('/')} style={{ padding: '10px 20px', marginTop: '10px' }}>
-        🏠 Go Home
-      </button>
-    </div>
+    <View style={styles.container}>
+      <Text style={styles.heading}>🔄 Redirecting to current week...</Text>
+      <Text>If you see this message, the redirect may have failed.</Text>
+      <TouchableOpacity onPress={() => router.replace('/')} style={styles.button}>
+        <Text style={styles.buttonText}>🏠 Go Home</Text>
+      </TouchableOpacity>
+    </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: { padding: 20 },
+  heading: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+  debug: { color: '#666', marginTop: 4 },
+  button: { padding: 10, marginTop: 10, backgroundColor: '#007AFF', borderRadius: 4, alignSelf: 'flex-start' },
+  buttonText: { color: '#fff', fontSize: 16 },
+}); 

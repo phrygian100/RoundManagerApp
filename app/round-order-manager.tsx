@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Dimensions, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Dimensions, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -137,111 +137,115 @@ export default function RoundOrderManagerScreen() {
         return;
       }
 
-      // First, update all existing clients' round order numbers
+      // Step 1: Get ALL active clients from database
+      const allClientsQuery = query(
+        collection(db, 'clients'),
+        where('ownerId', '==', ownerId)
+      );
+      const allClientsSnapshot = await getDocs(allClientsQuery);
+      
+      // Step 2: Filter to only active clients and sort by current round order
+      let activeClientsList = allClientsSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id } as Client))
+        .filter(client => client.status !== 'ex-client')
+        .sort((a, b) => (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0));
+
+      // Step 3: If editing a client, remove it from the list first
+      if (editingClientId) {
+        const editClientId = typeof editingClientId === 'string' ? editingClientId : editingClientId[0];
+        activeClientsList = activeClientsList.filter(client => client.id !== editClientId);
+      }
+
+      // Step 4: Insert the client at the selected position
+      const finalOrderedList = [...activeClientsList];
+      finalOrderedList.splice(selectedPosition - 1, 0, activeClient);
+
+      // Step 5: Update ALL clients with sequential round order numbers
       const batch = writeBatch(db);
       
-      // Create new client list with the new client inserted at the selected position
-      const updatedClients = [...clients];
-      updatedClients.splice(selectedPosition - 1, 0, { 
-        ...activeClient, 
-        displayPosition: selectedPosition 
-      });
-      
-      // Update round order numbers for all clients
-      updatedClients.forEach((client, index) => {
-        if (client.id) {
-          const clientRef = doc(db, 'clients', client.id);
-          batch.update(clientRef, { roundOrderNumber: index + 1 });
+      finalOrderedList.forEach((client, index) => {
+        const newRoundOrderNumber = index + 1;
+        const clientRef = doc(db, 'clients', client.id);
+        
+        // Always update round order number
+        batch.update(clientRef, { roundOrderNumber: newRoundOrderNumber });
+        
+        // If this is a restored client, also update status
+        if (newClientData && client.id === activeClient.id) {
+          batch.update(clientRef, { status: 'active' });
         }
       });
-      
-      if (newClientData) {
-        // If restoring a client (has id), update the existing document
-        if (activeClient) {
-          const { id, ...clientData } = activeClient;
-          if (id) {
-            // Restoring: update existing client
-            const clientRef = doc(db, 'clients', id);
-            batch.update(clientRef, {
-              ...clientData,
-              roundOrderNumber: selectedPosition,
-              status: 'active',
-            });
-            // After batch commit, regenerate jobs for this client (from today onwards)
-            const skipToday = await isTodayMarkedComplete();
-            await batch.commit();
-            // Regenerate jobs for this client (from today onwards)
-            if (clientData.frequency !== 'one-off') {
-              // Custom job generation: only for dates from today onwards
-              const today = new Date();
-              today.setHours(0, 0, 0, 0);
-              let visitDate = clientData.nextVisit ? new Date(clientData.nextVisit) : today;
-              if (visitDate < today) {
-                // Move to the next valid date
-                const freq = Number(clientData.frequency);
-                while (visitDate < today) {
-                  visitDate.setDate(visitDate.getDate() + freq * 7);
-                }
-              }
-              // Generate up to 8 jobs from the next valid visitDate
-              const jobsToCreate = [];
-              for (let i = 0; i < 8; i++) {
-                const weekStr = visitDate.toISOString().split('T')[0];
-                // If today is to be skipped, skip job for today
-                if (!(skipToday && visitDate.getTime() === today.getTime())) {
-                  jobsToCreate.push({
-                    ownerId,
-                    clientId: id,
-                    providerId: 'test-provider-1',
-                    serviceId: 'window-cleaning',
-                    propertyDetails: `${clientData.address1 || clientData.address || ''}, ${clientData.town || ''}, ${clientData.postcode || ''}`,
-                    scheduledTime: weekStr + 'T09:00:00',
-                    status: 'pending',
-                    price: typeof clientData.quote === 'number' ? clientData.quote : 25,
-                    paymentStatus: 'unpaid',
-                  });
-                }
-                visitDate.setDate(visitDate.getDate() + Number(clientData.frequency) * 7);
-              }
-              if (jobsToCreate.length > 0) {
-                const jobsRef = collection(db, 'jobs');
-                const addBatch = writeBatch(db);
-                jobsToCreate.forEach(job => {
-                  const newJobRef = doc(jobsRef);
-                  addBatch.set(newJobRef, job);
-                });
-                await addBatch.commit();
-              }
-            }
-            // After job regeneration, navigate to the restored client's detail screen
-            router.push({ pathname: '/(tabs)/clients/[id]', params: { id } });
-            return; // Skip the rest of the batch.commit below, already committed
-          } else {
-            // Truly new client: return to add-client with all data and round order
-            router.push({
-              pathname: '/add-client',
-              params: {
-                ...clientData,
-                roundOrderNumber: String(selectedPosition),
-              }
-            });
-            return;
-          }
-        }
-      }
 
       await batch.commit();
 
-      // Clear any stored round order data (from old flows)
+      // Handle navigation and job generation for restored clients
+      if (newClientData && activeClient.id) {
+        // This is a restored client - generate jobs if needed
+        const { id, ...clientData } = activeClient;
+        const skipToday = await isTodayMarkedComplete();
+        
+        if (clientData.frequency !== 'one-off') {
+          // Generate jobs for restored client
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          let visitDate = clientData.nextVisit ? new Date(clientData.nextVisit) : today;
+          
+          if (visitDate < today) {
+            const freq = Number(clientData.frequency);
+            while (visitDate < today) {
+              visitDate.setDate(visitDate.getDate() + freq * 7);
+            }
+          }
+          
+          const jobsToCreate = [];
+          for (let i = 0; i < 8; i++) {
+            const weekStr = visitDate.toISOString().split('T')[0];
+            if (!(skipToday && visitDate.getTime() === today.getTime())) {
+              jobsToCreate.push({
+                ownerId,
+                clientId: id,
+                providerId: 'test-provider-1',
+                serviceId: 'window-cleaning',
+                propertyDetails: `${clientData.address1 || clientData.address || ''}, ${clientData.town || ''}, ${clientData.postcode || ''}`,
+                scheduledTime: weekStr + 'T09:00:00',
+                status: 'pending',
+                price: typeof clientData.quote === 'number' ? clientData.quote : 25,
+                paymentStatus: 'unpaid',
+              });
+            }
+            visitDate.setDate(visitDate.getDate() + Number(clientData.frequency) * 7);
+          }
+          
+          if (jobsToCreate.length > 0) {
+            const jobsRef = collection(db, 'jobs');
+            const jobBatch = writeBatch(db);
+            jobsToCreate.forEach(job => {
+              const newJobRef = doc(jobsRef);
+              jobBatch.set(newJobRef, job);
+            });
+            await jobBatch.commit();
+          }
+        }
+        
+        // Navigate to restored client's detail page
+        router.push({ pathname: '/(tabs)/clients/[id]', params: { id } });
+        return;
+      }
+
+      // Clear any stored round order data
       await AsyncStorage.removeItem('selectedRoundOrder');
       
-      // Navigate back to clients list or client details
+      // Navigate appropriately
       if (editingClientId) {
-        router.back();
-      } else if (newClientData) {
-        router.push({ pathname: '/add-client', params: { roundOrderNumber: String(selectedPosition) } });
+        router.back(); // Go back to client details
+      } else if (newClientData && !activeClient.id) {
+        // New client - go to add-client with round order
+        router.push({
+          pathname: '/add-client',
+          params: { ...activeClient, roundOrderNumber: String(selectedPosition) }
+        });
       } else {
-        router.push('/clients');
+        router.push('/clients'); // Go to clients list
       }
       
     } catch (error) {
@@ -289,10 +293,10 @@ export default function RoundOrderManagerScreen() {
       
       displayItems.push(
         <View key={pos} style={styles.clientItem}>
-          <Text style={styles.positionText}>{pos}</Text>
-          <Text style={styles.addressText}>
+          <ThemedText style={styles.positionText}>{pos}</ThemedText>
+          <ThemedText style={styles.addressText}>
             {displayText}
-          </Text>
+          </ThemedText>
         </View>
       );
     }
@@ -352,8 +356,8 @@ export default function RoundOrderManagerScreen() {
     
     return (
       <View style={styles.clientItem}>
-        <Text style={styles.positionText}>{position}</Text>
-        <Text style={styles.addressText}>{displayText}</Text>
+        <ThemedText style={styles.positionText}>{position}</ThemedText>
+        <ThemedText style={styles.addressText}>{displayText}</ThemedText>
       </View>
     );
   };
@@ -390,7 +394,11 @@ export default function RoundOrderManagerScreen() {
 
   // Focus management for keyboard events (web only)
   useEffect(() => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+    // More robust web environment detection
+    if (Platform.OS === 'web' && 
+        typeof window !== 'undefined' && 
+        window.addEventListener && 
+        typeof window.addEventListener === 'function') {
       const handleKeyDown = (event: KeyboardEvent) => {
         console.log('Key pressed:', event.key);
         if (event.key === 'ArrowUp') {
@@ -402,15 +410,23 @@ export default function RoundOrderManagerScreen() {
         }
       };
 
-      window.addEventListener('keydown', handleKeyDown);
-      return () => window.removeEventListener('keydown', handleKeyDown);
+      try {
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+          if (window.removeEventListener && typeof window.removeEventListener === 'function') {
+            window.removeEventListener('keydown', handleKeyDown);
+          }
+        };
+      } catch (error) {
+        console.warn('Failed to add keyboard event listeners:', error);
+      }
     }
   }, [selectedPosition, clients.length]);
 
   // Create wheel picker data
   const wheelPickerData = clients.map((client, index) => ({
     value: index + 1,
-    label: `${index + 1}. ${client.name}`,
+    label: `${index + 1}. ${client.name || 'Unnamed Client'}`,
   }));
 
   // Add the "NEW CLIENT" option at the selected position
@@ -460,7 +476,7 @@ export default function RoundOrderManagerScreen() {
                 onPress={moveUp}
                 disabled={selectedPosition <= 1}
               >
-                <Text style={styles.navButtonText}>↑</Text>
+                <ThemedText style={styles.navButtonText}>↑</ThemedText>
               </Pressable>
             </View>
             
@@ -469,10 +485,10 @@ export default function RoundOrderManagerScreen() {
                 {renderPositionList()}
               </View>
               <View style={styles.pickerHighlight} pointerEvents="none">
-                <Text style={styles.highlightPositionText}>{selectedPosition}</Text>
-                <Text style={styles.highlightClientText}>
-                  {activeClient ? 'NEW CLIENT' : 'Position ' + selectedPosition}
-                </Text>
+                <ThemedText style={styles.highlightPositionText}>{selectedPosition}</ThemedText>
+                <ThemedText style={styles.highlightClientText}>
+                  {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+                </ThemedText>
               </View>
             </View>
             
@@ -482,7 +498,7 @@ export default function RoundOrderManagerScreen() {
                 onPress={moveDown}
                 disabled={selectedPosition >= clients.length + 1}
               >
-                <Text style={styles.navButtonText}>↓</Text>
+                <ThemedText style={styles.navButtonText}>↓</ThemedText>
               </Pressable>
             </View>
           </>
@@ -503,16 +519,16 @@ export default function RoundOrderManagerScreen() {
       </View>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
         <Pressable style={styles.cancelButton} onPress={() => router.back()} disabled={loading}>
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>Cancel</Text>
+          <ThemedText style={styles.buttonText}>Cancel</ThemedText>
         </Pressable>
         <Pressable
           style={[styles.confirmButton, loading && { backgroundColor: '#ccc' }]}
           onPress={handleConfirm}
           disabled={loading}
         >
-          <Text style={{ color: '#fff', fontWeight: 'bold' }}>
+          <ThemedText style={styles.buttonText}>
             {loading ? 'Saving...' : 'Confirm Position'}
-          </Text>
+          </ThemedText>
         </Pressable>
       </View>
     </ThemedView>
@@ -658,5 +674,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-
+  buttonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
 });

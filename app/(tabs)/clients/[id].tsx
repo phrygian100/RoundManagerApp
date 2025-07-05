@@ -10,6 +10,7 @@ import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
+import { getDataOwnerId } from '../../../core/supabase';
 import { isTodayMarkedComplete } from '../../../services/jobService';
 import type { Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
@@ -183,22 +184,42 @@ export default function ClientDetailScreen() {
           onPress: async () => {
             if (typeof id === 'string') {
               try {
-                await updateDoc(doc(db, 'clients', id), {
+                // Get the round order number of the client being archived
+                const clientToArchive = client;
+                const archivedPosition = clientToArchive?.roundOrderNumber;
+                
+                // Use a batch for atomic updates
+                const archiveBatch = writeBatch(db);
+                
+                // Archive the client
+                const clientRef = doc(db, 'clients', id);
+                archiveBatch.update(clientRef, {
                   status: 'ex-client',
                   roundOrderNumber: null
                 });
-                // Re-number roundOrderNumber for all active clients
-                const clientsSnapshot = await getDocs(collection(db, 'clients'));
-                const activeClients = clientsSnapshot.docs
-                  .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as import('../../../types/client').Client))
-                  .filter(c => c.status !== 'ex-client' && c.roundOrderNumber != null)
-                  .sort((a, b) => (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0));
-                for (let i = 0; i < activeClients.length; i++) {
-                  const client = activeClients[i];
-                  if (client.roundOrderNumber !== i + 1) {
-                    await updateDoc(doc(db, 'clients', client.id), { roundOrderNumber: i + 1 });
-                  }
+                
+                // Only decrement clients with round order numbers greater than the archived client
+                if (archivedPosition) {
+                  const ownerId = await getDataOwnerId();
+                  const clientsQuery = query(
+                    collection(db, 'clients'),
+                    where('ownerId', '==', ownerId),
+                    where('roundOrderNumber', '>', archivedPosition)
+                  );
+                  const clientsSnapshot = await getDocs(clientsQuery);
+                  
+                  clientsSnapshot.docs.forEach(docSnap => {
+                    const clientData = docSnap.data();
+                    if (clientData.status !== 'ex-client') {
+                      const clientUpdateRef = doc(db, 'clients', docSnap.id);
+                      archiveBatch.update(clientUpdateRef, { 
+                        roundOrderNumber: clientData.roundOrderNumber - 1 
+                      });
+                    }
+                  });
                 }
+                
+                await archiveBatch.commit();
                 // Delete all jobs for this client that are scheduled for today or in the future and not completed
                 const jobsRef = collection(db, 'jobs');
                 const today = new Date();
@@ -487,7 +508,8 @@ export default function ClientDetailScreen() {
                   .map(job => (
                     <View key={job.id} style={[styles.historyItem, styles.jobItem]}>
                       <ThemedText style={styles.historyItemText}>
-                        <ThemedText style={{ fontWeight: 'bold' }}>{job.serviceId || 'Job'}:</ThemedText> {format(parseISO(job.scheduledTime), 'do MMMM yyyy')}
+                        <ThemedText style={{ fontWeight: 'bold' }}>{job.serviceId || 'Job'}:</ThemedText>{' '}
+                        {format(parseISO(job.scheduledTime), 'do MMMM yyyy')}
                       </ThemedText>
                       <ThemedText style={styles.historyItemText}>
                         Price: £{job.price.toFixed(2)}
@@ -600,8 +622,8 @@ export default function ClientDetailScreen() {
                 disabled={savingNotes}
               />
             </View>
-      </View>
-      </View>
+          </View>
+        </View>
       </Modal>
     </ThemedView>
   );
@@ -612,8 +634,7 @@ const renderHistoryItem = ({ item }: { item: any }) => {
     return (
       <View style={styles.historyItem}>
         <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance: </ThemedText>
-          £{Number(item.amount).toFixed(2)}
+          <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance:</ThemedText>{' '}£{Number(item.amount).toFixed(2)}
         </ThemedText>
       </View>
     );
@@ -621,37 +642,29 @@ const renderHistoryItem = ({ item }: { item: any }) => {
     return (
       <View style={[styles.historyItem, styles.jobItem]}>
         <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText> {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
+          <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
         </ThemedText>
         <ThemedText style={styles.historyItemText}>
-          Status: <ThemedText style={{ fontWeight: 'bold' }}>{item.status}</ThemedText>
+          <ThemedText>Status:</ThemedText>{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.status}</ThemedText>
         </ThemedText>
-        <ThemedText style={styles.historyItemText}>
-          Price: £{item.price.toFixed(2)}
-        </ThemedText>
+        <ThemedText style={styles.historyItemText}>Price: £{item.price.toFixed(2)}</ThemedText>
       </View>
     );
   } else if (item.type === 'payment') {
     return (
       <View style={[styles.historyItem, styles.paymentItem]}>
         <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Payment:</ThemedText> {format(parseISO(item.date), 'do MMMM yyyy')}
+          <ThemedText style={{ fontWeight: 'bold' }}>Payment:</ThemedText>{' '} {format(parseISO(item.date), 'do MMMM yyyy')}
         </ThemedText>
         <ThemedText style={styles.historyItemText}>
-          Amount: <ThemedText style={{ fontWeight: 'bold' }}>£{item.amount.toFixed(2)}</ThemedText>
+          Amount:{' '}<ThemedText style={{ fontWeight: 'bold' }}>£{item.amount.toFixed(2)}</ThemedText>
         </ThemedText>
-        <ThemedText style={styles.historyItemText}>
-          Method: {item.method.replace('_', ' ')}
-        </ThemedText>
+        <ThemedText style={styles.historyItemText}>Method: {item.method.replace('_', ' ')}</ThemedText>
         {item.reference && (
-          <ThemedText style={styles.historyItemText}>
-            Reference: <ThemedText style={{ fontWeight: 'bold' }}>{item.reference}</ThemedText>
-          </ThemedText>
+          <ThemedText style={styles.historyItemText}>Reference:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.reference}</ThemedText></ThemedText>
         )}
         {item.notes && (
-          <ThemedText style={styles.historyItemText}>
-            Notes: <ThemedText style={{ fontWeight: 'bold' }}>{item.notes}</ThemedText>
-          </ThemedText>
+          <ThemedText style={styles.historyItemText}>Notes:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.notes}</ThemedText></ThemedText>
         )}
       </View>
     );

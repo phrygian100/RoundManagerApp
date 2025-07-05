@@ -1,12 +1,12 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Modal, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberDailyRate, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
-import { addVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
+import { addVehicle, deleteVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
 
 const PERM_KEYS = [
   { key: 'viewClients', label: 'Clients' },
@@ -15,6 +15,7 @@ const PERM_KEYS = [
 ];
 
 export default function TeamScreen() {
+  const [vehicleRate, setVehicleRate] = useState('');
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -86,27 +87,26 @@ export default function TeamScreen() {
     }
   };
 
+  const handleUpdateVehicle = async (uid: string, vehicleId: string | null) => {
+    try {
+      await updateMemberVehicle(uid, vehicleId);
+      setMembers(prev => prev.map(m => m.uid === uid ? { ...m, vehicleId } : m));
+    } catch (err) {
+      console.error('Error updating member vehicle:', err);
+    }
+  };
+
   const renderMember = ({ item }: { item: MemberRecord }) => (
-    <View style={styles.memberRow}>
-      <Text style={styles.email}>{item.email}</Text>
-      {PERM_KEYS.map(p => (
-        <View key={p.key} style={{ alignItems: 'center' }}>
-          <Switch
-            value={item.role === 'owner' ? true : !!item.perms?.[p.key]}
-            onValueChange={item.role === 'owner' ? () => {} : (val) => { handleToggle(item.uid, p.key, val); }}
-            disabled={item.role === 'owner'}
-            trackColor={item.role === 'owner' ? { true: '#bdbdbd', false: '#bdbdbd' } : undefined}
-          />
-        </View>
-      ))}
-      <View style={{ width: 120 }}>
+    <ThemedView style={styles.card}>
+      <View style={styles.detailRow}>
+        <ThemedText style={styles.label}>Vehicle:</ThemedText>
         <Picker
           selectedValue={item.vehicleId || 'none'}
           onValueChange={async (val) => {
             const newVal = val === 'none' ? null : val;
-            await updateMemberVehicle(item.uid, newVal);
-            setMembers(prev => prev.map(m => (m.uid === item.uid ? { ...m, vehicleId: newVal } : m)));
+            await handleUpdateVehicle(item.uid, newVal);
           }}
+          style={styles.picker}
         >
           <Picker.Item label="None" value="none" />
           {vehicles.map(v => (
@@ -114,26 +114,50 @@ export default function TeamScreen() {
           ))}
         </Picker>
       </View>
-      <TextInput
-        style={[styles.rateInput]}
-        keyboardType="numeric"
-        placeholder="£/day"
-        value={String(item.dailyRate ?? '')}
-        onChangeText={(val) => {
-          const num = Number(val);
-          setMembers(prev => prev.map(m => (m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m)));
-        }}
-        onBlur={async () => {
-          const num = Number(item.dailyRate);
-          if (!isNaN(num)) {
-            await updateMemberDailyRate(item.uid, num);
-          }
-        }}
-      />
+      <ThemedText type="subtitle" style={styles.memberEmail}>{item.email}</ThemedText>
+      <View style={styles.detailRow}>
+        <ThemedText style={styles.label}>£/day:</ThemedText>
+        <TextInput
+          style={styles.rateInput}
+          keyboardType="numeric"
+          value={item.dailyRate != null ? String(item.dailyRate) : ''}
+          onChangeText={(val) => {
+            const num = Number(val);
+            setMembers(prev => prev.map(m => m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m));
+          }}
+          onBlur={async () => {
+            if (item.dailyRate != null) {
+              await updateMemberDailyRate(item.uid, item.dailyRate);
+            }
+          }}
+        />
+      </View>
+      {item.role !== 'owner' && (
+        <View style={styles.detailRow}>
+          <ThemedText style={styles.label}>Permissions:</ThemedText>
+          <View style={styles.permRow}>
+            {PERM_KEYS.map(p => {
+              const hasPerm = !!item.perms?.[p.key];
+              return (
+                <TouchableOpacity
+                  key={p.key}
+                  style={[
+                    styles.permBadge,
+                    hasPerm ? styles.permBadgeActive : styles.permBadgeInactive,
+                  ]}
+                  onPress={() => handleToggle(item.uid, p.key, !hasPerm)}
+                >
+                  <ThemedText style={styles.permText}>{p.label}</ThemedText>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      )}
       <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
-        <Text style={styles.deleteButtonText}>🗑</Text>
+        <Text style={styles.deleteButtonText}>Remove</Text>
       </TouchableOpacity>
-    </View>
+    </ThemedView>
   );
 
   return (
@@ -162,41 +186,39 @@ export default function TeamScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.headerRow}>
-          <Text style={[styles.email, { fontWeight: 'bold' }]}>Email</Text>
-          {PERM_KEYS.map(p => (
-            <Text key={p.key} style={styles.headerPerm}>{p.label}</Text>
-          ))}
-          <Text style={[styles.headerPerm, { width: 120 }]}>Vehicle</Text>
-          <Text style={[styles.headerPerm, { width: 80 }]}>£/day</Text>
-        </View>
-        {vehicles.length > 0 && (
-          <View style={{ marginVertical: 16 }}>
-            <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Vehicles</Text>
-            {vehicles.map(v => (
-              <Text key={v.id}>{v.name}</Text>
-            ))}
-          </View>
-        )}
         <FlatList
           data={members}
           keyExtractor={m => m.uid}
           renderItem={renderMember}
           style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: 24 }}
+          contentContainerStyle={{ paddingBottom: 100 }}
         />
+
         <Modal visible={showVehicleModal} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Add Vehicle</Text>
+              <Text style={styles.modalTitle}>Manage Vehicles</Text>
+              <ScrollView style={styles.vehicleList}>
+                {vehicles.map(v => (
+                  <View key={v.id} style={styles.vehicleRow}>
+                    <Text style={styles.vehicleName}>{v.name}</Text>
+                    <TouchableOpacity onPress={async () => {
+                        await deleteVehicle(v.id);
+                        loadVehicles();
+                      }} style={styles.deleteButton}>
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
               <TextInput
                 placeholder="Name / Registration"
                 value={vehicleName}
                 onChangeText={setVehicleName}
                 style={styles.input}
               />
-              <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
-                <TouchableOpacity style={[styles.button, { marginRight: 8 }]} onPress={() => setShowVehicleModal(false)}>
+              <View style={styles.modalActions}>
+                <TouchableOpacity style={[styles.button, styles.cancelButton]} onPress={() => setShowVehicleModal(false)}>
                   <Text style={styles.buttonText}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -204,25 +226,23 @@ export default function TeamScreen() {
                   disabled={!(vehicleName)}
                   onPress={async () => {
                     try {
-                      await addVehicle(vehicleName.trim(), 0);
+                      await addVehicle(vehicleName.trim());
                       setVehicleName('');
-                      setShowVehicleModal(false);
                       loadVehicles();
                     } catch (err) {
                       console.error('Error adding vehicle:', err);
-                      window.alert('Error adding vehicle');
                     }
                   }}
                 >
-                  <Text style={styles.buttonText}>Save</Text>
+                  <Text style={styles.buttonText}>Add New</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        <TouchableOpacity style={[styles.button, { marginTop: 16 }]} onPress={() => setShowVehicleModal(true)}>
-          <Text style={styles.buttonText}>Add Vehicle</Text>
+        <TouchableOpacity style={styles.fab} onPress={() => setShowVehicleModal(true)}>
+          <Text style={styles.fabIcon}>+</Text>
         </TouchableOpacity>
       </ThemedView>
     </PermissionGate>
@@ -260,21 +280,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  deleteButton: {
-    backgroundColor: '#FF3B30',
-    padding: 6,
-    borderRadius: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 30,
-  },
-  deleteButtonText: {
-    fontSize: 16,
-  },
-  headerRow: { flexDirection: 'row', marginBottom: 8 },
-  headerPerm: { width: 80, fontWeight: 'bold', textAlign: 'center' },
-  memberRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  email: { flex: 1 },
+  deleteButton: { marginTop: 8, alignSelf: 'flex-end' },
+  deleteButtonText: { color: '#FF3B30' },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -288,5 +295,23 @@ const styles = StyleSheet.create({
     padding: 16,
     width: '100%',
   },
-  rateInput: { borderWidth: 1, borderColor: '#ccc', padding: 4, width: 80, textAlign: 'center', borderRadius: 6 },
+  card: { backgroundColor: '#fff', borderRadius: 8, padding: 16, marginBottom: 16, elevation: 2 },
+  memberEmail: { fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  label: { width: 80, fontWeight: 'bold' },
+  picker: { flex: 1 },
+  permRow: { flexDirection: 'row', flexWrap: 'wrap' },
+  permBadge: { paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12, marginRight: 8, marginBottom: 4 },
+  permBadgeActive: { backgroundColor: '#007AFF' },
+  permBadgeInactive: { backgroundColor: '#ccc' },
+  permText: { color: '#fff', fontSize: 12 },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#007AFF', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 4 },
+  fabIcon: { color: 'white', fontSize: 32, lineHeight: 32 },
+  modalTitle: { fontWeight: 'bold', fontSize: 18, marginBottom: 12 },
+  vehicleList: { maxHeight: 200 },
+  vehicleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  vehicleName: { flex: 1 },
+  rateInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, marginRight: 8, borderRadius: 6 },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
+  cancelButton: { backgroundColor: '#ccc', marginLeft: 8 },
 }); 

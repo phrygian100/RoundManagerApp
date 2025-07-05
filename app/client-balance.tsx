@@ -196,9 +196,9 @@ const ClientBalanceScreen = () => {
       <View style={styles.summaryContainer}>
         <ThemedText style={styles.clientName}>{clientName}</ThemedText>
         <ThemedText style={styles.balanceText}>
-          Current Balance: 
+          <ThemedText>Current Balance: </ThemedText>
           <ThemedText style={[styles.balanceAmount, { color: balance >= 0 ? 'green' : 'red' }]}>
-             £{balance.toFixed(2)}
+            £{balance.toFixed(2)}
           </ThemedText>
         </ThemedText>
         {startingBalance !== 0 && (

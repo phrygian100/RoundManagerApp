@@ -123,7 +123,13 @@ export default function ClientsScreen() {
   }, [clients]);
 
   useEffect(() => {
-    let filtered = clients;
+    // Ensure we have valid data before applying filters
+    if (!clients || clients.length === 0) {
+      setFilteredClients([]);
+      return;
+    }
+
+    let filtered = [...clients]; // Create a safe copy
     
     // Apply search filter
     if (searchQuery.trim() !== '') {
@@ -131,20 +137,20 @@ export default function ClientsScreen() {
         const searchTerm = searchQuery.toLowerCase();
         
         // Search in name
-        if (client.name?.toLowerCase().includes(searchTerm)) return true;
+        if (client.name && typeof client.name === 'string' && client.name.toLowerCase().includes(searchTerm)) return true;
         
         // Search in new address format
-        if (client.address1?.toLowerCase().includes(searchTerm)) return true;
-        if (client.town?.toLowerCase().includes(searchTerm)) return true;
-        if (client.postcode?.toLowerCase().includes(searchTerm)) return true;
+        if (client.address1 && typeof client.address1 === 'string' && client.address1.toLowerCase().includes(searchTerm)) return true;
+        if (client.town && typeof client.town === 'string' && client.town.toLowerCase().includes(searchTerm)) return true;
+        if (client.postcode && typeof client.postcode === 'string' && client.postcode.toLowerCase().includes(searchTerm)) return true;
         
         // Search in old address format
-        if (client.address?.toLowerCase().includes(searchTerm)) return true;
+        if (client.address && typeof client.address === 'string' && client.address.toLowerCase().includes(searchTerm)) return true;
         
         // Search in full address string (for partial matches)
         const fullAddress = client.address1 && client.town && client.postcode 
           ? `${client.address1}, ${client.town}, ${client.postcode}`.toLowerCase()
-          : client.address?.toLowerCase() || '';
+          : (client.address && typeof client.address === 'string' ? client.address.toLowerCase() : '');
         
         if (fullAddress.includes(searchTerm)) return true;
         
@@ -152,30 +158,59 @@ export default function ClientsScreen() {
       });
     }
 
-    // Apply sorting
-    if (sortBy !== 'none') {
-      filtered = [...filtered].sort((a, b) => {
-        switch (sortBy) {
-          case 'name':
-            return (a.name || '').localeCompare(b.name || '');
-          case 'nextVisit':
-            const aDate = a.nextVisit ? parseISO(a.nextVisit) : new Date(9999, 11, 31);
-            const bDate = b.nextVisit ? parseISO(b.nextVisit) : new Date(9999, 11, 31);
-            return aDate.getTime() - bDate.getTime();
-          case 'roundOrder':
-            return (a.roundOrderNumber || 0) - (b.roundOrderNumber || 0);
-          case 'balance':
-            const balanceA = clientBalances[a.id] ?? 0;
-            const balanceB = clientBalances[b.id] ?? 0;
-            return balanceA - balanceB; // Sorts from most debt to most credit
-          default:
-            return 0;
-        }
-      });
+    // Apply sorting - ensure we have a valid sortBy value
+    if (sortBy && sortBy !== 'none' && filtered.length > 0) {
+      try {
+        filtered = [...filtered].sort((a, b) => {
+          switch (sortBy) {
+            case 'name':
+              // Ensure we handle all edge cases safely for name sorting
+              const aName = (a.name && typeof a.name === 'string') ? a.name.trim() : '';
+              const bName = (b.name && typeof b.name === 'string') ? b.name.trim() : '';
+              return aName.localeCompare(bName);
+            case 'nextVisit':
+              // Safer date parsing for sorting - use nextVisits state data
+              let aDate: Date;
+              let bDate: Date;
+              
+              try {
+                const aNextVisit = nextVisits[a.id];
+                aDate = aNextVisit ? parseISO(aNextVisit) : new Date(9999, 11, 31);
+                if (aDate.toString() === 'Invalid Date') aDate = new Date(9999, 11, 31);
+              } catch {
+                aDate = new Date(9999, 11, 31);
+              }
+              
+              try {
+                const bNextVisit = nextVisits[b.id];
+                bDate = bNextVisit ? parseISO(bNextVisit) : new Date(9999, 11, 31);
+                if (bDate.toString() === 'Invalid Date') bDate = new Date(9999, 11, 31);
+              } catch {
+                bDate = new Date(9999, 11, 31);
+              }
+              
+              return aDate.getTime() - bDate.getTime();
+            case 'roundOrder':
+              // Ensure we handle null/undefined/non-numeric values safely
+              const aRoundOrder = typeof a.roundOrderNumber === 'number' ? a.roundOrderNumber : 999999;
+              const bRoundOrder = typeof b.roundOrderNumber === 'number' ? b.roundOrderNumber : 999999;
+              return aRoundOrder - bRoundOrder;
+            case 'balance':
+              const balanceA = clientBalances[a.id] ?? 0;
+              const balanceB = clientBalances[b.id] ?? 0;
+              return balanceA - balanceB; // Sorts from most debt to most credit
+            default:
+              return 0;
+          }
+        });
+      } catch (error) {
+        console.warn('Sorting error:', error);
+        // If sorting fails, use the unsorted filtered list
+      }
     }
 
     setFilteredClients(filtered);
-  }, [searchQuery, clients, sortBy, clientBalances]);
+  }, [searchQuery, clients, sortBy, clientBalances, nextVisits]);
 
   const handleSort = () => {
     const sortOptions: SortOption[] = ['none', 'name', 'nextVisit', 'roundOrder', 'balance'];
@@ -204,7 +239,21 @@ export default function ClientsScreen() {
       ? addressParts.join(', ')
       : item.address || 'No address';
 
-    const balance = clientBalances[item.id];
+    const balance = clientBalances[item.id] ?? 0;
+
+    // Safely format next visit date
+    let nextVisitDisplay = 'N/A';
+    const nextVisit = nextVisits[item.id];
+    if (nextVisit) {
+      try {
+        const parsedDate = parseISO(nextVisit);
+        if (parsedDate && parsedDate.toString() !== 'Invalid Date') {
+          nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
+        }
+      } catch (error) {
+        nextVisitDisplay = 'N/A';
+      }
+    }
 
     return (
       <Pressable onPress={() => handleClientPress(item.id)}>
@@ -217,20 +266,16 @@ export default function ClientsScreen() {
             </View>
           )}
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
-          <ThemedText>{item.name}</ThemedText>
-          {item.quote && (
+          <ThemedText>{item.name || 'No name'}</ThemedText>
+          {item.quote && typeof item.quote === 'number' && (
             <ThemedText>£{item.quote.toFixed(2)}</ThemedText>
           )}
-          {item.frequency && (
-            <ThemedText>Every {item.frequency} weeks</ThemedText>
+          {item.frequency && (typeof item.frequency === 'string' || typeof item.frequency === 'number') && (
+            <ThemedText>Every {String(item.frequency)} weeks</ThemedText>
           )}
-          <ThemedText>
-            Next Visit: {nextVisits[item.id]
-              ? format(parseISO(nextVisits[item.id]!), 'd MMMM yyyy')
-              : 'N/A'}
-          </ThemedText>
-          {item.roundOrderNumber != null && (
-            <ThemedText>Round Order: {String(item.roundOrderNumber)}</ThemedText>
+          <ThemedText>Next Visit: {nextVisitDisplay}</ThemedText>
+          {typeof item.roundOrderNumber === 'number' && item.roundOrderNumber > 0 && (
+            <ThemedText>Round Order: {item.roundOrderNumber}</ThemedText>
           )}
         </ThemedView>
       </Pressable>
@@ -255,7 +300,7 @@ export default function ClientsScreen() {
           </Pressable>
         </View>
         <ThemedView style={styles.headerRow}>
-          <ThemedText style={styles.clientCount}>Total: {clients.length} clients</ThemedText>
+          <ThemedText style={styles.clientCount}>Total: {clients?.length || 0} clients</ThemedText>
           <View style={{ flexDirection: 'row' }}>
             <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
               <View style={styles.sortIcon}>
@@ -288,7 +333,8 @@ export default function ClientsScreen() {
         <FlatList
           data={filteredClients}
           renderItem={renderClient}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item?.id ? String(item.id) : `client-${index}`}
+          key={`clients-${sortBy}-${searchQuery}`}
           style={styles.list}
           ListEmptyComponent={
             <ThemedText style={styles.emptyText}>

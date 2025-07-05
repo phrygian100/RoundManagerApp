@@ -4,7 +4,6 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch }
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-// @ts-expect-error - xlsx has no typed declarations included by default
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -33,7 +32,7 @@ const StyledButton = ({ title, onPress, disabled = false, color }: { title: stri
 };
 
 // --- WEB DIAGNOSTIC: Global file input change logger ---
-if (typeof window !== 'undefined') {
+if (Platform.OS === 'web' && typeof window.addEventListener === 'function') {
   window.addEventListener('change', (e) => {
     const tgt = e.target as HTMLInputElement;
     if (tgt && tgt.type === 'file') {
