@@ -48,7 +48,10 @@ export default function SetPasswordScreen() {
   if (!sessionExists) {
     return (
       <View style={styles.container}>
-        <Text>No active session found. Please open the link from your email again.</Text>
+        <Text style={styles.title}>Thank you!</Text>
+        <Text>Your account has been verified.</Text>
+        <View style={{ height: 16 }} />
+        <Button title="Go to Login" onPress={() => router.replace('/login')} />
       </View>
     );
   }

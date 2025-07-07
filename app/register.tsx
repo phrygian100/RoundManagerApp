@@ -24,15 +24,17 @@ export default function RegisterScreen() {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signUp({
+      // Sign up and get the newly created user ID directly
+      const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: `${location.origin}/login` },
+        options: { emailRedirectTo: `${location.origin}/set-password` },
       });
       if (error) throw error;
-
-      const uid = (await supabase.auth.getUser()).data.user?.id || '';
-
+      const uid = data.user?.id;
+      if (!uid) {
+        throw new Error('Unable to retrieve user ID after registration.');
+      }
       // Save profile in Firestore
       await createUserProfile({
         id: uid,
@@ -41,8 +43,9 @@ export default function RegisterScreen() {
         phone: phone.trim(),
         role,
       });
-      Alert.alert('Success', 'Account created!');
-      router.replace('/');
+      Alert.alert('Success', 'Account created! Please check your email to verify your account.');
+      // Redirect to login screen
+      router.replace('/login');
     } catch (error: any) {
       console.error('Registration error', error);
       const message = error.message || 'Registration failed.';

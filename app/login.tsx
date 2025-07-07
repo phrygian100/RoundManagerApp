@@ -18,13 +18,22 @@ export default function LoginScreen() {
     try {
       setLoading(true);
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw error;
+      if (error) {
+        const errMsg = error.message || '';
+        if (errMsg.includes('Invalid login credentials')) {
+          Alert.alert('Error', 'Incorrect email/password');
+        } else if (errMsg.includes('Email not confirmed')) {
+          Alert.alert('Error', 'Check your emails');
+        } else {
+          Alert.alert('Error', errMsg);
+        }
+        return;
+      }
       // Navigate to home screen or wherever appropriate
       router.replace('/');
     } catch (error: any) {
       console.error('Login error', error);
-      const message = error.message || 'Login failed.';
-      Alert.alert('Error', message);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
