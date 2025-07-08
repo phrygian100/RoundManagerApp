@@ -94,6 +94,7 @@ export default function RegisterScreen() {
             title={r.charAt(0).toUpperCase() + r.slice(1)}
             onPress={() => setRole(r)}
             color={role === r ? '#007AFF' : '#ccc'}
+            disabled={r === 'client'}
           />
         ))}
       </View>

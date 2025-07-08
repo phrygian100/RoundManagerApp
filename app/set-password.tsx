@@ -7,16 +7,37 @@ export default function SetPasswordScreen() {
   const router = useRouter();
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(true);
-  const [sessionExists, setSessionExists] = useState(false);
+  const [session, setSession] = useState<any | null>(null);
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
+    // This screen handles both magic link logins and email verifications.
+    // Supabase puts the token in the URL hash, which the supabase-js client
+    // handles automatically. We just need to listen for the session to update.
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // The session is established, so the token was valid.
+      // If there was no session before, this is a signup verification.
+      if (!session && newSession) {
+        setIsSignupFlow(true);
+      }
+      setSession(newSession);
+      setLoading(false);
+    });
+
+    // Fallback for an already active session
+    supabase.auth.getSession().then(({ data }) => {
       if (data.session) {
-        setSessionExists(true);
+        setSession(data.session);
       }
       setLoading(false);
-    })();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleSetPassword = async () => {
@@ -45,7 +66,9 @@ export default function SetPasswordScreen() {
     );
   }
 
-  if (!sessionExists) {
+  // If this was a signup verification, the user doesn't need to set a password yet,
+  // they've already set it. Just show a success message.
+  if (isSignupFlow) {
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Thank you!</Text>
@@ -56,17 +79,31 @@ export default function SetPasswordScreen() {
     );
   }
 
+  // If the user followed a magic link to sign in, they will have a session
+  // but might want to set a password for the first time.
+  if (session) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Set Your Password</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="New password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+        />
+        <Button title="Save Password" onPress={handleSetPassword} disabled={loading} />
+      </View>
+    );
+  }
+
+  // If there's no session, the token was invalid or expired.
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Set Password</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="New Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-      />
-      <Button title={loading ? 'Updating...' : 'Set Password'} onPress={handleSetPassword} disabled={loading} />
+      <Text style={styles.title}>Invalid Link</Text>
+      <Text>Your verification link may have expired. Please try logging in again.</Text>
+      <View style={{ height: 16 }} />
+      <Button title="Go to Login" onPress={() => router.replace('/login')} />
     </View>
   );
 }

@@ -27,6 +27,7 @@ export default function LoginScreen() {
         } else {
           Alert.alert('Error', errMsg);
         }
+        setLoading(false);
         return;
       }
       // Navigate to home screen or wherever appropriate
