@@ -43,6 +43,23 @@ export default function RegisterScreen() {
         phone: phone.trim(),
         role,
       });
+
+      // Create a corresponding member record to establish ownership
+      const { error: memberError } = await supabase.from('members').insert({
+        uid: uid,
+        account_id: uid, // An owner's account_id is their own uid
+        role: 'owner',
+        email: email.trim(),
+        status: 'active',
+        created_at: new Date().toISOString(),
+      });
+
+      if (memberError) {
+        console.error('Error creating member record:', memberError);
+        // We might want to handle this more gracefully
+        throw new Error('Could not set up account ownership.');
+      }
+      
       Alert.alert('Success', 'Account created! Please check your email to verify your account.');
       // Redirect to login screen
       router.replace('/login');

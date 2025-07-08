@@ -8,6 +8,7 @@ export default function SetPassword() {
   const [session, setSession] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
+  const [isSignupFlow, setIsSignupFlow] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -19,6 +20,11 @@ export default function SetPassword() {
       if (token && type) {
         // For email invites Supabase uses type=invite
         // For magic-link sign-in it is type=magiclink
+        // For user registration, the type is 'signup'
+        if (type === 'signup') {
+          setIsSignupFlow(true);
+        }
+
         // @ts-expect-error – email not required for invite token types
         const { error } = await supabase.auth.verifyOtp({
           token,
@@ -73,6 +79,16 @@ export default function SetPassword() {
   }, []);
 
   if (loading) return <p className="p-6">Loading…</p>;
+
+  if (isSignupFlow) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <h1 className="text-2xl font-bold">Email has been verified</h1>
+        <p>You can now log in.</p>
+      </div>
+    );
+  }
+
   if (!session) return (
     <p className="p-6">No active session. Please click the link in your invite email again.</p>
   );
