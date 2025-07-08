@@ -85,21 +85,40 @@ serve(async (req) => {
         perms: member.perms || {},
       };
     } else {
-      // No member record – treat as personal owner reset if manual accountId provided
-      const manualPayload = payload as ManualPayload;
-      if (!manualPayload.accountId) {
-        console.log('No member record and no accountId provided, nothing to update');
+      // No member record found. If this is a new user, create a record for them.
+      const authPayload = payload as AuthPayload;
+      if (authPayload.event === 'USER_CREATED') {
+        console.log('No member record for new user, creating one...');
+        const newMember = {
+          uid: uid,
+          account_id: uid, // New users own their own account
+          role: 'owner',
+          status: 'active',
+          email: authPayload.session.user.email,
+          created_at: new Date().toISOString(),
+        };
+
+        const { error: insertError } = await supabase.from('members').insert(newMember);
+
+        if (insertError) {
+          console.error('Error creating member for new user:', insertError);
+          throw new Error('Could not create member record during signup');
+        }
+
+        console.log('Created new owner member record for uid:', uid);
+        claims = {
+          account_id: newMember.account_id,
+          is_owner: true,
+          perms: {},
+        };
+      } else {
+        // Not a new user and no member record, so nothing to do.
+        console.log('No member record and not a new user, nothing to update');
         return new Response('no member record found', {
           status: 200,
           headers: corsHeaders,
         });
       }
-      console.log('No member record found, resetting claims to personal account owner');
-      claims = {
-        account_id: manualPayload.accountId,
-        is_owner: true,
-        perms: {},
-      };
     }
 
     const manualPayload = payload as ManualPayload;
