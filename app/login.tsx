@@ -20,12 +20,21 @@ export default function LoginScreen() {
       const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (error) {
         const errMsg = error.message || '';
+        // Use window.alert for web compatibility
+        const showAlert = (title: string, msg: string) => {
+          if (typeof window !== 'undefined') {
+            window.alert(msg);
+          } else {
+            Alert.alert(title, msg);
+          }
+        };
+
         if (errMsg.includes('Invalid login credentials')) {
-          Alert.alert('Error', 'Incorrect email/password');
+          showAlert('Error', 'Incorrect email/password');
         } else if (errMsg.includes('Email not confirmed')) {
-          Alert.alert('Error', 'Check your emails');
+          showAlert('Error', 'Check your emails');
         } else {
-          Alert.alert('Error', errMsg);
+          showAlert('Error', errMsg);
         }
         setLoading(false);
         return;

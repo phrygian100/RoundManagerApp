@@ -13,7 +13,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('client');
+  const [role, setRole] = useState<Role>('provider');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -28,7 +28,7 @@ export default function RegisterScreen() {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { emailRedirectTo: `${location.origin}/set-password` },
+        options: { emailRedirectTo: `${location.origin}` },
       });
       if (error) throw error;
       const uid = data.user?.id;
