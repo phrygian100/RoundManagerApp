@@ -58,6 +58,20 @@ async function syncMembersFromSupabase(): Promise<void> {
         createdAt: member.created_at,
       }, { merge: true });
       console.log('Synced member to Firestore:', member.email);
+      // Clean up old placeholder doc that used the numeric invite_code as the doc ID
+      // When the invite was first created, we stored a Firestore doc with id = invite_code
+      // (because uid was null). Once the invite is accepted we now have a real uid, so
+      // we can safely delete that placeholder to avoid duplicates in Team & Rota.
+      if (member.uid && member.invite_code) {
+        try {
+          const placeholderRef = doc(db, `accounts/${sess.accountId}/members/${member.invite_code}`);
+          await deleteDoc(placeholderRef);
+          console.log('Removed placeholder member doc for invite_code', member.invite_code);
+        } catch (cleanupErr) {
+          // Not fatal; placeholder might already be gone.
+          console.warn('Could not delete placeholder doc', cleanupErr);
+        }
+      }
     }
   } catch (err) {
     console.error('Error syncing members from Supabase:', err);
