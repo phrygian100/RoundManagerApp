@@ -69,6 +69,8 @@ export default function LoginScreen() {
       />
       <Button title={loading ? 'Logging in...' : 'Login'} onPress={handleLogin} disabled={loading} />
       <View style={{ height: 12 }} />
+      <Button title="Forgot Password?" onPress={() => router.push('/forgot-password')} />
+      <View style={{ height: 12 }} />
       <Button title="Register" onPress={() => router.push('/register')} />
     </View>
   );

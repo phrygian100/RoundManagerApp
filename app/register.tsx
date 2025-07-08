@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 import { createUserProfile } from '../services/userService';
 
@@ -13,13 +13,18 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [role, setRole] = useState<Role>('provider');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const handleRegister = async () => {
-    if (!name || !email || !phone || !password) {
+    if (!name || !email || !phone || !password || !confirm) {
       Alert.alert('Error', 'Please fill out all fields.');
+      return;
+    }
+    if (password !== confirm) {
+      Alert.alert('Error', 'Passwords do not match');
       return;
     }
     try {
@@ -86,6 +91,16 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Re-enter Password"
+        value={confirm}
+        onChangeText={setConfirm}
+        secureTextEntry
+        contextMenuHidden={Platform.OS !== 'web'}
+        // Prevent paste / Ctrl+V on web
+        {...(Platform.OS === 'web' ? { onPaste: (e: any) => e.preventDefault() } : {})}
       />
       <View style={styles.roleContainer}>
         {roles.map((r) => (
