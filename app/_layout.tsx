@@ -12,13 +12,14 @@ export default function RootLayout() {
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
       const loggedIn = !!session;
       const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
+      const redirectIfLoggedIn = ['/login', '/register'];
 
       if (!loggedIn) {
         if (!unauthAllowed.includes(pathname)) {
           router.replace('/login');
         }
       } else {
-        if (unauthAllowed.includes(pathname)) {
+        if (redirectIfLoggedIn.includes(pathname)) {
           router.replace('/');
         }
       }
