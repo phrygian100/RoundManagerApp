@@ -161,9 +161,16 @@ export default function SetPasswordScreen() {
         });
         
         // Only detect signup flow if we haven't already determined the flow type from URL/hash
+        // CRITICAL: If we've already detected a password reset, don't override it!
         if (!session && newSession && !flowDetection.detectedPasswordReset && !flowDetection.detectedSignup && !isPasswordResetFlow && !isSignupFlow) {
           console.log('🔐 SetPassword: Detected signup flow (fallback)');
           setIsSignupFlow(true);
+        } else if (flowDetection.detectedPasswordReset && newSession) {
+          console.log('🔐 SetPassword: Confirming password reset flow with new session');
+          // Make sure password reset flag is set if we detected it but state hasn't caught up
+          if (!isPasswordResetFlow) {
+            setIsPasswordResetFlow(true);
+          }
         }
         
         setSession(newSession);
@@ -231,8 +238,15 @@ export default function SetPasswordScreen() {
 
   // If the user has a session, check what type of flow this is
   if (session) {
+    console.log('🔐 SetPassword: Rendering with session, flow flags:', { 
+      isPasswordResetFlow, 
+      isSignupFlow, 
+      hasSession: !!session 
+    });
+    
     // For password reset flow, show the reset form
     if (isPasswordResetFlow) {
+      console.log('🔐 SetPassword: Rendering password reset form');
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Reset Your Password</Text>
@@ -255,6 +269,7 @@ export default function SetPasswordScreen() {
     
     // For signup verification, show thank you message
     if (isSignupFlow) {
+      console.log('🔐 SetPassword: Rendering signup verification (thank you)');
       return (
         <View style={styles.container}>
           <Text style={styles.title}>Thank you!</Text>
@@ -266,6 +281,7 @@ export default function SetPasswordScreen() {
     }
     
     // Default case - unknown flow with session, show password set form
+    console.log('🔐 SetPassword: Rendering default password set form');
     return (
       <View style={styles.container}>
         <Text style={styles.title}>Set Your Password</Text>
