@@ -22,7 +22,6 @@ export default function HomeScreen() {
       console.log('🏠 HomeScreen: session =', session);
 
       const isOwner = session?.isOwner;
-      // session doesn't include email; fetch from supabase auth user
       const { data: authData } = await supabase.auth.getSession();
       setEmail(authData.session?.user?.email || null);
       const perms = session?.perms || {};
@@ -66,6 +65,8 @@ export default function HomeScreen() {
         await new Promise(res => setTimeout(res, 0)); // defer to next tick
         const session = await getUserSession();
         const isOwner = session?.isOwner;
+        const { data: authData2 } = await supabase.auth.getSession();
+        setEmail(authData2.session?.user?.email || null);
         const perms = session?.perms || {};
 
         const buttonDefs = [

@@ -13,13 +13,14 @@ export default function RootLayout() {
       const loggedIn = !!session;
       const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
       const redirectIfLoggedIn = ['/login', '/register'];
+      const alwaysAllowed = ['/set-password', '/forgot-password'];
 
       if (!loggedIn) {
         if (!unauthAllowed.some(p => pathname.startsWith(p))) {
           router.replace('/login');
         }
       } else {
-        if (redirectIfLoggedIn.some(p => pathname.startsWith(p))) {
+        if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && !alwaysAllowed.some(p => pathname.startsWith(p))) {
           router.replace('/');
         }
       }
