@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
+const BUILD_ID = process.env.EXPO_PUBLIC_BUILD_ID || process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0,7) || 'dev';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -72,6 +73,7 @@ export default function LoginScreen() {
       <Button title="Forgot Password?" onPress={() => router.push('/forgot-password')} />
       <View style={{ height: 12 }} />
       <Button title="Register" onPress={() => router.push('/register')} />
+      <Text style={styles.build}>Build: {BUILD_ID}</Text>
     </View>
   );
 }
@@ -87,4 +89,5 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     backgroundColor: '#fff',
   },
+  build: { marginTop: 24, fontSize: 12, textAlign: 'center', color: '#666' },
 }); 

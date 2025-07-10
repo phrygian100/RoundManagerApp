@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getUserSession } from '../../core/session';
+import { supabase } from '../../core/supabase';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -12,6 +13,7 @@ export default function HomeScreen() {
     disabled?: boolean;
   }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
     const buildButtons = async () => {
@@ -20,6 +22,9 @@ export default function HomeScreen() {
       console.log('🏠 HomeScreen: session =', session);
 
       const isOwner = session?.isOwner;
+      // session doesn't include email; fetch from supabase auth user
+      const { data: authData } = await supabase.auth.getSession();
+      setEmail(authData.session?.user?.email || null);
       const perms = session?.perms || {};
       console.log('🏠 HomeScreen: perms =', perms);
 
@@ -120,6 +125,9 @@ export default function HomeScreen() {
           ))}
         </View>
       ))}
+      {email && (
+        <Text style={styles.email}>Logged in as {email}</Text>
+      )}
     </View>
   );
 }
@@ -159,5 +167,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
+  email: { marginTop: 16, fontSize: 12, color: '#666' },
 });
 
