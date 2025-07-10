@@ -17,7 +17,7 @@ export default function ForgotPassword() {
     try {
       setLoading(true);
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'https://www.guvnor.app/set-password',
+        redirectTo: 'https://guvnor.app/set-password',
       });
       
       if (error) throw error;
