@@ -82,4 +82,15 @@ Historic entries prior to 2025-01-02 have been archived in the repo history.
 
 ---
 
+## 2025-07-10 – UX & Auth Polishing ✨
+• Added build indicator on Login screen (`Build: <commit>` – uses NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA).  
+• Home screen now shows logged-in user email.  
+• Auth guard updated so `/set-password` & `/forgot-password` stay accessible after session creates – fixes reset-password redirect loop.  
+• Duplicate team-member/rota rows fixed: placeholder Firestore doc deleted once invite accepted.  
+• Registration form gains confirm-password field with paste blocked, validation added.  
+• Forgot-password flow implemented (`/forgot-password` screen + Supabase resetPasswordForEmail).  
+Files: `app/_layout.tsx`, `app/login.tsx`, `app/(tabs)/index.tsx`, `app/register.tsx`, `app/forgot-password.tsx`, `services/accountService.ts`.
+
+---
+
 (Last condensed: 2025-07-08)
