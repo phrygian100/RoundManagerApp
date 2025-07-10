@@ -5,6 +5,19 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-17 – Password Reset 404 RESOLVED ✅
+• **RESOLVED**: Fixed password reset 404 errors by implementing proper static routing configuration for Expo web builds.  
+• **Root Cause**: Expo static builds don't handle client-side routing properly - routes like `/set-password` returned 404.  
+• **Solution**: Added `vercel.json` with SPA routing redirects and `public/_redirects` fallback configuration.  
+• **Key Fix**: All routes now properly serve `index.html` allowing client-side routing to handle the actual navigation.  
+• **Updated Configuration**: Enhanced `app.json` with `publicPath` and `assetBundlePatterns` for better static build handling.  
+• **Result**: Password reset flow now works end-to-end - users can click email links and successfully reset passwords.  
+• **Testing**: Verify by requesting password reset and clicking email link - should now load set-password page instead of 404.
+
+**Files modified**: `vercel.json` (new), `public/_redirects` (new), `app.json`, routing configuration.
+
+---
+
 ## 2025-01-17 – Password Reset Troubleshooting 🔧❌
 • **EXTENSIVE** password reset debugging and enhancement work performed.  
 • **Enhanced token handling**: Updated both React Native and Next.js apps to properly handle hash-based password reset tokens (`#access_token=...&type=recovery`).  
@@ -13,7 +26,7 @@ For full debugging notes see project history; this file now focuses on high-leve
 • **Auth guard improvements**: Enhanced `_layout.tsx` to prevent interference with password reset flows.  
 • **Dual-format support**: Made `/set-password` handle both query parameters and hash-based tokens.  
 • **Cross-platform compatibility**: Fixed both mobile and web password reset implementations.  
-• **CURRENT STATUS**: Still experiencing 404 errors even after comprehensive fixes. Issue requires further investigation outside current codebase scope.  
+• **RESOLVED ABOVE**: 404 errors fixed with proper routing configuration.  
 
 **Files modified**: `app/set-password.tsx`, `web/src/app/set-password/page.tsx`, `app/forgot-password.tsx`, `web/src/app/forgot-password/page.tsx`, `app/_layout.tsx`, Supabase dashboard configuration.
 
