@@ -21,29 +21,33 @@ export default function SetPasswordScreen() {
         const token = url.searchParams.get('token');
         const type = url.searchParams.get('type');
 
-        console.log('🔐 SetPassword: URL params:', { token: !!token, type });
+        console.log('🔐 SetPassword (RN): URL params:', { token: !!token, type });
 
         if (token && type) {
           try {
             // For password reset, type should be 'recovery'
             if (type === 'recovery') {
-              console.log('🔐 SetPassword: Detected password reset flow');
+              console.log('🔐 SetPassword (RN): Detected password reset flow');
               setIsPasswordResetFlow(true);
+              
+              // CRITICAL: Clear any existing session before processing password reset
+              console.log('🔐 SetPassword (RN): Clearing existing session for password reset');
+              await supabase.auth.signOut();
             } else if (type === 'signup') {
-              console.log('🔐 SetPassword: Detected signup flow');
+              console.log('🔐 SetPassword (RN): Detected signup flow');
               setIsSignupFlow(true);
             }
 
             // For recovery tokens, we don't need to manually verify - 
             // Supabase will handle this when we exchange the code for session
-            console.log('🔐 SetPassword: Token found, will be handled by session exchange');
+            console.log('🔐 SetPassword (RN): Token found, will be handled by session exchange');
 
             // Clean up URL parameters
             url.searchParams.delete('token');
             url.searchParams.delete('type');
             window.history.replaceState({}, '', url.pathname);
           } catch (err) {
-            console.error('🔐 SetPassword: Token verification error', err);
+            console.error('🔐 SetPassword (RN): Token verification error', err);
           }
         }
       }

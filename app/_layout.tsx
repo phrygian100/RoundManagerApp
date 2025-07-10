@@ -11,6 +11,11 @@ export default function RootLayout() {
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
       console.log('🔑 Auth state change:', { event: _e, hasSession: !!session, pathname });
+      
+      // Check if we're in a password reset flow
+      const isPasswordResetFlow = typeof window !== 'undefined' && 
+        window.location.href.includes('type=recovery');
+      
       const loggedIn = !!session;
       const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
       const redirectIfLoggedIn = ['/login', '/register'];
@@ -24,7 +29,10 @@ export default function RootLayout() {
         }
       } else {
         console.log('🔑 Logged in, checking redirect rules for:', pathname);
-        if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && !alwaysAllowed.some(p => pathname.startsWith(p))) {
+        // Don't redirect if we're in a password reset flow
+        if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
+            !alwaysAllowed.some(p => pathname.startsWith(p)) && 
+            !isPasswordResetFlow) {
           console.log('🔑 Redirecting to home from:', pathname);
           router.replace('/');
         }
