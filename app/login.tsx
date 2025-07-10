@@ -1,16 +1,11 @@
-import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
-// Derive the build identifier from the environment (web/EAS) or Expo config.
-const envCommit =
-  process.env.EXPO_PUBLIC_VERCEL_GIT_COMMIT_SHA || // Expo / EAS builds (uses EXPO_PUBLIC_ prefix)
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || // Vercel-injected env for Next.js web builds
-  process.env.VERCEL_GIT_COMMIT_SHA; // Fallback – not exposed to browser but may be in Node during build
-
-const BUILD_ID = envCommit ? envCommit.slice(0, 7) : (Constants.expoConfig?.version ?? 'dev');
+// Simple approach: hardcode the current commit hash
+// TODO: Replace '8d1a7ed' with build-time injection
+const BUILD_ID = '8d1a7ed';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
