@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
@@ -348,9 +348,10 @@ export default function ClientDetailScreen() {
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || jobDate;
     setShowDatePicker(false);
-    setJobDate(currentDate);
+    if (selectedDate) {
+      setJobDate(selectedDate);
+    }
   };
 
   if (loading) {
@@ -544,7 +545,7 @@ export default function ClientDetailScreen() {
                 testID="dateTimePicker"
                 value={jobDate}
                 mode="date"
-                display="default"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={onDateChange}
               />
             )}

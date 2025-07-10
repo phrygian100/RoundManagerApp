@@ -5,6 +5,18 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 – Invite Member Email Configuration FIXED ✅
+• **RESOLVED**: Fixed invite member emails failing due to unverified domain configuration.  
+• **Root Cause**: Edge function was falling back to hardcoded `tgmwindowcleaning.co.uk` domain when `EMAIL_FROM` environment variable was missing, causing Resend API to reject emails with "domain not verified" error.  
+• **Configuration Fix**: Updated `EMAIL_FROM` secret in Supabase to use verified `guvnor.app` domain (`no-reply@guvnor.app`).  
+• **Code Enhancement**: Replaced silent fallback behavior with explicit validation - function now throws clear errors when required environment variables (`EMAIL_FROM`, `RESEND_API_KEY`) are missing.  
+• **Fail-Fast Implementation**: Added startup validation to prevent configuration regressions and ensure proper error reporting.  
+• **Result**: Team member invitations now send emails successfully and provide clear error messages when misconfigured.  
+
+**Files modified**: `supabase/functions/invite-member/index.ts`.
+
+---
+
 ## 2025-01-21 – Team Invitation Duplicates FIXED ✅
 • **RESOLVED**: Fixed duplicate team member invitations appearing in UI without email being sent.  
 • **Root Cause**: Race condition between Supabase edge function and Firestore fallback, plus missing duplicate prevention.  

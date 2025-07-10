@@ -129,15 +129,21 @@ async function sendCustomInviteEmail(to: string, code: string) {
   console.log('Starting sendCustomInviteEmail for:', to);
   
   const apiKey = Deno.env.get('RESEND_API_KEY');
+  const emailFrom = Deno.env.get('EMAIL_FROM');
+  
   console.log('RESEND_API_KEY exists:', !!apiKey);
+  console.log('EMAIL_FROM exists:', !!emailFrom);
   
   if (!apiKey) {
-    console.error('RESEND_API_KEY not found - email will not be sent');
-    return;
+    throw new Error('RESEND_API_KEY environment variable is required but not set');
+  }
+  
+  if (!emailFrom) {
+    throw new Error('EMAIL_FROM environment variable is required but not set');
   }
 
   const body = {
-    from: Deno.env.get('EMAIL_FROM') || 'no-reply@tgmwindowcleaning.co.uk',
+    from: emailFrom,
     to,
     subject: 'You have been invited',
     html: `<h2>You've been invited!</h2><p>You have been invited to download the app as a member.</p><p>Your code is <strong>${code}</strong></p>`,
