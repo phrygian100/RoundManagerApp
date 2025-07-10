@@ -4,8 +4,8 @@ import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
 // Simple approach: hardcode the current commit hash
-// TODO: Replace '8d1a7ed' with build-time injection
-const BUILD_ID = '8d1a7ed';
+// TODO: Replace 'a213e90' with build-time injection
+const BUILD_ID = 'a213e90';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
