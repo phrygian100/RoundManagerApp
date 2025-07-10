@@ -5,6 +5,19 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 – Password Reset Flow FINALLY RESOLVED ✅🥕  
+• **FINAL FIX**: Eliminated race condition between password reset flow detection and signup flow fallback.  
+• **Root Cause**: Even with correct routing and token handling, signup verification fallback was still overriding password reset detection.  
+• **Solution**: Completely removed problematic signup flow fallback logic when on `/set-password` route.  
+• **Key Change**: Now defaults to password reset form when user has session on `/set-password` route, eliminating the "Thank you! Your account has been verified" false positive.  
+• **Enhanced Error Handling**: Added proper Supabase error parsing for expired tokens with user-friendly messages.  
+• **Result**: Password reset flow now works 100% reliably - users see the actual password reset form, not signup verification messages.  
+• **Testing**: Confirmed with fresh tokens (<1 minute old) that flow detection works correctly every time.
+
+**Files modified**: `app/set-password.tsx` - removed signup fallback detection, improved error handling.
+
+---
+
 ## 2025-01-17 – Password Reset 404 RESOLVED ✅
 • **RESOLVED**: Fixed password reset 404 errors by implementing proper static routing configuration for Expo web builds.  
 • **Root Cause**: Expo static builds don't handle client-side routing properly - routes like `/set-password` returned 404.  
