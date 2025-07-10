@@ -14,14 +14,24 @@ export default function SetPasswordScreen() {
   useEffect(() => {
     console.log('🔐 SetPassword: Component mounted');
     
+    // Log the current URL for debugging
+    if (typeof window !== 'undefined') {
+      console.log('🔐 SetPassword: Current URL:', window.location.href);
+      console.log('🔐 SetPassword: Search params:', window.location.search);
+      console.log('🔐 SetPassword: Hash:', window.location.hash);
+    }
+    
     const handleTokenVerification = async () => {
+      let detectedPasswordReset = false;
+      let detectedSignup = false;
+      
       // Check if we're in a web environment and have URL parameters
       if (typeof window !== 'undefined') {
         const url = new URL(window.location.href);
         const token = url.searchParams.get('token');
         const type = url.searchParams.get('type');
 
-        console.log('🔐 SetPassword (RN): URL params:', { token: !!token, type });
+        console.log('🔐 SetPassword (RN): URL params:', { token: !!token, type, fullUrl: url.href });
 
         if (token && type) {
           try {
@@ -29,6 +39,7 @@ export default function SetPasswordScreen() {
             if (type === 'recovery') {
               console.log('🔐 SetPassword (RN): Detected password reset flow');
               setIsPasswordResetFlow(true);
+              detectedPasswordReset = true;
               
               // CRITICAL: Clear any existing session before processing password reset
               console.log('🔐 SetPassword (RN): Clearing existing session for password reset');
@@ -36,6 +47,9 @@ export default function SetPasswordScreen() {
             } else if (type === 'signup') {
               console.log('🔐 SetPassword (RN): Detected signup flow');
               setIsSignupFlow(true);
+              detectedSignup = true;
+            } else {
+              console.log('🔐 SetPassword (RN): Unknown type:', type);
             }
 
             // For recovery tokens, we don't need to manually verify - 
@@ -49,6 +63,8 @@ export default function SetPasswordScreen() {
           } catch (err) {
             console.error('🔐 SetPassword (RN): Token verification error', err);
           }
+        } else {
+          console.log('🔐 SetPassword (RN): No URL token/type found');
         }
       }
 
@@ -59,13 +75,18 @@ export default function SetPasswordScreen() {
         const refresh_token = hashParams.get('refresh_token');
         const type = hashParams.get('type');
         
+        console.log('🔐 SetPassword (RN): Hash params:', { hasAccess: !!access_token, hasRefresh: !!refresh_token, type, fullHash: window.location.hash });
+        
         if (type === 'recovery') {
           console.log('🔐 SetPassword (RN): Detected password reset flow from hash');
           setIsPasswordResetFlow(true);
+          detectedPasswordReset = true;
           
           // Clear any existing session before processing password reset
           console.log('🔐 SetPassword (RN): Clearing existing session for hash-based password reset');
           await supabase.auth.signOut();
+        } else if (type) {
+          console.log('🔐 SetPassword (RN): Hash type found but not recovery:', type);
         }
         
         if (access_token && refresh_token) {
@@ -73,6 +94,8 @@ export default function SetPasswordScreen() {
           // Clean the URL
           window.history.replaceState({}, '', window.location.pathname);
         }
+      } else if (typeof window !== 'undefined' && window.location.hash) {
+        console.log('🔐 SetPassword (RN): Hash exists but no access_token:', window.location.hash);
       }
 
       // Exchange any PKCE code in the URL
@@ -83,44 +106,55 @@ export default function SetPasswordScreen() {
       } catch {
         /* noop */
       }
+      
+      console.log('🔐 SetPassword: Flow detection result:', { detectedPasswordReset, detectedSignup });
+      return { detectedPasswordReset, detectedSignup };
     };
 
-    handleTokenVerification();
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      console.log('🔐 SetPassword: Auth state change:', { 
-        event: _event, 
-        hasSession: !!newSession, 
-        hadSessionBefore: !!session,
-        isPasswordReset: isPasswordResetFlow,
-        isSignup: isSignupFlow
+    const setupAuthListener = async () => {
+      const flowDetection = await handleTokenVerification();
+      
+      // Listen for auth state changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange((_event, newSession) => {
+        console.log('🔐 SetPassword: Auth state change:', { 
+          event: _event, 
+          hasSession: !!newSession, 
+          hadSessionBefore: !!session,
+          isPasswordReset: isPasswordResetFlow,
+          isSignup: isSignupFlow,
+          detectedPasswordReset: flowDetection.detectedPasswordReset,
+          detectedSignup: flowDetection.detectedSignup
+        });
+        
+        // Only detect signup flow if we haven't already determined the flow type from URL/hash
+        if (!session && newSession && !flowDetection.detectedPasswordReset && !flowDetection.detectedSignup && !isPasswordResetFlow && !isSignupFlow) {
+          console.log('🔐 SetPassword: Detected signup flow (fallback)');
+          setIsSignupFlow(true);
+        }
+        
+        setSession(newSession);
+        setLoading(false);
       });
-      
-      // Only detect signup flow if we haven't already determined the flow type
-      if (!session && newSession && !isPasswordResetFlow && !isSignupFlow) {
-        console.log('🔐 SetPassword: Detected signup flow (fallback)');
-        setIsSignupFlow(true);
-      }
-      
-      setSession(newSession);
-      setLoading(false);
-    });
 
-    // Fallback for an already active session
-    supabase.auth.getSession().then(({ data }) => {
-      console.log('🔐 SetPassword: Initial session check:', { hasSession: !!data.session });
-      if (data.session) {
-        setSession(data.session);
-      }
-      setLoading(false);
-    });
+      // Fallback for an already active session
+      supabase.auth.getSession().then(({ data }) => {
+        console.log('🔐 SetPassword: Initial session check:', { hasSession: !!data.session });
+        if (data.session) {
+          setSession(data.session);
+        }
+        setLoading(false);
+      });
 
-    return () => {
-      subscription.unsubscribe();
+      return () => {
+        subscription.unsubscribe();
+      };
     };
+    
+    setupAuthListener().then(cleanup => {
+      return cleanup;
+    });
   }, []);
 
   const handleSetPassword = async () => {
@@ -149,31 +183,47 @@ export default function SetPasswordScreen() {
     );
   }
 
-  // If this was a signup verification, the user doesn't need to set a password yet
-  if (isSignupFlow && !isPasswordResetFlow) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.title}>Thank you!</Text>
-        <Text>Your account has been verified.</Text>
-        <View style={{ height: 16 }} />
-        <Button title="Go to Login" onPress={() => router.replace('/login')} />
-      </View>
-    );
-  }
-
-  // If the user has a session (from password reset or magic link), let them set password
+  // If the user has a session, check what type of flow this is
   if (session) {
+    // For password reset flow, show the reset form
+    if (isPasswordResetFlow) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>Reset Your Password</Text>
+          <Text style={styles.subtitle}>Please enter your new password below:</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="New password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
+          />
+          <Button 
+            title="Reset Password" 
+            onPress={handleSetPassword} 
+            disabled={loading} 
+          />
+        </View>
+      );
+    }
+    
+    // For signup verification, show thank you message
+    if (isSignupFlow) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.title}>Thank you!</Text>
+          <Text>Your account has been verified.</Text>
+          <View style={{ height: 16 }} />
+          <Button title="Go to Login" onPress={() => router.replace('/login')} />
+        </View>
+      );
+    }
+    
+    // Default case - unknown flow with session, show password set form
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>
-          {isPasswordResetFlow ? 'Reset Your Password' : 'Set Your Password'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {isPasswordResetFlow 
-            ? 'Please enter your new password below:'
-            : 'Please set a password for your account:'
-          }
-        </Text>
+        <Text style={styles.title}>Set Your Password</Text>
+        <Text style={styles.subtitle}>Please set a password for your account:</Text>
         <TextInput
           style={styles.input}
           placeholder="New password"
@@ -182,7 +232,7 @@ export default function SetPasswordScreen() {
           secureTextEntry
         />
         <Button 
-          title={isPasswordResetFlow ? "Reset Password" : "Save Password"} 
+          title="Save Password" 
           onPress={handleSetPassword} 
           disabled={loading} 
         />
