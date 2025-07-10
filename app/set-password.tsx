@@ -10,6 +10,7 @@ export default function SetPasswordScreen() {
   const [session, setSession] = useState<any | null>(null);
   const [isSignupFlow, setIsSignupFlow] = useState(false);
   const [isPasswordResetFlow, setIsPasswordResetFlow] = useState(false);
+  const [supabaseError, setSupabaseError] = useState<string | null>(null);
 
   useEffect(() => {
     console.log('🔐 SetPassword: Component mounted');
@@ -24,6 +25,33 @@ export default function SetPasswordScreen() {
     const handleTokenVerification = async () => {
       let detectedPasswordReset = false;
       let detectedSignup = false;
+      
+      // Check for Supabase error messages in hash first
+      if (typeof window !== 'undefined' && window.location.hash.includes('error=')) {
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const error = hashParams.get('error');
+        const errorCode = hashParams.get('error_code');
+        const errorDescription = hashParams.get('error_description');
+        
+        console.log('🔐 SetPassword: Supabase error detected:', { error, errorCode, errorDescription });
+        
+        if (error) {
+          let userFriendlyError = 'Password reset link is invalid or has expired.';
+          
+          if (errorCode === 'otp_expired') {
+            userFriendlyError = 'This password reset link has expired. Password reset links are only valid for 1 hour.';
+          } else if (errorCode === 'otp_invalid') {
+            userFriendlyError = 'This password reset link is invalid. It may have already been used.';
+          } else if (errorDescription) {
+            // Decode the URL-encoded description
+            userFriendlyError = decodeURIComponent(errorDescription.replace(/\+/g, ' '));
+          }
+          
+          setSupabaseError(userFriendlyError);
+          setLoading(false);
+          return { detectedPasswordReset, detectedSignup };
+        }
+      }
       
       // Check if we're in a web environment and have URL parameters
       if (typeof window !== 'undefined') {
@@ -183,6 +211,20 @@ export default function SetPasswordScreen() {
     return (
       <View style={styles.container}>
         <Text>Loading...</Text>
+      </View>
+    );
+  }
+
+  // If there's a Supabase error, show it specifically
+  if (supabaseError) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>Password Reset Failed</Text>
+        <Text style={styles.subtitle}>{supabaseError}</Text>
+        <View style={{ height: 16 }} />
+        <Button title="Request New Reset Link" onPress={() => router.replace('/forgot-password')} />
+        <View style={{ height: 8 }} />
+        <Button title="Go to Login" onPress={() => router.replace('/login')} />
       </View>
     );
   }
