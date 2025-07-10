@@ -1,0 +1,10 @@
+# Netlify/Vercel redirects for SPA routing
+# This ensures all routes serve the main index.html for client-side routing
+
+# Serve index.html for all routes that don't match files
+/*    /index.html   200
+
+# Specific redirect for password reset to ensure it works
+/set-password    /index.html   200
+/forgot-password    /index.html   200
+/login    /index.html   200 

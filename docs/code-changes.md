@@ -5,6 +5,20 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-17 – Password Reset Troubleshooting 🔧❌
+• **EXTENSIVE** password reset debugging and enhancement work performed.  
+• **Enhanced token handling**: Updated both React Native and Next.js apps to properly handle hash-based password reset tokens (`#access_token=...&type=recovery`).  
+• **Session conflict resolution**: Added logic to clear existing sessions when processing password reset flows.  
+• **URL configuration fixes**: Corrected Supabase redirect URLs from `www.guvnor.app` to `guvnor.app` in dashboard settings.  
+• **Auth guard improvements**: Enhanced `_layout.tsx` to prevent interference with password reset flows.  
+• **Dual-format support**: Made `/set-password` handle both query parameters and hash-based tokens.  
+• **Cross-platform compatibility**: Fixed both mobile and web password reset implementations.  
+• **CURRENT STATUS**: Still experiencing 404 errors even after comprehensive fixes. Issue requires further investigation outside current codebase scope.  
+
+**Files modified**: `app/set-password.tsx`, `web/src/app/set-password/page.tsx`, `app/forgot-password.tsx`, `web/src/app/forgot-password/page.tsx`, `app/_layout.tsx`, Supabase dashboard configuration.
+
+---
+
 ## 2025-07-08 – Registration & Login Flow (Web) ✅
 • `set-claims` edge function now auto-creates an **owner member record** after `USER_CREATED`, fixing "client list not loading" for new users.  
 • Supabase **Site URL/Redirects** corrected, email verification link now lands on `guvnor.app` without SSL/404 errors.  

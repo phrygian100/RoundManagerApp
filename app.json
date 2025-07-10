@@ -21,7 +21,13 @@
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "publicPath": "/",
+      "build": {
+        "babel": {
+          "include": ["@expo/vector-icons"]
+        }
+      }
     },
     "plugins": [
       "expo-router",
@@ -37,6 +43,9 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ]
   }
 }

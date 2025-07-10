@@ -1,0 +1,39 @@
+{
+  "rewrites": [
+    {
+      "source": "/set-password",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/forgot-password", 
+      "destination": "/index.html"
+    },
+    {
+      "source": "/login",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/register",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Content-Type-Options", 
+          "value": "nosniff"
+        }
+      ]
+    }
+  ]
+} 
