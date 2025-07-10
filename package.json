@@ -8,6 +8,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "prebuild": "node scripts/update-build-id.js",
     "lint": "expo lint"
   },
   "dependencies": {

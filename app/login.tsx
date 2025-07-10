@@ -1,15 +1,10 @@
-import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
 // Get build ID from environment or fallback to version
-const BUILD_ID = 
-  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
-  process.env.EXPO_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
-  Constants.expoConfig?.version ||
-  'dev';
+const BUILD_ID = '65b5c35';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
