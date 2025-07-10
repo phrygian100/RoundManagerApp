@@ -40,10 +40,6 @@ export default function SetPasswordScreen() {
               console.log('🔐 SetPassword (RN): Detected password reset flow');
               setIsPasswordResetFlow(true);
               detectedPasswordReset = true;
-              
-              // CRITICAL: Clear any existing session before processing password reset
-              console.log('🔐 SetPassword (RN): Clearing existing session for password reset');
-              await supabase.auth.signOut();
             } else if (type === 'signup') {
               console.log('🔐 SetPassword (RN): Detected signup flow');
               setIsSignupFlow(true);
@@ -52,9 +48,21 @@ export default function SetPasswordScreen() {
               console.log('🔐 SetPassword (RN): Unknown type:', type);
             }
 
-            // For recovery tokens, we don't need to manually verify - 
-            // Supabase will handle this when we exchange the code for session
-            console.log('🔐 SetPassword (RN): Token found, will be handled by session exchange');
+            // For recovery tokens, try to exchange the code first
+            console.log('🔐 SetPassword (RN): Attempting token exchange...');
+            
+            try {
+              await supabase.auth.exchangeCodeForSession(window.location.href);
+              console.log('🔐 SetPassword (RN): Token exchange completed');
+            } catch (exchangeError) {
+              console.error('🔐 SetPassword (RN): Token exchange failed:', exchangeError);
+            }
+            
+            // For password reset flow, clear existing session AFTER trying token exchange
+            if (type === 'recovery') {
+              console.log('🔐 SetPassword (RN): Clearing existing session for password reset');
+              // We'll let the auth state change handler deal with the new session
+            }
 
             // Clean up URL parameters
             url.searchParams.delete('token');
@@ -81,16 +89,18 @@ export default function SetPasswordScreen() {
           console.log('🔐 SetPassword (RN): Detected password reset flow from hash');
           setIsPasswordResetFlow(true);
           detectedPasswordReset = true;
-          
-          // Clear any existing session before processing password reset
-          console.log('🔐 SetPassword (RN): Clearing existing session for hash-based password reset');
-          await supabase.auth.signOut();
         } else if (type) {
           console.log('🔐 SetPassword (RN): Hash type found but not recovery:', type);
         }
         
         if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
+          console.log('🔐 SetPassword (RN): Setting session from hash tokens');
+          try {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            console.log('🔐 SetPassword (RN): Hash session set successfully');
+          } catch (hashError) {
+            console.error('🔐 SetPassword (RN): Hash session failed:', hashError);
+          }
           // Clean the URL
           window.history.replaceState({}, '', window.location.pathname);
         }
@@ -98,14 +108,8 @@ export default function SetPasswordScreen() {
         console.log('🔐 SetPassword (RN): Hash exists but no access_token:', window.location.hash);
       }
 
-      // Exchange any PKCE code in the URL
-      try {
-        if (typeof window !== 'undefined') {
-          await supabase.auth.exchangeCodeForSession(window.location.href);
-        }
-      } catch {
-        /* noop */
-      }
+      // Token exchange is now handled above for URL parameters
+      console.log('🔐 SetPassword (RN): Token processing completed');
       
       console.log('🔐 SetPassword: Flow detection result:', { detectedPasswordReset, detectedSignup });
       return { detectedPasswordReset, detectedSignup };
@@ -244,8 +248,14 @@ export default function SetPasswordScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Invalid or Expired Link</Text>
-      <Text>Your password reset link may have expired or is invalid. Please request a new password reset email.</Text>
+      <Text style={styles.subtitle}>
+        Your password reset link may have expired or is invalid. 
+        {'\n\n'}
+        Password reset links are only valid for 1 hour after being sent.
+      </Text>
       <View style={{ height: 16 }} />
+      <Button title="Request New Reset Link" onPress={() => router.replace('/forgot-password')} />
+      <View style={{ height: 8 }} />
       <Button title="Go to Login" onPress={() => router.replace('/login')} />
     </View>
   );
