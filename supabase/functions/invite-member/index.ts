@@ -70,10 +70,18 @@ serve(async (req) => {
         }
         const existingUid = listData?.users?.find((u: any) => u.email?.toLowerCase() === email.toLowerCase())?.id ?? null;
         console.log('Found existing user:', !!existingUid);
-        await upsertMember(existingUid, accountId, perms, email, inviteCode);
-        console.log('upsertMember completed');
-        await sendCustomInviteEmail(email, inviteCode);
-        console.log('sendCustomInviteEmail completed');
+        
+        try {
+          await upsertMember(existingUid, accountId, perms, email, inviteCode);
+          console.log('upsertMember completed for existing user');
+          
+          await sendCustomInviteEmail(email, inviteCode);
+          console.log('sendCustomInviteEmail completed for existing user');
+        } catch (memberError) {
+          console.error('Failed to process existing user invitation:', memberError);
+          throw memberError;
+        }
+        
         return new Response(JSON.stringify({ ok: true, uid: existingUid }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
@@ -86,7 +94,13 @@ serve(async (req) => {
 
     const uid = inviteData.user?.id;
 
-    await upsertMember(uid, accountId, perms, email, inviteCode);
+    try {
+      await upsertMember(uid, accountId, perms, email, inviteCode);
+      console.log('Member record created successfully, returning success');
+    } catch (memberError) {
+      console.error('Failed to create member record:', memberError);
+      throw memberError;
+    }
 
     return new Response(JSON.stringify({ ok: true, uid }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -153,7 +167,28 @@ async function upsertMember(
   email: string,
   inviteCode: string,
 ) {
-  const { error } = await supabase.from('members').upsert({
+  console.log('upsertMember called with:', { uid, accountId, email, inviteCode });
+  
+  // Check for existing invitation first to prevent duplicates
+  const { data: existing, error: existingError } = await supabase
+    .from('members')
+    .select('*')
+    .eq('account_id', accountId)
+    .eq('email', email)
+    .eq('status', 'invited');
+    
+  if (existingError) {
+    console.error('Error checking for existing member:', existingError);
+    throw existingError;
+  }
+  
+  if (existing && existing.length > 0) {
+    console.log('Member invitation already exists for email:', email);
+    throw new Error(`User ${email} already has a pending invitation`);
+  }
+  
+  // Create new member record
+  const { error } = await supabase.from('members').insert({
     uid,
     account_id: accountId,
     role: 'member',
@@ -163,5 +198,11 @@ async function upsertMember(
     invite_code: inviteCode,
     created_at: new Date().toISOString(),
   });
-  if (error) throw error;
+  
+  if (error) {
+    console.error('Error creating member record:', error);
+    throw error;
+  }
+  
+  console.log('Member record created successfully for:', email);
 } 

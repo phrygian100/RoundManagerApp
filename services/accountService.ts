@@ -124,11 +124,22 @@ export async function inviteMember(email: string): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
 
+  // Check if member already exists first
+  const existingMembers = await listMembers();
+  const existingMember = existingMembers.find(m => m.email.toLowerCase() === email.toLowerCase());
+  if (existingMember) {
+    throw new Error(`User ${email} is already a team member or has a pending invitation`);
+  }
+
+  console.log('Attempting to invite member via edge function:', email);
+
   // Call server-side edge function (keeps service-role key off the client)
   try {
     const { supabase } = await import('../core/supabase');
     const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
-    const { error } = await supabase.functions.invoke('invite-member', {
+    console.log('Generated invite code:', inviteCode);
+    
+    const { data, error } = await supabase.functions.invoke('invite-member', {
       body: {
         email,
         accountId: sess.accountId,
@@ -136,10 +147,36 @@ export async function inviteMember(email: string): Promise<void> {
         inviteCode,
       },
     });
-    if (error) throw error;
-  } catch (err) {
-    console.warn('Edge invite failed, falling back to Firestore-only invite', err);
+    
+    console.log('Edge function response - data:', data, 'error:', error);
+    
+    if (error) {
+      console.error('Edge function failed:', error);
+      // Only fallback if it's a connection/infrastructure error, not a business logic error
+      if (error.message?.includes('fetch') || error.message?.includes('network') || error.message?.includes('timeout')) {
+        console.warn('Network error detected, falling back to Firestore-only invite');
+        throw error; // Will trigger fallback below
+      } else {
+        // Business logic error from the edge function - don't fallback
+        throw new Error(error.message || 'Invitation failed');
+      }
+    }
+    
+    console.log('Edge function invitation successful');
+  } catch (err: any) {
+    console.warn('Edge invite failed, attempting Firestore-only fallback:', err);
+    
+    // Double-check no member was created during the failed edge function call
+    const membersAfterError = await listMembers();
+    const memberCreatedDuringError = membersAfterError.find(m => m.email.toLowerCase() === email.toLowerCase());
+    if (memberCreatedDuringError) {
+      console.log('Member was actually created during edge function - not creating fallback');
+      return; // Edge function partially succeeded, don't create duplicate
+    }
+    
     const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
+    console.log('Creating Firestore-only fallback invite with code:', inviteCode);
+    
     // Minimal fallback so owner still sees a placeholder row plus code displayed in UI
     const memberRef = doc(db, `accounts/${sess.accountId}/members/${inviteCode}`);
     await setDoc(memberRef, {
@@ -150,6 +187,9 @@ export async function inviteMember(email: string): Promise<void> {
       inviteCode,
       createdAt: new Date().toISOString(),
     });
+    
+    console.log('Firestore-only invite created - user will need to manually share invite code');
+    throw new Error(`Invitation email failed to send, but invite code ${inviteCode} was created. Please share this code manually with ${email}.`);
   }
 }
 

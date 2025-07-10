@@ -59,15 +59,19 @@ export default function TeamScreen() {
 
   const handleInvite = async () => {
     if (!email.trim()) return;
+    if (loading) return; // Prevent double-tap
+    
     setLoading(true);
     try {
+      console.log('Starting invitation for:', email.trim());
       await inviteMember(email.trim());
       setEmail('');
-      loadMembers();
-      window.alert('Invite sent');
-    } catch (err) {
-      console.error(err);
-      window.alert('Error: Could not invite member');
+      console.log('Invitation successful, refreshing member list...');
+      await loadMembers(); // Wait for reload
+      window.alert('Invite sent successfully');
+    } catch (err: any) {
+      console.error('Invitation failed:', err);
+      window.alert(`Error: Could not invite member - ${err.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
