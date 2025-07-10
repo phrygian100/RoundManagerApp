@@ -1,11 +1,15 @@
+import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
-// Simple approach: hardcode the current commit hash
-// TODO: Replace 'a213e90' with build-time injection
-const BUILD_ID = 'a213e90';
+// Get build ID from environment or fallback to version
+const BUILD_ID = 
+  process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+  process.env.EXPO_PUBLIC_VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ||
+  Constants.expoConfig?.version ||
+  'dev';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
