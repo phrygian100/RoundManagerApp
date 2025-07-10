@@ -15,11 +15,11 @@ export default function RootLayout() {
       const redirectIfLoggedIn = ['/login', '/register'];
 
       if (!loggedIn) {
-        if (!unauthAllowed.includes(pathname)) {
+        if (!unauthAllowed.some(p => pathname.startsWith(p))) {
           router.replace('/login');
         }
       } else {
-        if (redirectIfLoggedIn.includes(pathname)) {
+        if (redirectIfLoggedIn.some(p => pathname.startsWith(p))) {
           router.replace('/');
         }
       }
