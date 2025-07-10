@@ -107,13 +107,21 @@ serve(async (req) => {
     });
   } catch (err) {
     console.error('--- INVITE MEMBER FUNCTION FAILED ---');
-    console.error('Caught object:', err);
-    try {
-      console.error('Stringified for inspection:', JSON.stringify(err));
-    } catch (e) {
-      console.error('Could not stringify the error object.');
-    }
-    return new Response('Internal Server Error', { status: 500, headers: corsHeaders });
+    console.error('Error type:', typeof err);
+    console.error('Error message:', err?.message || 'No message');
+    console.error('Error stack:', err?.stack || 'No stack');
+    console.error('Full error object:', err);
+    
+    // Return more specific error message
+    const errorMessage = err?.message || 'Unknown error occurred';
+    return new Response(JSON.stringify({ 
+      error: 'invite_failed', 
+      message: errorMessage,
+      details: String(err)
+    }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
 
@@ -169,26 +177,8 @@ async function upsertMember(
 ) {
   console.log('upsertMember called with:', { uid, accountId, email, inviteCode });
   
-  // Check for existing invitation first to prevent duplicates
-  const { data: existing, error: existingError } = await supabase
-    .from('members')
-    .select('*')
-    .eq('account_id', accountId)
-    .eq('email', email)
-    .eq('status', 'invited');
-    
-  if (existingError) {
-    console.error('Error checking for existing member:', existingError);
-    throw existingError;
-  }
-  
-  if (existing && existing.length > 0) {
-    console.log('Member invitation already exists for email:', email);
-    throw new Error(`User ${email} already has a pending invitation`);
-  }
-  
-  // Create new member record
-  const { error } = await supabase.from('members').insert({
+  // Use simple upsert - safer and won't cause 500 errors
+  const { error } = await supabase.from('members').upsert({
     uid,
     account_id: accountId,
     role: 'member',
@@ -200,9 +190,9 @@ async function upsertMember(
   });
   
   if (error) {
-    console.error('Error creating member record:', error);
+    console.error('Error in upsertMember:', error);
     throw error;
   }
   
-  console.log('Member record created successfully for:', email);
+  console.log('Member record upserted successfully for:', email);
 } 
