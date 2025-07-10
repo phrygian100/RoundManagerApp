@@ -52,11 +52,22 @@ export default function SetPasswordScreen() {
         }
       }
 
-      // Handle hash-based tokens (legacy format)
+      // Handle hash-based tokens (legacy format and password reset)
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token')) {
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const access_token = hashParams.get('access_token');
         const refresh_token = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+        
+        if (type === 'recovery') {
+          console.log('🔐 SetPassword (RN): Detected password reset flow from hash');
+          setIsPasswordResetFlow(true);
+          
+          // Clear any existing session before processing password reset
+          console.log('🔐 SetPassword (RN): Clearing existing session for hash-based password reset');
+          await supabase.auth.signOut();
+        }
+        
         if (access_token && refresh_token) {
           await supabase.auth.setSession({ access_token, refresh_token });
           // Clean the URL
