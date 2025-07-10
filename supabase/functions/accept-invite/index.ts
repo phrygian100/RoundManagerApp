@@ -1,7 +1,7 @@
 // deno-lint-ignore-file no-explicit-any
 // @ts-nocheck
+import { createClient } from 'githttps://esm.sh/@supabase/supabase-js@2';
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const supabase = createClient<Deno.Database>(
   Deno.env.get('SUPABASE_URL')!,
