@@ -93,4 +93,14 @@ Files: `app/_layout.tsx`, `app/login.tsx`, `app/(tabs)/index.tsx`, `app/register
 
 ---
 
+## 2025-01-16 – Build Tracking & Password Reset Fix 🔧
+• **Build indicator finally working** – implemented automated git commit hash injection via `prebuild` script.  
+• Fixed password reset flow redirect URL – was pointing to homepage instead of `/set-password`.  
+• Added debug console logging to auth state changes for troubleshooting.  
+• Build ID now updates automatically on every deployment, showing current commit hash.
+
+Files: `app/login.tsx`, `app/forgot-password.tsx`, `app/_layout.tsx`, `scripts/update-build-id.js`, `package.json`.
+
+---
+
 (Last condensed: 2025-07-08)
