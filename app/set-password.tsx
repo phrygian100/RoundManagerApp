@@ -160,18 +160,9 @@ export default function SetPasswordScreen() {
           detectedSignup: flowDetection.detectedSignup
         });
         
-        // Only detect signup flow if we haven't already determined the flow type from URL/hash
-        // CRITICAL: If we've already detected a password reset, don't override it!
-        if (!session && newSession && !flowDetection.detectedPasswordReset && !flowDetection.detectedSignup && !isPasswordResetFlow && !isSignupFlow) {
-          console.log('🔐 SetPassword: Detected signup flow (fallback)');
-          setIsSignupFlow(true);
-        } else if (flowDetection.detectedPasswordReset && newSession) {
-          console.log('🔐 SetPassword: Confirming password reset flow with new session');
-          // Make sure password reset flag is set if we detected it but state hasn't caught up
-          if (!isPasswordResetFlow) {
-            setIsPasswordResetFlow(true);
-          }
-        }
+        // SIMPLE FIX: Don't use fallback signup detection at all - it's causing the issue
+        // If we have a session, we'll handle the flow detection based on URL/hash only
+        console.log('🔐 SetPassword: Session established, flow will be determined by URL/hash detection only');
         
         setSession(newSession);
         setLoading(false);
@@ -280,12 +271,12 @@ export default function SetPasswordScreen() {
       );
     }
     
-    // Default case - unknown flow with session, show password set form
-    console.log('🔐 SetPassword: Rendering default password set form');
+    // Default case - unknown flow with session, assume password reset since we're on /set-password
+    console.log('🔐 SetPassword: Rendering default as password reset (on /set-password route)');
     return (
       <View style={styles.container}>
-        <Text style={styles.title}>Set Your Password</Text>
-        <Text style={styles.subtitle}>Please set a password for your account:</Text>
+        <Text style={styles.title}>Reset Your Password</Text>
+        <Text style={styles.subtitle}>Please enter your new password below:</Text>
         <TextInput
           style={styles.input}
           placeholder="New password"
@@ -294,7 +285,7 @@ export default function SetPasswordScreen() {
           secureTextEntry
         />
         <Button 
-          title="Save Password" 
+          title="Reset Password" 
           onPress={handleSetPassword} 
           disabled={loading} 
         />
