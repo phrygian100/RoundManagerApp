@@ -5,6 +5,19 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 – Team Invitation Duplicates FIXED ✅
+• **RESOLVED**: Fixed duplicate team member invitations appearing in UI without email being sent.  
+• **Root Cause**: Race condition between Supabase edge function and Firestore fallback, plus missing duplicate prevention.  
+• **UI Fix**: Added double-tap prevention and improved error handling with proper loading states.  
+• **Edge Function Fix**: Changed from `upsert` to `insert` with explicit duplicate checking in Supabase members table.  
+• **Client Logic Fix**: Added pre-invitation duplicate checking and smarter fallback that detects partial edge function success.  
+• **Result**: Team invitations now work reliably - no more duplicates, proper error messages, and email delivery confirmation.  
+• **Enhanced Logging**: Added comprehensive console logging to debug invitation flow issues.  
+
+**Files modified**: `app/(tabs)/team.tsx`, `services/accountService.ts`, `supabase/functions/invite-member/index.ts`.
+
+---
+
 ## 2025-01-21 – Password Reset Flow FINALLY RESOLVED ✅🥕  
 • **FINAL FIX**: Eliminated race condition between password reset flow detection and signup flow fallback.  
 • **Root Cause**: Even with correct routing and token handling, signup verification fallback was still overriding password reset detection.  
