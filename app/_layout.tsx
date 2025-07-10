@@ -10,17 +10,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      console.log('🔑 Auth state change:', { event: _e, hasSession: !!session, pathname });
       const loggedIn = !!session;
       const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
       const redirectIfLoggedIn = ['/login', '/register'];
       const alwaysAllowed = ['/set-password', '/forgot-password'];
 
       if (!loggedIn) {
+        console.log('🔑 Not logged in, checking if redirect needed');
         if (!unauthAllowed.some(p => pathname.startsWith(p))) {
+          console.log('🔑 Redirecting to login from:', pathname);
           router.replace('/login');
         }
       } else {
+        console.log('🔑 Logged in, checking redirect rules for:', pathname);
         if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && !alwaysAllowed.some(p => pathname.startsWith(p))) {
+          console.log('🔑 Redirecting to home from:', pathname);
           router.replace('/');
         }
       }

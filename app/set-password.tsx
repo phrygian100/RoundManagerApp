@@ -11,6 +11,7 @@ export default function SetPasswordScreen() {
   const [isSignupFlow, setIsSignupFlow] = useState(false);
 
   useEffect(() => {
+    console.log('🔐 SetPassword: Component mounted');
     // This screen handles both magic link logins and email verifications.
     // Supabase puts the token in the URL hash, which the supabase-js client
     // handles automatically. We just need to listen for the session to update.
@@ -18,9 +19,11 @@ export default function SetPasswordScreen() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      console.log('🔐 SetPassword: Auth state change:', { event: _event, hasSession: !!newSession, hadSessionBefore: !!session });
       // The session is established, so the token was valid.
       // If there was no session before, this is a signup verification.
       if (!session && newSession) {
+        console.log('🔐 SetPassword: Detected signup flow');
         setIsSignupFlow(true);
       }
       setSession(newSession);
@@ -29,6 +32,7 @@ export default function SetPasswordScreen() {
 
     // Fallback for an already active session
     supabase.auth.getSession().then(({ data }) => {
+      console.log('🔐 SetPassword: Initial session check:', { hasSession: !!data.session });
       if (data.session) {
         setSession(data.session);
       }
