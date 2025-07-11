@@ -11,8 +11,8 @@ import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
 import { getDataOwnerId } from '../../../core/supabase';
-import { isTodayMarkedComplete } from '../../../services/jobService';
-import type { Client } from '../../../types/client';
+import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
+import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
 import { displayAccountNumber } from '../../../utils/account';
 
@@ -45,6 +45,15 @@ export default function ClientDetailScreen() {
   const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
+  
+  // Additional recurring work states
+  const [modalMode, setModalMode] = useState<'one-time' | 'recurring'>('one-time');
+  const [recurringServiceType, setRecurringServiceType] = useState('Gutter cleaning');
+  const [customRecurringServiceType, setCustomRecurringServiceType] = useState('');
+  const [recurringFrequency, setRecurringFrequency] = useState(12); // weeks
+  const [recurringPrice, setRecurringPrice] = useState('');
+  const [recurringNextVisit, setRecurringNextVisit] = useState(new Date());
+  const [showRecurringDatePicker, setShowRecurringDatePicker] = useState(false);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -354,6 +363,75 @@ export default function ClientDetailScreen() {
     }
   };
 
+  const onRecurringDateChange = (event: any, selectedDate?: Date) => {
+    setShowRecurringDatePicker(false);
+    if (selectedDate) {
+      setRecurringNextVisit(selectedDate);
+    }
+  };
+
+  const handleAddRecurringService = async () => {
+    if (!recurringPrice) {
+      Alert.alert('Error', 'Please enter a price for the recurring service.');
+      return;
+    }
+
+    if (recurringServiceType === 'Other' && !customRecurringServiceType.trim()) {
+      Alert.alert('Error', 'Please enter a custom service type.');
+      return;
+    }
+
+    if (!recurringFrequency || recurringFrequency < 4 || recurringFrequency > 52) {
+      Alert.alert('Error', 'Please select a frequency between 4 and 52 weeks.');
+      return;
+    }
+
+    const finalServiceType = recurringServiceType === 'Other' ? customRecurringServiceType.trim() : recurringServiceType;
+
+    try {
+      const newAdditionalService: AdditionalService = {
+        id: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        serviceType: finalServiceType,
+        frequency: recurringFrequency,
+        price: Number(recurringPrice),
+        nextVisit: format(recurringNextVisit, 'yyyy-MM-dd'),
+        isActive: true,
+      };
+
+      // Update client document with new additional service
+      const currentAdditionalServices = client?.additionalServices || [];
+      const updatedAdditionalServices = [...currentAdditionalServices, newAdditionalService];
+
+      await updateDoc(doc(db, 'clients', id as string), {
+        additionalServices: updatedAdditionalServices
+      });
+
+      // Update local state
+      setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
+
+      // Generate jobs for the new recurring service
+      try {
+        const jobsCreated = await createJobsForAdditionalServices(id as string, 8);
+        console.log(`Created ${jobsCreated} jobs for new recurring service`);
+      } catch (jobError) {
+        console.error('Error creating jobs for new recurring service:', jobError);
+        // Don't fail the service creation if job creation fails
+      }
+
+      Alert.alert('Success', 'Recurring service added successfully and jobs have been scheduled.');
+      setModalVisible(false);
+      setRecurringPrice('');
+      setCustomRecurringServiceType('');
+      setRecurringNextVisit(new Date());
+      
+      // Refresh the service history to show new jobs
+      fetchClient();
+    } catch (error) {
+      console.error('Error adding recurring service:', error);
+      Alert.alert('Error', 'Failed to add recurring service.');
+    }
+  };
+
   if (loading) {
     return (
       <ThemedView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -428,6 +506,28 @@ export default function ClientDetailScreen() {
                 ) : (
                   <ThemedText>Next scheduled visit: N/A</ThemedText>
                 )}
+                
+                {/* Additional Recurring Services */}
+                {client.additionalServices && client.additionalServices.length > 0 && (
+                  <View style={styles.additionalServicesContainer}>
+                    <ThemedText style={styles.additionalServicesTitle}>Additional Recurring Services:</ThemedText>
+                    {client.additionalServices.filter(service => service.isActive).map((service) => (
+                      <View key={service.id} style={styles.additionalServiceItem}>
+                        <ThemedText style={styles.additionalServiceText}>
+                          • {service.serviceType} - Every {service.frequency} weeks - £{service.price.toFixed(2)}
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServiceNextVisit}>
+                          Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </ThemedText>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                
                 <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
                 {client.email && (
                   <ThemedText>Email: {client.email}</ThemedText>
@@ -533,61 +633,152 @@ export default function ClientDetailScreen() {
           <View style={styles.modalView}>
             <ThemedText type="subtitle">Add a New Job</ThemedText>
 
-            <View style={styles.datePickerContainer}>
-              <ThemedText style={styles.dateText}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
-              <Pressable style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
-                <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+            {/* Mode Toggle Buttons */}
+            <View style={styles.modeToggleContainer}>
+              <Pressable 
+                style={[styles.modeToggleButton, modalMode === 'one-time' && styles.activeToggleButton]}
+                onPress={() => setModalMode('one-time')}
+              >
+                <ThemedText style={[styles.modeToggleText, modalMode === 'one-time' && styles.activeToggleText]}>
+                  One-time Job
+                </ThemedText>
+              </Pressable>
+              <Pressable 
+                style={[styles.modeToggleButton, modalMode === 'recurring' && styles.activeToggleButton]}
+                onPress={() => setModalMode('recurring')}
+              >
+                <ThemedText style={[styles.modeToggleText, modalMode === 'recurring' && styles.activeToggleText]}>
+                  Additional Recurring Work
+                </ThemedText>
               </Pressable>
             </View>
 
-            {showDatePicker && (
-              <DateTimePicker
-                testID="dateTimePicker"
-                value={jobDate}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={onDateChange}
-              />
-            )}
+            {modalMode === 'one-time' ? (
+              // One-time Job Section
+              <>
+                <View style={styles.datePickerContainer}>
+                  <ThemedText style={styles.dateText}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
+                  <Pressable style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
+                    <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+                  </Pressable>
+                </View>
 
-            <Picker
-              selectedValue={jobType}
-              onValueChange={(itemValue) => setJobType(itemValue)}
-              style={styles.picker}
-            >
-              <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
-              <Picker.Item label="Conservatory roof" value="Conservatory roof" />
-              <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
-              <Picker.Item label="One-off window cleaning" value="One-off window cleaning" />
-              <Picker.Item label="Other" value="Other" />
-            </Picker>
-            
-            {jobType === 'Other' && (
-              <TextInput
-                style={styles.input}
-                placeholder="Enter custom job type"
-                value={customJobType}
-                onChangeText={setCustomJobType}
-              />
+                {showDatePicker && (
+                  <DateTimePicker
+                    testID="dateTimePicker"
+                    value={jobDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onDateChange}
+                  />
+                )}
+
+                <Picker
+                  selectedValue={jobType}
+                  onValueChange={(itemValue) => setJobType(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+                  <Picker.Item label="Conservatory roof" value="Conservatory roof" />
+                  <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+                  <Picker.Item label="One-off window cleaning" value="One-off window cleaning" />
+                  <Picker.Item label="Other" value="Other" />
+                </Picker>
+                
+                {jobType === 'Other' && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter custom job type"
+                    value={customJobType}
+                    onChangeText={setCustomJobType}
+                  />
+                )}
+                
+                <TextInput
+                  style={styles.input}
+                  placeholder="Job Notes"
+                  value={jobNotes}
+                  onChangeText={setJobNotes}
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Job Price (£)"
+                  value={jobPrice}
+                  onChangeText={setJobPrice}
+                  keyboardType="numeric"
+                />
+                <View style={styles.modalButtons}>
+                  <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
+                  <Button title="Add Job" onPress={handleAddJob} />
+                </View>
+              </>
+            ) : (
+              // Additional Recurring Work Section
+              <>
+                <View style={styles.datePickerContainer}>
+                  <ThemedText style={styles.dateText}>First visit: {format(recurringNextVisit, 'do MMMM yyyy')}</ThemedText>
+                  <Pressable style={styles.calendarButton} onPress={() => setShowRecurringDatePicker(true)}>
+                    <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+                  </Pressable>
+                </View>
+
+                {showRecurringDatePicker && (
+                  <DateTimePicker
+                    testID="recurringDateTimePicker"
+                    value={recurringNextVisit}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={onRecurringDateChange}
+                  />
+                )}
+
+                <Picker
+                  selectedValue={recurringServiceType}
+                  onValueChange={(itemValue) => setRecurringServiceType(itemValue)}
+                  style={styles.picker}
+                >
+                  <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+                  <Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
+                  <Picker.Item label="Conservatory roof" value="Conservatory roof" />
+                  <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+                  <Picker.Item label="Pressure washing" value="Pressure washing" />
+                  <Picker.Item label="Other" value="Other" />
+                </Picker>
+                
+                {recurringServiceType === 'Other' && (
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter custom service type"
+                    value={customRecurringServiceType}
+                    onChangeText={setCustomRecurringServiceType}
+                  />
+                )}
+
+                {/* Frequency Picker */}
+                <ThemedText style={styles.fieldLabel}>Frequency (weeks between visits):</ThemedText>
+                <Picker
+                  selectedValue={recurringFrequency}
+                  onValueChange={(itemValue) => setRecurringFrequency(itemValue)}
+                  style={styles.picker}
+                >
+                  {[4,8,12,16,20,24,28,32,36,40,44,48,52].map(weeks => (
+                    <Picker.Item key={weeks} label={`${weeks} weeks`} value={weeks} />
+                  ))}
+                </Picker>
+                
+                <TextInput
+                  style={styles.input}
+                  placeholder="Service Price (£)"
+                  value={recurringPrice}
+                  onChangeText={setRecurringPrice}
+                  keyboardType="numeric"
+                />
+                <View style={styles.modalButtons}>
+                  <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
+                  <Button title="Add Recurring Service" onPress={handleAddRecurringService} />
+                </View>
+              </>
             )}
-            
-            <TextInput
-              style={styles.input}
-              placeholder="Job Notes"
-              value={jobNotes}
-              onChangeText={setJobNotes}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Job Price (£)"
-              value={jobPrice}
-              onChangeText={setJobPrice}
-              keyboardType="numeric"
-            />
-            <View style={styles.modalButtons}>
-              <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
-              <Button title="Add Job" onPress={handleAddJob} />
-            </View>
           </View>
         </View>
       </Modal>
@@ -907,6 +1098,62 @@ const styles = StyleSheet.create({
   scheduleContainer: {
     marginTop: 24,
     marginBottom: 8,
+  },
+  modeToggleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    paddingVertical: 5,
+  },
+  modeToggleButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  activeToggleButton: {
+    backgroundColor: '#e0e0e0',
+    borderColor: '#ccc',
+    borderWidth: 1,
+  },
+  modeToggleText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  activeToggleText: {
+    color: '#333',
+  },
+  fieldLabel: {
+    fontSize: 14,
+    marginBottom: 5,
+    color: '#555',
+  },
+  additionalServicesContainer: {
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+  },
+  additionalServicesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#444',
+  },
+  additionalServiceItem: {
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  additionalServiceText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  additionalServiceNextVisit: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
 });
 

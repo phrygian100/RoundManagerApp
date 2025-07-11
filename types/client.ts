@@ -15,4 +15,15 @@ export type Client = {
   status?: 'active' | 'ex-client';
   dateAdded?: string;
   source?: string;
+  // Additional recurring services
+  additionalServices?: AdditionalService[];
+};
+
+export type AdditionalService = {
+  id: string;
+  serviceType: string; // e.g., "Gutter cleaning", "Solar panel cleaning"
+  frequency: number; // weeks between services (4-52)
+  price: number;
+  nextVisit: string; // ISO date string
+  isActive: boolean;
 }; 

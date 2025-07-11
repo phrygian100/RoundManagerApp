@@ -98,98 +98,108 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
   try {
     // Get the client data
     const client = await getClientById(clientId);
-    if (!client || !client.nextVisit || !client.frequency || client.frequency === 'one-off') {
-      return 0; // No jobs to create for one-off clients or clients without proper data
+    if (!client) {
+      return 0;
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to start of day
-    
-    let visitDate = parseISO(client.nextVisit);
-    const jobsToCreate: Omit<Job, 'id'>[] = [];
-    
-    // Check if today is marked as complete if skipTodayIfComplete is true
-    let skipToday = false;
-    if (skipTodayIfComplete) {
-      try {
-        const ownerId = await getDataOwnerId();
-        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
-        const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-        const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
-        if (completedDoc.exists()) {
-          const data = completedDoc.data();
-          const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-          const todayDay = daysOfWeek[today.getDay() - 1];
-          if (data.completedDays && data.completedDays.includes(todayDay)) {
-            skipToday = true;
+    let totalJobsCreated = 0;
+
+    // Create regular window cleaning jobs if client has recurring frequency
+    if (client.nextVisit && client.frequency && client.frequency !== 'one-off') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Reset time to start of day
+      
+      let visitDate = parseISO(client.nextVisit);
+      const jobsToCreate: Omit<Job, 'id'>[] = [];
+      
+      // Check if today is marked as complete if skipTodayIfComplete is true
+      let skipToday = false;
+      if (skipTodayIfComplete) {
+        try {
+          const ownerId = await getDataOwnerId();
+          const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+          const weekStartStr = format(weekStart, 'yyyy-MM-dd');
+          const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
+          if (completedDoc.exists()) {
+            const data = completedDoc.data();
+            const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            const todayDay = daysOfWeek[today.getDay() - 1];
+            if (data.completedDays && data.completedDays.includes(todayDay)) {
+              skipToday = true;
+            }
           }
+        } catch (e) {}
+      }
+      
+      // Generate regular window cleaning jobs for the specified number of weeks
+      for (let i = 0; i < maxWeeks; i++) {
+        // Only generate jobs for today (if not complete) and future dates
+        if (isBefore(visitDate, today)) {
+          visitDate = addWeeks(visitDate, Number(client.frequency));
+          continue;
         }
-      } catch (e) {}
-    }
-    
-    // Generate jobs for the specified number of weeks
-    for (let i = 0; i < maxWeeks; i++) {
-      // Only generate jobs for today (if not complete) and future dates
-      if (isBefore(visitDate, today)) {
-        visitDate = addWeeks(visitDate, Number(client.frequency));
-        continue;
-      }
-      
-      const weekStr = format(visitDate, 'yyyy-MM-dd');
-      
-      // Check if a job already exists for this client on this date
-      // Use a simpler query that doesn't require composite indexes
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) continue;
-      const existingJobsQuery = query(
-        collection(db, JOBS_COLLECTION),
-        where('ownerId', '==', ownerId),
-        where('clientId', '==', clientId)
-      );
-      
-      const existingJobs = await getDocs(existingJobsQuery);
-      
-      // Check if any existing job matches this date (client-side filtering)
-      const jobExistsForDate = existingJobs.docs.some(doc => {
-        const jobData = doc.data();
-        const jobDate = jobData.scheduledTime;
-        if (!jobDate) return false;
         
-        // Check if the job is scheduled for the same date
-        const jobDateStr = jobDate.split('T')[0]; // Get just the date part
-        return jobDateStr === weekStr;
-      });
-      
-      // Only create job if no existing job for this date and not skipping today if today is complete
-      const isToday = visitDate.getTime() === today.getTime();
-      if (!jobExistsForDate && !(skipToday && isToday)) {
-        jobsToCreate.push({
-          ownerId,
-          clientId: client.id,
-          providerId: 'test-provider-1',
-          serviceId: 'window-cleaning',
-          propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
-          scheduledTime: weekStr + 'T09:00:00',
-          status: 'pending',
-          price: typeof client.quote === 'number' ? client.quote : 25,
-          paymentStatus: 'unpaid',
+        const weekStr = format(visitDate, 'yyyy-MM-dd');
+        
+        // Check if a job already exists for this client on this date
+        // Use a simpler query that doesn't require composite indexes
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) continue;
+        const existingJobsQuery = query(
+          collection(db, JOBS_COLLECTION),
+          where('ownerId', '==', ownerId),
+          where('clientId', '==', clientId)
+        );
+        
+        const existingJobs = await getDocs(existingJobsQuery);
+        
+        // Check if any existing job matches this date and is window cleaning (client-side filtering)
+        const jobExistsForDate = existingJobs.docs.some(doc => {
+          const jobData = doc.data();
+          const jobDate = jobData.scheduledTime;
+          if (!jobDate) return false;
+          
+          // Check if the job is scheduled for the same date and is window cleaning
+          const jobDateStr = jobDate.split('T')[0]; // Get just the date part
+          return jobDateStr === weekStr && jobData.serviceId === 'window-cleaning';
         });
+        
+        // Only create job if no existing job for this date and not skipping today if today is complete
+        const isToday = visitDate.getTime() === today.getTime();
+        if (!jobExistsForDate && !(skipToday && isToday)) {
+          jobsToCreate.push({
+            ownerId,
+            clientId: client.id,
+            providerId: 'test-provider-1',
+            serviceId: 'window-cleaning',
+            propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+            scheduledTime: weekStr + 'T09:00:00',
+            status: 'pending',
+            price: typeof client.quote === 'number' ? client.quote : 25,
+            paymentStatus: 'unpaid',
+          });
+        }
+        
+        visitDate = addWeeks(visitDate, Number(client.frequency));
       }
       
-      visitDate = addWeeks(visitDate, Number(client.frequency));
+      // Create all regular window cleaning jobs in a batch
+      if (jobsToCreate.length > 0) {
+        const batch = writeBatch(db);
+        jobsToCreate.forEach(job => {
+          const newJobRef = doc(collection(db, JOBS_COLLECTION));
+          batch.set(newJobRef, job);
+        });
+        await batch.commit();
+        totalJobsCreated += jobsToCreate.length;
+      }
     }
+
+    // Create jobs for additional recurring services
+    const additionalJobsCreated = await createJobsForAdditionalServices(clientId, maxWeeks);
+    totalJobsCreated += additionalJobsCreated;
     
-    // Create all jobs in a batch
-    if (jobsToCreate.length > 0) {
-      const batch = writeBatch(db);
-      jobsToCreate.forEach(job => {
-        const newJobRef = doc(collection(db, JOBS_COLLECTION));
-        batch.set(newJobRef, job);
-      });
-      await batch.commit();
-    }
-    
-    return jobsToCreate.length;
+    return totalJobsCreated;
   } catch (error) {
     console.error('Error creating jobs for client:', error);
     throw error;
@@ -364,6 +374,94 @@ export async function generateRecurringJobs() {
     }
   });
   await Promise.all(jobsToCreate.map(job => addDoc(jobsRef, job)));
+}
+
+/**
+ * Creates jobs for additional recurring services for a specific client
+ */
+export async function createJobsForAdditionalServices(clientId: string, maxWeeks: number = 8): Promise<number> {
+  try {
+    const client = await getClientById(clientId);
+    if (!client || !client.additionalServices || client.additionalServices.length === 0) {
+      return 0;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) return 0;
+
+    const jobsToCreate: Omit<Job, 'id'>[] = [];
+
+    // Process each additional service
+    for (const service of client.additionalServices) {
+      if (!service.isActive) continue;
+
+      let serviceDate = parseISO(service.nextVisit);
+      
+      // Generate jobs for this service for the specified number of weeks
+      for (let i = 0; i < maxWeeks; i++) {
+        // Only generate jobs for today and future dates
+        if (isBefore(serviceDate, today)) {
+          serviceDate = addWeeks(serviceDate, service.frequency);
+          continue;
+        }
+
+        const serviceDateStr = format(serviceDate, 'yyyy-MM-dd');
+
+        // Check if a job already exists for this service on this date
+        const existingJobsQuery = query(
+          collection(db, JOBS_COLLECTION),
+          where('ownerId', '==', ownerId),
+          where('clientId', '==', clientId)
+        );
+
+        const existingJobs = await getDocs(existingJobsQuery);
+
+        // Check if any existing job matches this date and service type
+        const jobExistsForDateAndService = existingJobs.docs.some(doc => {
+          const jobData = doc.data();
+          const jobDate = jobData.scheduledTime;
+          if (!jobDate) return false;
+
+          const jobDateStr = jobDate.split('T')[0];
+          return jobDateStr === serviceDateStr && jobData.serviceId === service.serviceType;
+        });
+
+        // Only create job if no existing job for this date and service
+        if (!jobExistsForDateAndService) {
+          jobsToCreate.push({
+            ownerId,
+            clientId: client.id,
+            providerId: 'test-provider-1',
+            serviceId: service.serviceType,
+            propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+            scheduledTime: serviceDateStr + 'T09:00:00',
+            status: 'pending',
+            price: service.price,
+            paymentStatus: 'unpaid',
+          });
+        }
+
+        serviceDate = addWeeks(serviceDate, service.frequency);
+      }
+    }
+
+    // Create all jobs in a batch
+    if (jobsToCreate.length > 0) {
+      const batch = writeBatch(db);
+      jobsToCreate.forEach(job => {
+        const newJobRef = doc(collection(db, JOBS_COLLECTION));
+        batch.set(newJobRef, job);
+      });
+      await batch.commit();
+    }
+
+    return jobsToCreate.length;
+  } catch (error) {
+    console.error('Error creating jobs for additional services:', error);
+    throw error;
+  }
 }
 
 // Utility to check if today is marked as complete in completedWeeks
