@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, Image, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
 // Get build ID from environment or fallback to version
@@ -54,7 +54,11 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Login</Text>
+      <Image 
+        source={require('../assets/images/Logo - Service Platform.png')} 
+        style={styles.logo}
+        resizeMode="contain"
+      />
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -82,7 +86,12 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
+  logo: { 
+    width: 200, 
+    height: 80, 
+    alignSelf: 'center', 
+    marginBottom: 40 
+  },
   input: {
     borderWidth: 1,
     borderColor: '#ccc',
