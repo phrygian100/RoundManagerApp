@@ -507,27 +507,6 @@ export default function ClientDetailScreen() {
                   <ThemedText>Next scheduled visit: N/A</ThemedText>
                 )}
                 
-                {/* Additional Recurring Services */}
-                {client.additionalServices && client.additionalServices.length > 0 && (
-                  <View style={styles.additionalServicesContainer}>
-                    <ThemedText style={styles.additionalServicesTitle}>Additional Recurring Services:</ThemedText>
-                    {client.additionalServices.filter(service => service.isActive).map((service) => (
-                      <View key={service.id} style={styles.additionalServiceItem}>
-                        <ThemedText style={styles.additionalServiceText}>
-                          • {service.serviceType} - Every {service.frequency} weeks - £{service.price.toFixed(2)}
-                        </ThemedText>
-                        <ThemedText style={styles.additionalServiceNextVisit}>
-                          Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </ThemedText>
-                      </View>
-                    ))}
-                  </View>
-                )}
-                
                 <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
                 {client.email && (
                   <ThemedText>Email: {client.email}</ThemedText>
@@ -543,34 +522,65 @@ export default function ClientDetailScreen() {
                   <ThemedText>Source: {client.source}</ThemedText>
                 )}
               </View>
-              <View style={styles.verticalButtons}>
-                <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
-                  <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
-                </Pressable>
-                <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
-                  <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
-                </Pressable>
-                <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
-                  <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
-                </Pressable>
-                {balance !== null ? (
-                  <Pressable 
-                    style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
-                    onPress={() => router.push({
-                      pathname: '/client-balance',
-                      params: { clientId: id, clientName: client.name }
-                    } as never)}
-                  >
-                    <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
-                  </Pressable>
-                ) : (
-                  <View style={[styles.verticalButton, styles.disabledButton]}>
-                    <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+              
+              {/* Additional Recurring Services Panel */}
+              <View style={styles.rightPanel}>
+                {client.additionalServices && client.additionalServices.length > 0 && (
+                  <View style={styles.additionalServicesPanel}>
+                    <ThemedText style={styles.additionalServicesPanelTitle}>Additional Services</ThemedText>
+                    {client.additionalServices.filter(service => service.isActive).map((service) => (
+                      <View key={service.id} style={styles.additionalServiceCard}>
+                        <ThemedText style={styles.additionalServiceName}>
+                          {service.serviceType}
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServiceDetails}>
+                          Every {service.frequency} weeks
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServicePrice}>
+                          £{service.price.toFixed(2)}
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServiceNext}>
+                          Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </ThemedText>
+                      </View>
+                    ))}
                   </View>
                 )}
-                <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
-                  <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
-                </Pressable>
+                
+                {/* Vertical Action Buttons */}
+                <View style={styles.verticalButtons}>
+                  <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
+                    <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
+                  </Pressable>
+                  <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
+                    <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
+                  </Pressable>
+                  <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
+                    <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
+                  </Pressable>
+                  {balance !== null ? (
+                    <Pressable 
+                      style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
+                      onPress={() => router.push({
+                        pathname: '/client-balance',
+                        params: { clientId: id, clientName: client.name }
+                      } as never)}
+                    >
+                      <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                    </Pressable>
+                  ) : (
+                    <View style={[styles.verticalButton, styles.disabledButton]}>
+                      <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                    </View>
+                  )}
+                  <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
+                    <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
+                  </Pressable>
+                </View>
               </View>
             </View>
             <View style={styles.notesSection}>
@@ -981,8 +991,54 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   clientInfo: {
-    flex: 1,
+    flex: 2,
     marginRight: 20,
+  },
+  rightPanel: {
+    flex: 1,
+    paddingLeft: 10,
+    minWidth: 200,
+  },
+  additionalServicesPanel: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 20,
+  },
+  additionalServicesPanelTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#444',
+  },
+  additionalServiceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  additionalServiceName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  additionalServiceDetails: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
+  },
+  additionalServicePrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007bff',
+    marginTop: 5,
+  },
+  additionalServiceNext: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 2,
   },
   verticalButtons: {
     flexDirection: 'column',
@@ -1128,32 +1184,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 5,
     color: '#555',
-  },
-  additionalServicesContainer: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-  },
-  additionalServicesTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#444',
-  },
-  additionalServiceItem: {
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  additionalServiceText: {
-    fontSize: 14,
-    color: '#333',
-  },
-  additionalServiceNextVisit: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
   },
 });
 
