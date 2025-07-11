@@ -97,21 +97,18 @@ const styles = StyleSheet.create({
       }
     })
   },
-  logo: { 
-    ...Platform.select({
-      web: {
-        width: 400,
-        height: 160,
-        alignSelf: 'center',
-        marginBottom: 50
-      },
-      default: {
-        width: 200, 
-        height: 80, 
-        alignSelf: 'center', 
-        marginBottom: 40
-      }
-    })
+  logo: {
+    width: Platform.select({
+      web: 500,  // Increased from 400
+      default: 250,  // Increased from 200
+    }),
+    height: Platform.select({
+      web: 200,  // Increased from 160
+      default: 100,  // Increased from 80
+    }),
+    alignSelf: 'center',
+    marginBottom: 40,
+    resizeMode: 'contain',
   },
   input: {
     borderWidth: 1,
