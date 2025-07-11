@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Button, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, Image, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { supabase } from '../core/supabase';
 
 // Get build ID from environment or fallback to version
@@ -85,12 +85,33 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
+  container: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    padding: 24,
+    ...Platform.select({
+      web: {
+        maxWidth: 500,
+        alignSelf: 'center',
+        width: '100%'
+      }
+    })
+  },
   logo: { 
-    width: 200, 
-    height: 80, 
-    alignSelf: 'center', 
-    marginBottom: 40 
+    ...Platform.select({
+      web: {
+        width: 400,
+        height: 160,
+        alignSelf: 'center',
+        marginBottom: 50
+      },
+      default: {
+        width: 200, 
+        height: 80, 
+        alignSelf: 'center', 
+        marginBottom: 40
+      }
+    })
   },
   input: {
     borderWidth: 1,
@@ -99,6 +120,12 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     backgroundColor: '#fff',
+    fontSize: Platform.OS === 'web' ? 16 : 14,
   },
-  build: { marginTop: 24, fontSize: 12, textAlign: 'center', color: '#666' },
+  build: { 
+    marginTop: 24, 
+    fontSize: 12, 
+    textAlign: 'center', 
+    color: '#666' 
+  },
 }); 
