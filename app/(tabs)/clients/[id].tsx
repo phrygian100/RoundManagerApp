@@ -330,7 +330,14 @@ export default function ClientDetailScreen() {
       }
     }
 
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      Alert.alert('Error', 'Could not determine owner.');
+      return;
+    }
+
     const jobData = {
+      ownerId, // <-- Ensure ownerId is set
       clientId: id,
       providerId: 'test-provider-1',
       serviceId: finalJobType,
