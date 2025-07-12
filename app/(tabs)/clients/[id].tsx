@@ -664,16 +664,26 @@ export default function ClientDetailScreen() {
             </View>
 
             {modalMode === 'one-time' ? (
-              // One-time Job Section
               <>
                 <View style={styles.datePickerContainer}>
                   <ThemedText style={styles.dateText}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
-                  <Pressable style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
-                    <ThemedText style={styles.calendarIcon}>📅</ThemedText>
-                  </Pressable>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      value={format(jobDate, 'yyyy-MM-dd')}
+                      onChange={e => {
+                        const newDate = new Date(e.target.value + 'T00:00:00');
+                        setJobDate(newDate);
+                      }}
+                      style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
+                    />
+                  ) : (
+                    <Pressable style={styles.calendarButton} onPress={() => setShowDatePicker(true)}>
+                      <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+                    </Pressable>
+                  )}
                 </View>
-
-                {showDatePicker && (
+                {showDatePicker && Platform.OS !== 'web' && (
                   <DateTimePicker
                     testID="dateTimePicker"
                     value={jobDate}
@@ -723,16 +733,26 @@ export default function ClientDetailScreen() {
                 </View>
               </>
             ) : (
-              // Additional Recurring Work Section
               <>
                 <View style={styles.datePickerContainer}>
                   <ThemedText style={styles.dateText}>First visit: {format(recurringNextVisit, 'do MMMM yyyy')}</ThemedText>
-                  <Pressable style={styles.calendarButton} onPress={() => setShowRecurringDatePicker(true)}>
-                    <ThemedText style={styles.calendarIcon}>📅</ThemedText>
-                  </Pressable>
+                  {Platform.OS === 'web' ? (
+                    <input
+                      type="date"
+                      value={format(recurringNextVisit, 'yyyy-MM-dd')}
+                      onChange={e => {
+                        const newDate = new Date(e.target.value + 'T00:00:00');
+                        setRecurringNextVisit(newDate);
+                      }}
+                      style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
+                    />
+                  ) : (
+                    <Pressable style={styles.calendarButton} onPress={() => setShowRecurringDatePicker(true)}>
+                      <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+                    </Pressable>
+                  )}
                 </View>
-
-                {showRecurringDatePicker && (
+                {showRecurringDatePicker && Platform.OS !== 'web' && (
                   <DateTimePicker
                     testID="recurringDateTimePicker"
                     value={recurringNextVisit}
