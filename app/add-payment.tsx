@@ -140,28 +140,29 @@ export default function AddPaymentScreen() {
         redirectTo = { pathname: '/payments-list' };
       }
 
-      Alert.alert('Success', 'Payment added successfully!', [
-        { text: 'OK', onPress: () => {
-          if (Platform.OS === 'web') {
+      if (Platform.OS === 'web') {
+        // Immediately redirect on web
+        if (typeof redirectTo === 'string') {
+          window.location.href = redirectTo;
+        } else if (redirectTo.pathname === '/payments-list') {
+          window.location.href = '/payments-list';
+        } else if (redirectTo.pathname === '/(tabs)/clients/[id]' && redirectTo.params?.id) {
+          window.location.href = `/clients/${redirectTo.params.id}`;
+        } else {
+          window.location.href = '/';
+        }
+      } else {
+        // Native: show Alert and redirect on OK
+        Alert.alert('Success', 'Payment added successfully!', [
+          { text: 'OK', onPress: () => {
             if (typeof redirectTo === 'string') {
-              window.location.href = redirectTo;
-            } else if (redirectTo.pathname === '/payments-list') {
-              window.location.href = '/payments-list';
-            } else if (redirectTo.pathname === '/(tabs)/clients/[id]' && redirectTo.params?.id) {
-              window.location.href = `/clients/${redirectTo.params.id}`;
-            } else {
-              window.location.href = '/';
-            }
-          } else {
-            if (typeof redirectTo === 'string') {
-              // Fallback: if redirectTo is a string, use router.replace('/')
               router.replace('/');
             } else {
               router.replace(redirectTo);
             }
-          }
-        } }
-      ]);
+          } }
+        ]);
+      }
     } catch (error) {
       console.error('Error creating payment:', error);
       Alert.alert('Error', 'Failed to add payment. Please try again.');
