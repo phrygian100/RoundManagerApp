@@ -352,35 +352,6 @@ export default function QuotesScreen() {
               />
             )
           )}
-          {/* Quote Lines Section */}
-          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Quote Lines</Text>
-          {quoteLines.map((line, idx) => (
-            <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
-              <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
-              <Text style={{ marginBottom: 2 }}>Service Type</Text>
-              <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
-              <Text style={{ marginBottom: 2 }}>Frequency</Text>
-              <Picker
-                selectedValue={line.frequency}
-                onValueChange={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
-                style={{ marginBottom: 8 }}
-              >
-                <Picker.Item label="4 weekly" value="4 weekly" />
-                <Picker.Item label="8 weekly" value="8 weekly" />
-                <Picker.Item label="one-off" value="one-off" />
-              </Picker>
-              <Text style={{ marginBottom: 2 }}>Value (£)</Text>
-              <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
-              <Text style={{ marginBottom: 2 }}>Notes</Text>
-              <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} multiline />
-              {quoteLines.length > 1 && (
-                <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
-              )}
-            </View>
-          ))}
-          <View style={{ marginBottom: 16 }}>
-            <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
-          </View>
           <Button title="Create Quote" onPress={handleCreateQuote} />
           <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
         </View>
