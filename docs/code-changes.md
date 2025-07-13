@@ -168,4 +168,23 @@ Files: `app/login.tsx`, `app/forgot-password.tsx`, `app/_layout.tsx`, `scripts/u
 
 ---
 
+## 2025-07-10 – Redirect After Payment Save
+
+## Summary
+Implemented logic so that after saving a payment from the 'Create Payment from Job' window, the user is redirected to the screen they were on before this one. This is achieved by passing a 'from' parameter when navigating to the add-payment screen and using it for redirection after saving. Fallback to previous logic if 'from' is not provided.
+
+## Files Changed
+- app/add-payment.tsx
+- app/payments-list.tsx
+- app/(tabs)/clients/[id].tsx
+- app/completed-jobs.tsx
+- app/client-balance.tsx
+
+## Details
+- Updated all navigation to `/add-payment` to include a `from` parameter representing the current route.
+- Modified the save payment logic in `add-payment.tsx` to check for the `from` parameter and redirect the user back to that route after saving, otherwise fallback to the previous logic.
+- Ensured compatibility for both web and native platforms.
+
+---
+
 (Last condensed: 2025-07-08)

@@ -146,6 +146,7 @@ export default function CompletedJobsScreen() {
           clientName: client.name,
           address: address,
           accountNumber: displayAccountNumber(client.accountNumber) || '',
+          from: '/completed-jobs'
         },
       });
     };

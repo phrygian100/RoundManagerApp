@@ -121,7 +121,8 @@ const ClientBalanceScreen = () => {
                     jobId: item.id,
                     clientId: item.clientId,
                     amount: item.price,
-                    clientName: clientName
+                    clientName: clientName,
+                    from: '/client-balance'
                   },
                 });
               }

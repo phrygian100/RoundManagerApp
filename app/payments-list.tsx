@@ -183,7 +183,7 @@ export default function PaymentsListScreen() {
       <View style={styles.titleRow}>
         <ThemedText type="title" style={styles.title}>Payments</ThemedText>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable style={styles.addButton} onPress={() => router.push('/add-payment')}>
+          <Pressable style={styles.addButton} onPress={() => router.push({ pathname: '/add-payment', params: { from: '/payments-list' } })}>
             <ThemedText style={styles.addButtonText}>+ Add Payment</ThemedText>
           </Pressable>
           <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 

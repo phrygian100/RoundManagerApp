@@ -128,9 +128,11 @@ export default function AddPaymentScreen() {
 
       await createPayment(paymentData);
 
-      // Improved redirect logic
+      // Determine where to redirect after saving
       let redirectTo: any = null;
-      if (params.jobId && params.clientId) {
+      if (params.from) {
+        redirectTo = params.from;
+      } else if (params.jobId && params.clientId) {
         redirectTo = { pathname: '/(tabs)/clients/[id]', params: { id: params.clientId } };
       } else if (params.clientId) {
         redirectTo = { pathname: '/(tabs)/clients/[id]', params: { id: params.clientId } };
@@ -141,7 +143,9 @@ export default function AddPaymentScreen() {
       Alert.alert('Success', 'Payment added successfully!', [
         { text: 'OK', onPress: () => {
           if (Platform.OS === 'web') {
-            if (redirectTo.pathname === '/payments-list') {
+            if (typeof redirectTo === 'string') {
+              window.location.href = redirectTo;
+            } else if (redirectTo.pathname === '/payments-list') {
               window.location.href = '/payments-list';
             } else if (redirectTo.pathname === '/(tabs)/clients/[id]' && redirectTo.params?.id) {
               window.location.href = `/clients/${redirectTo.params.id}`;
@@ -149,7 +153,12 @@ export default function AddPaymentScreen() {
               window.location.href = '/';
             }
           } else {
-            router.replace(redirectTo);
+            if (typeof redirectTo === 'string') {
+              // Fallback: if redirectTo is a string, use router.replace('/')
+              router.replace('/');
+            } else {
+              router.replace(redirectTo);
+            }
           }
         } }
       ]);

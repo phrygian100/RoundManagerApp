@@ -277,7 +277,8 @@ export default function ClientDetailScreen() {
         clientId: id,
         clientName: client?.name,
         clientAddress: client?.address1 || client?.address,
-        clientAccountNumber: client?.accountNumber
+        clientAccountNumber: client?.accountNumber,
+        from: `/clients/${id}`
       }
     } as never);
   };
