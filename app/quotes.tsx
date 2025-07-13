@@ -31,6 +31,19 @@ if (Platform.OS === 'web') {
   require('react-datepicker/dist/react-datepicker.css');
 }
 
+const sourceOptions = [
+  'Google',
+  'Facebook',
+  'Canvassing',
+  'Referral',
+  'Word of mouth',
+  'Flyers / Leaflets',
+  'Cold calling',
+  'Van signage/Branding',
+  'Found on the curb',
+  'Other'
+];
+
 export default function QuotesScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
