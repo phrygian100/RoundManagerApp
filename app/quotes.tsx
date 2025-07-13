@@ -1,10 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button, FlatList, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/supabase';
@@ -133,48 +134,83 @@ export default function QuotesScreen() {
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
   const completeQuotes = quotes.filter(q => q.status === 'complete');
 
+  // --- UI helpers ---
+  const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+    <View style={{ backgroundColor: '#fff', borderRadius: 12, marginBottom: 28, boxShadow: '0 2px 8px #0001', padding: 0, borderWidth: 1, borderColor: '#eee' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#f0f0f0', backgroundColor: '#f8faff', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+        {icon}
+        <Text style={{ fontWeight: 'bold', fontSize: 20, marginLeft: 8 }}>{title}</Text>
+      </View>
+      <View style={{ padding: 16 }}>{children}</View>
+    </View>
+  );
+
+  const QuoteCard = ({ quote, action }: { quote: Quote; action?: React.ReactNode }) => (
+    <View style={{ backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{quote.name}</Text>
+        <Text style={{ color: '#555', marginBottom: 2 }}>{quote.address}, {quote.town}</Text>
+        <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
+      </View>
+      {action}
+    </View>
+  );
+
+  const EmptyState = ({ message }: { message: string }) => (
+    <View style={{ alignItems: 'center', padding: 24 }}>
+      <Ionicons name="document-text-outline" size={32} color="#bbb" style={{ marginBottom: 8 }} />
+      <Text style={{ color: '#888', fontSize: 15 }}>{message}</Text>
+    </View>
+  );
+
+  // --- Main Render ---
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Button title="Home" onPress={() => router.push('/')} />
-      <Button title="Create New Quote" onPress={() => setModalVisible(true)} />
-      {/* Scheduled Section */}
-      <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Scheduled</Text>
-      <FlatList
-        data={scheduledQuotes}
-        keyExtractor={(item: Quote) => item.id}
-        renderItem={({ item }: { item: Quote }) => (
-          <TouchableOpacity>
-            <Text>{item.name} - {item.address}, {item.town} ({item.date})</Text>
-            <Button title="Next" onPress={() => handleOpenDetails(item)} />
+    <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#f4f7fb' }}>
+      {/* Header Bar */}
+      <View style={{ width: '100%', maxWidth: 700, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#e0e0e0', marginBottom: 16, boxShadow: '0 2px 8px #0001' }}>
+        <Text style={{ fontWeight: 'bold', fontSize: 28, letterSpacing: 0.5 }}>Quotes</Text>
+        <View style={{ flexDirection: 'row', gap: 12 }}>
+          <TouchableOpacity onPress={() => router.push('/')} style={{ padding: 8, borderRadius: 6, backgroundColor: '#eaf2ff', marginRight: 8 }}>
+            <Ionicons name="home-outline" size={22} color="#1976d2" />
           </TouchableOpacity>
-        )}
-        ListEmptyComponent={<Text>No scheduled quotes.</Text>}
-      />
-      {/* Pending Section */}
-      <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Pending</Text>
-      <FlatList
-        data={pendingQuotes}
-        keyExtractor={(item: Quote) => item.id}
-        renderItem={({ item }: { item: Quote }) => (
-          <TouchableOpacity>
-            <Text>{item.name} - {item.address}, {item.town} ({item.date})</Text>
-            <Button title="Next" onPress={() => handleOpenAddClient(item)} />
+          <TouchableOpacity onPress={() => setModalVisible(true)} style={{ padding: 8, borderRadius: 6, backgroundColor: '#1976d2' }}>
+            <Ionicons name="add-circle-outline" size={22} color="#fff" />
           </TouchableOpacity>
-        )}
-        ListEmptyComponent={<Text>No pending quotes.</Text>}
-      />
-      {/* Complete Section */}
-      <Text style={{ fontWeight: 'bold', fontSize: 18, marginTop: 20 }}>Complete</Text>
-      <FlatList
-        data={completeQuotes}
-        keyExtractor={(item: Quote) => item.id}
-        renderItem={({ item }: { item: Quote }) => (
-          <TouchableOpacity>
-            <Text>{item.name} - {item.address}, {item.town} ({item.date})</Text>
-          </TouchableOpacity>
-        )}
-        ListEmptyComponent={<Text>No complete quotes.</Text>}
-      />
+        </View>
+      </View>
+      {/* Main Content Container */}
+      <View style={{ width: '100%', maxWidth: 700, padding: 16 }}>
+        {/* Scheduled Section */}
+        <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
+          {scheduledQuotes.length === 0 ? (
+            <EmptyState message="No scheduled quotes." />
+          ) : (
+            scheduledQuotes.map(item => (
+              <QuoteCard key={item.id} quote={item} action={<Button title="Next" onPress={() => handleOpenDetails(item)} />} />
+            ))
+          )}
+        </SectionCard>
+        {/* Pending Section */}
+        <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
+          {pendingQuotes.length === 0 ? (
+            <EmptyState message="No pending quotes." />
+          ) : (
+            pendingQuotes.map(item => (
+              <QuoteCard key={item.id} quote={item} action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />} />
+            ))
+          )}
+        </SectionCard>
+        {/* Complete Section */}
+        <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
+          {completeQuotes.length === 0 ? (
+            <EmptyState message="No complete quotes." />
+          ) : (
+            completeQuotes.map(item => (
+              <QuoteCard key={item.id} quote={item} />
+            ))
+          )}
+        </SectionCard>
+      </View>
       {/* Create Quote Modal */}
       <Modal visible={modalVisible} animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
