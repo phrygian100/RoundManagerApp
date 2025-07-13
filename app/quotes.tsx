@@ -68,6 +68,7 @@ export default function QuotesScreen() {
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([
     { serviceType: '', frequency: '4 weekly', value: '', notes: '' }
   ]);
+  const [completeSearchQuery, setCompleteSearchQuery] = useState('');
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -174,6 +175,15 @@ export default function QuotesScreen() {
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
   const completeQuotes = quotes.filter(q => q.status === 'complete');
 
+  // Filtered complete quotes for search
+  const filteredCompleteQuotes = completeQuotes.filter(q => {
+    const search = completeSearchQuery.toLowerCase();
+    return (
+      q.name?.toLowerCase().includes(search) ||
+      q.address?.toLowerCase().includes(search)
+    );
+  });
+
   // --- UI helpers ---
   const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
     <View style={{ backgroundColor: '#fff', borderRadius: 12, marginBottom: 28, boxShadow: '0 2px 8px #0001', padding: 0, borderWidth: 1, borderColor: '#eee' }}>
@@ -242,52 +252,122 @@ export default function QuotesScreen() {
         </View>
       </View>
       {/* Main Content Container */}
-      <View style={{ width: '100%', maxWidth: 700, padding: 16 }}>
-        {/* Scheduled Section */}
-        <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
-          {scheduledQuotes.length === 0 ? (
-            <EmptyState message="No scheduled quotes." />
-          ) : (
-            scheduledQuotes.map(item => (
-              <QuoteCard
-                key={item.id}
-                quote={item}
-                action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
-                onDelete={() => {
-                  if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
-                }}
+      {Platform.OS === 'web' ? (
+        <View style={{ width: '100%', maxWidth: 1200, flexDirection: 'row', gap: 32, alignItems: 'flex-start', padding: 16 }}>
+          {/* Left Column: Scheduled + Pending */}
+          <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
+            <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
+              {scheduledQuotes.length === 0 ? (
+                <EmptyState message="No scheduled quotes." />
+              ) : (
+                scheduledQuotes.map(item => (
+                  <QuoteCard
+                    key={item.id}
+                    quote={item}
+                    action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
+                    onDelete={() => {
+                      if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                    }}
+                  />
+                ))
+              )}
+            </SectionCard>
+            <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
+              {pendingQuotes.length === 0 ? (
+                <EmptyState message="No pending quotes." />
+              ) : (
+                pendingQuotes.map(item => (
+                  <QuoteCard
+                    key={item.id}
+                    quote={item}
+                    action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
+                    onDelete={() => {
+                      if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                    }}
+                  />
+                ))
+              )}
+            </SectionCard>
+          </View>
+          {/* Right Column: Complete with Search */}
+          <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
+            <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
+              <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="search" size={20} color="#666" />
+                <TextInput
+                  style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
+                  placeholder="Search completed quotes..."
+                  value={completeSearchQuery}
+                  onChangeText={setCompleteSearchQuery}
+                  placeholderTextColor="#999"
+                />
+              </View>
+              {filteredCompleteQuotes.length === 0 ? (
+                <EmptyState message={completeSearchQuery ? 'No completed quotes found.' : 'No complete quotes.'} />
+              ) : (
+                filteredCompleteQuotes.map(item => (
+                  <QuoteCard key={item.id} quote={item} />
+                ))
+              )}
+            </SectionCard>
+          </View>
+        </View>
+      ) : (
+        // Mobile/stacked layout
+        <View style={{ width: '100%', maxWidth: 700, padding: 16 }}>
+          <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
+            {scheduledQuotes.length === 0 ? (
+              <EmptyState message="No scheduled quotes." />
+            ) : (
+              scheduledQuotes.map(item => (
+                <QuoteCard
+                  key={item.id}
+                  quote={item}
+                  action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
+                  onDelete={() => {
+                    if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                  }}
+                />
+              ))
+            )}
+          </SectionCard>
+          <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
+            {pendingQuotes.length === 0 ? (
+              <EmptyState message="No pending quotes." />
+            ) : (
+              pendingQuotes.map(item => (
+                <QuoteCard
+                  key={item.id}
+                  quote={item}
+                  action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
+                  onDelete={() => {
+                    if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                  }}
+                />
+              ))
+            )}
+          </SectionCard>
+          <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
+            <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Ionicons name="search" size={20} color="#666" />
+              <TextInput
+                style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
+                placeholder="Search completed quotes..."
+                value={completeSearchQuery}
+                onChangeText={setCompleteSearchQuery}
+                placeholderTextColor="#999"
               />
-            ))
-          )}
-        </SectionCard>
-        {/* Pending Section */}
-        <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
-          {pendingQuotes.length === 0 ? (
-            <EmptyState message="No pending quotes." />
-          ) : (
-            pendingQuotes.map(item => (
-              <QuoteCard
-                key={item.id}
-                quote={item}
-                action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
-                onDelete={() => {
-                  if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
-                }}
-              />
-            ))
-          )}
-        </SectionCard>
-        {/* Complete Section */}
-        <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
-          {completeQuotes.length === 0 ? (
-            <EmptyState message="No complete quotes." />
-          ) : (
-            completeQuotes.map(item => (
-              <QuoteCard key={item.id} quote={item} />
-            ))
-          )}
-        </SectionCard>
-      </View>
+            </View>
+            {filteredCompleteQuotes.length === 0 ? (
+              <EmptyState message={completeSearchQuery ? 'No completed quotes found.' : 'No complete quotes.'} />
+            ) : (
+              filteredCompleteQuotes.map(item => (
+                <QuoteCard key={item.id} quote={item} />
+              ))
+            )}
+          </SectionCard>
+        </View>
+      )}
       {/* Create Quote Modal */}
       <Modal visible={modalVisible} animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>

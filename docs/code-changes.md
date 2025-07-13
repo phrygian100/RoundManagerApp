@@ -198,3 +198,9 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
 ---
 
 (Last condensed: 2025-07-08)
+
+- Updated `app/quotes.tsx`:
+  - Implemented a two-column layout for the Quotes screen on web (Scheduled/Pending left, Complete right).
+  - Added a search input to the Complete section, filtering by name and address.
+  - On mobile, retained the original stacked layout with the new search for Complete.
+  - The UI is now responsive and adapts based on platform.
