@@ -4,7 +4,7 @@ import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToda
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Picker, Platform, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/supabase';
@@ -37,6 +37,8 @@ export default function RunsheetWeekScreen() {
   const [showDeferDatePicker, setShowDeferDatePicker] = useState(false);
   const [quoteCompleteModal, setQuoteCompleteModal] = useState<{ job: any, visible: boolean }>({ job: null, visible: false });
   const [quoteForm, setQuoteForm] = useState({ frequency: '', cost: '', roundOrder: '' });
+  const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
+  const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const router = useRouter();
 
   // Parse week param
@@ -507,6 +509,23 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  // Add handler to open quote details modal for progressing to pending
+  const handleProgressToPending = async (job: any) => {
+    if (!('quoteId' in job) || !job.quoteId) return;
+    // Fetch the latest quote data
+    const quoteDoc = await getDoc(doc(db, 'quotes', job.quoteId));
+    if (!quoteDoc.exists()) return;
+    const quote = quoteDoc.data();
+    setQuoteDetails({
+      frequency: quote.frequency || '4 weekly',
+      value: quote.value || '',
+      notes: quote.notes || '',
+      quoteId: job.quoteId,
+    });
+    setShowQuoteDetailsModal(true);
+    setActionSheetJob(null);
+  };
+
   const toggleDay = (title: string) => {
     setCollapsedDays((prev) =>
       prev.includes(title) ? prev.filter((d) => d !== title) : [...prev, title]
@@ -876,7 +895,8 @@ export default function RunsheetWeekScreen() {
                 <>
                   <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
                   <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
-                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
+                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: actionSheetJob.quoteId } } as any) : router.replace('/')} />
+                  <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
                   <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
                 </>
               ) : (
@@ -949,6 +969,39 @@ export default function RunsheetWeekScreen() {
                 // Optionally refresh jobs/clients here
               }} />
               <Button title="Cancel" onPress={() => setQuoteCompleteModal({ job: null, visible: false })} color="red" />
+            </View>
+          </View>
+        </Modal>
+        {/* Quote Details Modal for Progress to Pending */}
+        <Modal visible={showQuoteDetailsModal} animationType="slide" transparent onRequestClose={() => setShowQuoteDetailsModal(false)}>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
+              <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
+              <Picker
+                selectedValue={quoteDetails.frequency}
+                onValueChange={v => setQuoteDetails(q => ({ ...q, frequency: v }))}
+                style={{ marginBottom: 8 }}
+              >
+                <Picker.Item label="4 weekly" value="4 weekly" />
+                <Picker.Item label="8 weekly" value="8 weekly" />
+                <Picker.Item label="one-off" value="one-off" />
+              </Picker>
+              <TextInput placeholder="Quote £ value" value={quoteDetails.value} onChangeText={v => setQuoteDetails(q => ({ ...q, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+              <TextInput placeholder="Notes" value={quoteDetails.notes} onChangeText={v => setQuoteDetails(q => ({ ...q, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
+              <Button title="Save & Progress" onPress={async () => {
+                // Update the quote document
+                await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+                  frequency: quoteDetails.frequency,
+                  value: quoteDetails.value,
+                  notes: quoteDetails.notes,
+                  status: 'pending',
+                });
+                setShowQuoteDetailsModal(false);
+                // Optionally, refresh jobs/quotes here if needed
+                if (Platform.OS === 'web') window.location.reload();
+              }} />
+              <Button title="Cancel" onPress={() => setShowQuoteDetailsModal(false)} color="red" />
             </View>
           </View>
         </Modal>
