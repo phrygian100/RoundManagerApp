@@ -145,14 +145,21 @@ export default function QuotesScreen() {
     </View>
   );
 
-  const QuoteCard = ({ quote, action }: { quote: Quote; action?: React.ReactNode }) => (
+  const QuoteCard = ({ quote, action, onDelete }: { quote: Quote; action?: React.ReactNode; onDelete?: () => void }) => (
     <View style={{ backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
       <View style={{ flex: 1 }}>
         <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{quote.name}</Text>
         <Text style={{ color: '#555', marginBottom: 2 }}>{quote.address}, {quote.town}</Text>
         <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
       </View>
-      {action}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        {action}
+        {onDelete && (
+          <TouchableOpacity onPress={onDelete} style={{ marginLeft: 8, padding: 6, borderRadius: 6, backgroundColor: '#ffeaea' }}>
+            <Ionicons name="trash-outline" size={20} color="#d32f2f" />
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 
@@ -186,7 +193,14 @@ export default function QuotesScreen() {
             <EmptyState message="No scheduled quotes." />
           ) : (
             scheduledQuotes.map(item => (
-              <QuoteCard key={item.id} quote={item} action={<Button title="Next" onPress={() => handleOpenDetails(item)} />} />
+              <QuoteCard
+                key={item.id}
+                quote={item}
+                action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
+                onDelete={() => {
+                  if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                }}
+              />
             ))
           )}
         </SectionCard>
@@ -196,7 +210,14 @@ export default function QuotesScreen() {
             <EmptyState message="No pending quotes." />
           ) : (
             pendingQuotes.map(item => (
-              <QuoteCard key={item.id} quote={item} action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />} />
+              <QuoteCard
+                key={item.id}
+                quote={item}
+                action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
+                onDelete={() => {
+                  if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                }}
+              />
             ))
           )}
         </SectionCard>
