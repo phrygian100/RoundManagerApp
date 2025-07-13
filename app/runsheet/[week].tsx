@@ -535,7 +535,8 @@ export default function RunsheetWeekScreen() {
   };
 
   const handleDayComplete = async (dayTitle: string) => {
-    const dayJobs = sections.find(section => section.title === dayTitle)?.data || [];
+    // Only include real jobs (exclude vehicle blocks or any without an id)
+    const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type);
     if (dayJobs.length === 0) return;
 
     try {
