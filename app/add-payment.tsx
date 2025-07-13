@@ -139,7 +139,19 @@ export default function AddPaymentScreen() {
       }
 
       Alert.alert('Success', 'Payment added successfully!', [
-        { text: 'OK', onPress: () => router.replace(redirectTo) }
+        { text: 'OK', onPress: () => {
+          if (Platform.OS === 'web') {
+            if (redirectTo.pathname === '/payments-list') {
+              window.location.href = '/payments-list';
+            } else if (redirectTo.pathname === '/(tabs)/clients/[id]' && redirectTo.params?.id) {
+              window.location.href = `/clients/${redirectTo.params.id}`;
+            } else {
+              window.location.href = '/';
+            }
+          } else {
+            router.replace(redirectTo);
+          }
+        } }
       ]);
     } catch (error) {
       console.error('Error creating payment:', error);
