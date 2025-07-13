@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Button, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -82,7 +82,15 @@ export default function QuotesScreen() {
   };
 
   const handleDeleteQuote = async (id: string) => {
+    // Delete the quote document
     await deleteDoc(doc(db, 'quotes', id));
+    // Also delete any job with this quoteId
+    const jobsRef = collection(db, 'jobs');
+    const q = query(jobsRef, where('quoteId', '==', id));
+    const jobsSnapshot = await getDocs(q);
+    for (const jobDoc of jobsSnapshot.docs) {
+      await deleteDoc(jobDoc.ref);
+    }
     // Refresh quotes
     const snap = await getDocs(collection(db, 'quotes'));
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
