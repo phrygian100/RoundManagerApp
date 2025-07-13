@@ -39,6 +39,7 @@ export default function RunsheetWeekScreen() {
   const [quoteForm, setQuoteForm] = useState({ frequency: '', cost: '', roundOrder: '' });
   const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
+  const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const router = useRouter();
 
   // Parse week param
@@ -516,12 +517,9 @@ export default function RunsheetWeekScreen() {
     const quoteDoc = await getDoc(doc(db, 'quotes', job.quoteId));
     if (!quoteDoc.exists()) return;
     const quote = quoteDoc.data();
-    setQuoteDetails({
-      frequency: quote.frequency || '4 weekly',
-      value: quote.value || '',
-      notes: quote.notes || '',
-      quoteId: job.quoteId,
-    });
+    const lines = quote.lines || [{ serviceType: '', frequency: quote.frequency || '4 weekly', value: quote.value || '', notes: quote.notes || '' }];
+    setQuoteLines(lines);
+    setQuoteDetails({ quoteId: job.quoteId });
     setShowQuoteDetailsModal(true);
     setActionSheetJob(null);
   };
@@ -977,28 +975,69 @@ export default function RunsheetWeekScreen() {
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
             <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
-              <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
-              <Picker
-                selectedValue={quoteDetails.frequency}
-                onValueChange={v => setQuoteDetails(q => ({ ...q, frequency: v }))}
-                style={{ marginBottom: 8 }}
-              >
-                <Picker.Item label="4 weekly" value="4 weekly" />
-                <Picker.Item label="8 weekly" value="8 weekly" />
-                <Picker.Item label="one-off" value="one-off" />
-              </Picker>
-              <TextInput placeholder="Quote £ value" value={quoteDetails.value} onChangeText={v => setQuoteDetails(q => ({ ...q, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
-              <TextInput placeholder="Notes" value={quoteDetails.notes} onChangeText={v => setQuoteDetails(q => ({ ...q, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
+              {quoteLines.length > 0 ? (
+                <>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Quote Lines</Text>
+                  {quoteLines.map((line, idx) => (
+                    <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
+                      <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
+                      <Text style={{ marginBottom: 2 }}>Service Type</Text>
+                      <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
+                      <Text style={{ marginBottom: 2 }}>Frequency</Text>
+                      <Picker
+                        selectedValue={line.frequency}
+                        onValueChange={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
+                        style={{ marginBottom: 8 }}
+                      >
+                        <Picker.Item label="4 weekly" value="4 weekly" />
+                        <Picker.Item label="8 weekly" value="8 weekly" />
+                        <Picker.Item label="one-off" value="one-off" />
+                      </Picker>
+                      <Text style={{ marginBottom: 2 }}>Value (£)</Text>
+                      <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
+                      <Text style={{ marginBottom: 2 }}>Notes</Text>
+                      <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} multiline />
+                      {quoteLines.length > 1 && (
+                        <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
+                      )}
+                    </View>
+                  ))}
+                  <View style={{ marginBottom: 16 }}>
+                    <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
+                  </View>
+                </>
+              ) : (
+                // Legacy single-line UI fallback
+                <>
+                  <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
+                  <Picker
+                    selectedValue={quoteDetails.frequency}
+                    onValueChange={v => setQuoteDetails(q => ({ ...q, frequency: v }))}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <Picker.Item label="4 weekly" value="4 weekly" />
+                    <Picker.Item label="8 weekly" value="8 weekly" />
+                    <Picker.Item label="one-off" value="one-off" />
+                  </Picker>
+                  <TextInput placeholder="Quote £ value" value={quoteDetails.value} onChangeText={v => setQuoteDetails(q => ({ ...q, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+                  <TextInput placeholder="Notes" value={quoteDetails.notes} onChangeText={v => setQuoteDetails(q => ({ ...q, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
+                </>
+              )}
               <Button title="Save & Progress" onPress={async () => {
-                // Update the quote document
-                await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
-                  frequency: quoteDetails.frequency,
-                  value: quoteDetails.value,
-                  notes: quoteDetails.notes,
-                  status: 'pending',
-                });
+                if (quoteLines.length > 0) {
+                  await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+                    lines: quoteLines,
+                    status: 'pending',
+                  });
+                } else {
+                  await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+                    frequency: quoteDetails.frequency,
+                    value: quoteDetails.value,
+                    notes: quoteDetails.notes,
+                    status: 'pending',
+                  });
+                }
                 setShowQuoteDetailsModal(false);
-                // Optionally, refresh jobs/quotes here if needed
                 if (Platform.OS === 'web') window.location.reload();
               }} />
               <Button title="Cancel" onPress={() => setShowQuoteDetailsModal(false)} color="red" />
