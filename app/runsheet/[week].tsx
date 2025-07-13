@@ -817,12 +817,32 @@ export default function RunsheetWeekScreen() {
                     </Text>
                   </Pressable>
                   {showDayCompleteButton && (
-                    <Pressable 
-                      style={styles.dayCompleteButton} 
-                      onPress={() => handleDayComplete(title)}
-                    >
-                      <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
-                    </Pressable>
+                    Platform.OS === 'web'
+                      ? (
+                          <button
+                            style={{
+                              backgroundColor: '#007AFF',
+                              borderRadius: 6,
+                              padding: '4px 8px',
+                              color: '#fff',
+                              fontWeight: 'bold',
+                              border: 'none',
+                              cursor: 'pointer',
+                              marginLeft: 8,
+                            }}
+                            onClick={() => handleDayComplete(title)}
+                          >
+                            Day complete?
+                          </button>
+                        )
+                      : (
+                          <Pressable
+                            style={styles.dayCompleteButton}
+                            onPress={() => handleDayComplete(title)}
+                          >
+                            <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+                          </Pressable>
+                        )
                   )}
                   {(dayIsCompleted || dayIsPast) && (
                     <View style={styles.dayCompletedIndicator}>
