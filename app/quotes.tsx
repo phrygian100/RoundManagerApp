@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button, Modal, Platform, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/supabase';
@@ -228,7 +228,7 @@ export default function QuotesScreen() {
 
   // --- Main Render ---
   return (
-    <View style={{ flex: 1, alignItems: 'center', backgroundColor: '#f4f7fb' }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header Bar */}
       <View style={{ width: '100%', maxWidth: 700, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#e0e0e0', marginBottom: 16, boxShadow: '0 2px 8px #0001' }}>
         <Text style={{ fontWeight: 'bold', fontSize: 28, letterSpacing: 0.5 }}>Quotes</Text>
@@ -402,6 +402,6 @@ export default function QuotesScreen() {
           <Button title="Cancel" onPress={() => setDetailsModal({ visible: false, quote: null })} color="red" />
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 } 
