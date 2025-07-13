@@ -5,7 +5,7 @@ import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToda
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/supabase';
@@ -976,35 +976,37 @@ export default function RunsheetWeekScreen() {
         {/* Quote Details Modal for Progress to Pending */}
         <Modal visible={showQuoteDetailsModal} animationType="slide" transparent onRequestClose={() => setShowQuoteDetailsModal(false)}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
-              {quoteLines.map((line, idx) => (
-                <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
-                  <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
-                  <Text style={{ marginBottom: 2 }}>Service Type</Text>
-                  <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
-                  <Text style={{ marginBottom: 2 }}>Frequency</Text>
-                  <RNPicker
-                    selectedValue={line.frequency}
-                    onValueChange={(v: string) => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
-                    style={{ marginBottom: 8 }}
-                  >
-                    <RNPicker.Item label="4 weekly" value="4 weekly" />
-                    <RNPicker.Item label="8 weekly" value="8 weekly" />
-                    <RNPicker.Item label="one-off" value="one-off" />
-                  </RNPicker>
-                  <Text style={{ marginBottom: 2 }}>Value (£)</Text>
-                  <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
-                  <Text style={{ marginBottom: 2 }}>Notes</Text>
-                  <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} multiline />
-                  {quoteLines.length > 1 && (
-                    <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
-                  )}
+            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340, maxHeight: '80vh' }}>
+              <ScrollView style={{ maxHeight: '60vh' }} contentContainerStyle={{ paddingBottom: 16 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
+                {quoteLines.map((line, idx) => (
+                  <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
+                    <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
+                    <Text style={{ marginBottom: 2 }}>Service Type</Text>
+                    <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
+                    <Text style={{ marginBottom: 2 }}>Frequency</Text>
+                    <RNPicker
+                      selectedValue={line.frequency}
+                      onValueChange={(v: string) => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
+                      style={{ marginBottom: 8 }}
+                    >
+                      <RNPicker.Item label="4 weekly" value="4 weekly" />
+                      <RNPicker.Item label="8 weekly" value="8 weekly" />
+                      <RNPicker.Item label="one-off" value="one-off" />
+                    </RNPicker>
+                    <Text style={{ marginBottom: 2 }}>Value (£)</Text>
+                    <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
+                    <Text style={{ marginBottom: 2 }}>Notes</Text>
+                    <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} multiline />
+                    {quoteLines.length > 1 && (
+                      <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
+                    )}
+                  </View>
+                ))}
+                <View style={{ marginBottom: 16 }}>
+                  <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
                 </View>
-              ))}
-              <View style={{ marginBottom: 16 }}>
-                <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
-              </View>
+              </ScrollView>
               <Button title="Save & Progress" onPress={async () => {
                 if (quoteLines.length > 0) {
                   await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
