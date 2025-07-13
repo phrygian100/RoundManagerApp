@@ -10,6 +10,7 @@ export type QuoteToClientData = {
   frequency?: string;
   notes?: string;
   date?: string;
+  source?: string;
 };
 
 type QuoteToClientContextType = {

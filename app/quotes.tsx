@@ -21,6 +21,8 @@ type Quote = {
   frequency?: string;
   value?: string;
   notes?: string;
+  source?: string;
+  customSource?: string;
 };
 
 let DatePicker: any = null;
@@ -32,7 +34,7 @@ if (Platform.OS === 'web') {
 export default function QuotesScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '' });
+  const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [webDate, setWebDate] = useState<Date | null>(null);
@@ -57,8 +59,10 @@ export default function QuotesScreen() {
       console.error('No owner ID found');
       return;
     }
-    // Save quote to Firestore with status 'scheduled'
-    const docRef = await addDoc(collection(db, 'quotes'), { ...form, status: 'scheduled' });
+    // Determine final source
+    const finalSource = form.source === 'Other' ? form.customSource : form.source;
+    // Save quote to Firestore with status 'scheduled' and source
+    const docRef = await addDoc(collection(db, 'quotes'), { ...form, source: finalSource, customSource: undefined, status: 'scheduled' });
     // Create a 'Quote' job on the runsheet for the selected date
     await addDoc(collection(db, 'jobs'), {
       ownerId,
@@ -73,9 +77,10 @@ export default function QuotesScreen() {
       town: form.town,
       number: form.number,
       quoteId: docRef.id,
+      source: finalSource,
     });
     setModalVisible(false);
-    setForm({ name: '', address: '', town: '', number: '', date: '' });
+    setForm({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
     // Refresh quotes
     const snap = await getDocs(collection(db, 'quotes'));
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
@@ -133,6 +138,7 @@ export default function QuotesScreen() {
       frequency: quote.frequency || '',
       notes: quote.notes || '',
       date: quote.date || '',
+      source: quote.source || '',
     });
     router.push('/add-client');
   };
@@ -248,6 +254,23 @@ export default function QuotesScreen() {
           <TextInput placeholder="Address" value={form.address} onChangeText={v => setForm(f => ({ ...f, address: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
           <TextInput placeholder="Town" value={form.town} onChangeText={v => setForm(f => ({ ...f, town: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
           <TextInput placeholder="Number" value={form.number} onChangeText={v => setForm(f => ({ ...f, number: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          {/* Source Picker */}
+          <Text style={{ marginBottom: 4, marginTop: 8 }}>Source</Text>
+          <View style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 6, marginBottom: 8 }}>
+            <Picker
+              selectedValue={form.source}
+              onValueChange={v => setForm(f => ({ ...f, source: v }))}
+              style={{ height: 44 }}
+            >
+              <Picker.Item label="Select source..." value="" />
+              {sourceOptions.map(opt => (
+                <Picker.Item key={opt} label={opt} value={opt} />
+              ))}
+            </Picker>
+          </View>
+          {form.source === 'Other' && (
+            <TextInput placeholder="Custom source" value={form.customSource} onChangeText={v => setForm(f => ({ ...f, customSource: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} />
+          )}
           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={{ borderWidth: 1, marginBottom: 8, padding: 8, backgroundColor: '#f0f0f0' }}>
             <Text>{form.date ? form.date : 'Select Date'}</Text>
           </TouchableOpacity>
