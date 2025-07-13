@@ -10,6 +10,13 @@ import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/supabase';
 
+type QuoteLine = {
+  serviceType: string;
+  frequency: string;
+  value: string;
+  notes: string;
+};
+
 type Quote = {
   id: string;
   name: string;
@@ -18,6 +25,8 @@ type Quote = {
   number: string;
   date: string;
   status: string;
+  lines?: QuoteLine[];
+  // legacy fields for backward compatibility
   frequency?: string;
   value?: string;
   notes?: string;
@@ -56,6 +65,9 @@ export default function QuotesScreen() {
   const [addClientModal, setAddClientModal] = useState<{ visible: boolean, quote: Quote | null }>({ visible: false, quote: null });
   const [clientForm, setClientForm] = useState({ name: '', address: '', town: '', mobileNumber: '', quote: '', frequency: '' });
   const { setQuoteData } = useQuoteToClient();
+  const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([
+    { serviceType: '', frequency: '4 weekly', value: '', notes: '' }
+  ]);
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -74,7 +86,7 @@ export default function QuotesScreen() {
     // Determine final source
     const finalSource = form.source === 'Other' ? form.customSource : form.source;
     // Prepare quote data, only include customSource if present
-    const quoteData: any = { ...form, source: finalSource, status: 'scheduled' };
+    const quoteData: any = { ...form, source: finalSource, status: 'scheduled', lines: quoteLines };
     if (!form.customSource) {
       delete quoteData.customSource;
     }
@@ -98,6 +110,7 @@ export default function QuotesScreen() {
     });
     setModalVisible(false);
     setForm({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
+    setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after creation
     // Refresh quotes
     const snap = await getDocs(collection(db, 'quotes'));
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
@@ -119,11 +132,9 @@ export default function QuotesScreen() {
   };
 
   const handleOpenDetails = (quote: Quote) => {
-    setDetailsForm({
-      frequency: quote.frequency || '4 weekly',
-      value: quote.value || '',
-      notes: quote.notes || '',
-    });
+    // For backward compatibility, if lines are not present, use legacy fields
+    const lines = quote.lines || [{ serviceType: '', frequency: quote.frequency || '4 weekly', value: quote.value || '', notes: quote.notes || '' }];
+    setQuoteLines(lines as QuoteLine[]);
     setDetailsModal({ visible: true, quote });
   };
 
@@ -131,13 +142,11 @@ export default function QuotesScreen() {
     if (!detailsModal.quote) return;
     const ref = doc(db, 'quotes', detailsModal.quote.id);
     await updateDoc(ref, {
-      frequency: detailsForm.frequency,
-      value: detailsForm.value,
-      notes: detailsForm.notes,
+      lines: quoteLines, // Update with the current quoteLines state
       status: 'pending',
     });
     setDetailsModal({ visible: false, quote: null });
-    setDetailsForm({ frequency: '4 weekly', value: '', notes: '' });
+    setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after saving
     // Refresh quotes
     const snap = await getDocs(collection(db, 'quotes'));
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
@@ -176,23 +185,39 @@ export default function QuotesScreen() {
     </View>
   );
 
-  const QuoteCard = ({ quote, action, onDelete }: { quote: Quote; action?: React.ReactNode; onDelete?: () => void }) => (
-    <View style={{ backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      <View style={{ flex: 1 }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{quote.name}</Text>
-        <Text style={{ color: '#555', marginBottom: 2 }}>{quote.address}, {quote.town}</Text>
-        <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
+  const QuoteCard = ({ quote, action, onDelete }: { quote: Quote; action?: React.ReactNode; onDelete?: () => void }) => {
+    // For backward compatibility, if lines are not present, use legacy fields
+    const lines = quote.lines || [{ serviceType: '', frequency: quote.frequency || '4 weekly', value: quote.value || '', notes: quote.notes || '' }];
+
+    return (
+      <View style={{ backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{quote.name}</Text>
+          <Text style={{ color: '#555', marginBottom: 2 }}>{quote.address}, {quote.town}</Text>
+          <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
+          {lines.length > 0 && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Lines:</Text>
+              {lines.map((line, idx) => (
+                <View key={idx} style={{ marginBottom: 4 }}>
+                  <Text style={{ fontSize: 13 }}>{line.serviceType}</Text>
+                  <Text style={{ fontSize: 12, color: '#555' }}>Freq: {line.frequency}, Value: £{line.value}, Notes: {line.notes}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {action}
+          {onDelete && (
+            <TouchableOpacity onPress={onDelete} style={{ marginLeft: 8, padding: 6, borderRadius: 6, backgroundColor: '#ffeaea' }}>
+              <Ionicons name="trash-outline" size={20} color="#d32f2f" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        {action}
-        {onDelete && (
-          <TouchableOpacity onPress={onDelete} style={{ marginLeft: 8, padding: 6, borderRadius: 6, backgroundColor: '#ffeaea' }}>
-            <Ionicons name="trash-outline" size={20} color="#d32f2f" />
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+    );
+  };
 
   const EmptyState = ({ message }: { message: string }) => (
     <View style={{ alignItems: 'center', padding: 24 }}>
@@ -327,6 +352,28 @@ export default function QuotesScreen() {
               />
             )
           )}
+          {/* Quote Lines Section */}
+          <Text style={{ fontWeight: 'bold', marginBottom: 8 }}>Quote Lines</Text>
+          {quoteLines.map((line, idx) => (
+            <View key={idx} style={{ marginBottom: 12, borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}>
+              <TextInput placeholder="Service Type (e.g. Window Cleaning)" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} />
+              <Picker
+                selectedValue={line.frequency}
+                onValueChange={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
+                style={{ marginBottom: 4 }}
+              >
+                <Picker.Item label="4 weekly" value="4 weekly" />
+                <Picker.Item label="8 weekly" value="8 weekly" />
+                <Picker.Item label="one-off" value="one-off" />
+              </Picker>
+              <TextInput placeholder="Quote £ value" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} keyboardType="numeric" />
+              <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} multiline />
+              {quoteLines.length > 1 && (
+                <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
+              )}
+            </View>
+          ))}
+          <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
           <Button title="Create Quote" onPress={handleCreateQuote} />
           <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
         </View>
@@ -335,18 +382,44 @@ export default function QuotesScreen() {
       <Modal visible={detailsModal.visible} animationType="slide">
         <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
           <Text style={{ fontSize: 20, marginBottom: 10 }}>Quote Details</Text>
-          <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
-          <Picker
-            selectedValue={detailsForm.frequency}
-            onValueChange={v => setDetailsForm(f => ({ ...f, frequency: v }))}
-            style={{ marginBottom: 8 }}
-          >
-            <Picker.Item label="4 weekly" value="4 weekly" />
-            <Picker.Item label="8 weekly" value="8 weekly" />
-            <Picker.Item label="one-off" value="one-off" />
-          </Picker>
-          <TextInput placeholder="Quote £ value" value={detailsForm.value} onChangeText={v => setDetailsForm(f => ({ ...f, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
-          <TextInput placeholder="Notes" value={detailsForm.notes} onChangeText={v => setDetailsForm(f => ({ ...f, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
+          {/* For backward compatibility, if lines are not present, use legacy fields */}
+          {quoteLines.length === 0 ? (
+            <>
+              <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
+              <Picker
+                selectedValue={detailsForm.frequency}
+                onValueChange={v => setDetailsForm(f => ({ ...f, frequency: v }))}
+                style={{ marginBottom: 8 }}
+              >
+                <Picker.Item label="4 weekly" value="4 weekly" />
+                <Picker.Item label="8 weekly" value="8 weekly" />
+                <Picker.Item label="one-off" value="one-off" />
+              </Picker>
+              <TextInput placeholder="Quote £ value" value={detailsForm.value} onChangeText={v => setDetailsForm(f => ({ ...f, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
+              <TextInput placeholder="Notes" value={detailsForm.notes} onChangeText={v => setDetailsForm(f => ({ ...f, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
+            </>
+          ) : (
+            quoteLines.map((line, idx) => (
+              <View key={idx} style={{ marginBottom: 12, borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Line {idx + 1}</Text>
+                <TextInput placeholder="Service Type (e.g. Window Cleaning)" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} />
+                <Picker
+                  selectedValue={line.frequency}
+                  onValueChange={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
+                  style={{ marginBottom: 4 }}
+                >
+                  <Picker.Item label="4 weekly" value="4 weekly" />
+                  <Picker.Item label="8 weekly" value="8 weekly" />
+                  <Picker.Item label="one-off" value="one-off" />
+                </Picker>
+                <TextInput placeholder="Quote £ value" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} keyboardType="numeric" />
+                <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} multiline />
+                {quoteLines.length > 1 && (
+                  <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
+                )}
+              </View>
+            ))
+          )}
           <Button title="Save" onPress={handleSaveDetails} />
           <Button title="Cancel" onPress={() => setDetailsModal({ visible: false, quote: null })} color="red" />
         </View>

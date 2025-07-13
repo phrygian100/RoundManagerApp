@@ -187,4 +187,14 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
 
 ---
 
+## [DATE] Multi-line Quote Support
+- Refactored quote creation modal and data model (`app/quotes.tsx`) to support multiple quote lines per client.
+- Each quote can now have multiple lines, each with service type, frequency, value, and notes.
+- Updated Quote type and UI to allow adding/removing lines.
+- Updated context (`contexts/QuoteToClientContext.tsx`) to support passing an array of quote lines.
+- Preserved backward compatibility for existing single-line quotes.
+- Updated all relevant UI to display all quote lines.
+
+---
+
 (Last condensed: 2025-07-08)

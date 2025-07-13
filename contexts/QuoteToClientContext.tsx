@@ -1,11 +1,20 @@
 import React, { createContext, ReactNode, useContext, useState } from 'react';
 
+export type QuoteLine = {
+  serviceType: string;
+  frequency: string;
+  value: string;
+  notes: string;
+};
+
 export type QuoteToClientData = {
   id: string;
   name: string;
   address: string;
   town: string;
   number: string;
+  lines?: QuoteLine[];
+  // legacy fields for backward compatibility
   value?: string;
   frequency?: string;
   notes?: string;
