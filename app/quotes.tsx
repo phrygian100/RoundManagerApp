@@ -66,7 +66,6 @@ export default function QuotesScreen() {
   }, []);
 
   const handleCreateQuote = async () => {
-    // Get the current owner ID
     const ownerId = await getDataOwnerId();
     if (!ownerId) {
       console.error('No owner ID found');
@@ -74,8 +73,13 @@ export default function QuotesScreen() {
     }
     // Determine final source
     const finalSource = form.source === 'Other' ? form.customSource : form.source;
-    // Save quote to Firestore with status 'scheduled' and source
-    const docRef = await addDoc(collection(db, 'quotes'), { ...form, source: finalSource, customSource: undefined, status: 'scheduled' });
+    // Prepare quote data, only include customSource if present
+    const quoteData: any = { ...form, source: finalSource, status: 'scheduled' };
+    if (!form.customSource) {
+      delete quoteData.customSource;
+    }
+    // Save quote to Firestore
+    const docRef = await addDoc(collection(db, 'quotes'), quoteData);
     // Create a 'Quote' job on the runsheet for the selected date
     await addDoc(collection(db, 'jobs'), {
       ownerId,
