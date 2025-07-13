@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -71,6 +71,36 @@ export default function PaymentsListScreen() {
       : client?.address || 'No address';
 
     const handleDelete = () => {
+      if (Platform.OS === 'web') {
+        if (!window.confirm('Are you sure you want to permanently delete this payment? If it is linked to a job, the job will be marked as awaiting payment again.')) {
+          return;
+        }
+        // Delete the payment record
+        deletePayment(item.id).then(async () => {
+          if (item.jobId) {
+            try {
+              await updateJobStatus(item.jobId, 'completed');
+            } catch (jobError: any) {
+              if (
+                jobError.code === 'not-found' ||
+                jobError.message?.includes('No document to update')
+              ) {
+                // Job already deleted, ignore
+              } else {
+                throw jobError;
+              }
+            }
+          }
+          Alert.alert('Success', 'Payment has been deleted.');
+          // Manually refresh the list data after deletion
+          const updatedPayments = payments.filter(p => p.id !== item.id);
+          setPayments(updatedPayments);
+        }).catch(error => {
+          console.error('Error deleting payment:', error);
+          Alert.alert('Error', 'Could not delete payment.');
+        });
+        return;
+      }
       Alert.alert(
         'Delete Payment',
         'Are you sure you want to permanently delete this payment? If it is linked to a job, the job will be marked as awaiting payment again.',
@@ -101,11 +131,9 @@ export default function PaymentsListScreen() {
                 }
 
                 Alert.alert('Success', 'Payment has been deleted.');
-                
                 // Manually refresh the list data after deletion
                 const updatedPayments = payments.filter(p => p.id !== item.id);
                 setPayments(updatedPayments);
-
               } catch (error) {
                 console.error('Error deleting payment:', error);
                 Alert.alert('Error', 'Could not delete payment.');

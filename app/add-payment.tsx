@@ -128,11 +128,18 @@ export default function AddPaymentScreen() {
 
       await createPayment(paymentData);
 
-      // Note: We don't update job status to 'paid' anymore since completed jobs should remain as 'completed'
-      // The payment is linked to the job via jobId for reference purposes
+      // Improved redirect logic
+      let redirectTo: any = null;
+      if (params.jobId && params.clientId) {
+        redirectTo = { pathname: '/(tabs)/clients/[id]', params: { id: params.clientId } };
+      } else if (params.clientId) {
+        redirectTo = { pathname: '/(tabs)/clients/[id]', params: { id: params.clientId } };
+      } else {
+        redirectTo = { pathname: '/payments-list' };
+      }
 
       Alert.alert('Success', 'Payment added successfully!', [
-        { text: 'OK', onPress: () => router.back() }
+        { text: 'OK', onPress: () => router.replace(redirectTo) }
       ]);
     } catch (error) {
       console.error('Error creating payment:', error);
