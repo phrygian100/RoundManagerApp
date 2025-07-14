@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Forcing a clean deployment",
+  "description": "Forcing a clean deployment.",
   "scripts": {
     "lint": "eslint .",
     "serve": "firebase emulators:start --only functions",
