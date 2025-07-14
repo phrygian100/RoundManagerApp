@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import React, { useState } from 'react';
 import { Alert, Button, Image, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { supabase } from '../core/supabase';
+import { auth } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
 const BUILD_ID = '65b5c35';
@@ -20,33 +21,48 @@ export default function LoginScreen() {
 
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) {
-        const errMsg = error.message || '';
-        // Use window.alert for web compatibility
-        const showAlert = (title: string, msg: string) => {
-          if (typeof window !== 'undefined') {
-            window.alert(msg);
-          } else {
-            Alert.alert(title, msg);
-          }
-        };
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const user = userCredential.user;
 
-        if (errMsg.includes('Invalid login credentials')) {
+      if (!user.emailVerified) {
+        const msg = 'Please verify your email before logging in.';
+        if (typeof window !== 'undefined') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Email not verified', msg);
+        }
+        await auth.signOut();
+        return;
+      }
+
+      // Navigate to home screen on success
+      router.replace('/');
+
+    } catch (error: any) {
+      console.error('Login error', error);
+      const errMsg = error?.code || error?.message || '';
+      // Use window.alert for web compatibility
+      const showAlert = (title: string, msg: string) => {
+        if (typeof window !== 'undefined') {
+          window.alert(msg);
+        } else {
+          Alert.alert(title, msg);
+        }
+      };
+
+      if (errMsg === 'auth/invalid-credential' || errMsg.includes('invalid-credential')) {
+        showAlert('Error', 'Incorrect email/password');
+      } else if (errMsg === 'auth/invalid-email') {
+          showAlert('Error', 'Invalid email format');
+      } else if (errMsg === 'auth/user-not-found') {
+          showAlert('Error', 'Account not found');
+      } else if (errMsg === 'auth/wrong-password') {
           showAlert('Error', 'Incorrect email/password');
-        } else if (errMsg.includes('Email not confirmed')) {
-          showAlert('Error', 'Check your emails');
+      } else if (errMsg === 'auth/too-many-requests') {
+          showAlert('Error', 'Too many attempts, please try again later.');
         } else {
           showAlert('Error', errMsg);
         }
-        setLoading(false);
-        return;
-      }
-      // Navigate to home screen or wherever appropriate
-      router.replace('/');
-    } catch (error: any) {
-      console.error('Login error', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }

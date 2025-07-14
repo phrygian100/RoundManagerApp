@@ -244,3 +244,5 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Added verification email sending in `app/register.tsx` (Firebase `sendEmailVerification`).
 
 - Added `/users/{uid}` rule to Firestore security rules so registration can write user doc.
+
+- Switched `app/login.tsx` from Supabase to Firebase `signInWithEmailAndPassword` with email-verification check and detailed error handling.
