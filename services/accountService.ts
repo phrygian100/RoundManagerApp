@@ -1,6 +1,13 @@
 import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
+// Only for invite-member edge function call
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+
+const supabase = createSupabaseClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export type MemberRecord = {
   uid: string;
@@ -70,6 +77,19 @@ export async function inviteMember(email: string): Promise<void> {
     inviteCode,
     createdAt: new Date().toISOString(),
   });
+
+  // Call Supabase edge function to send invite email via Resend
+  const { error } = await supabase.functions.invoke('invite-member', {
+    body: {
+      email,
+      accountId: sess.accountId,
+      perms: DEFAULT_PERMS,
+      inviteCode,
+    },
+  });
+  if (error) {
+    throw new Error(error.message || 'Failed to send invite email');
+  }
 }
 
 export async function updateMemberPerms(uid: string, perms: Record<string, boolean>): Promise<void> {
