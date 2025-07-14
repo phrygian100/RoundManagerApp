@@ -62,7 +62,7 @@ Configure your environment by copying `config.example.ts` to `config.ts` and add
 
 - **Frontend**: React Native with Expo (Cross-platform)
 - **Backend**: Firebase Firestore (Database)
-- **Authentication**: Supabase Auth with JWT
+- **Authentication**: Firebase Auth with JWT
 - **Navigation**: Expo Router (File-based routing)
 - **Deployment**: Vercel (Web), Expo (Mobile)
 - **UI**: Custom themed components

@@ -278,12 +278,9 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 
 ---
 
-## [DATE: YYYY-MM-DD] Remove Supabase from user/account/ownerId logic
+## [DATE: YYYY-MM-DD] Remove all remaining Supabase code, 100% Firebase
 
-- All logic for user, account, and ownerId is now handled by Firebase Auth and Firestore only.
-- Implemented new helpers in `core/session.ts`:
-  - `getCurrentUserId()` returns the current Firebase Auth UID.
-  - `getDataOwnerId()` returns the accountId (ownerId) for the current user, using Firestore.
-- Refactored all app and service files to use these helpers instead of deprecated Supabase stubs.
-- Removed all Supabase imports/usages from non-email-related files.
-- Supabase is now only used for email/invite/password reset flows.
+- Deleted all Supabase client code from the web app and shared code.
+- Removed all Supabase imports/usages from password reset, invite, and admin flows.
+- Added TODOs to implement password reset, invite, and admin flows with Firebase.
+- Project is now 100% Firebase for all authentication, user, and data logic.
