@@ -1,9 +1,6 @@
-import 'dotenv/config';
-
 export default ({ config }) => ({
   ...config,
   extra: {
-    ...config.extra,
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
