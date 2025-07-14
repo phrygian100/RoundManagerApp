@@ -34,8 +34,17 @@ export default function RegisterScreen() {
         createdAt: new Date().toISOString(),
       });
 
-      Alert.alert('Success', 'Your account has been created. Please check your email to verify your address.');
-      router.replace('/'); // Redirect to home/dashboard after registration
+      // Immediately sign the user out so they cannot access the app until
+      // their email is verified. This prevents unverified accounts from
+      // bypassing verification due to auth-state race conditions.
+      await auth.signOut();
+
+      Alert.alert(
+        'Verify Your Email',
+        'Your account has been created. We have sent a verification link to your email address. Please verify your email and then log in.'
+      );
+
+      router.replace('/login');
     } catch (error: any) {
       console.error(error);
       Alert.alert('Registration Error', error.message);

@@ -258,3 +258,9 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 • **Problem**: Clicking "Log Out" on Settings redirected to `/login` before Firebase finished clearing the session. Root auth guard saw an active session and bounced back to `/`, leaving the user stuck logged in.
 • **Fix**: Removed manual `router.replace('/login')` call. We now rely on `onAuthStateChanged` in `app/_layout.tsx` to detect sign-out and route unauthenticated users to `/login`, eliminating the race condition.
 • **Files modified**: `app/(tabs)/settings.tsx`.
+
+---
+## 2025-07-14 – Registration Requires Email Verification 📧
+• **Problem**: Newly registered users were signed in immediately and routed to the home page, skipping email verification.
+• **Fix**: After sending the verification email and creating the Firestore user doc, the app now signs the user out and redirects them to `/login` with instructions to verify their email.
+• **Files modified**: `app/register.tsx`.
