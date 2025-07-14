@@ -116,3 +116,4 @@ export async function updateMemberDailyRate(uid: string, dailyRate: number): Pro
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
   await updateDoc(memberRef, { dailyRate });
 } 
+ 

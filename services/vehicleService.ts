@@ -38,3 +38,4 @@ export async function deleteVehicle(id: string): Promise<void> {
   const deleteVehicleFn = httpsCallable(getFunctions(), 'deleteVehicle');
   await deleteVehicleFn({ id });
 } 
+ 

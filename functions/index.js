@@ -23,7 +23,6 @@ exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{m
   const context = event;
   console.log('sendTeamInviteEmail triggered', context.params, snap.data());
 
-  // Use environment variable for the API key
   const apiKey = process.env.RESEND_KEY;
 
   if (!apiKey) {
@@ -89,7 +88,6 @@ exports.acceptTeamInvite = onCall(async (request) => {
     if (memberDocSnap.exists() && memberDocSnap.data().status === 'invited') {
       const memberData = memberDocSnap.data();
 
-      // Create a new member document with the user's UID
       const newMemberRef = db.collection(`accounts/${accountDoc.id}/members`).doc(user.uid);
       await newMemberRef.set({
         ...memberData,
@@ -100,7 +98,6 @@ exports.acceptTeamInvite = onCall(async (request) => {
         joinedAt: new Date().toISOString(),
       });
 
-      // Delete the original invite document
       await memberDocRef.delete();
 
       return { success: true, message: 'Invite accepted successfully!' };
@@ -178,11 +175,9 @@ exports.refreshClaims = onCall(async (request) => {
   const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).get();
 
   if (accountsSnap.empty) {
-    // User is not a member of any account yet.
     return { success: false, message: 'User not found in any team.' };
   }
 
-  // Assuming a user can only be in one account for now
   const memberDoc = accountsSnap.docs[0];
   const accountId = memberDoc.ref.parent.parent.id;
   const isOwner = memberDoc.data().role === 'owner';

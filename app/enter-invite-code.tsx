@@ -71,3 +71,4 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 16, marginBottom: 16, textAlign: 'center' },
   input: { width: 220, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 16 },
 }); 
+ 
