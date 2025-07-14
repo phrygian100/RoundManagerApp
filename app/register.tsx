@@ -1,89 +1,56 @@
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
-import { supabase } from '../core/supabase';
-import { createUserProfile } from '../services/userService';
-
-const roles = ['client', 'provider'] as const;
-
-type Role = typeof roles[number];
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { useState } from 'react';
+import { Alert, Button, StyleSheet, TextInput } from 'react-native';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedView } from '../components/ThemedView';
+import { auth, db } from '../core/firebase';
 
 export default function RegisterScreen() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirm, setConfirm] = useState('');
-  const [role, setRole] = useState<Role>('provider');
-  const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!name || !email || !phone || !password || !confirm) {
-      Alert.alert('Error', 'Please fill out all fields.');
+    if (!email || !password) {
+      Alert.alert('Error', 'Please enter an email and password.');
       return;
     }
-    if (password !== confirm) {
-      Alert.alert('Error', 'Passwords do not match');
-      return;
-    }
+    setLoading(true);
     try {
-      setLoading(true);
-      // Sign up and get the newly created user ID directly
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: { emailRedirectTo: `${location.origin}` },
-      });
-      if (error) throw error;
-      const uid = data.user?.id;
-      if (!uid) {
-        throw new Error('Unable to retrieve user ID after registration.');
-      }
-      // Save profile in Firestore
-      await createUserProfile({
-        id: uid,
-        name: name.trim(),
-        email: email.trim(),
-        phone: phone.trim(),
-        role,
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Create a user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        id: user.uid,
+        email: user.email,
+        createdAt: new Date().toISOString(),
       });
 
-      Alert.alert('Success', 'Account created! Please check your email to verify your account.');
-      // Redirect to login screen
-      router.replace('/login');
+      Alert.alert('Success', 'Your account has been created.');
+      router.replace('/'); // Redirect to home/dashboard after registration
     } catch (error: any) {
-      console.error('Registration error', error);
-      const message = error.message || 'Registration failed.';
-      Alert.alert('Error', message);
+      console.error(error);
+      Alert.alert('Registration Error', error.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Register</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Name"
-        value={name}
-        onChangeText={setName}
-      />
+    <ThemedView style={styles.container}>
+      <ThemedText type="title">Register</ThemedText>
       <TextInput
         style={styles.input}
         placeholder="Email"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
         autoCapitalize="none"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Phone"
-        value={phone}
-        onChangeText={setPhone}
-        keyboardType="phone-pad"
+        keyboardType="email-address"
+        placeholderTextColor="#999"
       />
       <TextInput
         style={styles.input}
@@ -91,47 +58,28 @@ export default function RegisterScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        placeholderTextColor="#999"
       />
-      <TextInput
-        style={styles.input}
-        placeholder="Re-enter Password"
-        value={confirm}
-        onChangeText={setConfirm}
-        secureTextEntry
-        contextMenuHidden={Platform.OS !== 'web'}
-        // Prevent paste / Ctrl+V on web
-        {...(Platform.OS === 'web' ? { onPaste: (e: any) => e.preventDefault() } : {})}
-      />
-      <View style={styles.roleContainer}>
-        {roles.map((r) => (
-          <Button
-            key={r}
-            title={r.charAt(0).toUpperCase() + r.slice(1)}
-            onPress={() => setRole(r)}
-            color={role === r ? '#007AFF' : '#ccc'}
-            disabled={r === 'client'}
-          />
-        ))}
-      </View>
       <Button title={loading ? 'Registering...' : 'Register'} onPress={handleRegister} disabled={loading} />
-    </View>
+      <Button title="Back to Login" onPress={() => router.replace('/login')} color="gray" />
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24 },
-  title: { fontSize: 24, fontWeight: 'bold', marginBottom: 24, textAlign: 'center' },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
-    backgroundColor: '#fff',
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 20,
   },
-  roleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 24,
+  input: {
+    height: 40,
+    borderColor: 'gray',
+    borderWidth: 1,
+    marginBottom: 12,
+    paddingHorizontal: 8,
+    color: '#333',
+    backgroundColor: '#fff',
+    borderRadius: 5,
   },
 }); 
