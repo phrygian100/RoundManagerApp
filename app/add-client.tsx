@@ -9,7 +9,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
-import { getCurrentUserId, getDataOwnerId } from '../core/session';
+import { getDataOwnerId } from '../core/session';
 import { createJobsForClient } from '../services/jobService';
 
 function getOrdinal(n: number) {
@@ -206,7 +206,12 @@ export default function AddClientScreen() {
       console.log('Starting client creation...');
       
       // Create the client first
-      const ownerId = getCurrentUserId();
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        Alert.alert('Error', 'Could not determine account owner. Please log in again.');
+        setIsSaving(false);
+        return;
+      }
       const clientRef = await addDoc(collection(db, 'clients'), {
         name,
         address1,

@@ -184,6 +184,11 @@ export default function SettingsScreen() {
 
               if (clientData.name && clientData.address && clientData.nextVisit) {
                 const ownerId = await getDataOwnerId();
+                if (!ownerId) {
+                  showAlert('Error', 'Could not determine account owner. Please log in again.');
+                  skipped.push(row);
+                  continue;
+                }
                 try {
                   await addDoc(collection(db, 'clients'), {
                     ...clientData,
@@ -303,6 +308,11 @@ export default function SettingsScreen() {
 
           if (clientData.name && clientData.address && clientData.nextVisit) {
             const ownerId = await getDataOwnerId();
+            if (!ownerId) {
+              showAlert('Error', 'Could not determine account owner. Please log in again.');
+              skipped.push(row);
+              continue;
+            }
             try {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
@@ -401,6 +411,11 @@ export default function SettingsScreen() {
 
           if (clientData.name && clientData.address && clientData.nextVisit) {
             const ownerId = await getDataOwnerId();
+            if (!ownerId) {
+              showAlert('Error', 'Could not determine account owner. Please log in again.');
+              skipped.push(row);
+              continue;
+            }
             try {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
@@ -461,6 +476,10 @@ export default function SettingsScreen() {
 
     try {
       const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Error', 'Could not determine account owner. Please log in again.');
+        return;
+      }
       const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
       const querySnapshot = await getDocs(q);
       const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
@@ -491,6 +510,11 @@ export default function SettingsScreen() {
     try {
       setLoading(true);
       const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Error', 'Could not determine account owner. Please log in again.');
+        setLoading(false);
+        return;
+      }
       const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
       const jobsSnapshot = await getDocs(qJobs);
       const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
@@ -522,6 +546,12 @@ export default function SettingsScreen() {
 
     try {
       setLoading(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Error', 'Could not determine account owner. Please log in again.');
+        setLoading(false);
+        return;
+      }
       await deleteAllPayments();
       Alert.alert('Success', 'All payments have been deleted.');
     } catch (error) {
@@ -601,6 +631,12 @@ export default function SettingsScreen() {
             setLoadingMessage('Repairing client data...');
             try {
               const ownerId = await getDataOwnerId();
+              if (!ownerId) {
+                showAlert('Error', 'Could not determine account owner. Please log in again.');
+                setLoading(false);
+                setLoadingMessage('');
+                return;
+              }
               const clientsRef = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
               const querySnapshot = await getDocs(clientsRef);
               

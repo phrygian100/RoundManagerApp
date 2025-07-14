@@ -948,6 +948,11 @@ export default function RunsheetWeekScreen() {
               <Button title="Create Client" onPress={async () => {
                 // Create client
                 const { job } = quoteCompleteModal;
+                const ownerId = await getDataOwnerId();
+                if (!ownerId) {
+                  Alert.alert('Error', 'Could not determine account owner. Please log in again.');
+                  return;
+                }
                 const clientDoc = await addDoc(collection(db, 'clients'), {
                   name: job.name,
                   address: job.address,
@@ -956,6 +961,7 @@ export default function RunsheetWeekScreen() {
                   frequency: quoteForm.frequency,
                   quote: Number(quoteForm.cost),
                   roundOrderNumber: Number(quoteForm.roundOrder),
+                  ownerId,
                 });
                 // Remove quote and job
                 await deleteDoc(doc(db, 'quotes', (job as any).quoteId));

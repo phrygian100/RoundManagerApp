@@ -284,3 +284,10 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Removed all Supabase imports/usages from password reset, invite, and admin flows.
 - Added TODOs to implement password reset, invite, and admin flows with Firebase.
 - Project is now 100% Firebase for all authentication, user, and data logic.
+
+## 2024-07-14
+
+- Updated `app/add-client.tsx` to use `await getDataOwnerId()` for `ownerId` when creating clients, ensuring strict Firestore rules compliance. Added error handling for missing ownerId.
+- Updated `app/runsheet/[week].tsx` to include `ownerId` using `await getDataOwnerId()` in client creation logic, with error handling for missing ownerId.
+- Updated `app/(tabs)/settings.tsx` to ensure all client import logic uses `await getDataOwnerId()` for `ownerId` and handles missing ownerId with an error message.
+- These changes ensure that all client creation operations comply with Firestore security rules requiring `ownerId` to match the authenticated user's UID.
