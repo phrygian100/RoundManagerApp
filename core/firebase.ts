@@ -1,24 +1,21 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '../config';
 
 let app;
-let auth;
-let db;
 
+// This check prevents the app from crashing during hot-reloading
 if (!getApps().length) {
-  app = initializeApp(FIREBASE_CONFIG);
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
-  db = getFirestore(app);
+  // Always provide the config object
+  app = initializeApp(FIREBASE_CONFIG, 'RoundManagerApp'); 
 } else {
-  app = getApp();
-  auth = getAuth(app); // Re-uses existing auth instance
-  db = getFirestore(app);
+  // Get the default app if it already exists
+  app = getApp('RoundManagerApp');
 }
+
+const auth = getAuth(app);
+const db = getFirestore(app);
 
 export { app, auth, db };
 
