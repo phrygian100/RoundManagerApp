@@ -212,6 +212,14 @@ Linked the six `EXPO_PUBLIC_FIREBASE_*` variables to the **RoundManagerApp** pro
 
 ---
 
+## 2025-07-14 – Initial Firestore Security Rules 🔒
+• Added `firestore.rules` with per-user access control for the `users/{uid}` document.
+• Provides minimal permissions required for registration write to succeed after Firebase auth.
+
+Files: `firestore.rules`.
+
+---
+
 ## [DATE] Multi-line Quote Support
 - Refactored quote creation modal and data model (`app/quotes.tsx`) to support multiple quote lines per client.
 - Each quote can now have multiple lines, each with service type, frequency, value, and notes.
@@ -232,3 +240,7 @@ Linked the six `EXPO_PUBLIC_FIREBASE_*` variables to the **RoundManagerApp** pro
 
 ## 2025-07-14 – Build retry
 Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` variables after updating them to "All Environments" in the dashboard. No functional code changes.
+
+- Added verification email sending in `app/register.tsx` (Firebase `sendEmailVerification`).
+
+- Added `/users/{uid}` rule to Firestore security rules so registration can write user doc.

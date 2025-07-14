@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useState } from 'react';
 import { Alert, Button, StyleSheet, TextInput } from 'react-native';
@@ -21,7 +21,11 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+
       const user = userCredential.user;
+
+      // Send verification email
+      await sendEmailVerification(user);
 
       // Create a user document in Firestore
       await setDoc(doc(db, 'users', user.uid), {
@@ -30,7 +34,7 @@ export default function RegisterScreen() {
         createdAt: new Date().toISOString(),
       });
 
-      Alert.alert('Success', 'Your account has been created.');
+      Alert.alert('Success', 'Your account has been created. Please check your email to verify your address.');
       router.replace('/'); // Redirect to home/dashboard after registration
     } catch (error: any) {
       console.error(error);
