@@ -202,6 +202,11 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
   Firebase config fields at startup and throw a descriptive error listing any
   missing keys. This provides faster, clearer feedback during CI builds.
 
+### 🐛 Build debug
+- Augmented `scripts/update-build-id.js` to log presence (not values) of the six
+  `EXPO_PUBLIC_FIREBASE_*` variables during the **prebuild** step. This will help
+  verify whether Vercel is actually injecting them.
+
 ---
 
 ## [DATE] Multi-line Quote Support
