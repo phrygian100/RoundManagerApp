@@ -207,6 +207,9 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
   `EXPO_PUBLIC_FIREBASE_*` variables during the **prebuild** step. This will help
   verify whether Vercel is actually injecting them.
 
+### 🔧 Env-var linkage note  
+Linked the six `EXPO_PUBLIC_FIREBASE_*` variables to the **RoundManagerApp** project in Vercel so they propagate to build-time processes.
+
 ---
 
 ## [DATE] Multi-line Quote Support
