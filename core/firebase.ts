@@ -9,8 +9,22 @@ const firebaseConfig = {
   appId:              process.env.EXPO_PUBLIC_FIREBASE_APP_ID           || FIREBASE_CONFIG.appId,
 };
 
-if (!firebaseConfig.apiKey) {
-  throw new Error('Firebase config is missing. Check config.ts or your env-vars.');
+const requiredKeys = [
+  'apiKey',
+  'authDomain',
+  'projectId',
+  'storageBucket',
+  'messagingSenderId',
+  'appId',
+] as const;
+
+const missingKeys = requiredKeys.filter((key) => !firebaseConfig[key as keyof typeof firebaseConfig]);
+
+if (missingKeys.length) {
+  throw new Error(
+    `Firebase config is missing the following keys: ${missingKeys.join(', ')}. ` +
+      'Check your EXPO_PUBLIC_FIREBASE_* environment variables.'
+  );
 }
 
 import { getApp, getApps, initializeApp } from 'firebase/app';

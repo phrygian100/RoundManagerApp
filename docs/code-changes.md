@@ -197,6 +197,11 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
   receive the injected env-vars and Firebase initialises correctly. Fixes Vercel
   build error: `Firebase: Need to provide options (app/no-options)`.
 
+### 🔧 Follow-up validation
+- Updated both `core/firebase.ts` and `core/firebase.web.ts` to validate **all** six
+  Firebase config fields at startup and throw a descriptive error listing any
+  missing keys. This provides faster, clearer feedback during CI builds.
+
 ---
 
 ## [DATE] Multi-line Quote Support
