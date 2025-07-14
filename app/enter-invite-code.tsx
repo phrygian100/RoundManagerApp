@@ -32,6 +32,8 @@ export default function EnterInviteCodeScreen() {
 
       if (data.success) {
         setMessage(data.message);
+        // Redirect to home or team page after success
+        setTimeout(() => router.replace('/'), 1500);
       } else {
         setMessage(data.message || 'An unknown error occurred.');
       }
@@ -56,7 +58,7 @@ export default function EnterInviteCodeScreen() {
         editable={!loading}
       />
       <Button title={loading ? 'Joining...' : 'Join Team'} onPress={handleAcceptInvite} disabled={loading || !inviteCode.trim()} />
-      {message ? <Text style={{ marginTop: 16, color: message.includes('success') ? 'green' : 'red' }}>{message}</Text> : null}
+      {message ? <Text style={message.includes('success') ? styles.successText : styles.errorText}>{message}</Text> : null}
       <View style={{ height: 16 }} />
       <Button title="Go to Login" onPress={() => router.replace('/login')} />
     </View>
@@ -68,4 +70,12 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', marginBottom: 16 },
   subtitle: { fontSize: 16, marginBottom: 16, textAlign: 'center' },
   input: { width: 220, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 16 },
+  successText: {
+    marginTop: 16,
+    color: 'green',
+  },
+  errorText: {
+    marginTop: 16,
+    color: 'red',
+  },
 }); 

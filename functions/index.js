@@ -90,7 +90,8 @@ exports.acceptTeamInvite = onCall(async (request) => {
       const memberData = memberDocSnap.data();
 
       // Create a new member document with the user's UID
-      await db.collection(`accounts/${accountDoc.id}/members`).doc(user.uid).set({
+      const newMemberRef = db.collection(`accounts/${accountDoc.id}/members`).doc(user.uid);
+      await newMemberRef.set({
         ...memberData,
         uid: user.uid,
         email: user.email,
@@ -99,8 +100,8 @@ exports.acceptTeamInvite = onCall(async (request) => {
         joinedAt: new Date().toISOString(),
       });
 
-      // Mark the original invite as used
-      await memberDocRef.update({ status: 'used' });
+      // Delete the original invite document
+      await memberDocRef.delete();
 
       return { success: true, message: 'Invite accepted successfully!' };
     }
