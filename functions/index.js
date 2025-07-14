@@ -167,3 +167,27 @@ exports.deleteVehicle = onCall(async (request) => {
   await db.collection(`accounts/${user.token.accountId}/vehicles`).doc(id).delete();
   return { success: true };
 });
+
+exports.refreshClaims = onCall(async (request) => {
+  const user = request.auth;
+  if (!user) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+  }
+
+  const db = admin.firestore();
+  const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).get();
+
+  if (accountsSnap.empty) {
+    // User is not a member of any account yet.
+    return { success: false, message: 'User not found in any team.' };
+  }
+
+  // Assuming a user can only be in one account for now
+  const memberDoc = accountsSnap.docs[0];
+  const accountId = memberDoc.ref.parent.parent.id;
+  const isOwner = memberDoc.data().role === 'owner';
+
+  await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
+
+  return { success: true, message: 'Claims refreshed.' };
+});

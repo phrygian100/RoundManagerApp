@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import { Alert, Button, Image, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { auth } from '../core/firebase';
@@ -34,6 +35,14 @@ export default function LoginScreen() {
         await auth.signOut();
         return;
       }
+
+      // Set custom claims
+      const functions = getFunctions();
+      const refreshClaims = httpsCallable(functions, 'refreshClaims');
+      await refreshClaims();
+
+      // Force a token refresh to get the new claims
+      await user.getIdToken(true);
 
       // Navigate to home screen on success
       router.replace('/');
