@@ -8,7 +8,6 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
-import { getDataOwnerId } from '../core/supabase';
 import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
@@ -36,7 +35,7 @@ export default function WorkloadForecastScreen() {
     
     setLoading(true);
     try {
-      const ownerId = await getDataOwnerId();
+      const ownerId = await getUserSession().then(session => session?.accountId);
       const jobsRef = collection(db, 'jobs');
       const jobsQuery = query(jobsRef, where('ownerId', '==', ownerId));
       const jobsSnapshot = await getDocs(jobsQuery);

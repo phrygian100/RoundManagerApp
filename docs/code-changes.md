@@ -269,3 +269,9 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 ## 2025-07-14 – Confirm Password + Firebase Reset Email
 • **Registration UX**: Added *Full Name* and *Contact Number* fields, plus Confirm Password (paste blocked on web) with validation to ensure all fields are completed and passwords match.
 • **Forgot Password**: Switched to Firebase `
+
+---
+## 2025-07-14 – Email Sending Flow Consolidated ✉️
+• **Auth-Related Mail** (verification & password reset) now uses Firebase’s built-in templates. Sender address updated in Firebase console to `noreply@guvnor.app` – allow 24-48 h for DNS propagation.
+• **Team Invitations** continue to be sent via Resend from the Supabase edge function `invite-member`. Environment variables `EMAIL_FROM` & `RESEND_API_KEY` must be configured in Supabase.
+• No other parts of the codebase reference Resend.
