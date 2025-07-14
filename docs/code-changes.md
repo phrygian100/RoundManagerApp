@@ -250,3 +250,11 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Migrated HomeScreen `(tabs)/index.tsx` to Firebase auth & Firestore; shows full menu again.
 
 - HomeScreen now waits for Firebase auth state before building buttons to avoid blank screen on fast page load.
+
+- Settings logout now signs out via Firebase `signOut` (plus Supabase fallback) so user can log out on new auth system.
+
+---
+## 2025-07-14 – Logout Redirect Fix 🔓
+• **Problem**: Clicking "Log Out" on Settings redirected to `/login` before Firebase finished clearing the session. Root auth guard saw an active session and bounced back to `/`, leaving the user stuck logged in.
+• **Fix**: Removed manual `router.replace('/login')` call. We now rely on `onAuthStateChanged` in `app/_layout.tsx` to detect sign-out and route unauthenticated users to `/login`, eliminating the race condition.
+• **Files modified**: `app/(tabs)/settings.tsx`.

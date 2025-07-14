@@ -1,5 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
@@ -7,9 +8,9 @@ import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } 
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
-import { db } from '../../core/firebase';
+import { auth, db } from '../../core/firebase';
 import { getUserSession } from '../../core/session';
-import { getCurrentUserId, supabase } from '../../core/supabase';
+import { getCurrentUserId, supabase } from '../../core/supabase'; // supabase still used for legacy features
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
@@ -648,8 +649,17 @@ export default function SettingsScreen() {
 
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
-      router.replace('/login');
+      // Sign out from Firebase
+      await signOut(auth);
+
+      // Attempt to sign out of Supabase as well (for legacy sessions)
+      try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
+
+      // Do NOT navigate manually; RootLayout will detect the auth state change
+      // and redirect unauthenticated users to /login automatically.
+      // This avoids the race condition where we redirect too early and then
+      // immediately bounce back to the home screen because the user session
+      // hasn’t fully cleared yet.
     } catch (error) {
       console.error('Logout error', error);
       Alert.alert('Error', 'Failed to log out.');
