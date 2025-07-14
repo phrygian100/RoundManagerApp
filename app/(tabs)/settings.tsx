@@ -10,7 +10,7 @@ import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { auth, db } from '../../core/firebase';
 import { getUserSession } from '../../core/session';
-import { getCurrentUserId, supabase } from '../../core/supabase'; // supabase still used for legacy features
+import { getCurrentUserId } from '../../core/supabase';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
@@ -652,8 +652,7 @@ export default function SettingsScreen() {
       // Sign out from Firebase
       await signOut(auth);
 
-      // Attempt to sign out of Supabase as well (for legacy sessions)
-      try { await supabase.auth.signOut(); } catch (e) { /* ignore */ }
+      // Supabase sign out removed (legacy)
 
       // Do NOT navigate manually; RootLayout will detect the auth state change
       // and redirect unauthenticated users to /login automatically.
@@ -690,7 +689,7 @@ export default function SettingsScreen() {
       } else {
         Alert.alert('Left Team', 'Your account has been reset.');
       }
-      await supabase.auth.refreshSession();
+      // Supabase refreshSession removed (legacy)
       router.replace('/');
     } catch (err) {
       console.error('Error leaving team:', err);
