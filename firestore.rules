@@ -19,9 +19,10 @@ service cloud.firestore {
     }
 
     match /clients/{clientId} {
-  allow read: if isSignedIn();
-  allow create, update, delete: if isSignedIn() && isOwner(resource);
-}
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwnerForCreate();
+      allow update, delete: if isSignedIn() && isOwner(resource);
+    }
 
     match /jobs/{jobId} {
       allow read, update, delete: if isSignedIn() && isOwner(resource);

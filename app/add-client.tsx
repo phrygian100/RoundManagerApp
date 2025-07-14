@@ -286,7 +286,6 @@ export default function AddClientScreen() {
   return (
     <ThemedView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContentContainer}>
-        <Button title="Test Button" onPress={() => console.log('Test button pressed')} />
 
         <View style={styles.titleRow}>
           <ThemedText type="title">Add New Client</ThemedText>
@@ -408,26 +407,37 @@ export default function AddClientScreen() {
         </Picker>
 
         <ThemedText style={styles.label}>Starting Date</ThemedText>
-        <Pressable
-          style={[styles.input, { justifyContent: 'center' }]}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <ThemedText>
-            {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
-          </ThemedText>
-        </Pressable>
-        {showDatePicker && (
-          <DateTimePicker
-            value={nextVisit ? parseISO(nextVisit) : new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={(event, selectedDate) => {
-              setShowDatePicker(false);
-              if (selectedDate) {
-                setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
-              }
-            }}
+        {Platform.OS === 'web' ? (
+          <input
+            type="date"
+            value={nextVisit}
+            onChange={e => setNextVisit(e.target.value)}
+            style={{ ...styles.input, height: 50, padding: 10, fontSize: 16 }}
           />
+        ) : (
+          <>
+            <Pressable
+              style={[styles.input, { justifyContent: 'center' }]}
+              onPress={() => setShowDatePicker(true)}
+            >
+              <ThemedText>
+                {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+              </ThemedText>
+            </Pressable>
+            {showDatePicker && (
+              <DateTimePicker
+                value={nextVisit ? parseISO(nextVisit) : new Date()}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+                  }
+                }}
+              />
+            )}
+          </>
         )}
 
         <ThemedText style={styles.label}>Starting Balance</ThemedText>
