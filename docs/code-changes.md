@@ -226,3 +226,6 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
   - Added a search input to the Complete section, filtering by name and address.
   - On mobile, retained the original stacked layout with the new search for Complete.
   - The UI is now responsive and adapts based on platform.
+
+## 2025-07-14 – Build retry
+Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` variables after updating them to "All Environments" in the dashboard. No functional code changes.
