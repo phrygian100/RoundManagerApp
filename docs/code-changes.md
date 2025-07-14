@@ -192,6 +192,11 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
   (`EXPO_PUBLIC_FIREBASE_*`).  No runtime code was changed; this commit is only to
   force a new deployment and confirm the build succeeds after the env-vars update.
 
+### 🔧 Hotfix (same day)
+- Added `FIREBASE_CONFIG` constant in `config.ts` (and example file) so web builds
+  receive the injected env-vars and Firebase initialises correctly. Fixes Vercel
+  build error: `Firebase: Need to provide options (app/no-options)`.
+
 ---
 
 ## [DATE] Multi-line Quote Support
