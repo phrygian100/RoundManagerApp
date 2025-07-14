@@ -7,26 +7,61 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { setGlobalOptions } = require("firebase-functions/v2/options");
+const admin = require("firebase-admin");
+const { Resend } = require("resend");
 
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
+admin.initializeApp();
+
 setGlobalOptions({ maxInstances: 10 });
 
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
+exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{memberId}", async (event) => {
+  const snap = event.data;
+  const context = event;
+  console.log('sendTeamInviteEmail triggered', context.params, snap.data());
 
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+  // Get the API key from config/environment at runtime
+  const apiKey =
+    process.env.RESEND_KEY ||
+    process.env.resend_key ||
+    (process.env.FIREBASE_CONFIG && JSON.parse(process.env.FIREBASE_CONFIG).resend?.key);
+
+  if (!apiKey) {
+    console.error('No Resend API key found in environment or config!');
+    return null;
+  }
+
+  const resend = new Resend(apiKey);
+
+  const data = snap.data();
+  if (!data || data.status !== 'invited') {
+    console.log('Not an invite or wrong status');
+    return null;
+  }
+
+  const email = data.email;
+  const inviteCode = data.inviteCode;
+  const accountId = context.params.accountId;
+
+  if (!email || !inviteCode) {
+    console.error('Missing email or inviteCode');
+    return null;
+  }
+
+  const inviteLink = `https://yourapp.com/enter-invite-code?code=${inviteCode}&account=${accountId}`;
+
+  try {
+    const result = await resend.emails.send({
+      from: 'noreply@guvnor.app', // Use a verified sender from your Resend domain
+      to: email,
+      subject: 'You have been invited to join a team!',
+      html: `<p>You have been invited! Click <a href="${inviteLink}">here</a> to join, or use code: <b>${inviteCode}</b></p>`
+    });
+    console.log('Resend API result:', result);
+  } catch (err) {
+    console.error('Failed to send invite email:', err);
+  }
+
+  return null;
+});
