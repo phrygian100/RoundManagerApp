@@ -267,6 +267,5 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 
 ---
 ## 2025-07-14 – Confirm Password + Firebase Reset Email
-• **Registration UX**: Added *Confirm Password* field with paste disabled on web and validation to ensure passwords match.
-• **Forgot Password**: Switched to Firebase `sendPasswordResetEmail` to align with new auth system; reset emails now send correctly.
-• **Files modified**: `app/register.tsx`, `app/forgot-password.tsx`, `web/src/app/forgot-password/page.tsx`, `web/src/lib/firebaseClient.ts`.
+• **Registration UX**: Added *Full Name* and *Contact Number* fields, plus Confirm Password (paste blocked on web) with validation to ensure all fields are completed and passwords match.
+• **Forgot Password**: Switched to Firebase `

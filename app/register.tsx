@@ -9,13 +9,15 @@ import { auth, db } from '../core/firebase';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const [name, setName] = useState('');
+  const [contactNumber, setContactNumber] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!email || !password || !confirmPassword) {
+    if (!name.trim() || !contactNumber.trim() || !email.trim() || !password || !confirmPassword) {
       Alert.alert('Error', 'Please fill out all fields.');
       return;
     }
@@ -37,6 +39,8 @@ export default function RegisterScreen() {
       await setDoc(doc(db, 'users', user.uid), {
         id: user.uid,
         email: user.email,
+        name: name.trim(),
+        contactNumber: contactNumber.trim(),
         createdAt: new Date().toISOString(),
       });
 
@@ -62,6 +66,22 @@ export default function RegisterScreen() {
   return (
     <ThemedView style={styles.container}>
       <ThemedText type="title">Register</ThemedText>
+      <TextInput
+        style={styles.input}
+        placeholder="Full Name"
+        value={name}
+        onChangeText={setName}
+        autoCapitalize="words"
+        placeholderTextColor="#999"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Contact Number"
+        value={contactNumber}
+        onChangeText={setContactNumber}
+        keyboardType="phone-pad"
+        placeholderTextColor="#999"
+      />
       <TextInput
         style={styles.input}
         placeholder="Email"
