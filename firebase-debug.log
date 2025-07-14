@@ -1,0 +1,107 @@
+[debug] [2025-07-14T20:14:08.001Z] ----------------------------------------------------------------------
+[debug] [2025-07-14T20:14:08.010Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\travi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions,firestore
+[debug] [2025-07-14T20:14:08.011Z] CLI Version:   14.10.1
+[debug] [2025-07-14T20:14:08.011Z] Platform:      win32
+[debug] [2025-07-14T20:14:08.011Z] Node Version:  v22.16.0
+[debug] [2025-07-14T20:14:08.011Z] Time:          Mon Jul 14 2025 21:14:08 GMT+0100 (British Summer Time)
+[debug] [2025-07-14T20:14:08.011Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-07-14T20:14:08.182Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-14T20:14:08.183Z] > authorizing via signed-in user (TRAVIS_GM@LIVE.CO.UK)
+[debug] [2025-07-14T20:14:08.183Z] [iam] checking project roundmanagerapp for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]
+[debug] [2025-07-14T20:14:08.184Z] Checked if tokens are valid: false, expires at: 1752524188161
+[debug] [2025-07-14T20:14:08.184Z] Checked if tokens are valid: false, expires at: 1752524188161
+[debug] [2025-07-14T20:14:08.184Z] > refreshing access token with scopes: []
+[debug] [2025-07-14T20:14:08.185Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2025-07-14T20:14:08.185Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-07-14T20:14:08.467Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2025-07-14T20:14:08.467Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2025-07-14T20:14:08.472Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions [none]
+[debug] [2025-07-14T20:14:08.472Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions x-goog-quota-user=projects/roundmanagerapp
+[debug] [2025-07-14T20:14:08.472Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-07-14T20:14:08.764Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions 200
+[debug] [2025-07-14T20:14:08.764Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get"]}
+[debug] [2025-07-14T20:14:08.765Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:08.765Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:08.765Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-07-14T20:14:08.765Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-07-14T20:14:09.473Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-07-14T20:14:09.473Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'roundmanagerapp'...
+[info] 
+[info] i  deploying firestore, functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run lint
+[info] +  functions: Finished running predeploy script. 
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2025-07-14T20:14:13.589Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:13.590Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:13.590Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/roundmanagerapp:test [none]
+[debug] [2025-07-14T20:14:13.590Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/roundmanagerapp:test [omitted]
+[debug] [2025-07-14T20:14:14.403Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/roundmanagerapp:test 200
+[debug] [2025-07-14T20:14:14.403Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/roundmanagerapp:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2025-07-14T20:14:14.404Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:14.405Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:14.405Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp [none]
+[debug] [2025-07-14T20:14:14.683Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp 200
+[debug] [2025-07-14T20:14:14.683Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp {"projectNumber":"1049000869926","projectId":"roundmanagerapp","lifecycleState":"ACTIVE","name":"RoundManagerApp","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-06-18T15:16:25.700197Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2025-07-14T20:14:14.685Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:14.686Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:14.686Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig [none]
+[debug] [2025-07-14T20:14:15.063Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig 200
+[debug] [2025-07-14T20:14:15.063Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig {"projectId":"roundmanagerapp","storageBucket":"roundmanagerapp.firebasestorage.app"}
+[debug] [2025-07-14T20:14:15.063Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:15.064Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:15.064Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs [none]
+[debug] [2025-07-14T20:14:15.395Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs 200
+[debug] [2025-07-14T20:14:15.395Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs {"configs":[{"name":"projects/roundmanagerapp/configs/resend"}]}
+[debug] [2025-07-14T20:14:15.395Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:15.395Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:15.396Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables [none]
+[debug] [2025-07-14T20:14:16.194Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables 200
+[debug] [2025-07-14T20:14:16.194Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables {"variables":[{"name":"projects/roundmanagerapp/configs/resend/variables/key","updateTime":"2025-07-14T17:39:27.259254558Z"}]}
+[debug] [2025-07-14T20:14:16.194Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:16.194Z] Checked if tokens are valid: true, expires at: 1752527647467
+[debug] [2025-07-14T20:14:16.195Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key [none]
+[debug] [2025-07-14T20:14:16.429Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key 200
+[debug] [2025-07-14T20:14:16.430Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key {"name":"projects/roundmanagerapp/configs/resend/variables/key","updateTime":"2025-07-14T17:39:27.259254558Z","text":"re_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV"}
+[debug] [2025-07-14T20:14:16.434Z] Validating nodejs source
+[debug] [2025-07-14T20:14:17.621Z] > [functions] package.json contents: {
+  "name": "functions",
+  "description": "Forcing a clean deployment.",
+  "scripts": {
+    "lint": "eslint .",
+    "serve": "firebase emulators:start --only functions",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": "22"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^6.0.1",
+    "resend": "^4.6.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.15.0",
+    "eslint-config-google": "^0.14.0",
+    "firebase-functions-test": "^3.1.0"
+  },
+  "private": true
+}
+[debug] [2025-07-14T20:14:17.622Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2025-07-14T20:14:17.623Z] Could not find functions.yaml. Must use http discovery
+[debug] [2025-07-14T20:14:17.635Z] Found firebase-functions binary at 'C:\Users\travi\RoundManagerApp\functions\node_modules\.bin\firebase-functions'
+[info] Serving at port 8110
+

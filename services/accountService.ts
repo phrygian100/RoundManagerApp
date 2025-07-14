@@ -1,4 +1,6 @@
-import { collection, deleteDoc, doc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
 // Supabase invite-member/email flows removed. TODO: Implement with Firebase if needed.
@@ -21,29 +23,30 @@ const DEFAULT_PERMS: Record<string, boolean> = {
 };
 
 export async function listMembers(): Promise<MemberRecord[]> {
+  const functions = getFunctions();
+  const listMembersFn = httpsCallable(functions, 'listMembers');
+  const result = await listMembersFn();
+  const members = result.data as MemberRecord[];
+
+  // Ensure owner row exists (client-side check)
   const sess = await getUserSession();
-  if (!sess) throw new Error('Not authenticated');
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
 
-  // Read from Firestore
-  const membersRef = collection(db, `accounts/${sess.accountId}/members`);
-  const snap = await getDocs(membersRef);
-  const members = snap.docs.map(d => ({ uid: d.id, ...(d.data() as any) })) as MemberRecord[];
+  if (!sess || !currentUser) throw new Error('Not authenticated');
 
-  // Ensure owner row exists
   const ownerExists = members.some(m => m.role === 'owner');
   if (!ownerExists) {
-    const ownerDocRef = doc(db, `accounts/${sess.accountId}/members/${sess.uid}`);
+    // This part should ideally be handled by a cloud function or on registration
+    // For now, we'll keep the client-side fallback to ensure UI consistency
     const ownerData: MemberRecord = {
       uid: sess.uid,
-      email: '', // Could fetch from users/{uid} if needed
+      email: currentUser.email || '', // Use auth user email
       role: 'owner',
       perms: DEFAULT_PERMS,
       status: 'active',
       createdAt: new Date().toISOString(),
-      vehicleId: null,
-      dailyRate: 0,
     };
-    await setDoc(ownerDocRef, ownerData, { merge: true });
     members.push(ownerData);
   }
   return members;

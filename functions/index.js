@@ -109,3 +109,61 @@ exports.acceptTeamInvite = onCall(async (request) => {
 
   throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
 });
+
+exports.listMembers = onCall(async (request) => {
+  const user = request.auth;
+  if (!user || !user.token.accountId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+
+  const db = admin.firestore();
+  const membersRef = db.collection(`accounts/${user.token.accountId}/members`);
+  const snap = await membersRef.get();
+  return snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+});
+
+exports.listVehicles = onCall(async (request) => {
+  const user = request.auth;
+  if (!user || !user.token.accountId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+
+  const db = admin.firestore();
+  const vehiclesRef = db.collection(`accounts/${user.token.accountId}/vehicles`);
+  const snap = await vehiclesRef.get();
+  return snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+});
+
+exports.addVehicle = onCall(async (request) => {
+  const user = request.auth;
+  if (!user || !user.token.accountId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+  const { name, dailyRate } = request.data;
+  const db = admin.firestore();
+  const newDocRef = db.collection(`accounts/${user.token.accountId}/vehicles`).doc();
+  await newDocRef.set({ name, dailyRate });
+  return { success: true, id: newDocRef.id };
+});
+
+exports.updateVehicle = onCall(async (request) => {
+  const user = request.auth;
+  if (!user || !user.token.accountId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+  const { id, data } = request.data;
+  const db = admin.firestore();
+  await db.collection(`accounts/${user.token.accountId}/vehicles`).doc(id).update(data);
+  return { success: true };
+});
+
+exports.deleteVehicle = onCall(async (request) => {
+  const user = request.auth;
+  if (!user || !user.token.accountId) {
+    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+  const { id } = request.data;
+  const db = admin.firestore();
+  await db.collection(`accounts/${user.token.accountId}/vehicles`).doc(id).delete();
+  return { success: true };
+});
