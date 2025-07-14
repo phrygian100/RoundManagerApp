@@ -1,9 +1,9 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { getUserSession } from '../../core/session';
-import { supabase } from '../../core/supabase';
+import { auth, db } from '../../core/firebase';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -18,13 +18,28 @@ export default function HomeScreen() {
   useEffect(() => {
     const buildButtons = async () => {
       console.log('🏠 HomeScreen: building buttons');
-      const session = await getUserSession();
-      console.log('🏠 HomeScreen: session =', session);
+      const user = auth.currentUser;
+      if (!user) {
+        console.log('🏠 HomeScreen: no Firebase user, aborting');
+        return;
+      }
 
-      const isOwner = session?.isOwner;
-      const { data: authData } = await supabase.auth.getSession();
-      setEmail(authData.session?.user?.email || null);
-      const perms = session?.perms || {};
+      setEmail(user.email || null);
+
+      // Fetch additional user data from Firestore (perms, isOwner, etc.)
+      let isOwner: boolean = true; // default owner until roles implemented
+      let perms: Record<string, boolean> = {};
+
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const data: any = userDoc.data();
+          isOwner = data.isOwner ?? true;
+          perms = data.perms ?? {};
+        }
+      } catch (err) {
+        console.error('Error fetching user doc:', err);
+      }
       console.log('🏠 HomeScreen: perms =', perms);
 
       const baseButtons = [
@@ -63,11 +78,26 @@ export default function HomeScreen() {
       setLoading(true);
       (async () => {
         await new Promise(res => setTimeout(res, 0)); // defer to next tick
-        const session = await getUserSession();
-        const isOwner = session?.isOwner;
-        const { data: authData2 } = await supabase.auth.getSession();
-        setEmail(authData2.session?.user?.email || null);
-        const perms = session?.perms || {};
+        const user = auth.currentUser;
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        setEmail(user.email || null);
+
+        let isOwner: boolean = true;
+        let perms: Record<string, boolean> = {};
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const data: any = userDoc.data();
+            isOwner = data.isOwner ?? true;
+            perms = data.perms ?? {};
+          }
+        } catch (err) {
+          console.error('Error fetching user doc:', err);
+        }
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },
