@@ -264,3 +264,9 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 • **Problem**: Newly registered users were signed in immediately and routed to the home page, skipping email verification.
 • **Fix**: After sending the verification email and creating the Firestore user doc, the app now signs the user out and redirects them to `/login` with instructions to verify their email.
 • **Files modified**: `app/register.tsx`.
+
+---
+## 2025-07-14 – Confirm Password + Firebase Reset Email
+• **Registration UX**: Added *Confirm Password* field with paste disabled on web and validation to ensure passwords match.
+• **Forgot Password**: Switched to Firebase `sendPasswordResetEmail` to align with new auth system; reset emails now send correctly.
+• **Files modified**: `app/register.tsx`, `app/forgot-password.tsx`, `web/src/app/forgot-password/page.tsx`, `web/src/lib/firebaseClient.ts`.

@@ -1,5 +1,6 @@
 'use client';
-import { supabase } from '@/lib/supabaseClient';
+import { auth } from '@/lib/firebaseClient';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import Link from 'next/link';
 import { useState } from 'react';
 
@@ -16,11 +17,7 @@ export default function ForgotPassword() {
     
     try {
       setLoading(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'https://guvnor.app/set-password',
-      });
-      
-      if (error) throw error;
+      await sendPasswordResetEmail(auth, email.trim());
       
       setSent(true);
     } catch (err: any) {

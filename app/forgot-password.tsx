@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import React, { useState } from 'react';
 import { Alert, Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { supabase } from '../core/supabase';
+import { auth } from '../core/firebase';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
@@ -15,10 +16,7 @@ export default function ForgotPasswordScreen() {
     }
     try {
       setLoading(true);
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: 'https://guvnor.app/set-password',
-      });
-      if (error) throw error;
+      await sendPasswordResetEmail(auth, email.trim());
       Alert.alert('Success', 'Password reset email sent. Check your inbox.');
       router.back();
     } catch (err: any) {
