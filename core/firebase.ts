@@ -1,18 +1,44 @@
-// app/core/firebase.ts
-import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { Platform } from 'react-native';
+// AsyncStorage is needed for native persistence
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FIREBASE_CONFIG } from '../config';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDGogz3xR5r-a3z6uheoljDDLYmkx41tXo",
-  authDomain: "roundmanagerapp.firebaseapp.com",
-  projectId: "roundmanagerapp",
-  storageBucket: "roundmanagerapp.appspot.com",
-  messagingSenderId: "1049000869926",
-  appId: "1:1049000869926:web:dbd1ff76e097cae72526e7"
-};
+let app;
+let auth;
+let db;
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// This prevents Firebase from initializing more than once
+if (!getApps().length) {
+  try {
+    app = initializeApp(FIREBASE_CONFIG);
+    
+    // Initialize Auth with platform-specific persistence
+    if (Platform.OS === 'web') {
+      // The standard getAuth is for web and handles persistence automatically.
+      auth = getAuth(app);
+    } else {
+      // For native, we must explicitly set persistence with AsyncStorage.
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    }
 
-export { db };
+    db = getFirestore(app);
+
+  } catch (e) {
+    console.error("Firebase initialization error", e);
+    // You might want to show an error to the user here
+  }
+} else {
+  // If already initialized, get the existing app and services
+  app = getApp();
+  auth = getAuth(app);
+  db = getFirestore(app);
+}
+
+// Export the initialized services
+export { app, auth, db };
 
