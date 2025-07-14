@@ -1,17 +1,28 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import { FIREBASE_CONFIG } from '../config';
+
+// Construct the config object directly from environment variables
+const firebaseConfig = {
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+};
 
 let app;
 
-// This check prevents the app from crashing during hot-reloading
+// Check if all required config values are present
+if (!firebaseConfig.apiKey) {
+  throw new Error('Missing Firebase config. Check your environment variables.');
+}
+
 if (!getApps().length) {
-  // Always provide the config object
-  app = initializeApp(FIREBASE_CONFIG, 'RoundManagerApp'); 
+  app = initializeApp(firebaseConfig);
 } else {
-  // Get the default app if it already exists
-  app = getApp('RoundManagerApp');
+  app = getApp();
 }
 
 const auth = getAuth(app);
