@@ -248,3 +248,5 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Switched `app/login.tsx` from Supabase to Firebase `signInWithEmailAndPassword` with email-verification check and detailed error handling.
 
 - Migrated HomeScreen `(tabs)/index.tsx` to Firebase auth & Firestore; shows full menu again.
+
+- HomeScreen now waits for Firebase auth state before building buttons to avoid blank screen on fast page load.

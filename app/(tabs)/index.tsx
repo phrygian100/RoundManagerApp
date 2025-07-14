@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
+import { User, onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -15,61 +16,65 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
 
+  const buildButtonsForUser = async (firebaseUser: User) => {
+    console.log('🏠 HomeScreen: building buttons');
+    setEmail(firebaseUser.email || null);
+
+    // Fetch additional user data from Firestore (perms, isOwner, etc.)
+    let isOwner: boolean = true; // default owner until roles implemented
+    let perms: Record<string, boolean> = {};
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (userDoc.exists()) {
+        const data: any = userDoc.data();
+        isOwner = data.isOwner ?? true;
+        perms = data.perms ?? {};
+      }
+    } catch (err) {
+      console.error('Error fetching user doc:', err);
+    }
+    console.log('🏠 HomeScreen: perms =', perms);
+
+    const baseButtons = [
+      { label: 'Client List', path: '/clients', permKey: 'viewClients' },
+      { label: 'Add New Client', path: '/add-client', permKey: 'viewClients' },
+      { label: 'Rota', path: '/rota', permKey: null },
+      { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
+      { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
+      { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
+      { label: 'Settings', path: '/settings', permKey: null },
+      { label: 'Quotes', path: '/quotes', permKey: null },
+    ];
+
+    const allowed = baseButtons.filter((btn) => {
+      if (!btn.permKey) return true; // Settings always available
+      if (isOwner) return true; // Owner sees all
+      return !!perms[btn.permKey];
+    });
+
+    setButtons(
+      allowed.map((btn) => ({
+        label: btn.label,
+        onPress: () => router.push(btn.path as any),
+        disabled: false,
+      }))
+    );
+    setLoading(false);
+  };
+
+  // Listen for auth state to become ready
   useEffect(() => {
-    const buildButtons = async () => {
-      console.log('🏠 HomeScreen: building buttons');
-      const user = auth.currentUser;
-      if (!user) {
-        console.log('🏠 HomeScreen: no Firebase user, aborting');
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        console.log('🏠 HomeScreen: waiting for Firebase user...');
         return;
       }
+      unsub(); // Stop listening once we have the user
+      buildButtonsForUser(firebaseUser);
+    });
 
-      setEmail(user.email || null);
-
-      // Fetch additional user data from Firestore (perms, isOwner, etc.)
-      let isOwner: boolean = true; // default owner until roles implemented
-      let perms: Record<string, boolean> = {};
-
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const data: any = userDoc.data();
-          isOwner = data.isOwner ?? true;
-          perms = data.perms ?? {};
-        }
-      } catch (err) {
-        console.error('Error fetching user doc:', err);
-      }
-      console.log('🏠 HomeScreen: perms =', perms);
-
-      const baseButtons = [
-        { label: 'Client List', path: '/clients', permKey: 'viewClients' },
-        { label: 'Add New Client', path: '/add-client', permKey: 'viewClients' },
-        { label: 'Rota', path: '/rota', permKey: null },
-        { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
-        { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
-        { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
-        { label: 'Settings', path: '/settings', permKey: null },
-        { label: 'Quotes', path: '/quotes', permKey: null },
-      ];
-
-      const allowed = baseButtons.filter((btn) => {
-        if (!btn.permKey) return true; // Settings always available
-        if (isOwner) return true; // Owner sees all
-        return !!perms[btn.permKey];
-      });
-
-      setButtons(
-        allowed.map((btn) => ({
-          label: btn.label,
-          onPress: () => router.push(btn.path as any),
-          disabled: false,
-        }))
-      );
-      setLoading(false);
-    };
-
-    buildButtons();
+    return () => unsub();
   }, [router]);
 
   // Rebuild buttons whenever screen gains focus (permissions may have changed)
@@ -78,18 +83,18 @@ export default function HomeScreen() {
       setLoading(true);
       (async () => {
         await new Promise(res => setTimeout(res, 0)); // defer to next tick
-        const user = auth.currentUser;
-        if (!user) {
+        const firebaseUser = auth.currentUser;
+        if (!firebaseUser) {
           setLoading(false);
           return;
         }
 
-        setEmail(user.email || null);
+        setEmail(firebaseUser.email || null);
 
         let isOwner: boolean = true;
         let perms: Record<string, boolean> = {};
         try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (userDoc.exists()) {
             const data: any = userDoc.data();
             isOwner = data.isOwner ?? true;
