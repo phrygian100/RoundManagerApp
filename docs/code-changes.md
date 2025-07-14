@@ -187,6 +187,13 @@ Implemented logic so that after saving a payment from the 'Create Payment from J
 
 ---
 
+## 2025-07-14  
+- Documented Firebase configuration now supplied via Vercel environment variables  
+  (`EXPO_PUBLIC_FIREBASE_*`).  No runtime code was changed; this commit is only to
+  force a new deployment and confirm the build succeeds after the env-vars update.
+
+---
+
 ## [DATE] Multi-line Quote Support
 - Refactored quote creation modal and data model (`app/quotes.tsx`) to support multiple quote lines per client.
 - Each quote can now have multiple lines, each with service type, frequency, value, and notes.
