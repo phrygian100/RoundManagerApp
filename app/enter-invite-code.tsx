@@ -2,10 +2,9 @@
 
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { db } from '../core/firebase';
 
 export default function EnterInviteCodeScreen() {
   const router = useRouter();
@@ -24,42 +23,21 @@ export default function EnterInviteCodeScreen() {
         setLoading(false);
         return;
       }
-      // Search all accounts for a member with this invite code and status 'invited'
-      // (In production, you may want to index invites for faster lookup)
-      const accountsCol = collection(db, 'accounts');
-      // For simplicity, scan all accounts (could be optimized with a cloud function or index)
-      const accountsSnap = await getDocs(accountsCol);
-      let found = false;
-      for (const accountDoc of accountsSnap.docs) {
-        const membersCol = collection(db, `accounts/${accountDoc.id}/members`);
-        const memberDocRef = doc(membersCol, inviteCode);
-        const memberDocSnap = await getDoc(memberDocRef);
-        if (memberDocSnap.exists()) {
-          const memberData = memberDocSnap.data();
-          if (memberData.status === 'invited' && memberData.inviteCode === inviteCode) {
-            // Update the member record to associate with this user
-            await setDoc(doc(membersCol, user.uid), {
-              ...memberData,
-              uid: user.uid,
-              email: user.email,
-              status: 'active',
-              inviteCode: null,
-              joinedAt: new Date().toISOString(),
-            });
-            // Optionally, delete the invite code doc
-            await updateDoc(memberDocRef, { status: 'used' });
-            setMessage('Invite accepted! You are now a team member.');
-            found = true;
-            break;
-          }
-        }
+
+      const functions = getFunctions();
+      const acceptTeamInvite = httpsCallable(functions, 'acceptTeamInvite');
+      const result = await acceptTeamInvite({ inviteCode });
+
+      const data = result.data as { success: boolean, message: string };
+
+      if (data.success) {
+        setMessage(data.message);
+      } else {
+        setMessage(data.message || 'An unknown error occurred.');
       }
-      if (!found) {
-        setMessage('Invalid or expired invite code.');
-      }
-    } catch (err) {
-      setMessage('Error accepting invite. Please try again.');
+    } catch (err: any) {
       console.error(err);
+      setMessage(err.message || 'Error accepting invite. Please try again.');
     } finally {
       setLoading(false);
     }

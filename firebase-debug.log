@@ -1,0 +1,60 @@
+[debug] [2025-07-14T19:39:09.281Z] ----------------------------------------------------------------------
+[debug] [2025-07-14T19:39:09.289Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\travi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only functions
+[debug] [2025-07-14T19:39:09.290Z] CLI Version:   14.10.1
+[debug] [2025-07-14T19:39:09.290Z] Platform:      win32
+[debug] [2025-07-14T19:39:09.290Z] Node Version:  v22.16.0
+[debug] [2025-07-14T19:39:09.290Z] Time:          Mon Jul 14 2025 20:39:09 GMT+0100 (British Summer Time)
+[debug] [2025-07-14T19:39:09.290Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2025-07-14T19:39:09.456Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-07-14T19:39:09.456Z] > authorizing via signed-in user (TRAVIS_GM@LIVE.CO.UK)
+[debug] [2025-07-14T19:39:09.457Z] [iam] checking project roundmanagerapp for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2025-07-14T19:39:09.457Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:09.457Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:09.458Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions [none]
+[debug] [2025-07-14T19:39:09.458Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions x-goog-quota-user=projects/roundmanagerapp
+[debug] [2025-07-14T19:39:09.458Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-07-14T19:39:10.327Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions 200
+[debug] [2025-07-14T19:39:10.327Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2025-07-14T19:39:10.328Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:10.328Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:10.328Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2025-07-14T19:39:10.328Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2025-07-14T19:39:11.125Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2025-07-14T19:39:11.125Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/roundmanagerapp/serviceAccounts/roundmanagerapp@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[info] 
+[info] === Deploying to 'roundmanagerapp'...
+[info] 
+[info] i  deploying functions 
+[info] Running command: npm --prefix "$RESOURCE_DIR" run lint
+[info] +  functions: Finished running predeploy script. 
+[debug] [2025-07-14T19:39:14.282Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.282Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.282Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp [none]
+[debug] [2025-07-14T19:39:14.501Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp 200
+[debug] [2025-07-14T19:39:14.501Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/roundmanagerapp {"projectNumber":"1049000869926","projectId":"roundmanagerapp","lifecycleState":"ACTIVE","name":"RoundManagerApp","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2025-06-18T15:16:25.700197Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2025-07-14T19:39:14.504Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.504Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.504Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig [none]
+[debug] [2025-07-14T19:39:14.874Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig 200
+[debug] [2025-07-14T19:39:14.874Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/roundmanagerapp/adminSdkConfig {"projectId":"roundmanagerapp","storageBucket":"roundmanagerapp.firebasestorage.app"}
+[debug] [2025-07-14T19:39:14.875Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.875Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:14.875Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs [none]
+[debug] [2025-07-14T19:39:15.193Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs 200
+[debug] [2025-07-14T19:39:15.193Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs {"configs":[{"name":"projects/roundmanagerapp/configs/resend"}]}
+[debug] [2025-07-14T19:39:15.193Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:15.194Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:15.194Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables [none]
+[debug] [2025-07-14T19:39:15.528Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables 200
+[debug] [2025-07-14T19:39:15.528Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables {"variables":[{"name":"projects/roundmanagerapp/configs/resend/variables/key","updateTime":"2025-07-14T17:39:27.259254558Z"}]}
+[debug] [2025-07-14T19:39:15.528Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:15.528Z] Checked if tokens are valid: true, expires at: 1752524188161
+[debug] [2025-07-14T19:39:15.528Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key [none]
+[debug] [2025-07-14T19:39:15.771Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key 200
+[debug] [2025-07-14T19:39:15.771Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/roundmanagerapp/configs/resend/variables/key {"name":"projects/roundmanagerapp/configs/resend/variables/key","updateTime":"2025-07-14T17:39:27.259254558Z","text":"re_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV"}
+[debug] [2025-07-14T19:39:15.772Z] Validating nodejs source

@@ -11,6 +11,8 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
+const { onCall } = require("firebase-functions/v2/https");
+const functions = require("firebase-functions");
 
 admin.initializeApp();
 
@@ -62,4 +64,47 @@ exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{m
   }
 
   return null;
+});
+
+exports.acceptTeamInvite = onCall(async (request) => {
+  const { inviteCode } = request.data;
+  const user = request.auth;
+
+  if (!user) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to accept an invite.');
+  }
+
+  if (!inviteCode) {
+    throw new functions.https.HttpsError('invalid-argument', 'Invite code is required.');
+  }
+
+  const db = admin.firestore();
+  const accountsCol = db.collection('accounts');
+  const accountsSnap = await accountsCol.get();
+
+  for (const accountDoc of accountsSnap.docs) {
+    const memberDocRef = db.collection(`accounts/${accountDoc.id}/members`).doc(inviteCode);
+    const memberDocSnap = await memberDocRef.get();
+
+    if (memberDocSnap.exists() && memberDocSnap.data().status === 'invited') {
+      const memberData = memberDocSnap.data();
+
+      // Create a new member document with the user's UID
+      await db.collection(`accounts/${accountDoc.id}/members`).doc(user.uid).set({
+        ...memberData,
+        uid: user.uid,
+        email: user.email,
+        status: 'active',
+        inviteCode: null, // Clear the invite code
+        joinedAt: new Date().toISOString(),
+      });
+
+      // Mark the original invite as used
+      await memberDocRef.update({ status: 'used' });
+
+      return { success: true, message: 'Invite accepted successfully!' };
+    }
+  }
+
+  throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
 });
