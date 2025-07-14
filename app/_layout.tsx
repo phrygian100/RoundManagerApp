@@ -1,22 +1,23 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
+import { onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider } from '../contexts/QuoteToClientContext';
-import { supabase } from '../core/supabase';
+import { auth } from '../core/firebase';
 
 export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
-      console.log('🔑 Auth state change:', { event: _e, hasSession: !!session, pathname });
+    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+      console.log('🔑 Firebase auth change:', { hasUser: !!user, pathname });
       
       // Check if we're in a password reset flow
       const isPasswordResetFlow = typeof window !== 'undefined' && 
         window.location.href.includes('type=recovery');
       
-      const loggedIn = !!session;
+      const loggedIn = !!user;
       const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
       const redirectIfLoggedIn = ['/login', '/register'];
       const alwaysAllowed = ['/set-password', '/forgot-password'];
@@ -38,7 +39,7 @@ export default function RootLayout() {
         }
       }
     });
-    return () => listener.subscription.unsubscribe();
+    return () => unsubscribe();
   }, [pathname]);
 
   return (
