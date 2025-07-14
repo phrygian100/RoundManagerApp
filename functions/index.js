@@ -7,8 +7,9 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const { onDocumentCreated, getConfig } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
+const { config } = require("firebase-functions");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 
@@ -21,9 +22,8 @@ exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{m
   const context = event;
   console.log('sendTeamInviteEmail triggered', context.params, snap.data());
 
-  // Use the v2 config API to get the key
-  const config = getConfig();
-  const apiKey = config.resend?.key;
+  // Use the v1 config API to get the key (works in v2 as well)
+  const apiKey = config().resend && config().resend.key;
 
   if (!apiKey) {
     console.error('No Resend API key found in config!');
