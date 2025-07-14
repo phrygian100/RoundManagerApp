@@ -8,7 +8,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { Button, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 
 type QuoteLine = {
   serviceType: string;

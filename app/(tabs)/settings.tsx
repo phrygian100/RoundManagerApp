@@ -9,8 +9,7 @@ import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { auth, db } from '../../core/firebase';
-import { getUserSession } from '../../core/session';
-import { getCurrentUserId } from '../../core/supabase';
+import { getDataOwnerId, getUserSession } from '../../core/session';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
@@ -184,7 +183,7 @@ export default function SettingsScreen() {
               }
 
               if (clientData.name && clientData.address && clientData.nextVisit) {
-                const ownerId = await getCurrentUserId();
+                const ownerId = await getDataOwnerId();
                 try {
                   await addDoc(collection(db, 'clients'), {
                     ...clientData,
@@ -303,7 +302,7 @@ export default function SettingsScreen() {
           }
 
           if (clientData.name && clientData.address && clientData.nextVisit) {
-            const ownerId = await getCurrentUserId();
+            const ownerId = await getDataOwnerId();
             try {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
@@ -401,7 +400,7 @@ export default function SettingsScreen() {
           }
 
           if (clientData.name && clientData.address && clientData.nextVisit) {
-            const ownerId = await getCurrentUserId();
+            const ownerId = await getDataOwnerId();
             try {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
@@ -461,7 +460,7 @@ export default function SettingsScreen() {
     if (!confirmed) return;
 
     try {
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
       const querySnapshot = await getDocs(q);
       const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
@@ -491,7 +490,7 @@ export default function SettingsScreen() {
 
     try {
       setLoading(true);
-      const ownerId = await getCurrentUserId();
+      const ownerId = await getDataOwnerId();
       const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
       const jobsSnapshot = await getDocs(qJobs);
       const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
@@ -601,7 +600,7 @@ export default function SettingsScreen() {
             setLoading(true);
             setLoadingMessage('Repairing client data...');
             try {
-              const ownerId = await getCurrentUserId();
+              const ownerId = await getDataOwnerId();
               const clientsRef = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
               const querySnapshot = await getDocs(clientsRef);
               

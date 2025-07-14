@@ -8,7 +8,7 @@ import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 

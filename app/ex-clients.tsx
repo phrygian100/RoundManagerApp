@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 import type { Client } from '../types/client';
 
 export default function ExClientsScreen() {

@@ -7,7 +7,7 @@ import { Alert, Dimensions, FlatList, Platform, Pressable, StyleSheet, View } fr
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 import { isTodayMarkedComplete } from '../services/jobService';
 import type { Client } from '../types/client';
 

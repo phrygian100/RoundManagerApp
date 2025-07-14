@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
-import { getDataOwnerId } from '../../core/supabase';
+import { getDataOwnerId } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';

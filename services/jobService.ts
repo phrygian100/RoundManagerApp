@@ -1,7 +1,7 @@
 import { addWeeks, format, getDay, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 

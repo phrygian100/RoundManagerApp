@@ -275,3 +275,15 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 • **Auth-Related Mail** (verification & password reset) now uses Firebase’s built-in templates. Sender address updated in Firebase console to `noreply@guvnor.app` – allow 24-48 h for DNS propagation.
 • **Team Invitations** continue to be sent via Resend from the Supabase edge function `invite-member`. Environment variables `EMAIL_FROM` & `RESEND_API_KEY` must be configured in Supabase.
 • No other parts of the codebase reference Resend.
+
+---
+
+## [DATE: YYYY-MM-DD] Remove Supabase from user/account/ownerId logic
+
+- All logic for user, account, and ownerId is now handled by Firebase Auth and Firestore only.
+- Implemented new helpers in `core/session.ts`:
+  - `getCurrentUserId()` returns the current Firebase Auth UID.
+  - `getDataOwnerId()` returns the accountId (ownerId) for the current user, using Firestore.
+- Refactored all app and service files to use these helpers instead of deprecated Supabase stubs.
+- Removed all Supabase imports/usages from non-email-related files.
+- Supabase is now only used for email/invite/password reset flows.

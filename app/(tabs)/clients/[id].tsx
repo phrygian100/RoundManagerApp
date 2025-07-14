@@ -10,7 +10,7 @@ import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
-import { getDataOwnerId } from '../../../core/supabase';
+import { getDataOwnerId } from '../../../core/session';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';

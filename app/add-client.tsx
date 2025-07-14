@@ -9,7 +9,7 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
-import { getCurrentUserId, supabase } from '../core/supabase';
+import { getDataOwnerId } from '../core/session';
 import { createJobsForClient } from '../services/jobService';
 
 function getOrdinal(n: number) {
@@ -73,7 +73,7 @@ export default function AddClientScreen() {
         console.log('Fetching next numbers...');
         
         // Fetch next account number
-        const ownerId = await getCurrentUserId();
+        const ownerId = await getDataOwnerId();
         let nextAccountNumber = 1;
         try {
           const q = query(
@@ -206,7 +206,7 @@ export default function AddClientScreen() {
       console.log('Starting client creation...');
       
       // Create the client first
-      const ownerId = (await supabase.auth.getSession()).data.session?.user.id;
+      const ownerId = await getDataOwnerId();
       const clientRef = await addDoc(collection(db, 'clients'), {
         name,
         address1,

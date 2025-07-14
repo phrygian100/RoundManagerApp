@@ -54,4 +54,21 @@ export async function getUserSession(): Promise<UserSession | null> {
     isOwner,
     perms,
   };
+}
+
+/**
+ * Returns the current Firebase Auth user UID, or null if not signed in.
+ */
+export function getCurrentUserId(): string | null {
+  const auth = getAuth();
+  return auth.currentUser ? auth.currentUser.uid : null;
+}
+
+/**
+ * Returns the data owner ID (accountId) for the current user, or null if not signed in.
+ * This is the user's own UID if they are an owner, or their accountId if they are a team member.
+ */
+export async function getDataOwnerId(): Promise<string | null> {
+  const session = await getUserSession();
+  return session ? session.accountId : null;
 } 

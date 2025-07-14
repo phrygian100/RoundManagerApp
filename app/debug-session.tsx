@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { getUserSession } from '../core/session';
-import { getDataOwnerId, supabase } from '../core/supabase';
+import { getDataOwnerId, getUserSession } from '../core/session';
 
 export default function DebugSessionScreen() {
   const [sessionData, setSessionData] = useState<any>(null);
@@ -15,10 +14,6 @@ export default function DebugSessionScreen() {
       setSessionData(session);
 
       // Get raw auth data
-      const { data } = await supabase.auth.getSession();
-      setRawAuth(data.session?.user);
-
-      // Get data owner ID
       const ownerId = await getDataOwnerId();
       setDataOwnerId(ownerId);
     } catch (err) {
