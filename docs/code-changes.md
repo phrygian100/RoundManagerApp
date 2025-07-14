@@ -5,6 +5,18 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-15 – Invite Member Email Cloud Function Fix 📧🔧
+• **Problem**: The `sendTeamInviteEmail` Firebase Cloud Function had a hardcoded URL for the invitation link, and was missing a clear way to handle different deployment environments (local, production).
+• **Fix**: Modified the Cloud Function in `functions/index.js` to use a new `APP_URL` environment variable to construct the invite link. This makes the function portable across environments. A default of `http://localhost:8081` is used if the variable is not set.
+• **Action Required**: To make the invite email system fully functional, two environment variables **must be set** for the `sendTeamInviteEmail` Cloud Function in your Google Cloud project:
+    - `RESEND_KEY`: Your API key for the Resend email service.
+    - `APP_URL`: The public base URL of your deployed application (e.g., `https://your-app.vercel.app`).
+• **Result**: The function is no longer dependent on hardcoded values and can be configured for any environment.
+
+**Files modified**: `functions/index.js`.
+
+---
+
 ## 2025-01-21 – Invite Member Email Configuration FIXED ✅
 • **RESOLVED**: Fixed invite member emails failing due to unverified domain configuration.  
 • **Root Cause**: Edge function was falling back to hardcoded `tgmwindowcleaning.co.uk` domain when `EMAIL_FROM` environment variable was missing, causing Resend API to reject emails with "domain not verified" error.  
@@ -291,3 +303,11 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Updated `app/runsheet/[week].tsx` to include `ownerId` using `await getDataOwnerId()` in client creation logic, with error handling for missing ownerId.
 - Updated `app/(tabs)/settings.tsx` to ensure all client import logic uses `await getDataOwnerId()` for `ownerId` and handles missing ownerId with an error message.
 - These changes ensure that all client creation operations comply with Firestore security rules requiring `ownerId` to match the authenticated user's UID.
+
+- Migrated invite email flow from Supabase Edge Functions to Firebase Cloud Functions v2 (Node.js 22+).
+- Implemented invite email sending using the Resend API, with domain and sender verified.
+- Updated Firestore rules for strict access and team member invites.
+- Refactored the invite acceptance frontend to work with the new Firestore invite flow.
+- Troubleshot Cloud Functions v2 environment variable issues: attempted to use `functions.config()`, `getConfig()`, and finally `process.env.RESEND_KEY`.
+- Blocked by Firebase CLI not supporting `--update-env-vars` for v2 functions in the current environment, preventing the Resend API key from being set as an environment variable.
+- All code changes are committed and pushed to the repository. Function code is ready for deployment once CLI or environment variable issue is resolved.

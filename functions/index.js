@@ -9,7 +9,6 @@
 
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { setGlobalOptions } = require("firebase-functions/v2/options");
-const { config } = require("firebase-functions");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 
@@ -22,11 +21,11 @@ exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{m
   const context = event;
   console.log('sendTeamInviteEmail triggered', context.params, snap.data());
 
-  // Use the v1 config API to get the key (works in v2 as well)
-  const apiKey = config().resend && config().resend.key;
+  // Use environment variable for the API key
+  const apiKey = process.env.RESEND_KEY;
 
   if (!apiKey) {
-    console.error('No Resend API key found in config!');
+    console.error('No Resend API key found in environment!');
     return null;
   }
 
@@ -47,7 +46,8 @@ exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{m
     return null;
   }
 
-  const inviteLink = `https://yourapp.com/enter-invite-code?code=${inviteCode}&account=${accountId}`;
+  const appUrl = process.env.APP_URL || 'http://localhost:8081'; // Default for local dev
+  const inviteLink = `${appUrl}/enter-invite-code?code=${inviteCode}&account=${accountId}`;
 
   try {
     const result = await resend.emails.send({
