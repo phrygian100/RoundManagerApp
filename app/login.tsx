@@ -39,7 +39,23 @@ export default function LoginScreen() {
       // Set custom claims
       const functions = getFunctions();
       const refreshClaims = httpsCallable(functions, 'refreshClaims');
-      await refreshClaims();
+      const result = await refreshClaims();
+
+      console.log('Claims refresh result:', result.data);
+
+      const refreshResult = result.data as { success: boolean; message?: string };
+      if (!refreshResult.success) {
+        const msg = `Could not prepare your account. Please contact support. (${
+          refreshResult.message || 'No details'
+        })`;
+        if (typeof window !== 'undefined') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Login Error', msg);
+        }
+        await auth.signOut();
+        return;
+      }
 
       // Force a token refresh to get the new claims
       await user.getIdToken(true);
