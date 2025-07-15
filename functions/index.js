@@ -166,31 +166,48 @@ exports.deleteVehicle = onCall(async (request) => {
 });
 
 exports.refreshClaims = onCall(async (request) => {
-  const user = request.auth;
-  if (!user) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
-  }
+  try {
+    console.log('refreshClaims: Function started.');
+    const user = request.auth;
+    if (!user) {
+      console.error('refreshClaims: Error - No user in request auth.');
+      throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+    }
+    console.log(`refreshClaims: Authenticated user UID: ${user.uid}`);
 
-  const db = admin.firestore();
-  const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).get();
+    const db = admin.firestore();
+    console.log('refreshClaims: Firestore instance created.');
 
-  if (accountsSnap.empty) {
-    return { success: false, message: 'User not found in any team.' };
-  }
+    const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).get();
+    console.log(`refreshClaims: Collection group query executed. Found ${accountsSnap.size} documents.`);
 
-  const memberDoc = accountsSnap.docs[0];
-  const memberRef = memberDoc.ref;
+    if (accountsSnap.empty) {
+      console.log(`refreshClaims: User with UID ${user.uid} not found in any team's members collection.`);
+      return { success: false, message: 'User not found in any team.' };
+    }
+    console.log(`refreshClaims: Found member document(s). Processing the first one.`);
 
-  // Defensive check: Ensure the member doc is in the expected subcollection.
-  if (memberRef.parent.parent?.id) {
-    const accountId = memberRef.parent.parent.id;
-    const isOwner = memberDoc.data().role === 'owner';
-    await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
-    return { success: true, message: 'Claims refreshed.' };
-  } else {
-    // This case happens if a 'members' collection exists outside the expected
-    // /accounts/{accountId}/members/{memberId} structure.
-    console.error(`Orphaned member document found for UID: ${user.uid}. Path: ${memberRef.path}`);
-    return { success: false, message: `User found but not associated with an account. Path: ${memberRef.path}` };
+    const memberDoc = accountsSnap.docs[0];
+    const memberRef = memberDoc.ref;
+    console.log(`refreshClaims: Processing member document at path: ${memberRef.path}`);
+
+    if (memberRef.parent && memberRef.parent.parent && memberRef.parent.parent.id) {
+      const accountId = memberRef.parent.parent.id;
+      const memberData = memberDoc.data();
+      const isOwner = memberData ? memberData.role === 'owner' : false;
+      console.log(`refreshClaims: Found accountId: ${accountId}, isOwner: ${isOwner}. Setting custom claims.`);
+
+      await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
+      console.log('refreshClaims: Custom user claims set successfully.');
+
+      return { success: true, message: 'Claims refreshed.' };
+    } else {
+      console.error(`refreshClaims: Error - Orphaned member document found for UID: ${user.uid}. Path: ${memberRef.path}`);
+      return { success: false, message: `User found but not associated with an account. Path: ${memberRef.path}` };
+    }
+  } catch (error) {
+    console.error('refreshClaims: UNHANDLED EXCEPTION:', error);
+    // Re-throw as an HttpsError to send a structured response to the client.
+    throw new functions.https.HttpsError('internal', 'An unexpected error occurred in refreshClaims.', error);
   }
 });
