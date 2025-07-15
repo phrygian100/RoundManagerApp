@@ -18,51 +18,86 @@ admin.initializeApp();
 
 setGlobalOptions({ maxInstances: 10 });
 
-exports.sendTeamInviteEmail = onDocumentCreated("accounts/{accountId}/members/{memberId}", async (event) => {
-  const snap = event.data;
-  const context = event;
-  console.log('sendTeamInviteEmail triggered', context.params, snap.data());
+// Removed sendTeamInviteEmail as email is now handled in inviteMember
 
+exports.inviteMember = onCall(async (request) => {
+  const { email } = request.data;
+  const caller = request.auth;
+  if (!caller || !caller.token.accountId || !caller.token.isOwner) {
+    throw new functions.https.HttpsError('permission-denied', 'Only owners can invite members.');
+  }
+  const accountId = caller.token.accountId;
+  if (!email) {
+    throw new functions.https.HttpsError('invalid-argument', 'Email required.');
+  }
+  const db = admin.firestore();
+  // Check if already a member
+  const existingMemberSnap = await db.collection(`accounts/${accountId}/members`).where('email', '==', email).get();
+  if (!existingMemberSnap.empty) {
+    throw new functions.https.HttpsError('already-exists', 'User is already a member.');
+  }
+  // Generate inviteCode
+  const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
   const apiKey = process.env.RESEND_KEY;
-
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
-    return null;
+    throw new functions.https.HttpsError('internal', 'Configuration error.');
   }
-
   const resend = new Resend(apiKey);
-
-  const data = snap.data();
-  if (!data || data.status !== 'invited') {
-    console.log('Not an invite or wrong status');
-    return null;
-  }
-
-  const email = data.email;
-  const inviteCode = data.inviteCode;
-  const accountId = context.params.accountId;
-
-  if (!email || !inviteCode) {
-    console.error('Missing email or inviteCode');
-    return null;
-  }
-
-  const appUrl = process.env.APP_URL || 'http://localhost:8081'; // Default for local dev
-  const inviteLink = `${appUrl}/enter-invite-code?code=${inviteCode}&account=${accountId}`;
-
+  const appUrl = process.env.APP_URL || 'http://localhost:8081';
+  let uid;
   try {
-    const result = await resend.emails.send({
-      from: 'noreply@guvnor.app', // Use a verified sender from your Resend domain
-      to: email,
-      subject: 'You have been invited to join a team!',
-      html: `<p>You have been invited! Click <a href="${inviteLink}">here</a> to join, or use code: <b>${inviteCode}</b></p>`
+    let isNewUser = false;
+    try {
+      const userRecord = await admin.auth().getUserByEmail(email);
+      uid = userRecord.uid;
+    } catch (err) {
+      if (err.code !== 'auth/user-not-found') throw err;
+      isNewUser = true;
+      const userRecord = await admin.auth().createUser({ email });
+      uid = userRecord.uid;
+    }
+    // Create temporary member doc with inviteCode as doc ID
+    const memberRef = db.collection(`accounts/${accountId}/members`).doc(inviteCode);
+    await memberRef.set({
+      uid,
+      email,
+      role: 'member',
+      perms: { viewClients: true, viewRunsheet: true, viewPayments: false },
+      status: 'invited',
+      inviteCode,
+      createdAt: new Date().toISOString(),
     });
-    console.log('Resend API result:', result);
+    if (isNewUser) {
+      // New user - send password set link
+      const actionCodeSettings = {
+        url: `${appUrl}/set-password?inviteCode=${inviteCode}`,
+        handleCodeInApp: true,
+      };
+      const link = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
+      const { error } = await resend.emails.send({
+        from: 'noreply@guvnor.app',
+        to: email,
+        subject: 'Set Your Password and Join the Team',
+        html: `<p>You've been invited to join a team! Click <a href="${link}">here</a> to set your password and complete registration.</p>`,
+      });
+      if (error) throw error;
+    } else {
+      // Existing user - send invite code link
+      const inviteLink = `${appUrl}/enter-invite-code?code=${inviteCode}`;
+      const { error } = await resend.emails.send({
+        from: 'noreply@guvnor.app',
+        to: email,
+        subject: 'You Have Been Invited to Join a Team',
+        html: `<p>You've been invited to join a team! Login to your account and click <a href="${inviteLink}">here</a> or enter code: <b>${inviteCode}</b>.</p>`,
+      });
+      if (error) throw error;
+    }
+    return { success: true, message: 'Invite sent successfully.' };
   } catch (err) {
-    console.error('Failed to send invite email:', err);
+    console.error('Invite error:', err);
+    throw new functions.https.HttpsError('internal', 'Failed to send invite.');
   }
-
-  return null;
 });
 
 exports.acceptTeamInvite = onCall(async (request) => {

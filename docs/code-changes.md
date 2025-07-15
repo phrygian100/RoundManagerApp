@@ -340,3 +340,14 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: functions/index.js, firestore.indexes.json
 
 ---
+
+## 2025-07-16 - Fixed Persistent Invite Member Flow with Full Firebase Implementation
+
+- Implemented seamless invite flow for new and existing users using Firebase Auth and Cloud Functions.
+- New users receive a password set link and auto-join after setting password.
+- Existing users receive a code to enter after login.
+- Updated frontend screens to handle query params and improve UX.
+
+**Files modified**: functions/index.js, services/accountService.ts, app/set-password.tsx, app/enter-invite-code.tsx
+
+---

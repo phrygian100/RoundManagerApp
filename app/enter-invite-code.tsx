@@ -1,6 +1,6 @@
 // Invite code via Supabase removed. TODO: Implement Firebase invite code flow here.
 
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
@@ -8,9 +8,13 @@ import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
 
 export default function EnterInviteCodeScreen() {
   const router = useRouter();
-  const [inviteCode, setInviteCode] = useState('');
+  const params = useLocalSearchParams();
+  const initialCode = typeof params.code === 'string' ? params.code : '';
+  const [inviteCode, setInviteCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const auth = getAuth();
+  const user = auth.currentUser;
 
   const handleAcceptInvite = async () => {
     setMessage('');
@@ -49,6 +53,11 @@ export default function EnterInviteCodeScreen() {
     <View style={styles.container}>
       <Text style={styles.title}>Join Owner Account</Text>
       <Text style={styles.subtitle}>Enter your invite code below to join a team.</Text>
+      {!user && (
+        <Text style={{ color: 'red', marginBottom: 16, textAlign: 'center' }}>
+          You must be logged in to join a team. If you don't have an account, register first.
+        </Text>
+      )}
       <TextInput
         style={styles.input}
         placeholder="Invite Code"
@@ -57,10 +66,16 @@ export default function EnterInviteCodeScreen() {
         autoCapitalize="none"
         editable={!loading}
       />
-      <Button title={loading ? 'Joining...' : 'Join Team'} onPress={handleAcceptInvite} disabled={loading || !inviteCode.trim()} />
+      <Button 
+        title={loading ? 'Joining...' : 'Join Team'} 
+        onPress={handleAcceptInvite} 
+        disabled={loading || !inviteCode.trim() || !user} 
+      />
       {message ? <Text style={{ marginTop: 16, color: message.includes('accepted') ? 'green' : 'red' }}>{message}</Text> : null}
       <View style={{ height: 16 }} />
       <Button title="Go to Login" onPress={() => router.replace('/login')} />
+      <View style={{ height: 8 }} />
+      <Button title="Register" onPress={() => router.replace('/register')} />
     </View>
   );
 }

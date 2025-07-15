@@ -1,5 +1,5 @@
 import { getAuth } from 'firebase/auth';
-import { deleteDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -55,27 +55,14 @@ export async function listMembers(): Promise<MemberRecord[]> {
 export async function inviteMember(email: string): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
-
-  // Check if member already exists first
   const existingMembers = await listMembers();
   const existingMember = existingMembers.find(m => m.email.toLowerCase() === email.toLowerCase());
   if (existingMember) {
     throw new Error(`User ${email} is already a team member or has a pending invitation`);
   }
-
-  // Create a Firestore invite (no email sent)
-  const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
-  const memberRef = doc(db, `accounts/${sess.accountId}/members/${inviteCode}`);
-  await setDoc(memberRef, {
-    email,
-    role: 'member',
-    perms: DEFAULT_PERMS,
-    status: 'invited',
-    inviteCode,
-    createdAt: new Date().toISOString(),
-  });
-
-  // Supabase invite-member/email flows removed. TODO: Implement with Firebase if needed.
+  const functions = getFunctions();
+  const inviteMemberFn = httpsCallable(functions, 'inviteMember');
+  await inviteMemberFn({ email });
 }
 
 export async function updateMemberPerms(uid: string, perms: Record<string, boolean>): Promise<void> {
