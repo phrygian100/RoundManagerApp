@@ -211,3 +211,8 @@ exports.refreshClaims = onCall(async (request) => {
     throw new functions.https.HttpsError('internal', 'An unexpected error occurred in refreshClaims.', error);
   }
 });
+
+exports.testLogging = onCall((request) => {
+  console.log("testLogging: Hello from the test function!");
+  return { success: true, message: "Logging test successful." };
+});
