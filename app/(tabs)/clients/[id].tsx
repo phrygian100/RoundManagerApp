@@ -129,7 +129,9 @@ export default function ClientDetailScreen() {
       const weekStart = new Date(today);
       weekStart.setDate(today.getDate() - today.getDay() + 1); // Monday as start of week
       const weekStartStr = weekStart.toISOString().split('T')[0];
-      const completedDoc = await getDoc(doc(db, 'completedWeeks', weekStartStr));
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) return;
+      const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
       if (completedDoc.exists()) {
         const data = completedDoc.data();
         const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];

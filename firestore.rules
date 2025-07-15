@@ -9,6 +9,7 @@ service cloud.firestore {
     function isOwner(resource) {
       return resource.data.ownerId == request.auth.uid;
     }
+    
     function isOwnerForCreate() {
       return request.resource.data.ownerId == request.auth.uid;
     }
@@ -21,17 +22,24 @@ service cloud.firestore {
 
     // Check if user has access to existing resource
     function hasResourceAccess(resource) {
-      return hasAccountAccess(resource.data.ownerId);
+      // Handle documents that might not have ownerId field
+      return ('ownerId' in resource.data && hasAccountAccess(resource.data.ownerId)) ||
+             // Fallback: check if user is trying to access their own data
+             (request.auth.uid == resource.id);
     }
 
     // Check if user has access for creating new resource
     function hasCreateAccess() {
-      return hasAccountAccess(request.resource.data.ownerId);
+      // Handle documents that might not have ownerId field
+      return ('ownerId' in request.resource.data && hasAccountAccess(request.resource.data.ownerId)) ||
+             // Allow users to create their own resources
+             (request.auth.uid == request.resource.data.ownerId);
     }
 
     match /quotes/{quoteId} {
-      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow read: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /clients/{clientId} {
@@ -41,13 +49,15 @@ service cloud.firestore {
     }
 
     match /jobs/{jobId} {
-      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow read: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /payments/{paymentId} {
-      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow read: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     // Each user can manage a single document under /users/{uid}
@@ -62,7 +72,10 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if isSignedIn() && hasAccountAccess(accountId);
-        allow write: if isSignedIn() && request.auth.uid == accountId;
+        // Allow owners to write all members, and members to delete their own record (for leave team)
+        allow write: if isSignedIn() && (request.auth.uid == accountId || 
+                                        (request.auth.uid == memberId && !('status' in request.resource.data)));
+        allow delete: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
       }
 
       match /vehicles/{vehicleId} {
@@ -78,9 +91,20 @@ service cloud.firestore {
 
     // Completed weeks - members can read, only owners can write
     match /completedWeeks/{docId} {
-      allow read: if isSignedIn() && hasAccountAccess(resource.data.accountId);
+      // Allow read if user is signed in and either:
+      // 1. Document has accountId field and user has access to that account
+      // 2. Document has ownerId field and user has access to that owner
+      // 3. The docId contains the user's ID (for backward compatibility)
+      allow read: if isSignedIn() && (
+        ('accountId' in resource.data && hasAccountAccess(resource.data.accountId)) ||
+        ('ownerId' in resource.data && hasAccountAccess(resource.data.ownerId)) ||
+        (docId.matches('.*' + request.auth.uid + '.*'))
+      );
       allow create: if isSignedIn() && hasCreateAccess();
-      allow update, delete: if isSignedIn() && isOwner(resource);
+      allow update, delete: if isSignedIn() && (
+        ('ownerId' in resource.data && isOwner(resource)) ||
+        ('accountId' in resource.data && resource.data.accountId == request.auth.uid)
+      );
     }
 
     // Deny all other access

@@ -626,3 +626,38 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - **Result**: Existing members can now fix their permissions without needing a new invite
 
 **Files modified**: app/settings.tsx
+
+---
+
+## 2025-01-17 – Firebase Permission Errors Fix 🔒
+• Updated Firestore security rules to handle edge cases where documents might be missing `ownerId` field
+• Fixed `hasResourceAccess` and `hasCreateAccess` functions to include fallback checks
+• Enhanced `completedWeeks` collection rules to handle multiple document ID formats and field structures
+• Added backward compatibility for documents created with different structures
+• Fixed inconsistent `completedWeeks` document ID format in client details view
+• Ensured new `completedWeeks` documents include both `accountId` and `ownerId` fields
+
+**Round 2 fixes**:
+• Simplified Firestore rules to use `allow read` which covers both get and list operations
+• Added proper member deletion permissions for leave team functionality
+• Fixed member write permissions to allow members to delete their own record
+• Removed incorrect `canQueryByOwnerId` function that was causing rule compilation issues
+• Added composite Firestore indexes for common queries (jobs by ownerId+scheduledTime, jobs by ownerId+status)
+
+**Issue**: Users were getting "Missing or insufficient permissions" errors when:
+- Viewing client accounts (fetching service history)
+- Loading runsheet
+- Deleting scheduled quotes
+- Members trying to leave team
+- Archiving clients
+
+**Resolution**: 
+- Made Firestore rules more robust by checking for field existence before accessing them
+- Fixed document ID inconsistency: `completedWeeks` documents now consistently use `${ownerId}_${date}` format
+- Added proper `accountId` and `ownerId` fields to new documents for rule validation
+- Allowed members to delete their own member records when leaving a team
+- Simplified read permissions to properly handle collection queries
+
+Files: `firestore.rules`, `firestore.indexes.json`, `app/(tabs)/clients/[id].tsx`, `app/runsheet/[week].tsx`
+
+---

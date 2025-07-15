@@ -585,7 +585,9 @@ export default function RunsheetWeekScreen() {
       await setDoc(completedWeekRef, {
         completedDays: newCompletedDays,
         weekStart: format(weekStart, 'yyyy-MM-dd'),
-        updatedAt: new Date()
+        updatedAt: new Date(),
+        accountId: ownerId,  // Add accountId for Firestore rules
+        ownerId: ownerId     // Add ownerId for backward compatibility
       });
 
       Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}`);
