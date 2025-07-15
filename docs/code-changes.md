@@ -428,3 +428,19 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - firestore.rules
 
 ---
+
+## 2025-01-18 - Added Refresh Account Feature for Existing Members
+
+- **Issue**: Members who accepted invites before the permission fixes were deployed still had incorrect accountId and couldn't see owner's data
+- **Solution**: Added two ways to fix existing member accounts:
+  1. **Log out and log back in** - The login process calls refreshClaims which updates the accountId
+  2. **New "Refresh Account" button** in Settings screen - Manually triggers refreshClaims to fix permissions
+- **How it works**:
+  - The refreshClaims function looks up the member record
+  - Updates the user's document with the correct accountId  
+  - Refreshes the authentication token with proper claims
+  - On web, the page reloads to apply changes
+  - On mobile, users need to restart the app
+- **Result**: Existing members can now fix their permissions without needing a new invite
+
+**Files modified**: app/settings.tsx

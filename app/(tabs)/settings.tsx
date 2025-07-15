@@ -2,6 +2,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import Papa from 'papaparse';
 import React, { useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -736,6 +737,46 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleRefreshAccount = async () => {
+    setLoading(true);
+    setLoadingMessage('Refreshing account...');
+    try {
+      const functions = getFunctions();
+      const refreshClaims = httpsCallable(functions, 'refreshClaims');
+      const result = await refreshClaims();
+      
+      console.log('Claims refresh result:', result.data);
+      
+      // Force a token refresh to get the new claims
+      const user = auth.currentUser;
+      if (user) {
+        await user.getIdToken(true);
+      }
+      
+      if (Platform.OS === 'web') {
+        window.alert('Account refreshed successfully! The page will reload to apply changes.');
+        window.location.reload();
+      } else {
+        Alert.alert(
+          'Success', 
+          'Account refreshed successfully! Please restart the app to see changes.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error refreshing account:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (Platform.OS === 'web') {
+        window.alert(`Failed to refresh account: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', `Failed to refresh account: ${errorMessage}`);
+      }
+    } finally {
+      setLoading(false);
+      setLoadingMessage('');
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
@@ -747,6 +788,14 @@ export default function SettingsScreen() {
       
       <View style={styles.buttonContainer}>
         <StyledButton title="Import Clients from CSV" onPress={handleImport} />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <StyledButton
+          title={loading && loadingMessage === 'Refreshing account...' ? loadingMessage : 'Refresh Account'}
+          onPress={handleRefreshAccount}
+          disabled={loading}
+        />
       </View>
 
       <View style={styles.buttonContainer}>
