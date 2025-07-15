@@ -5,6 +5,16 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-15 - Hotfix: Team Management Regression
+
+- **Issue**: Team members page was failing to load due to a regression from the Firebase migration. `refreshClaims` function was failing, preventing auth claims from being set.
+- **Root Cause**: A Firestore index was missing for the `members` collection group query within the `refreshClaims` function.
+- **Fix**: Added the required `COLLECTION_GROUP` index to `firestore.indexes.json` and deployed it. This resolves the 500 error on `refreshClaims` and subsequent 401 errors on `listMembers` and `listVehicles`.
+
+**Files modified**: `firestore.indexes.json`
+
+---
+
 ## 2025-07-15 – Invite Member Email Cloud Function Fix 📧🔧
 • **Problem**: The `sendTeamInviteEmail` Firebase Cloud Function had a hardcoded URL for the invitation link, and was missing a clear way to handle different deployment environments (local, production).
 • **Fix**: Modified the Cloud Function in `functions/index.js` to use a new `APP_URL` environment variable to construct the invite link. This makes the function portable across environments. A default of `http://localhost:8081` is used if the variable is not set.

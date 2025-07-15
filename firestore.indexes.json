@@ -2,7 +2,7 @@
   "indexes": [
     {
       "collectionGroup": "jobs",
-      "queryScope": "COLLECTION",
+      "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
           "fieldPath": "clientId",
@@ -10,6 +10,16 @@
         },
         {
           "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "members",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "uid",
           "order": "ASCENDING"
         }
       ]
