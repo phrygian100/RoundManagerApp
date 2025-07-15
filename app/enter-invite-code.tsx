@@ -45,6 +45,13 @@ export default function EnterInviteCodeScreen() {
 
       if (data.success) {
         setMessage(data.message);
+        
+        // Force a token refresh to get the new claims
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          await currentUser.getIdToken(true);
+        }
+        
         // Redirect to home or team page after success
         setTimeout(() => router.replace('/'), 1500);
       } else {

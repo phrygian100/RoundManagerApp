@@ -82,12 +82,33 @@ export async function removeMember(uid: string): Promise<void> {
 export async function leaveTeamSelf(): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');
-  if (sess.isOwner) {
+  if (sess.isOwner && sess.accountId === sess.uid) {
     // Owners cannot leave their own team – nothing to do
     return;
   }
+  
+  // Delete member record
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${sess.uid}`);
   await deleteDoc(memberRef);
+  
+  // Update user's document to reset accountId to their own uid
+  const userRef = doc(db, 'users', sess.uid);
+  await updateDoc(userRef, {
+    accountId: sess.uid,
+    updatedAt: new Date().toISOString(),
+  });
+  
+  // Refresh claims to update permissions
+  const functions = getFunctions();
+  const refreshClaims = httpsCallable(functions, 'refreshClaims');
+  await refreshClaims();
+  
+  // Force token refresh to get new claims
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    await currentUser.getIdToken(true);
+  }
 }
 
 export async function updateMemberVehicle(uid: string, vehicleId: string | null): Promise<void> {

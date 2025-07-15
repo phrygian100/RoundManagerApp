@@ -47,6 +47,13 @@ export default function SetPasswordScreen() {
         const data = result.data as { success: boolean, message: string };
         if (data.success) {
           setMessage('Team joined successfully!');
+          
+          // Force a token refresh to get the new claims
+          const currentUser = auth.currentUser;
+          if (currentUser) {
+            await currentUser.getIdToken(true);
+          }
+          
           setTimeout(() => router.replace('/'), 1500);
         } else {
           setMessage(data.message || 'Error joining team.');

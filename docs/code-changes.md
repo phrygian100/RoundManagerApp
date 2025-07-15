@@ -5,6 +5,38 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Fixed Team Member UI and Permission Issues After Invite Acceptance
+
+- **Issue**: After accepting team invites, the UI was not updating correctly:
+  - "Join owner account" button remained visible for members
+  - Members could see "Team Members" button (owner-only feature)
+  - "Leave Team" button wasn't showing for members
+  - UI didn't immediately reflect member status after accepting invite
+- **Root Cause**: 
+  - Settings screen wasn't properly checking if user was a member of another account
+  - Firebase auth token wasn't being refreshed after accepting invites
+  - Leave team function wasn't properly resetting user's accountId
+- **Fix**:
+  1. Updated Settings screen to track `isMemberOfAnotherAccount` state
+  2. Fixed button visibility logic to show/hide based on member status:
+     - Hide "Join owner account" for members of other accounts
+     - Hide "Team Members" for non-owners
+     - Show "Leave Team" only for members of other accounts
+  3. Added token refresh after accepting invites to immediately update UI
+  4. Enhanced `leaveTeamSelf` to reset accountId and refresh claims
+- **Result**: 
+  - UI now correctly reflects member status immediately after accepting invite
+  - Members only see appropriate buttons and screens
+  - Leave team properly resets user to their own account
+
+**Files modified**: 
+- app/(tabs)/settings.tsx
+- app/enter-invite-code.tsx
+- app/set-password.tsx
+- services/accountService.ts
+
+---
+
 ## 2025-07-15 - Hotfix: Team Management Regression
 
 - **Issue**: Team members page was failing to load due to a regression from the Firebase migration. `refreshClaims` function was failing, preventing auth claims from being set.

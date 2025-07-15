@@ -71,15 +71,23 @@ export default function SettingsScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
 
   const requiredFields = ['Address Line 1','Name','Mobile Number','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date','Starting Balance'];
 
-  // Determine if current user is owner
+  // Determine if current user is owner and if they're a member of another account
   useEffect(() => {
     (async () => {
       const sess = await getUserSession();
-      setIsOwner(sess?.isOwner ?? true);
+      if (sess) {
+        setIsOwner(sess.isOwner);
+        // Check if user is a member of another account (their accountId is different from their uid)
+        setIsMemberOfAnotherAccount(sess.accountId !== sess.uid);
+      } else {
+        setIsOwner(true);
+        setIsMemberOfAnotherAccount(false);
+      }
     })();
   }, []);
 
@@ -831,9 +839,12 @@ export default function SettingsScreen() {
         />
       </View>
 
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Team Members" onPress={() => router.push('/team')} />
-      </View>
+      {/* Only show Team Members button for owners (not members of other accounts) */}
+      {isOwner && !isMemberOfAnotherAccount && (
+        <View style={styles.buttonContainer}>
+          <StyledButton title="Team Members" onPress={() => router.push('/team')} />
+        </View>
+      )}
 
       <View style={styles.buttonContainer}>
         <StyledButton title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
@@ -847,14 +858,18 @@ export default function SettingsScreen() {
         <StyledButton title="Log Out" onPress={handleLogout} />
       </View>
 
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title="Join owner account"
-          onPress={() => router.push('/enter-invite-code' as any)}
-        />
-      </View>
+      {/* Only show Join owner account button if not already a member of another account */}
+      {!isMemberOfAnotherAccount && (
+        <View style={styles.buttonContainer}>
+          <StyledButton
+            title="Join owner account"
+            onPress={() => router.push('/enter-invite-code' as any)}
+          />
+        </View>
+      )}
 
-      {!isOwner && (
+      {/* Show Leave Team button for members of other accounts */}
+      {isMemberOfAnotherAccount && (
         <View style={{ marginTop: 24 }}>
           <StyledButton title="Leave Team" color="red" onPress={handleLeaveTeam} />
         </View>
