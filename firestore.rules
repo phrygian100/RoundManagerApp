@@ -40,6 +40,19 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    match /accounts/{accountId} {
+      allow read: if isSignedIn() && request.auth.uid == accountId;
+      allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;
+
+      match /members/{memberId} {
+        allow read, write: if isSignedIn() && request.auth.uid == accountId;
+      }
+
+      match /vehicles/{vehicleId} {
+        allow read, write: if isSignedIn() && request.auth.uid == accountId;
+      }
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;
