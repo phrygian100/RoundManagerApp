@@ -42,7 +42,7 @@ export default function EnterInviteCodeScreen() {
         setMessage(data.message || 'An unknown error occurred.');
       }
     } catch (err: any) {
-      console.error(err);
+      console.error('Accept invite error:', err);
       setMessage(err.message || 'Error accepting invite. Please try again.');
     } finally {
       setLoading(false);

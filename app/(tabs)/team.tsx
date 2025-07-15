@@ -71,7 +71,7 @@ export default function TeamScreen() {
       window.alert('Invite sent successfully');
     } catch (err: any) {
       console.error('Invitation failed:', err);
-      window.alert(`Error: Could not invite member - ${err.message || 'Unknown error'}`);
+      window.alert(`Error: Could not invite member - ${err.message || 'Unknown error'} ${err.code ? `(${err.code})` : ''}`);
     } finally {
       setLoading(false);
     }

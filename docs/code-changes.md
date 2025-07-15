@@ -351,3 +351,14 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: functions/index.js, services/accountService.ts, app/set-password.tsx, app/enter-invite-code.tsx
 
 ---
+
+## 2025-07-16 - Fixed Settings Redirect, Invite Errors
+
+- Added loading state in root layout to prevent auth race redirects.
+- Enhanced logging in cloud functions for invite flow.
+- Added UID check in acceptance to prevent mismatches.
+- Improved error messages in frontend.
+
+**Files modified**: app/_layout.tsx, functions/index.js, app/(tabs)/team.tsx, app/enter-invite-code.tsx
+
+---

@@ -21,6 +21,7 @@ setGlobalOptions({ maxInstances: 10 });
 // Removed sendTeamInviteEmail as email is now handled in inviteMember
 
 exports.inviteMember = onCall(async (request) => {
+  console.log('inviteMember called with:', request.data);
   const { email } = request.data;
   const caller = request.auth;
   if (!caller || !caller.token.accountId || !caller.token.isOwner) {
@@ -95,12 +96,14 @@ exports.inviteMember = onCall(async (request) => {
     }
     return { success: true, message: 'Invite sent successfully.' };
   } catch (err) {
-    console.error('Invite error:', err);
-    throw new functions.https.HttpsError('internal', 'Failed to send invite.');
+    console.error('Invite error details:', err);
+    if (err.code) console.error('Error code:', err.code);
+    throw new functions.https.HttpsError('internal', 'Failed to send invite: ' + (err.message || 'Unknown error'));
   }
 });
 
 exports.acceptTeamInvite = onCall(async (request) => {
+  console.log('acceptTeamInvite called with:', request.data, 'by user:', request.auth?.uid);
   const { inviteCode } = request.data;
   const user = request.auth;
 
@@ -117,6 +120,7 @@ exports.acceptTeamInvite = onCall(async (request) => {
   const querySnap = await membersQuery.get();
 
   if (querySnap.empty) {
+    console.log('No matching invite found for code:', inviteCode);
     throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
   }
 
@@ -124,6 +128,11 @@ exports.acceptTeamInvite = onCall(async (request) => {
   const memberData = memberDocSnap.data();
   const memberRef = memberDocSnap.ref;
   const accountId = memberRef.parent.parent.id;
+
+  if (memberData.uid && memberData.uid !== user.uid) {
+    console.log('UID mismatch: stored', memberData.uid, 'requester', user.uid);
+    throw new functions.https.HttpsError('permission-denied', 'This invite is not for your account.');
+  }
 
   const newMemberRef = db.collection(`accounts/${accountId}/members`).doc(user.uid);
   await newMemberRef.set({
