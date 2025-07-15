@@ -172,25 +172,43 @@ exports.refreshClaims = onCall(async (request) => {
   }
 
   const db = admin.firestore();
-  const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).get();
 
-  if (accountsSnap.empty) {
-    return { success: false, message: 'User not found in any team.' };
-  }
+  // NEW: Try fast path – look in top-level users/{uid} doc for accountId
+  let accountId = null;
+  try {
+    const userDocSnap = await db.collection('users').doc(user.uid).get();
+    if (userDocSnap.exists) {
+      const data = userDocSnap.data();
+      if (data && data.accountId) {
+        accountId = data.accountId;
+      }
+    }
+  } catch (_) {/* ignore and fall back */}
 
-  const memberDoc = accountsSnap.docs[0];
-  const memberRef = memberDoc.ref;
+  let isOwner = false;
 
-  // Defensive check: Ensure the member doc is in the expected subcollection.
-  if (memberRef.parent.parent?.id) {
-    const accountId = memberRef.parent.parent.id;
-    const isOwner = memberDoc.data().role === 'owner';
-    await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
-    return { success: true, message: 'Claims refreshed.' };
+  if (!accountId) {
+    // FALLBACK (existing logic) – scan collection-group if user doc not found
+    const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).limit(1).get();
+
+    if (accountsSnap.empty) {
+      return { success: false, message: 'User not found in any team.' };
+    }
+
+    const memberDoc = accountsSnap.docs[0];
+    const memberRef = memberDoc.ref;
+    if (memberRef.parent.parent?.id) {
+      accountId = memberRef.parent.parent.id;
+      isOwner = memberDoc.data().role === 'owner';
+    } else {
+      console.error(`Orphaned member document for UID: ${user.uid}`);
+      return { success: false, message: 'User found but not associated with an account.' };
+    }
   } else {
-    // This case happens if a 'members' collection exists outside the expected
-    // /accounts/{accountId}/members/{memberId} structure.
-    console.error(`Orphaned member document found for UID: ${user.uid}. Path: ${memberRef.path}`);
-    return { success: false, message: `User found but not associated with an account. Path: ${memberRef.path}` };
+    // We got accountId from users collection; decide owner flag based on UID === accountId
+    isOwner = accountId === user.uid;
   }
+
+  await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
+  return { success: true, message: 'Claims refreshed.' };
 });
