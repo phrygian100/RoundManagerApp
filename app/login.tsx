@@ -39,15 +39,6 @@ export default function LoginScreen() {
       // Set custom claims
       const functions = getFunctions();
 
-      try {
-        console.log('Attempting to call testLogging function...');
-        const testLogging = httpsCallable(functions, 'testLogging');
-        const testResult = await testLogging();
-        console.log('testLogging function result:', testResult.data);
-      } catch (err) {
-        console.error('Error calling testLogging function:', err);
-      }
-
       const refreshClaims = httpsCallable(functions, 'refreshClaims');
       const result = await refreshClaims();
 
