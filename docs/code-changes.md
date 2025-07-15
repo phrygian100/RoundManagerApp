@@ -362,3 +362,14 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: app/_layout.tsx, functions/index.js, app/(tabs)/team.tsx, app/enter-invite-code.tsx
 
 ---
+
+## 2025-07-18 - Temporary Fix for Invite Member Email
+
+- **Issue**: Invite emails broken due to missing RESEND_KEY and APP_URL environment variables in production.
+- **Temporary Fix**: Added fallback values in code for RESEND_KEY (using provided key) and APP_URL ('https://guvnor.app') to enable functionality.
+- **Note**: This is temporary; set these variables properly in Google Cloud Console > Cloud Functions > inviteMember > Runtime > Environment variables, then remove the hardcodes from code and redeploy for security.
+- Deployed the updated function.
+
+**Files modified**: functions/index.js
+
+---

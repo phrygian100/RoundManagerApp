@@ -39,13 +39,13 @@ exports.inviteMember = onCall(async (request) => {
   }
   // Generate inviteCode
   const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
-  const apiKey = process.env.RESEND_KEY;
+  const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
     throw new functions.https.HttpsError('internal', 'Configuration error.');
   }
   const resend = new Resend(apiKey);
-  const appUrl = process.env.APP_URL || 'http://localhost:8081';
+  const appUrl = process.env.APP_URL || 'https://guvnor.app';
   let uid;
   try {
     let isNewUser = false;
