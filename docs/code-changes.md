@@ -388,3 +388,14 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: app/enter-invite-code.tsx
 
 ---
+
+## 2025-07-18 - Fixed Undefined Email Error in acceptTeamInvite
+
+- **Issue**: When accepting team invites, users were getting "INTERNAL" error due to undefined email in Firebase Auth context.
+- **Root Cause**: The acceptTeamInvite function was trying to use `user.email` from Firebase Auth, which can be undefined for some authentication methods.
+- **Fix**: Changed to use `memberData.email` (which was stored during invite creation) as the primary source, falling back to `user.email` only if needed.
+- **Result**: Team invitations now work properly even when Firebase Auth doesn't provide the email in the auth context.
+
+**Files modified**: functions/index.js
+
+---

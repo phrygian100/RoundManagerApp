@@ -138,7 +138,7 @@ exports.acceptTeamInvite = onCall(async (request) => {
   await newMemberRef.set({
     ...memberData,
     uid: user.uid,
-    email: user.email,
+    email: memberData.email || user.email, // Use memberData.email as primary source
     status: 'active',
     inviteCode: null, // Clear the invite code
     joinedAt: new Date().toISOString(),
