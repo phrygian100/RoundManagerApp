@@ -10,7 +10,7 @@ import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
-import { getDataOwnerId } from '../../../core/session';
+import { getDataOwnerId, getUserSession } from '../../../core/session';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
@@ -193,6 +193,26 @@ export default function ClientDetailScreen() {
           onPress: async () => {
             if (typeof id === 'string') {
               try {
+                // First, verify the user has proper permissions
+                const session = await getUserSession();
+                if (!session) {
+                  Alert.alert('Error', 'Could not verify your permissions. Please log out and log back in.');
+                  return;
+                }
+                
+                console.log('Archive attempt by user:', {
+                  uid: session.uid,
+                  accountId: session.accountId,
+                  isOwner: session.isOwner,
+                  perms: session.perms
+                });
+                
+                // Check if member has viewClients permission
+                if (!session.isOwner && !session.perms.viewClients) {
+                  Alert.alert('Error', 'You do not have permission to archive clients.');
+                  return;
+                }
+                
                 // Get the round order number of the client being archived
                 const clientToArchive = client;
                 const archivedPosition = clientToArchive?.roundOrderNumber;
@@ -252,9 +272,23 @@ export default function ClientDetailScreen() {
                 });
                 await batch.commit();
                 router.replace('/clients');
-              } catch (error) {
+              } catch (error: any) {
                 console.error('Error archiving client:', error);
-                Alert.alert('Error', 'Failed to archive client. Please try again.');
+                
+                // Provide more specific error messages
+                if (error?.code === 'permission-denied') {
+                  Alert.alert(
+                    'Permission Denied', 
+                    'You do not have permission to archive this client. Please ensure you are properly logged in and have the necessary permissions. Try logging out and back in.'
+                  );
+                } else if (error?.message?.includes('Missing or insufficient permissions')) {
+                  Alert.alert(
+                    'Permission Error', 
+                    'Your account permissions may need to be refreshed. Please go to Settings and tap "Refresh Account", or log out and log back in.'
+                  );
+                } else {
+                  Alert.alert('Error', 'Failed to archive client. Please try again.');
+                }
               }
             }
           },
@@ -1131,12 +1165,11 @@ const styles = StyleSheet.create({
   notesTextInput: {
     borderWidth: 1,
     borderColor: '#ccc',
+    borderRadius: 8,
     padding: 10,
-    marginVertical: 10,
-    borderRadius: 5,
-    width: '100%',
-    height: 200,
-    textAlignVertical: 'top',
+    backgroundColor: '#fff',
+    color: '#222',
+    marginBottom: 12,
   },
   historyHeader: {
     flexDirection: 'row',

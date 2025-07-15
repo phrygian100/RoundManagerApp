@@ -2,12 +2,13 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getDataOwnerId } from '../core/session';
 import { createPayment } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Payment } from '../types/models';
@@ -32,7 +33,12 @@ export default function AddPaymentScreen() {
   useEffect(() => {
     const fetchClients = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'clients'));
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          Alert.alert('Error', 'Could not determine account owner. Please log in again.');
+          return;
+        }
+        const querySnapshot = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
         const clientsData: Client[] = [];
         querySnapshot.forEach((doc) => {
           clientsData.push({ id: doc.id, ...doc.data() } as Client);

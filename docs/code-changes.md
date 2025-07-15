@@ -40,9 +40,45 @@ For full debugging notes see project history; this file now focuses on high-leve
 - functions/index.js (added removeMember, updated listMembers)
 - services/accountService.ts (updated removeMember to use cloud function)
 - app/(tabs)/team.tsx (hide remove button for owners)
-- app/(tabs)/settings.tsx (added useFocusEffect)
+- app/(tabs)/settings.tsx (added useFocusEffect to reload member status)
 - app/(tabs)/index.tsx (added navigation debounce)
 - core/session.ts (removed debug logs)
+
+---
+
+## 2025-01-21 - Critical Bug Fixes for Navigation, Permissions, and Payments
+
+### Issues Fixed:
+1. **Navigation Bug**: Users were being redirected back to home screen after logging in and navigating to another page
+2. **Archive Client Permissions**: Members with viewClients permission couldn't archive clients
+3. **Payment Permissions Error**: "Missing or insufficient permissions" error when adding payments
+
+### Root Causes:
+1. **Navigation**: `onAuthStateChanged` was re-triggering on every pathname change, causing unwanted redirects
+2. **Archive**: No permission checks in place for archive functionality 
+3. **Payments**: `add-payment.tsx` wasn't filtering clients by ownerId
+
+### Solutions Implemented:
+1. **Navigation Fix**: Separated auth listener from pathname-based redirect logic in `app/_layout.tsx`
+   - Auth listener runs only once on mount
+   - Redirect logic checks both auth state and pathname in separate effect
+   - Prevents race conditions and unwanted redirects
+
+2. **Archive Permissions**: Added comprehensive permission checking in `app/(tabs)/clients/[id].tsx`
+   - Verifies user session before archiving
+   - Checks if member has viewClients permission
+   - Added detailed error messages for permission issues
+   - Better logging for debugging
+
+3. **Payment Permissions**: Updated `app/add-payment.tsx` to properly filter clients
+   - Added `getDataOwnerId()` call to get correct account owner
+   - Filter clients query by ownerId
+   - Proper error handling if ownerId cannot be determined
+
+**Files modified**:
+- app/_layout.tsx
+- app/(tabs)/clients/[id].tsx  
+- app/add-payment.tsx
 
 ---
 

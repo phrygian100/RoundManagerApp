@@ -10,36 +10,47 @@ export default function RootLayout() {
   const router = useRouter();
   const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  // Set up auth listener only once
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
-      console.log('🔑 Firebase auth change:', { hasUser: !!user, pathname });
-      // Check if we're in a password reset flow
-      const isPasswordResetFlow = typeof window !== 'undefined' && 
-        window.location.href.includes('type=recovery');
-      const loggedIn = !!user;
-      const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
-      const redirectIfLoggedIn = ['/login', '/register'];
-      const alwaysAllowed = ['/set-password', '/forgot-password'];
-      if (!loggedIn) {
-        console.log('🔑 Not logged in, checking if redirect needed');
-        if (!unauthAllowed.some(p => pathname.startsWith(p))) {
-          console.log('🔑 Redirecting to login from:', pathname);
-          router.replace('/login');
-        }
-      } else {
-        console.log('🔑 Logged in, checking redirect rules for:', pathname);
-        // Don't redirect if we're in a password reset flow
-        if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
-            !alwaysAllowed.some(p => pathname.startsWith(p)) && 
-            !isPasswordResetFlow) {
-          console.log('🔑 Redirecting to home from:', pathname);
-          router.replace('/');
-        }
-      }
+      console.log('🔑 Firebase auth change:', { hasUser: !!user });
+      setCurrentUser(user);
       setAuthReady(true);
     });
     return () => unsubscribe();
-  }, [pathname]);
+  }, []); // No dependencies - run only once
+  
+  // Handle redirects based on auth state and pathname
+  useEffect(() => {
+    if (!authReady) return; // Wait for auth to be ready
+    
+    const isPasswordResetFlow = typeof window !== 'undefined' && 
+      window.location.href.includes('type=recovery');
+    const loggedIn = !!currentUser;
+    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
+    const redirectIfLoggedIn = ['/login', '/register'];
+    const alwaysAllowed = ['/set-password', '/forgot-password'];
+    
+    if (!loggedIn) {
+      console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
+      if (!unauthAllowed.some(p => pathname.startsWith(p))) {
+        console.log('🔑 Redirecting to login from:', pathname);
+        router.replace('/login');
+      }
+    } else {
+      console.log('🔑 Logged in, checking redirect rules for:', pathname);
+      // Don't redirect if we're in a password reset flow
+      if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
+          !alwaysAllowed.some(p => pathname.startsWith(p)) && 
+          !isPasswordResetFlow) {
+        console.log('🔑 Redirecting to home from:', pathname);
+        router.replace('/');
+      }
+    }
+  }, [authReady, currentUser, pathname]);
+  
   if (!authReady) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
