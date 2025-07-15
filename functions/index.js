@@ -78,33 +78,31 @@ exports.acceptTeamInvite = onCall(async (request) => {
   }
 
   const db = admin.firestore();
-  const accountsCol = db.collection('accounts');
-  const accountsSnap = await accountsCol.get();
+  const membersQuery = db.collectionGroup('members').where('inviteCode', '==', inviteCode).where('status', '==', 'invited').limit(1);
+  const querySnap = await membersQuery.get();
 
-  for (const accountDoc of accountsSnap.docs) {
-    const memberDocRef = db.collection(`accounts/${accountDoc.id}/members`).doc(inviteCode);
-    const memberDocSnap = await memberDocRef.get();
-
-    if (memberDocSnap.exists() && memberDocSnap.data().status === 'invited') {
-      const memberData = memberDocSnap.data();
-
-      const newMemberRef = db.collection(`accounts/${accountDoc.id}/members`).doc(user.uid);
-      await newMemberRef.set({
-        ...memberData,
-        uid: user.uid,
-        email: user.email,
-        status: 'active',
-        inviteCode: null, // Clear the invite code
-        joinedAt: new Date().toISOString(),
-      });
-
-      await memberDocRef.delete();
-
-      return { success: true, message: 'Invite accepted successfully!' };
-    }
+  if (querySnap.empty) {
+    throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
   }
 
-  throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
+  const memberDocSnap = querySnap.docs[0];
+  const memberData = memberDocSnap.data();
+  const memberRef = memberDocSnap.ref;
+  const accountId = memberRef.parent.parent.id;
+
+  const newMemberRef = db.collection(`accounts/${accountId}/members`).doc(user.uid);
+  await newMemberRef.set({
+    ...memberData,
+    uid: user.uid,
+    email: user.email,
+    status: 'active',
+    inviteCode: null, // Clear the invite code
+    joinedAt: new Date().toISOString(),
+  });
+
+  await memberRef.delete();
+
+  return { success: true, message: 'Invite accepted successfully!' };
 });
 
 exports.listMembers = onCall(async (request) => {
