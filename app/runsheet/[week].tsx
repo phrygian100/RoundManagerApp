@@ -896,7 +896,7 @@ export default function RunsheetWeekScreen() {
                 <>
                   <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
                   <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
-                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: actionSheetJob.quoteId } } as any) : router.replace('/')} />
+                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
                   <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
                   <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
                 </>
@@ -929,13 +929,55 @@ export default function RunsheetWeekScreen() {
           </View>
         </Modal>
         {showDeferDatePicker && deferJob && (
-          <DateTimePicker
-            value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            minimumDate={new Date()}
-            onChange={handleDeferDateChange}
-          />
+          Platform.OS === 'web' ? (
+            <Modal
+              visible={showDeferDatePicker}
+              transparent
+              animationType="fade"
+              onRequestClose={() => {
+                setShowDeferDatePicker(false);
+                setDeferJob(null);
+              }}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <Text style={styles.datePickerTitle}>Move Job To:</Text>
+                  <input
+                    type="date"
+                    value={deferJob.scheduledTime ? format(new Date(deferJob.scheduledTime), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                    onChange={e => {
+                      const selectedDate = new Date(e.target.value + 'T00:00:00');
+                      handleDeferDateChange({ type: 'set' }, selectedDate);
+                    }}
+                    style={{ 
+                      padding: 10, 
+                      fontSize: 16, 
+                      borderRadius: 6, 
+                      border: '1px solid #ccc',
+                      marginBottom: 16
+                    }}
+                  />
+                  <Button
+                    title="Cancel"
+                    onPress={() => {
+                      setShowDeferDatePicker(false);
+                      setDeferJob(null);
+                    }}
+                    color="red"
+                  />
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={new Date()}
+              onChange={handleDeferDateChange}
+            />
+          )
         )}
         {/* Quote Completion Modal */}
         <Modal visible={quoteCompleteModal.visible} transparent animationType="fade" onRequestClose={() => setQuoteCompleteModal({ job: null, visible: false })}>
@@ -982,8 +1024,8 @@ export default function RunsheetWeekScreen() {
         {/* Quote Details Modal for Progress to Pending */}
         <Modal visible={showQuoteDetailsModal} animationType="slide" transparent onRequestClose={() => setShowQuoteDetailsModal(false)}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
-            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340, maxHeight: '80vh' }}>
-              <ScrollView style={{ maxHeight: '60vh' }} contentContainerStyle={{ paddingBottom: 16 }}>
+            <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340, maxHeight: 600 }}>
+              <ScrollView style={{ maxHeight: 450 }} contentContainerStyle={{ paddingBottom: 16 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
                 {quoteLines.map((line, idx) => (
                   <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
@@ -1267,5 +1309,17 @@ const styles = StyleSheet.create({
   accountNumberText: {
     fontSize: 14,
     color: '#666',
+  },
+  datePickerModal: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: 300,
+    alignItems: 'center',
+  },
+  datePickerTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 16,
   },
 }); 

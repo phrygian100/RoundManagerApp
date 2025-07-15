@@ -203,7 +203,12 @@ export default function TeamScreen() {
         <Modal visible={showVehicleModal} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Manage Vehicles</Text>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Manage Vehicles</Text>
+                <TouchableOpacity onPress={() => setShowVehicleModal(false)} style={styles.closeButton}>
+                  <Text style={styles.closeButtonText}>✕</Text>
+                </TouchableOpacity>
+              </View>
               <ScrollView style={styles.vehicleList}>
                 {vehicles.map(v => (
                   <View key={v.id} style={styles.vehicleRow}>
@@ -313,11 +318,24 @@ const styles = StyleSheet.create({
   permText: { color: '#fff', fontSize: 12 },
   fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#007AFF', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 4 },
   fabIcon: { color: 'white', fontSize: 32, lineHeight: 32 },
-  modalTitle: { fontWeight: 'bold', fontSize: 18, marginBottom: 12 },
+  modalTitle: { fontWeight: 'bold', fontSize: 18 },
   vehicleList: { maxHeight: 200 },
   vehicleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   vehicleName: { flex: 1 },
   rateInput: { flex: 1, borderWidth: 1, borderColor: '#ccc', padding: 8, marginRight: 8, borderRadius: 6 },
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 16 },
   cancelButton: { backgroundColor: '#ccc', marginLeft: 8 },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  closeButton: {
+    padding: 8,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#000',
+  },
 }); 

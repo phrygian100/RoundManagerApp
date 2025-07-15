@@ -72,7 +72,13 @@ export default function QuotesScreen() {
 
   useEffect(() => {
     const fetchQuotes = async () => {
-      const snap = await getDocs(collection(db, 'quotes'));
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        console.error('No owner ID found');
+        return;
+      }
+      const q = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
+      const snap = await getDocs(q);
       setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
     };
     fetchQuotes();
@@ -87,7 +93,13 @@ export default function QuotesScreen() {
     // Determine final source
     const finalSource = form.source === 'Other' ? form.customSource : form.source;
     // Prepare quote data, only include customSource if present
-    const quoteData: any = { ...form, source: finalSource, status: 'scheduled', lines: quoteLines };
+    const quoteData: any = { 
+      ...form, 
+      source: finalSource, 
+      status: 'scheduled', 
+      lines: quoteLines,
+      ownerId // Add ownerId to the quote document
+    };
     if (!form.customSource) {
       delete quoteData.customSource;
     }
@@ -113,7 +125,8 @@ export default function QuotesScreen() {
     setForm({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
     setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after creation
     // Refresh quotes
-    const snap = await getDocs(collection(db, 'quotes'));
+    const q = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
+    const snap = await getDocs(q);
     setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
   };
 
@@ -128,8 +141,12 @@ export default function QuotesScreen() {
       await deleteDoc(jobDoc.ref);
     }
     // Refresh quotes
-    const snap = await getDocs(collection(db, 'quotes'));
-    setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+    const ownerId = await getDataOwnerId();
+    if (ownerId) {
+      const quotesQuery = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
+      const snap = await getDocs(quotesQuery);
+      setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+    }
   };
 
   const handleOpenDetails = (quote: Quote) => {
@@ -149,8 +166,12 @@ export default function QuotesScreen() {
     setDetailsModal({ visible: false, quote: null });
     setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after saving
     // Refresh quotes
-    const snap = await getDocs(collection(db, 'quotes'));
-    setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+    const ownerId = await getDataOwnerId();
+    if (ownerId) {
+      const quotesQuery = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
+      const snap = await getDocs(quotesQuery);
+      setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+    }
   };
 
   // Handler to open Add Client form with context and navigate

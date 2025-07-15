@@ -82,6 +82,38 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Fixed Vehicle Modal, DatePicker Web Support, and Quote Permissions
+
+### Issues Fixed:
+1. **Vehicle Modal Missing Close Button**: Added a close button (×) to the vehicle management modal header
+2. **DateTimePicker Not Supported on Web**: Implemented platform-specific date picker for job moving in runsheet
+3. **Quote Creation Permission Error**: Fixed missing ownerId field causing Firestore permission errors
+
+### Solutions:
+1. **Vehicle Modal**: 
+   - Added modal header with close button
+   - Improved modal structure and styling
+   - Files: `app/(tabs)/team.tsx`
+
+2. **Web DatePicker**:
+   - Created web-specific modal with HTML date input
+   - Kept native DateTimePicker for mobile platforms
+   - Fixed vh units that aren't supported in React Native
+   - Files: `app/runsheet/[week].tsx`
+
+3. **Quote Permissions**:
+   - Added ownerId field to quote documents on creation
+   - Updated all quote fetching to filter by ownerId
+   - Ensures proper Firestore rule compliance
+   - Files: `app/quotes.tsx`
+
+**Files modified**:
+- app/(tabs)/team.tsx
+- app/runsheet/[week].tsx
+- app/quotes.tsx
+
+---
+
 ## 2025-01-21 - Fixed Team Member UI and Permission Issues After Invite Acceptance
 
 - **Issue**: After accepting team invites, the UI was not updating correctly:
