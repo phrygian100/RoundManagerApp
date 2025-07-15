@@ -373,3 +373,18 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: functions/index.js
 
 ---
+
+## 2025-07-18 - Fixed Invite Code Input Validation
+
+- **Issue**: Users were getting "Invalid or expired invite code" errors when entering invite codes with trailing punctuation (e.g., "353384." instead of "353384").
+- **Root Cause**: The acceptTeamInvite function was searching for exact matches, but users were accidentally adding periods or other punctuation.
+- **Fix**: 
+  - Added input sanitization to remove trailing punctuation before submitting
+  - Restricted input to numeric characters only with keyboardType="numeric"
+  - Added validation to ensure only valid numeric codes can be submitted
+  - Improved error messaging for invalid codes
+- **Result**: Users can no longer accidentally enter invalid characters, preventing the error.
+
+**Files modified**: app/enter-invite-code.tsx
+
+---

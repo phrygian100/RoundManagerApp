@@ -28,9 +28,18 @@ export default function EnterInviteCodeScreen() {
         return;
       }
 
+      // Sanitize the invite code - trim whitespace and remove trailing punctuation
+      const sanitizedCode = inviteCode.trim().replace(/[.,;:!?]+$/, '');
+      
+      if (!sanitizedCode) {
+        setMessage('Please enter a valid invite code.');
+        setLoading(false);
+        return;
+      }
+
       const functions = getFunctions();
       const acceptTeamInvite = httpsCallable(functions, 'acceptTeamInvite');
-      const result = await acceptTeamInvite({ inviteCode });
+      const result = await acceptTeamInvite({ inviteCode: sanitizedCode });
 
       const data = result.data as { success: boolean, message: string };
 
@@ -62,14 +71,19 @@ export default function EnterInviteCodeScreen() {
         style={styles.input}
         placeholder="Invite Code"
         value={inviteCode}
-        onChangeText={setInviteCode}
+        onChangeText={(text) => {
+          // Only allow numeric input
+          const numericOnly = text.replace(/[^0-9]/g, '');
+          setInviteCode(numericOnly);
+        }}
+        keyboardType="numeric"
         autoCapitalize="none"
         editable={!loading}
       />
       <Button 
         title={loading ? 'Joining...' : 'Join Team'} 
         onPress={handleAcceptInvite} 
-        disabled={loading || !inviteCode.trim() || !user} 
+        disabled={loading || !inviteCode.trim() || !/^\d+$/.test(inviteCode.trim()) || !user} 
       />
       {message ? <Text style={{ marginTop: 16, color: message.includes('accepted') ? 'green' : 'red' }}>{message}</Text> : null}
       <View style={{ height: 16 }} />
