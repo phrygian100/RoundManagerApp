@@ -331,3 +331,12 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 - Troubleshot Cloud Functions v2 environment variable issues: attempted to use `functions.config()`, `getConfig()`, and finally `process.env.RESEND_KEY`.
 - Blocked by Firebase CLI not supporting `--update-env-vars` for v2 functions in the current environment, preventing the Resend API key from being set as an environment variable.
 - All code changes are committed and pushed to the repository. Function code is ready for deployment once CLI or environment variable issue is resolved.
+
+## 2025-07-15 - Invite Acceptance Refactor
+
+- **Issue**: acceptTeamInvite was inefficiently scanning all accounts; failing to find fresh invites.
+- **Fix**: Refactored to use collectionGroup query on members with inviteCode and status filters. Added composite index to firestore.indexes.json and deployed.
+
+**Files modified**: functions/index.js, firestore.indexes.json
+
+---
