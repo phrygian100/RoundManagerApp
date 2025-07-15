@@ -179,10 +179,18 @@ exports.refreshClaims = onCall(async (request) => {
   }
 
   const memberDoc = accountsSnap.docs[0];
-  const accountId = memberDoc.ref.parent.parent.id;
-  const isOwner = memberDoc.data().role === 'owner';
+  const memberRef = memberDoc.ref;
 
-  await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
-
-  return { success: true, message: 'Claims refreshed.' };
+  // Defensive check: Ensure the member doc is in the expected subcollection.
+  if (memberRef.parent.parent?.id) {
+    const accountId = memberRef.parent.parent.id;
+    const isOwner = memberDoc.data().role === 'owner';
+    await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
+    return { success: true, message: 'Claims refreshed.' };
+  } else {
+    // This case happens if a 'members' collection exists outside the expected
+    // /accounts/{accountId}/members/{memberId} structure.
+    console.error(`Orphaned member document found for UID: ${user.uid}. Path: ${memberRef.path}`);
+    return { success: false, message: `User found but not associated with an account. Path: ${memberRef.path}` };
+  }
 });
