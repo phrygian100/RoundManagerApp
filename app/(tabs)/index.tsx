@@ -1,10 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { auth, db } from '../../core/firebase';
+import { auth } from '../../core/firebase';
+import { getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -20,21 +20,17 @@ export default function HomeScreen() {
     console.log('🏠 HomeScreen: building buttons');
     setEmail(firebaseUser.email || null);
 
-    // Fetch additional user data from Firestore (perms, isOwner, etc.)
-    let isOwner: boolean = true; // default owner until roles implemented
-    let perms: Record<string, boolean> = {};
-
-    try {
-      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-      if (userDoc.exists()) {
-        const data: any = userDoc.data();
-        isOwner = data.isOwner ?? true;
-        perms = data.perms ?? {};
-      }
-    } catch (err) {
-      console.error('Error fetching user doc:', err);
+    // Use getUserSession to get proper permissions and accountId
+    const session = await getUserSession();
+    if (!session) {
+      console.error('No session found for user');
+      setLoading(false);
+      return;
     }
-    console.log('🏠 HomeScreen: perms =', perms);
+
+    const isOwner = session.isOwner;
+    const perms = session.perms;
+    console.log('🏠 HomeScreen: session =', { isOwner, perms, accountId: session.accountId });
 
     const baseButtons = [
       { label: 'Client List', path: '/clients', permKey: 'viewClients' },
@@ -91,18 +87,16 @@ export default function HomeScreen() {
 
         setEmail(firebaseUser.email || null);
 
-        let isOwner: boolean = true;
-        let perms: Record<string, boolean> = {};
-        try {
-          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists()) {
-            const data: any = userDoc.data();
-            isOwner = data.isOwner ?? true;
-            perms = data.perms ?? {};
-          }
-        } catch (err) {
-          console.error('Error fetching user doc:', err);
+        // Use getUserSession for proper permissions
+        const session = await getUserSession();
+        if (!session) {
+          console.error('No session found for user');
+          setLoading(false);
+          return;
         }
+
+        const isOwner = session.isOwner;
+        const perms = session.perms;
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },

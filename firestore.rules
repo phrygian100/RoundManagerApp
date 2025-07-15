@@ -13,25 +13,41 @@ service cloud.firestore {
       return request.resource.data.ownerId == request.auth.uid;
     }
 
+    // Check if user has access to account data (either owner or member)
+    function hasAccountAccess(ownerId) {
+      return request.auth.uid == ownerId || 
+        exists(/databases/$(database)/documents/accounts/$(ownerId)/members/$(request.auth.uid));
+    }
+
+    // Check if user has access to existing resource
+    function hasResourceAccess(resource) {
+      return hasAccountAccess(resource.data.ownerId);
+    }
+
+    // Check if user has access for creating new resource
+    function hasCreateAccess() {
+      return hasAccountAccess(request.resource.data.ownerId);
+    }
+
     match /quotes/{quoteId} {
-      allow read, update, delete: if isSignedIn() && isOwner(resource);
-      allow create: if isSignedIn() && isOwnerForCreate();
+      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
     }
 
     match /clients/{clientId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isOwnerForCreate();
-      allow update, delete: if isSignedIn() && isOwner(resource);
+      allow read: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /jobs/{jobId} {
-      allow read, update, delete: if isSignedIn() && isOwner(resource);
-      allow create: if isSignedIn() && isOwnerForCreate();
+      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
     }
 
     match /payments/{paymentId} {
-      allow read, update, delete: if isSignedIn() && isOwner(resource);
-      allow create: if isSignedIn() && isOwnerForCreate();
+      allow read, update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
     }
 
     // Each user can manage a single document under /users/{uid}
@@ -41,16 +57,30 @@ service cloud.firestore {
     }
 
     match /accounts/{accountId} {
-      allow read: if isSignedIn() && request.auth.uid == accountId;
+      allow read: if isSignedIn() && hasAccountAccess(accountId);
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;
 
       match /members/{memberId} {
-        allow read, write: if isSignedIn() && request.auth.uid == accountId;
+        allow read: if isSignedIn() && hasAccountAccess(accountId);
+        allow write: if isSignedIn() && request.auth.uid == accountId;
       }
 
       match /vehicles/{vehicleId} {
-        allow read, write: if isSignedIn() && request.auth.uid == accountId;
+        allow read: if isSignedIn() && hasAccountAccess(accountId);
+        allow write: if isSignedIn() && request.auth.uid == accountId;
       }
+
+      match /rota/{rotaId} {
+        allow read: if isSignedIn() && hasAccountAccess(accountId);
+        allow write: if isSignedIn() && hasAccountAccess(accountId);
+      }
+    }
+
+    // Completed weeks - members can read, only owners can write
+    match /completedWeeks/{docId} {
+      allow read: if isSignedIn() && hasAccountAccess(resource.data.accountId);
+      allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && isOwner(resource);
     }
 
     // Deny all other access

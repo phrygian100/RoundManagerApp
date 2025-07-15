@@ -146,6 +146,19 @@ exports.acceptTeamInvite = onCall(async (request) => {
 
   await memberRef.delete();
 
+  // Update the user's document with the new accountId
+  const userRef = db.collection('users').doc(user.uid);
+  await userRef.set({
+    accountId: accountId,
+    updatedAt: new Date().toISOString(),
+  }, { merge: true });
+
+  // Refresh custom claims
+  await admin.auth().setCustomUserClaims(user.uid, { 
+    accountId: accountId,
+    isOwner: memberData.role === 'owner' 
+  });
+
   return { success: true, message: 'Invite accepted successfully!' };
 });
 
@@ -237,12 +250,32 @@ exports.refreshClaims = onCall(async (request) => {
         const memberRef = memberDoc.ref;
         accountId = memberRef.parent.parent?.id || user.uid;
         isOwner = memberDoc.data().role === 'owner';
+        
+        // Update the user's document with the correct accountId
+        await db.collection('users').doc(user.uid).set({
+          accountId: accountId,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       }
     } catch (err) {
       console.error('refreshClaims: fallback query failed', err);
       // default to owner of own account if query fails
       accountId = user.uid;
       isOwner = true;
+    }
+  } else {
+    // Check if user is owner by looking at member record
+    try {
+      const memberDoc = await db.collection(`accounts/${accountId}/members/${user.uid}`).get();
+      if (memberDoc.exists) {
+        isOwner = memberDoc.data().role === 'owner';
+      } else if (accountId === user.uid) {
+        // User is owner of their own account
+        isOwner = true;
+      }
+    } catch (err) {
+      console.error('refreshClaims: error checking member role', err);
+      isOwner = accountId === user.uid;
     }
   }
   if (!accountId) {

@@ -399,3 +399,32 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 **Files modified**: functions/index.js
 
 ---
+
+## 2025-01-18 - Fixed Member Permissions System
+
+- **Issue**: After inviting members, their permissions were broken:
+  - Members could see screens they shouldn't have access to
+  - Members couldn't see the owner's data (clients, jobs, etc.)
+  - Members were seeing their own account data instead of the owner's
+- **Root Cause**: 
+  - The `acceptTeamInvite` function wasn't updating the user's document with the new `accountId`
+  - Home screen was checking permissions from the wrong source
+  - Firebase rules didn't allow members to access their owner's account data
+  - Services were using incorrect accountId for members
+- **Fix**:
+  1. Updated `acceptTeamInvite` to set the user's `accountId` in their users document
+  2. Updated home screen to use `getUserSession()` instead of directly reading users document
+  3. Updated Firebase rules to add `hasAccountAccess()` function that checks both owner and member status
+  4. Updated `refreshClaims` to also update the user's document with correct accountId
+  5. Deployed all updated functions and rules
+- **Result**: Members now properly:
+  - See only the screens the owner has granted permission to
+  - Access the owner's account data (clients, jobs, etc.) based on their permissions
+  - Have their accountId properly set when accepting invites
+
+**Files modified**: 
+- functions/index.js (acceptTeamInvite, refreshClaims)
+- app/(tabs)/index.tsx
+- firestore.rules
+
+---
