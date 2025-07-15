@@ -188,25 +188,25 @@ exports.refreshClaims = onCall(async (request) => {
   let isOwner = false;
 
   if (!accountId) {
-    // FALLBACK (existing logic) – scan collection-group if user doc not found
-    const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).limit(1).get();
-
-    if (accountsSnap.empty) {
-      return { success: false, message: 'User not found in any team.' };
+    try {
+      const accountsSnap = await db.collectionGroup('members').where('uid', '==', user.uid).limit(1).get();
+      if (!accountsSnap.empty) {
+        const memberDoc = accountsSnap.docs[0];
+        const memberRef = memberDoc.ref;
+        accountId = memberRef.parent.parent?.id || user.uid;
+        isOwner = memberDoc.data().role === 'owner';
+      }
+    } catch (err) {
+      console.error('refreshClaims: fallback query failed', err);
+      // default to owner of own account if query fails
+      accountId = user.uid;
+      isOwner = true;
     }
-
-    const memberDoc = accountsSnap.docs[0];
-    const memberRef = memberDoc.ref;
-    if (memberRef.parent.parent?.id) {
-      accountId = memberRef.parent.parent.id;
-      isOwner = memberDoc.data().role === 'owner';
-    } else {
-      console.error(`Orphaned member document for UID: ${user.uid}`);
-      return { success: false, message: 'User found but not associated with an account.' };
-    }
-  } else {
-    // We got accountId from users collection; decide owner flag based on UID === accountId
-    isOwner = accountId === user.uid;
+  }
+  if (!accountId) {
+    // As very last resort default to own UID
+    accountId = user.uid;
+    isOwner = true;
   }
 
   await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });

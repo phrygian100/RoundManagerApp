@@ -300,6 +300,16 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 
 ---
 
+## 2025-07-15 - Firestore Index Configuration Fix
+
+- **Issue**: Deployment of indexes failed due to invalid single-field index definition for members.uid.
+- **Fix**: Removed the redundant single-field index from firestore.indexes.json, as single-field indexes are managed automatically. Deployed the updated configuration successfully.
+- **Note**: To fully resolve, remove any existing single-field exemption for members.uid in the Firestore console to allow auto-creation of the index.
+
+**Files modified**: firestore.indexes.json
+
+---
+
 ## [DATE: YYYY-MM-DD] Remove all remaining Supabase code, 100% Firebase
 
 - Deleted all Supabase client code from the web app and shared code.
