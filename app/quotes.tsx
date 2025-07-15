@@ -26,10 +26,10 @@ type Quote = {
   date: string;
   status: string;
   lines?: QuoteLine[];
+  notes?: string; // Top-level notes that persist through quote lifecycle
   // legacy fields for backward compatibility
   frequency?: string;
   value?: string;
-  notes?: string;
   source?: string;
   customSource?: string;
 };
@@ -56,7 +56,7 @@ const sourceOptions = [
 export default function QuotesScreen() {
   const router = useRouter();
   const [modalVisible, setModalVisible] = useState(false);
-  const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
+  const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '', notes: '' });
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [webDate, setWebDate] = useState<Date | null>(null);
@@ -122,7 +122,7 @@ export default function QuotesScreen() {
       source: finalSource,
     });
     setModalVisible(false);
-    setForm({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '' });
+    setForm({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '', notes: '' });
     setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after creation
     // Refresh quotes
     const q = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
@@ -235,6 +235,12 @@ export default function QuotesScreen() {
                   <Text style={{ fontSize: 12, color: '#555' }}>Freq: {line.frequency}, Value: £{line.value}, Notes: {line.notes}</Text>
                 </View>
               ))}
+            </View>
+          )}
+          {quote.notes && (
+            <View style={{ marginTop: 8, backgroundColor: '#f0f0f0', padding: 8, borderRadius: 4 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 2 }}>Notes:</Text>
+              <Text style={{ fontSize: 13, color: '#333' }}>{quote.notes}</Text>
             </View>
           )}
         </View>
@@ -453,6 +459,15 @@ export default function QuotesScreen() {
               />
             )
           )}
+          <Text style={{ marginBottom: 4, marginTop: 8 }}>Notes</Text>
+          <TextInput 
+            placeholder="Additional notes (will be transferred to client account)" 
+            value={form.notes} 
+            onChangeText={v => setForm(f => ({ ...f, notes: v }))} 
+            style={{ borderWidth: 1, marginBottom: 8, padding: 8, minHeight: 80 }} 
+            multiline
+            numberOfLines={3}
+          />
           <Button title="Create Quote" onPress={handleCreateQuote} />
           <Button title="Cancel" onPress={() => setModalVisible(false)} color="red" />
         </View>

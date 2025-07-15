@@ -1,3 +1,11 @@
+export type AccountNote = {
+  id: string;
+  date: string; // ISO date string
+  author: string; // Name of the user who wrote the note
+  authorId: string; // UID of the user who wrote the note
+  text: string;
+};
+
 export type Client = {
   id: string;
   name: string;
@@ -15,6 +23,10 @@ export type Client = {
   status?: 'active' | 'ex-client';
   dateAdded?: string;
   source?: string;
+  // Notes
+  runsheetNotes?: string; // Notes that appear when clicking ! icon in runsheet
+  accountNotes?: AccountNote[]; // Running list of notes with timestamp and author
+  notes?: string; // Legacy field for backward compatibility
   // Additional recurring services
   additionalServices?: AdditionalService[];
 };

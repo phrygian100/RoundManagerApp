@@ -685,11 +685,11 @@ export default function RunsheetWeekScreen() {
           </Pressable>
         </View>
         {/* Notes button */}
-        {client?.notes && client.notes.trim() !== '' && (
+        {(client?.runsheetNotes || client?.notes) && (client.runsheetNotes || client.notes || '').trim() !== '' && (
           <Pressable
             style={styles.notesButton}
             onPress={() => {
-              setNoteModalText(client.notes);
+              setNoteModalText(client.runsheetNotes || client.notes || '');
               setNoteModalVisible(true);
             }}
             accessibilityLabel="Show client notes"

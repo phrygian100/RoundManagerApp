@@ -246,8 +246,23 @@ export default function AddClientScreen() {
         }
       }
 
-      // After saving client, if quoteData is present, mark quote as complete
+      // After saving client, if quoteData is present, handle quote notes and mark quote as complete
       if (quoteData) {
+        // If quote has notes, add them as the first account note
+        if (quoteData.notes) {
+          const firstNote = {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            author: 'Imported from Quote',
+            authorId: 'system',
+            text: quoteData.notes
+          };
+          
+          await updateDoc(doc(db, 'clients', clientRef.id), {
+            accountNotes: [firstNote]
+          });
+        }
+        
         console.log('Updating quote status to complete for quote id:', quoteData.id);
         await updateDoc(doc(db, 'quotes', quoteData.id), { status: 'complete' });
         clearQuoteData();

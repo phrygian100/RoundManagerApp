@@ -3,6 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -40,6 +41,9 @@ export default function ClientDetailScreen() {
   const [notesModalVisible, setNotesModalVisible] = useState(false);
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesCollapsed, setNotesCollapsed] = useState(false);
+  const [accountNotesCollapsed, setAccountNotesCollapsed] = useState(false);
+  const [accountNotesModalVisible, setAccountNotesModalVisible] = useState(false);
+  const [newAccountNoteText, setNewAccountNoteText] = useState('');
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [todayComplete, setTodayComplete] = useState(false);
   const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
@@ -62,7 +66,7 @@ export default function ClientDetailScreen() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setClient({ id: docSnap.id, ...data } as Client);
-        setNotes(data.notes || '');
+        setNotes(data.runsheetNotes || data.notes || '');
       }
       setLoading(false);
     }
@@ -326,9 +330,15 @@ export default function ClientDetailScreen() {
     
     setSavingNotes(true);
     try {
-      await updateDoc(doc(db, 'clients', id), {
-        notes: notes
-      });
+      // Also migrate legacy notes field if it exists
+      const updateData: any = {
+        runsheetNotes: notes
+      };
+      // Clear legacy notes field if migrating
+      if (client?.notes && !client?.runsheetNotes) {
+        updateData.notes = null;
+      }
+      await updateDoc(doc(db, 'clients', id), updateData);
       setNotesModalVisible(false);
       Alert.alert('Success', 'Notes saved successfully!');
     } catch (error) {
@@ -628,18 +638,58 @@ export default function ClientDetailScreen() {
             <View style={styles.notesSection}>
               <Pressable style={styles.sectionHeading} onPress={() => setNotesCollapsed(!notesCollapsed)}>
                 <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
-                <ThemedText style={styles.sectionHeadingText}>Notes</ThemedText>
+                <ThemedText style={styles.sectionHeadingText}>Runsheet Notes</ThemedText>
               </Pressable>
               {!notesCollapsed && (
                 <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
                   {notes ? (
                     <ThemedText style={styles.notesText}>{notes}</ThemedText>
                   ) : (
-                    <ThemedText style={styles.notesPlaceholder}>Tap to add notes...</ThemedText>
+                    <ThemedText style={styles.notesPlaceholder}>Tap to add runsheet notes...</ThemedText>
                   )}
                 </Pressable>
               )}
             </View>
+            
+            {/* Account Notes Section */}
+            <View style={styles.notesSection}>
+              <Pressable style={styles.sectionHeading} onPress={() => setAccountNotesCollapsed(!accountNotesCollapsed)}>
+                <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: accountNotesCollapsed ? '0deg' : '90deg' }] }} />
+                <ThemedText style={styles.sectionHeadingText}>Account Notes</ThemedText>
+              </Pressable>
+              {!accountNotesCollapsed && (
+                <View>
+                  <Pressable 
+                    style={[styles.notesContent, { backgroundColor: '#e8f4fd', marginBottom: 10 }]} 
+                    onPress={() => setAccountNotesModalVisible(true)}
+                  >
+                    <ThemedText style={{ color: '#1976d2', fontWeight: 'bold' }}>+ Add New Note</ThemedText>
+                  </Pressable>
+                  {client?.accountNotes && client.accountNotes.length > 0 ? (
+                    client.accountNotes.map((note) => (
+                      <View key={note.id} style={[styles.notesContent, { marginBottom: 8 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <ThemedText style={{ fontSize: 12, color: '#666' }}>{note.author}</ThemedText>
+                          <ThemedText style={{ fontSize: 12, color: '#666' }}>
+                            {new Date(note.date).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </ThemedText>
+                        </View>
+                        <ThemedText>{note.text}</ThemedText>
+                      </View>
+                    ))
+                  ) : (
+                    <ThemedText style={styles.notesPlaceholder}>No account notes yet</ThemedText>
+                  )}
+                </View>
+              )}
+            </View>
+            
             <Pressable style={styles.sectionHeading} onPress={() => setHistoryCollapsed(!historyCollapsed)}>
               <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
               <ThemedText style={styles.sectionHeadingText}>Service History</ThemedText>
@@ -862,11 +912,11 @@ export default function ClientDetailScreen() {
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalView}>
-            <ThemedText type="subtitle">Edit Notes</ThemedText>
+            <ThemedText type="subtitle">Edit Runsheet Notes</ThemedText>
             
             <TextInput
               style={styles.notesInput}
-              placeholder="Enter notes for this client..."
+              placeholder="Enter notes that will appear on the runsheet..."
               value={notes}
               onChangeText={setNotes}
               multiline
@@ -884,6 +934,94 @@ export default function ClientDetailScreen() {
                 title={savingNotes ? "Saving..." : "Save Notes"} 
                 onPress={handleSaveNotes}
                 disabled={savingNotes}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+      
+      {/* Account Notes Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={accountNotesModalVisible}
+        onRequestClose={() => {
+          setAccountNotesModalVisible(false);
+          setNewAccountNoteText('');
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText type="subtitle">Add Account Note</ThemedText>
+            
+            <TextInput
+              style={styles.notesInput}
+              placeholder="Enter your note..."
+              value={newAccountNoteText}
+              onChangeText={setNewAccountNoteText}
+              multiline
+              numberOfLines={8}
+              textAlignVertical="top"
+              autoFocus
+            />
+            
+            <View style={styles.modalButtons}>
+              <Button 
+                title="Cancel" 
+                onPress={() => {
+                  setAccountNotesModalVisible(false);
+                  setNewAccountNoteText('');
+                }} 
+                color="red" 
+              />
+              <Button 
+                title="Add Note" 
+                onPress={async () => {
+                  if (!newAccountNoteText.trim()) {
+                    Alert.alert('Error', 'Please enter a note');
+                    return;
+                  }
+                  
+                  try {
+                    // Get current user info
+                    const auth = getAuth();
+                    const user = auth.currentUser;
+                    if (!user) {
+                      Alert.alert('Error', 'You must be logged in to add notes');
+                      return;
+                    }
+                    
+                    // Create new note
+                    const newNote = {
+                      id: Date.now().toString(),
+                      date: new Date().toISOString(),
+                      author: user.email || 'Unknown',
+                      authorId: user.uid,
+                      text: newAccountNoteText.trim()
+                    };
+                    
+                    // Update client with new note
+                    const existingNotes = client?.accountNotes || [];
+                    await updateDoc(doc(db, 'clients', id as string), {
+                      accountNotes: [newNote, ...existingNotes]
+                    });
+                    
+                    // Update local state
+                    setClient(prev => prev ? {
+                      ...prev,
+                      accountNotes: [newNote, ...existingNotes]
+                    } : null);
+                    
+                    // Close modal and reset
+                    setAccountNotesModalVisible(false);
+                    setNewAccountNoteText('');
+                    Alert.alert('Success', 'Note added successfully');
+                  } catch (error) {
+                    console.error('Error adding note:', error);
+                    Alert.alert('Error', 'Failed to add note. Please try again.');
+                  }
+                }}
+                disabled={!newAccountNoteText.trim()}
               />
             </View>
           </View>

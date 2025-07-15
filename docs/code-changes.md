@@ -114,6 +114,47 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Comprehensive Notes System Overhaul
+
+### Features Added:
+1. **Quote Notes Field**: Added a notes field to the new quote form that persists through the quote lifecycle
+2. **Separated Note Types**: Distinguished between "runsheet notes" (appear on job ! icon) and "account notes" (timestamped history)
+3. **Account Notes System**: Implemented running notes list with author tracking and timestamps
+4. **Quote-to-Client Notes Transfer**: Quote notes automatically become first account note when creating client
+
+### Implementation Details:
+
+1. **Quote Notes**:
+   - Added notes field to quote form and data model
+   - Notes display in quote cards throughout lifecycle (scheduled → pending → complete)
+   - Files: `app/quotes.tsx`
+
+2. **Note Type Separation**:
+   - Renamed client.notes to client.runsheetNotes for clarity
+   - Added migration logic for existing notes
+   - Updated runsheet to use both legacy and new field names
+   - Files: `types/client.ts`, `app/runsheet/[week].tsx`, `app/(tabs)/clients/[id].tsx`
+
+3. **Account Notes**:
+   - New AccountNote type with id, date, author, authorId, and text
+   - Account notes display chronologically with author and timestamp
+   - Modal for adding new notes with automatic user attribution
+   - Files: `types/client.ts`, `app/(tabs)/clients/[id].tsx`
+
+4. **Quote Transfer**:
+   - When creating client from quote, notes become first account note
+   - Author shown as "Imported from Quote" with system authorId
+   - Files: `app/add-client.tsx`
+
+**Files modified**:
+- types/client.ts
+- app/quotes.tsx
+- app/(tabs)/clients/[id].tsx
+- app/runsheet/[week].tsx
+- app/add-client.tsx
+
+---
+
 ## 2025-01-21 - Fixed Team Member UI and Permission Issues After Invite Acceptance
 
 - **Issue**: After accepting team invites, the UI was not updating correctly:
