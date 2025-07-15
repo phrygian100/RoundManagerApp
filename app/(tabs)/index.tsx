@@ -15,6 +15,15 @@ export default function HomeScreen() {
   }[]>([]);
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
+  const [navigationInProgress, setNavigationInProgress] = useState(false);
+
+  const handleNavigation = (path: string) => {
+    if (navigationInProgress) return;
+    setNavigationInProgress(true);
+    router.push(path as any);
+    // Reset navigation flag after a short delay
+    setTimeout(() => setNavigationInProgress(false), 1000);
+  };
 
   const buildButtonsForUser = async (firebaseUser: User) => {
     console.log('🏠 HomeScreen: building buttons');
@@ -52,7 +61,7 @@ export default function HomeScreen() {
     setButtons(
       allowed.map((btn) => ({
         label: btn.label,
-        onPress: () => router.push(btn.path as any),
+        onPress: () => handleNavigation(btn.path as any),
         disabled: false,
       }))
     );
@@ -111,7 +120,7 @@ export default function HomeScreen() {
 
         const allowed = buttonDefs.filter(b => !b.permKey || isOwner || !!perms[b.permKey]);
         setButtons(
-          allowed.map(b => ({ label: b.label, onPress: () => router.push(b.path as any) }))
+          allowed.map(b => ({ label: b.label, onPress: () => handleNavigation(b.path as any) }))
         );
         setLoading(false);
       })();

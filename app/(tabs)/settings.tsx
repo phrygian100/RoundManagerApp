@@ -1,10 +1,11 @@
+import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import Papa from 'papaparse';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
@@ -90,6 +91,19 @@ export default function SettingsScreen() {
       }
     })();
   }, []);
+
+  // Reload member status when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        const sess = await getUserSession();
+        if (sess) {
+          setIsOwner(sess.isOwner);
+          setIsMemberOfAnotherAccount(sess.accountId !== sess.uid);
+        }
+      })();
+    }, [])
+  );
 
   const handleImport = async () => {
     if (Platform.OS === 'web') {

@@ -158,9 +158,11 @@ export default function TeamScreen() {
           </View>
         </View>
       )}
-      <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
-        <Text style={styles.deleteButtonText}>Remove</Text>
-      </TouchableOpacity>
+      {item.role !== 'owner' && (
+        <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
+          <Text style={styles.deleteButtonText}>Remove</Text>
+        </TouchableOpacity>
+      )}
     </ThemedView>
   );
 

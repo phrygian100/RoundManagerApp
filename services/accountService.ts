@@ -27,28 +27,6 @@ export async function listMembers(): Promise<MemberRecord[]> {
   const listMembersFn = httpsCallable(functions, 'listMembers');
   const result = await listMembersFn();
   const members = result.data as MemberRecord[];
-
-  // Ensure owner row exists (client-side check)
-  const sess = await getUserSession();
-  const auth = getAuth();
-  const currentUser = auth.currentUser;
-
-  if (!sess || !currentUser) throw new Error('Not authenticated');
-
-  const ownerExists = members.some(m => m.role === 'owner');
-  if (!ownerExists) {
-    // This part should ideally be handled by a cloud function or on registration
-    // For now, we'll keep the client-side fallback to ensure UI consistency
-    const ownerData: MemberRecord = {
-      uid: sess.uid,
-      email: currentUser.email || '', // Use auth user email
-      role: 'owner',
-      perms: DEFAULT_PERMS,
-      status: 'active',
-      createdAt: new Date().toISOString(),
-    };
-    members.push(ownerData);
-  }
   return members;
 }
 
@@ -73,10 +51,9 @@ export async function updateMemberPerms(uid: string, perms: Record<string, boole
 }
 
 export async function removeMember(uid: string): Promise<void> {
-  const sess = await getUserSession();
-  if (!sess) throw new Error('Not authenticated');
-  const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
-  await deleteDoc(memberRef);
+  const functions = getFunctions();
+  const removeMemberFn = httpsCallable(functions, 'removeMember');
+  await removeMemberFn({ memberUid: uid });
 }
 
 export async function leaveTeamSelf(): Promise<void> {

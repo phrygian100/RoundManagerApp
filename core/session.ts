@@ -20,7 +20,9 @@ export async function getUserSession(): Promise<UserSession | null> {
 
   // Try to load user doc
   const userDoc = await getDoc(doc(db, 'users', user.uid));
-  if (!userDoc.exists()) return null;
+  if (!userDoc.exists()) {
+    return null;
+  }
   const userData: any = userDoc.data();
 
   // If user is a member of a team, look up their member record

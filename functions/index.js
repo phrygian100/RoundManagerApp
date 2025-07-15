@@ -169,9 +169,37 @@ exports.listMembers = onCall(async (request) => {
   }
 
   const db = admin.firestore();
-  const membersRef = db.collection(`accounts/${user.token.accountId}/members`);
+  const accountId = user.token.accountId;
+  const membersRef = db.collection(`accounts/${accountId}/members`);
   const snap = await membersRef.get();
-  return snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+  const members = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+  
+  // Ensure owner record exists
+  const ownerExists = members.some(m => m.role === 'owner');
+  if (!ownerExists && user.token.isOwner && accountId === user.uid) {
+    // Add owner record if it doesn't exist
+    const ownerRef = db.collection(`accounts/${accountId}/members`).doc(user.uid);
+    await ownerRef.set({
+      uid: user.uid,
+      email: user.email || '',
+      role: 'owner',
+      perms: { viewClients: true, viewRunsheet: true, viewPayments: false },
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    });
+    
+    // Add to the returned list
+    members.push({
+      uid: user.uid,
+      email: user.email || '',
+      role: 'owner',
+      perms: { viewClients: true, viewRunsheet: true, viewPayments: false },
+      status: 'active',
+      createdAt: new Date().toISOString(),
+    });
+  }
+  
+  return members;
 });
 
 exports.listVehicles = onCall(async (request) => {
@@ -286,4 +314,48 @@ exports.refreshClaims = onCall(async (request) => {
 
   await admin.auth().setCustomUserClaims(user.uid, { accountId, isOwner });
   return { success: true, message: 'Claims refreshed.' };
+});
+
+exports.removeMember = onCall(async (request) => {
+  const { memberUid } = request.data;
+  const caller = request.auth;
+  
+  if (!caller || !caller.token.accountId || !caller.token.isOwner) {
+    throw new functions.https.HttpsError('permission-denied', 'Only owners can remove members.');
+  }
+  
+  const db = admin.firestore();
+  const accountId = caller.token.accountId;
+  
+  // Delete member record
+  const memberRef = db.collection(`accounts/${accountId}/members`).doc(memberUid);
+  await memberRef.delete();
+  
+  // Update the removed member's user document
+  const userRef = db.collection('users').doc(memberUid);
+  
+  // Check if user document exists
+  const userDoc = await userRef.get();
+  if (!userDoc.exists) {
+    // Create user document if it doesn't exist
+    await userRef.set({
+      id: memberUid,
+      accountId: memberUid,
+      createdAt: new Date().toISOString(),
+    });
+  } else {
+    // Update existing user document
+    await userRef.update({
+      accountId: memberUid,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+  
+  // Reset the removed member's custom claims
+  await admin.auth().setCustomUserClaims(memberUid, {
+    accountId: memberUid,
+    isOwner: true
+  });
+  
+  return { success: true };
 });

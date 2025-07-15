@@ -5,6 +5,47 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Critical Team Member System Fixes
+
+- **Issues Fixed**: Multiple critical issues with team member system after Firestore migration:
+  - Removed members were reappearing when navigating away/back
+  - Owner had a remove button (which shouldn't exist)
+  - Members couldn't see owner's data (permissions broken)
+  - Members could access restricted screens (team management)
+  - Member UI buttons not updating correctly
+  - First navigation from home screen redirected back
+  
+- **Root Causes**:
+  1. **Member removal**: Only deleted member record, didn't reset user's accountId
+  2. **UI logic**: Remove button shown for all members including owner
+  3. **Permissions**: Member's accountId not properly set or user doc missing
+  4. **State management**: Settings screen not refreshing on focus
+  5. **Navigation**: Race condition with async permission checks
+  
+- **Fixes Implemented**:
+  1. **Created removeMember cloud function**: Properly handles member removal, resets their accountId and claims
+  2. **Updated UI logic**: Hide remove button for owners
+  3. **Enhanced listMembers**: Ensures owner record always exists
+  4. **Added useFocusEffect**: Settings screen reloads member status on focus
+  5. **Navigation debounce**: Prevents immediate redirects from home screen
+  6. **Improved error handling**: Better user document creation/update logic
+
+- **Result**: Team member system now works correctly:
+  - Members properly see owner's data based on permissions
+  - UI correctly reflects member vs owner status
+  - No more reappearing removed members
+  - Smooth navigation without redirects
+
+**Files modified**:
+- functions/index.js (added removeMember, updated listMembers)
+- services/accountService.ts (updated removeMember to use cloud function)
+- app/(tabs)/team.tsx (hide remove button for owners)
+- app/(tabs)/settings.tsx (added useFocusEffect)
+- app/(tabs)/index.tsx (added navigation debounce)
+- core/session.ts (removed debug logs)
+
+---
+
 ## 2025-01-21 - Fixed Team Member UI and Permission Issues After Invite Acceptance
 
 - **Issue**: After accepting team invites, the UI was not updating correctly:
