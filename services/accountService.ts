@@ -7,6 +7,7 @@ import { getUserSession } from '../core/session';
 
 export type MemberRecord = {
   uid: string;
+  docId?: string; // Document ID (invite code for pending invitations, UID for active members)
   email: string;
   role: 'owner' | 'member';
   perms: Record<string, boolean>;

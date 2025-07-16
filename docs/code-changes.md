@@ -689,3 +689,29 @@ Files: `components/FirstTimeSetupModal.tsx`
 **Files modified**: `functions/index.js`, `app/(tabs)/team.tsx`
 
 ---
+
+## 2025-01-23 – Cancel Invitation Fix 🔧
+• **Issue**: "Cancel Invitation" button would remove pending invitations from the UI temporarily, but they would reappear after refresh/navigation
+• **Root cause**: `removeMember` function was designed for active members (using UID as document ID) but pending invitations use invite codes as document IDs
+
+**Changes made**:
+• **Firebase function fixes**:
+  - Updated `listMembers` to return both `docId` (document ID) and `uid` fields
+  - Modified `removeMember` to handle both active members and pending invitations
+  - For pending invitations: deletes by invite code, no user document updates
+  - For active members: deletes by UID, resets user document and clears claims
+• **Frontend updates**:
+  - Updated `MemberRecord` type to include `docId` field
+  - Modified team screen to use correct identifier when removing members
+  - Improved confirmation messages ("cancel this invitation" vs "remove this member")
+
+**Technical details**:
+- Pending invitations: `docId` = invite code, `uid` = null
+- Active members: `docId` = user UID, `uid` = user UID
+- `removeMember` now properly handles both cases
+
+**Result**: Cancel invitation now permanently removes pending invitations from Firestore
+
+**Files modified**: `functions/index.js`, `app/(tabs)/team.tsx`, `services/accountService.ts`
+
+---

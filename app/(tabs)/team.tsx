@@ -77,13 +77,17 @@ export default function TeamScreen() {
     }
   };
 
-  const handleRemove = async (uid: string) => {
-    const confirmed = window.confirm('Are you sure you want to remove this member?');
+  const handleRemove = async (memberId: string, memberStatus: string) => {
+    const actionText = memberStatus === 'invited' ? 'cancel this invitation' : 'remove this member';
+    const confirmed = window.confirm(`Are you sure you want to ${actionText}?`);
     
     if (confirmed) {
       try {
-        await removeMember(uid);
-        setMembers(prev => prev.filter(m => m.uid !== uid));
+        await removeMember(memberId);
+        setMembers(prev => prev.filter(m => {
+          // For pending invitations, filter by docId; for active members, filter by uid
+          return memberStatus === 'invited' ? m.docId !== memberId : m.uid !== memberId;
+        }));
       } catch (err) {
         console.error(err);
         window.alert('Error: Could not remove member');
@@ -100,89 +104,97 @@ export default function TeamScreen() {
     }
   };
 
-  const renderMember = ({ item }: { item: MemberRecord }) => (
-    <ThemedView style={styles.card}>
-      {item.status === 'invited' && (
-        <View style={styles.pendingBadge}>
-          <ThemedText style={styles.pendingText}>Pending Invitation</ThemedText>
-        </View>
-      )}
-      
-      {item.status === 'active' && (
-        <View style={styles.detailRow}>
-          <ThemedText style={styles.label}>Vehicle:</ThemedText>
-          <Picker
-            selectedValue={item.vehicleId || 'none'}
-            onValueChange={async (val) => {
-              const newVal = val === 'none' ? null : val;
-              await handleUpdateVehicle(item.uid, newVal);
-            }}
-            style={styles.picker}
-          >
-            <Picker.Item label="None" value="none" />
-            {vehicles.map(v => (
-              <Picker.Item key={v.id} label={v.name} value={v.id} />
-            ))}
-          </Picker>
-        </View>
-      )}
-      
-      <ThemedText type="subtitle" style={styles.memberEmail}>{item.email}</ThemedText>
-      
-      {item.status === 'active' && (
-        <>
-          <View style={styles.detailRow}>
-            <ThemedText style={styles.label}>£/day:</ThemedText>
-            <TextInput
-              style={styles.rateInput}
-              keyboardType="numeric"
-              value={item.dailyRate != null ? String(item.dailyRate) : ''}
-              onChangeText={(val) => {
-                const num = Number(val);
-                setMembers(prev => prev.map(m => m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m));
-              }}
-              onBlur={async () => {
-                if (item.dailyRate != null) {
-                  await updateMemberDailyRate(item.uid, item.dailyRate);
-                }
-              }}
-            />
+  const renderMember = ({ item }: { item: MemberRecord }) => {
+    // For pending invitations, use docId (invite code); for active members, use uid
+    const memberIdentifier = item.status === 'invited' ? item.docId : item.uid;
+    
+    return (
+      <ThemedView style={styles.card}>
+        {item.status === 'invited' && (
+          <View style={styles.pendingBadge}>
+            <ThemedText style={styles.pendingText}>Pending Invitation</ThemedText>
           </View>
-          
-          {item.role !== 'owner' && (
+        )}
+        
+        {item.status === 'active' && (
+          <View style={styles.detailRow}>
+            <ThemedText style={styles.label}>Vehicle:</ThemedText>
+            <Picker
+              selectedValue={item.vehicleId || 'none'}
+              onValueChange={async (val) => {
+                const newVal = val === 'none' ? null : val;
+                await handleUpdateVehicle(item.uid, newVal);
+              }}
+              style={styles.picker}
+            >
+              <Picker.Item label="None" value="none" />
+              {vehicles.map(v => (
+                <Picker.Item key={v.id} label={v.name} value={v.id} />
+              ))}
+            </Picker>
+          </View>
+        )}
+        
+        <ThemedText type="subtitle" style={styles.memberEmail}>{item.email}</ThemedText>
+        
+        {item.status === 'active' && (
+          <>
             <View style={styles.detailRow}>
-              <ThemedText style={styles.label}>Permissions:</ThemedText>
-              <View style={styles.permRow}>
-                {PERM_KEYS.map(p => {
-                  const hasPerm = !!item.perms?.[p.key];
-                  return (
-                    <TouchableOpacity
-                      key={p.key}
-                      style={[
-                        styles.permBadge,
-                        hasPerm ? styles.permBadgeActive : styles.permBadgeInactive,
-                      ]}
-                      onPress={() => handleToggle(item.uid, p.key, !hasPerm)}
-                    >
-                      <ThemedText style={styles.permText}>{p.label}</ThemedText>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              <ThemedText style={styles.label}>£/day:</ThemedText>
+              <TextInput
+                style={styles.rateInput}
+                keyboardType="numeric"
+                value={item.dailyRate != null ? String(item.dailyRate) : ''}
+                onChangeText={(val) => {
+                  const num = Number(val);
+                  setMembers(prev => prev.map(m => m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m));
+                }}
+                onBlur={async () => {
+                  if (item.dailyRate != null) {
+                    await updateMemberDailyRate(item.uid, item.dailyRate);
+                  }
+                }}
+              />
             </View>
-          )}
-        </>
-      )}
-      
-      {item.role !== 'owner' && (
-        <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
-          <Text style={styles.deleteButtonText}>
-            {item.status === 'invited' ? 'Cancel Invitation' : 'Remove'}
-          </Text>
-        </TouchableOpacity>
-      )}
-    </ThemedView>
-  );
+            
+            {item.role !== 'owner' && (
+              <View style={styles.detailRow}>
+                <ThemedText style={styles.label}>Permissions:</ThemedText>
+                <View style={styles.permRow}>
+                  {PERM_KEYS.map(p => {
+                    const hasPerm = !!item.perms?.[p.key];
+                    return (
+                      <TouchableOpacity
+                        key={p.key}
+                        style={[
+                          styles.permBadge,
+                          hasPerm ? styles.permBadgeActive : styles.permBadgeInactive,
+                        ]}
+                        onPress={() => handleToggle(item.uid, p.key, !hasPerm)}
+                      >
+                        <ThemedText style={styles.permText}>{p.label}</ThemedText>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </>
+        )}
+        
+        {item.role !== 'owner' && (
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={() => handleRemove(memberIdentifier, item.status)}
+          >
+            <Text style={styles.deleteButtonText}>
+              {item.status === 'invited' ? 'Cancel Invitation' : 'Remove'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ThemedView>
+    );
+  };
 
   return (
     <PermissionGate perm="isOwner" fallback={<ThemedText>No access</ThemedText>}>

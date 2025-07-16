@@ -157,7 +157,11 @@ exports.listMembers = onCall(async (request) => {
   const accountId = user.token.accountId;
   const membersRef = db.collection(`accounts/${accountId}/members`);
   const snap = await membersRef.get();
-  const members = snap.docs.map(doc => ({ uid: doc.id, ...doc.data() }));
+  const members = snap.docs.map(doc => ({ 
+    docId: doc.id, // Document ID (either UID for active members or invite code for pending)
+    uid: doc.data().uid || doc.id, // Use actual uid if available, otherwise use docId for compatibility
+    ...doc.data() 
+  }));
   
   // Ensure owner record exists
   const ownerExists = members.some(m => m.role === 'owner');
@@ -175,6 +179,7 @@ exports.listMembers = onCall(async (request) => {
     
     // Add to the returned list
     members.push({
+      docId: user.uid,
       uid: user.uid,
       email: user.email || '',
       role: 'owner',
@@ -312,35 +317,44 @@ exports.removeMember = onCall(async (request) => {
   const db = admin.firestore();
   const accountId = caller.token.accountId;
   
-  // Delete member record
+  // For pending invitations, memberUid might be the invite code (doc ID)
+  // For active members, memberUid is the actual user UID
   const memberRef = db.collection(`accounts/${accountId}/members`).doc(memberUid);
-  await memberRef.delete();
+  const memberDoc = await memberRef.get();
   
-  // Update the removed member's user document
-  const userRef = db.collection('users').doc(memberUid);
-  
-  // Check if user document exists
-  const userDoc = await userRef.get();
-  if (!userDoc.exists) {
-    // Create user document if it doesn't exist
-    await userRef.set({
-      id: memberUid,
-      accountId: memberUid,
-      createdAt: new Date().toISOString(),
-    });
-  } else {
-    // Update existing user document
-    await userRef.update({
-      accountId: memberUid,
-      updatedAt: new Date().toISOString(),
-    });
+  if (!memberDoc.exists()) {
+    throw new functions.https.HttpsError('not-found', 'Member not found.');
   }
   
-  // Reset the removed member's custom claims
-  await admin.auth().setCustomUserClaims(memberUid, {
-    accountId: memberUid,
-    isOwner: true
-  });
+  const memberData = memberDoc.data();
+  
+  // Delete member record
+  await memberRef.delete();
+  
+  // Only update user document if this is an active member (has a real UID)
+  if (memberData.uid && memberData.status === 'active') {
+    const userRef = db.collection('users').doc(memberData.uid);
+    
+    // Check if user document exists
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) {
+      // Create user document if it doesn't exist
+      await userRef.set({
+        id: memberData.uid,
+        accountId: memberData.uid,
+        createdAt: new Date().toISOString(),
+      });
+    } else {
+      // Reset their accountId to their own UID
+      await userRef.update({
+        accountId: memberData.uid,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
+    // Clear their custom claims
+    await admin.auth().setCustomUserClaims(memberData.uid, null);
+  }
   
   return { success: true };
 });
