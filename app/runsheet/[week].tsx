@@ -253,10 +253,10 @@ export default function RunsheetWeekScreen() {
     });
     if (activeBlocks.length === 0) return jobsForDay; // fallback
 
-    // Allocate jobs sequentially in current round order
-    const sortedJobs = [...jobsForDay].sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+    // Allocate jobs sequentially - PRESERVE THE INPUT ORDER (jobs are already sorted correctly)
+    // DO NOT re-sort here as it breaks the note positioning
     let blockIndex = 0;
-    sortedJobs.forEach(job => {
+    jobsForDay.forEach(job => {
       if (blockIndex >= activeBlocks.length) {
         // overflow append to last block
         activeBlocks[activeBlocks.length - 1].jobs.push(job);
@@ -314,14 +314,14 @@ export default function RunsheetWeekScreen() {
     jobsForDay
       .filter(job => isNoteJob(job))
       .forEach(note => {
-        const jobId = note.originalJobId || 'orphaned';
+        const jobId = (note as any).originalJobId || 'orphaned';
         if (!notesByJobId[jobId]) notesByJobId[jobId] = [];
         notesByJobId[jobId].push(note);
       });
     
     // Sort notes for each job by createdAt
     Object.keys(notesByJobId).forEach(jobId => {
-      notesByJobId[jobId].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      notesByJobId[jobId].sort((a, b) => ((a as any).createdAt || 0) - ((b as any).createdAt || 0));
     });
     
     // Build final sorted list: insert notes after their original jobs

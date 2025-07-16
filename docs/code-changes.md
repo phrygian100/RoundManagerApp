@@ -5,6 +5,31 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-27 - Fixed Note Job Positioning Bug in allocateJobsForDay
+
+### Bug Fix: Note Jobs Now Maintain Correct Position Below Selected Job
+Fixed a critical bug where note jobs were appearing at the top of the day instead of below their associated job. The issue was caused by the `allocateJobsForDay` function re-sorting jobs by roundOrderNumber after they had already been correctly sorted.
+
+### Root Cause Analysis:
+1. The sorting algorithm correctly positioned notes after their original jobs based on `originalJobId`
+2. However, `allocateJobsForDay` was then re-sorting all jobs by `roundOrderNumber`
+3. Since note jobs have `client: null`, their `roundOrderNumber` was undefined (treated as 0)
+4. This caused all note jobs to be sorted to the beginning of the job list
+
+### Technical Fix (`app/runsheet/[week].tsx`):
+- Removed the re-sorting logic in `allocateJobsForDay` (line 257)
+- Changed from: `const sortedJobs = [...jobsForDay].sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));`
+- Changed to: Direct iteration over `jobsForDay` to preserve the pre-sorted order
+- Added clear comments explaining why re-sorting must not be done
+
+### Additional TypeScript Fixes:
+- Added type casting for `originalJobId` property access: `(note as any).originalJobId`
+- Added type casting for `createdAt` property access: `(a as any).createdAt`
+
+This fix ensures that the carefully constructed sorting order (with notes positioned after their original jobs) is preserved through the vehicle allocation process.
+
+---
+
 ## 2025-01-27 - Fixed Note Job Positioning in Runsheets
 
 ### Bug Fix: Note Jobs Now Correctly Position Below Selected Job
@@ -1219,88 +1244,4 @@ For each day Monday-Sunday:
 ### Technical Changes:
 
 **`services/capacityService.ts`**:
-- Modified `redistributeJobsForWeek()` function
-- Changed target day selection from sequential forward search to reverse search
-- Jobs now fill available capacity starting from the last available day in the week
-
-**`services/rotaService.ts`**:
-- Updated `setAvailability()` function
-- Replaced `manualRefreshWeekCapacity()` call with `triggerCapacityRedistribution()`
-- Added proper current week protection for automatic triggers
-
-### Algorithm Logic Update:
-
-```
-Step 1: Get all jobs for the week sorted by round order (continuous sequence 1,2,3,4,5...)
-Step 2: Identify all available days (days with team capacity > 0)
-Step 3: Distribute jobs sequentially:
-  For each job in round order:
-    If job fits in current day capacity:
-      Add job to current day
-    Else if more days available:
-      Move to next available day
-      Add job to new current day
-    Else:
-      Add job to final available day (accept overflow)
-Step 4: Update job schedules to match new distribution
-```
-
-**Key Correction**: The algorithm now properly maintains **continuous round order sequence** across the entire week, rather than trying to move overflow jobs between days. This ensures jobs appear as 1,2,3,4,5,6,7... across Monday→Tuesday→Wednesday→etc., maintaining routing efficiency.
-
-### User Experience Impact:
-
-- **Correct Distribution**: Excess jobs now properly distribute to the end of the week
-- **Manual Control**: Current week changes require explicit user action via "Refresh Capacity" button
-- **Predictable Behavior**: Future week changes automatically redistribute, current week protected
-
-**Files modified**: `services/capacityService.ts`, `services/rotaService.ts`
-
----
-
-## Capacity Algorithm Complete Rewrite (2025-01-21 - CORRECTED)
-
-### Critical Issues Identified and Fixed:
-
-**1. Fundamental Algorithm Misunderstanding**:
-- **Problem**: Previous implementation tried to move "overflow" jobs from each day to other days
-- **Root Cause**: Misunderstood that the system needs a **continuous round order sequence** across the entire week
-- **Fix**: Complete rewrite to distribute **all** jobs sequentially based on round order
-
-**2. Round Order Sequence Broken**:
-- **Problem**: Jobs were appearing out of order (e.g., 10, 489, 11) within days
-- **Root Cause**: Day-by-day overflow approach disrupted continuous sequencing
-- **Fix**: Process all jobs as a single sorted list, then distribute across available days
-
-### Corrected Algorithm Behavior:
-
-**Input**: All jobs for week in round order sequence (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12...)
-
-**Process**:
-1. **Sequential Day Filling**: Start with first available day (e.g., Monday)
-2. **Capacity-Based Distribution**: Fill day until capacity limit reached
-3. **Flow to Next Day**: When day full, continue sequence on next available day
-4. **Final Day Overflow**: Any remaining jobs accumulate on last available day
-
-**Output**: Continuous round order maintained across all days:
-- Monday: Jobs 1, 2, 3, 4 (capacity reached)
-- Tuesday: Jobs 5, 6, 7 (capacity reached)  
-- Wednesday: Jobs 8, 9, 10, 11 (capacity reached)
-- Thursday: Jobs 12, 13, 14, 15, 16, 17 (overflow accepted)
-
-### Technical Implementation:
-
-**Complete Function Rewrite**: `redistributeJobsForWeek()` in `services/capacityService.ts`
-- Removed day-by-day overflow processing
-- Added continuous job sequence processing
-- Implemented forward-filling algorithm across available days
-- Maintained round order integrity throughout distribution
-
-**Key Changes**:
-- Single sorted job list processed sequentially
-- Day capacity tracking with forward progression
-- Proper overflow handling on final available day
-- Batch database updates for moved jobs only
-
-**Files modified**: `services/capacityService.ts`
-
----
+- Modified `redistributeJobsForWeek()`
