@@ -1276,3 +1276,42 @@ For each day Monday-Sunday:
 
 **`services/capacityService.ts`**:
 - Modified `redistributeJobsForWeek()`
+
+---
+
+## 2025-01-28 - Historical Data CSV Import Functions
+
+### New Features:
+1. **Import Payments from CSV**: Added ability to import historical payment records
+2. **Import Completed Jobs from CSV**: Added ability to import historical completed job records
+
+### Implementation Details:
+
+**Payment Import (`app/(tabs)/settings.tsx`)**:
+- CSV Format: `Account Number, Date, Amount (£), Type, Notes`
+- Validates RWC account numbers and maps to client IDs
+- Supports payment types: cash, card, BACS/bank transfer, cheque (defaults to 'other' for unrecognized)
+- Date parsing supports DD/MM/YYYY and YYYY-MM-DD formats
+- Creates payment records with all existing payment functionality (notes, balance calculations, etc.)
+
+**Completed Jobs Import (`app/(tabs)/settings.tsx`)**:
+- CSV Format: `Account Number, Date, Amount (£)`
+- Creates jobs with serviceId: "Historic Completed Service" for easy identification
+- Jobs are created with status: 'completed' to immediately appear in completed jobs lists
+- Uses client's address for propertyDetails field
+- Integrates seamlessly with existing balance calculations
+
+**Technical Improvements**:
+- Reuses existing CSV import infrastructure (file pickers, validation, error reporting)
+- Both functions support CSV and Excel files (.csv, .xlsx, .xls)
+- Comprehensive error reporting showing specific rows that failed with reasons
+- Account number validation with automatic RWC prefix addition if missing
+- No duplicate checking per user requirements - allows multiple payments/jobs on same date
+- Cross-platform support (web and mobile implementations)
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Added handleImportPayments and handleImportCompletedJobs functions
+- `services/paymentService.ts` - Imported createPayment function
+- `docs/code-changes.md` - Documentation update
+
+**Impact**: Enables bulk import of historical financial data, allowing users to quickly populate their system with past payments and completed jobs while maintaining full integration with existing features like balance calculations, client history, and reporting.

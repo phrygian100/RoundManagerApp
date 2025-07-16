@@ -15,7 +15,7 @@ import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
-import { deleteAllPayments } from '../../services/paymentService';
+import { createPayment, deleteAllPayments } from '../../services/paymentService';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -639,6 +639,676 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleImportPayments = async () => {
+    if (Platform.OS === 'web') {
+      // Use native file input for better browser compatibility
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,.xlsx,.xls';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      await new Promise<void>((resolve) => {
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            resolve();
+            return;
+          }
+
+          try {
+            let rows: any[] = [];
+
+            if (file.name.endsWith('.csv')) {
+              const text = await file.text();
+              const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+              if (parsed.errors.length) {
+                console.error('CSV Parsing Errors:', parsed.errors);
+                showAlert('Import Error', 'Problem parsing CSV file');
+                resolve();
+                return;
+              }
+              rows = parsed.data as any[];
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+              const arrayBuffer = await file.arrayBuffer();
+              const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+              const sheetName = workbook.SheetNames[0];
+              rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            } else {
+              showAlert('Unsupported file', 'Please select a CSV or Excel file.');
+              resolve();
+              return;
+            }
+
+            // First, get all clients to create account number -> clientId mapping
+            const ownerId = await getDataOwnerId();
+            if (!ownerId) {
+              showAlert('Error', 'Could not determine account owner. Please log in again.');
+              resolve();
+              return;
+            }
+
+            const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+            const clientsSnapshot = await getDocs(clientsQuery);
+            const accountToClientMap = new Map<string, string>();
+            
+            clientsSnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              if (data.accountNumber) {
+                accountToClientMap.set(data.accountNumber.toUpperCase(), doc.id);
+              }
+            });
+
+            // Validate rows
+            const validRows: any[] = [];
+            const skipped: any[] = [];
+            const requiredPaymentFields = ['Account Number', 'Date', 'Amount (£)', 'Type'];
+            
+            rows.forEach((r, index) => {
+              // Check required fields
+              const missing = requiredPaymentFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
+              if (missing.length) {
+                const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
+                skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+              } else {
+                // Check if account exists
+                let accountNumber = (r as any)['Account Number']?.toString().trim();
+                if (!accountNumber.toUpperCase().startsWith('RWC')) {
+                  accountNumber = 'RWC' + accountNumber;
+                }
+                if (!accountToClientMap.has(accountNumber.toUpperCase())) {
+                  const rowIdentifier = accountNumber || `Row ${index + 2}`;
+                  skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+                } else {
+                  validRows.push(r);
+                }
+              }
+            });
+
+            // Confirm import
+            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments (skipping ${skipped.length}). Continue?`);
+            if (!proceed) {
+              resolve();
+              return;
+            }
+
+            let imported = 0;
+            
+            for (let i = 0; i < validRows.length; i++) {
+              const row = validRows[i];
+              
+              // Process account number
+              let accountNumber = (row as any)['Account Number']?.toString().trim();
+              if (!accountNumber.toUpperCase().startsWith('RWC')) {
+                accountNumber = 'RWC' + accountNumber;
+              }
+              const clientId = accountToClientMap.get(accountNumber.toUpperCase());
+              
+              if (!clientId) continue; // Shouldn't happen due to validation above
+              
+              // Parse amount
+              const amountString = (row as any)['Amount (£)']?.toString().trim();
+              const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+              const amount = parseFloat(sanitizedAmount) || 0;
+              
+              // Parse date
+              let paymentDate = '';
+              const dateString = (row as any)['Date']?.toString().trim();
+              if (dateString) {
+                // Try DD/MM/YYYY format first
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                  const [day, month, year] = parts;
+                  if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                    paymentDate = `${year}-${month}-${day}`;
+                  }
+                } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  // Already in YYYY-MM-DD format
+                  paymentDate = dateString;
+                }
+              }
+              
+              if (!paymentDate) {
+                skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+                continue;
+              }
+              
+              // Map payment type
+              const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
+              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+              
+              if (typeString === 'cash') method = 'cash';
+              else if (typeString === 'card') method = 'card';
+              else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
+              else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+              
+              // Get notes
+              const notes = (row as any)['Notes']?.trim() || '';
+              
+              try {
+                await createPayment({
+                  clientId,
+                  amount,
+                  date: paymentDate,
+                  method,
+                  notes: notes || undefined
+                });
+                imported++;
+              } catch (e) {
+                console.error('Error creating payment:', e, 'for row:', row);
+                skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+              }
+            }
+
+            let message = `Import Complete!\n\nSuccessfully imported: ${imported} payments.`;
+            if (skipped.length > 0) {
+              message += `\n\nSkipped ${skipped.length} rows:`;
+              skipped.forEach((s, idx) => {
+                if (idx < 5) {
+                  message += `\n• ${s.identifier}: ${s.reason}`;
+                }
+              });
+              if (skipped.length > 5) {
+                message += `\n• ... and ${skipped.length - 5} more`;
+              }
+            }
+            showAlert('Import Result', message);
+
+          } catch (err) {
+            console.error('Payment import error', err);
+            showAlert('Error', 'Import failed');
+          } finally {
+            resolve();
+          }
+        };
+        input.click();
+      });
+      return;
+    }
+
+    // Mobile implementation (similar structure)
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+      if (result.canceled || !result.assets || !result.assets[0]) return;
+      const file = result.assets[0];
+      
+      let rows: any[] = [];
+      
+      if (file.name.endsWith('.csv')) {
+        const response = await fetch(file.uri);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors.length) {
+          console.error('CSV Parsing Errors:', parsed.errors);
+          Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
+          return;
+        }
+        rows = parsed.data as any[];
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const response = await fetch(file.uri);
+        const ab = await response.arrayBuffer();
+        const workbook = XLSX.read(ab, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      } else {
+        Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
+        return;
+      }
+
+      // Same processing logic as web version
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Error', 'Could not determine account owner. Please log in again.');
+        return;
+      }
+
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const clientsSnapshot = await getDocs(clientsQuery);
+      const accountToClientMap = new Map<string, string>();
+      
+      clientsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.accountNumber) {
+          accountToClientMap.set(data.accountNumber.toUpperCase(), doc.id);
+        }
+      });
+
+      const validRows: any[] = [];
+      const skipped: any[] = [];
+      const requiredPaymentFields = ['Account Number', 'Date', 'Amount (£)', 'Type'];
+      
+      rows.forEach((r, index) => {
+        const missing = requiredPaymentFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
+        if (missing.length) {
+          const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
+          skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+        } else {
+          let accountNumber = (r as any)['Account Number']?.toString().trim();
+          if (!accountNumber.toUpperCase().startsWith('RWC')) {
+            accountNumber = 'RWC' + accountNumber;
+          }
+          if (!accountToClientMap.has(accountNumber.toUpperCase())) {
+            const rowIdentifier = accountNumber || `Row ${index + 2}`;
+            skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+          } else {
+            validRows.push(r);
+          }
+        }
+      });
+
+      const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments (skipping ${skipped.length}). Continue?`);
+      if (!proceed) return;
+
+      let imported = 0;
+      
+      for (let i = 0; i < validRows.length; i++) {
+        const row = validRows[i];
+        
+        let accountNumber = (row as any)['Account Number']?.toString().trim();
+        if (!accountNumber.toUpperCase().startsWith('RWC')) {
+          accountNumber = 'RWC' + accountNumber;
+        }
+        const clientId = accountToClientMap.get(accountNumber.toUpperCase());
+        
+        if (!clientId) continue;
+        
+        const amountString = (row as any)['Amount (£)']?.toString().trim();
+        const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+        const amount = parseFloat(sanitizedAmount) || 0;
+        
+        let paymentDate = '';
+        const dateString = (row as any)['Date']?.toString().trim();
+        if (dateString) {
+          const parts = dateString.split('/');
+          if (parts.length === 3) {
+            const [day, month, year] = parts;
+            if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+              paymentDate = `${year}-${month}-${day}`;
+            }
+          } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            paymentDate = dateString;
+          }
+        }
+        
+        if (!paymentDate) {
+          skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+          continue;
+        }
+        
+        const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
+        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+        
+        if (typeString === 'cash') method = 'cash';
+        else if (typeString === 'card') method = 'card';
+        else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
+        else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+        
+        const notes = (row as any)['Notes']?.trim() || '';
+        
+        try {
+          await createPayment({
+            clientId,
+            amount,
+            date: paymentDate,
+            method,
+            notes: notes || undefined
+          });
+          imported++;
+        } catch (e) {
+          console.error('Error creating payment:', e, 'for row:', row);
+          skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+        }
+      }
+
+      let message = `Import Complete!\n\nSuccessfully imported: ${imported} payments.`;
+      if (skipped.length > 0) {
+        message += `\n\nSkipped ${skipped.length} rows:`;
+        skipped.forEach((s, idx) => {
+          if (idx < 5) {
+            message += `\n• ${s.identifier}: ${s.reason}`;
+          }
+        });
+        if (skipped.length > 5) {
+          message += `\n• ... and ${skipped.length - 5} more`;
+        }
+      }
+      showAlert('Import Result', message);
+      
+    } catch (e) {
+      console.error('Import process error:', e);
+      Alert.alert('Import Error', 'Failed to import CSV.');
+    }
+  };
+
+  const handleImportCompletedJobs = async () => {
+    if (Platform.OS === 'web') {
+      // Use native file input for better browser compatibility
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.csv,.xlsx,.xls';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      await new Promise<void>((resolve) => {
+        input.onchange = async () => {
+          const file = input.files?.[0];
+          if (!file) {
+            resolve();
+            return;
+          }
+
+          try {
+            let rows: any[] = [];
+
+            if (file.name.endsWith('.csv')) {
+              const text = await file.text();
+              const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+              if (parsed.errors.length) {
+                console.error('CSV Parsing Errors:', parsed.errors);
+                showAlert('Import Error', 'Problem parsing CSV file');
+                resolve();
+                return;
+              }
+              rows = parsed.data as any[];
+            } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+              const arrayBuffer = await file.arrayBuffer();
+              const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+              const sheetName = workbook.SheetNames[0];
+              rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+            } else {
+              showAlert('Unsupported file', 'Please select a CSV or Excel file.');
+              resolve();
+              return;
+            }
+
+            // First, get all clients to create account number -> clientId mapping
+            const ownerId = await getDataOwnerId();
+            if (!ownerId) {
+              showAlert('Error', 'Could not determine account owner. Please log in again.');
+              resolve();
+              return;
+            }
+
+            const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+            const clientsSnapshot = await getDocs(clientsQuery);
+            const accountToClientMap = new Map<string, { id: string; address: string }>();
+            
+            clientsSnapshot.docs.forEach(doc => {
+              const data = doc.data();
+              if (data.accountNumber) {
+                const address = `${data.address1 || data.address || ''}, ${data.town || ''}, ${data.postcode || ''}`;
+                accountToClientMap.set(data.accountNumber.toUpperCase(), { id: doc.id, address });
+              }
+            });
+
+            // Validate rows
+            const validRows: any[] = [];
+            const skipped: any[] = [];
+            const requiredJobFields = ['Account Number', 'Date', 'Amount (£)'];
+            
+            rows.forEach((r, index) => {
+              // Check required fields
+              const missing = requiredJobFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
+              if (missing.length) {
+                const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
+                skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+              } else {
+                // Check if account exists
+                let accountNumber = (r as any)['Account Number']?.toString().trim();
+                if (!accountNumber.toUpperCase().startsWith('RWC')) {
+                  accountNumber = 'RWC' + accountNumber;
+                }
+                if (!accountToClientMap.has(accountNumber.toUpperCase())) {
+                  const rowIdentifier = accountNumber || `Row ${index + 2}`;
+                  skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+                } else {
+                  validRows.push(r);
+                }
+              }
+            });
+
+            // Confirm import
+            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} completed jobs (skipping ${skipped.length}). Continue?`);
+            if (!proceed) {
+              resolve();
+              return;
+            }
+
+            let imported = 0;
+            
+            for (let i = 0; i < validRows.length; i++) {
+              const row = validRows[i];
+              
+              // Process account number
+              let accountNumber = (row as any)['Account Number']?.toString().trim();
+              if (!accountNumber.toUpperCase().startsWith('RWC')) {
+                accountNumber = 'RWC' + accountNumber;
+              }
+              const clientInfo = accountToClientMap.get(accountNumber.toUpperCase());
+              
+              if (!clientInfo) continue; // Shouldn't happen due to validation above
+              
+              // Parse amount
+              const amountString = (row as any)['Amount (£)']?.toString().trim();
+              const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+              const amount = parseFloat(sanitizedAmount) || 0;
+              
+              // Parse date
+              let jobDate = '';
+              const dateString = (row as any)['Date']?.toString().trim();
+              if (dateString) {
+                // Try DD/MM/YYYY format first
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                  const [day, month, year] = parts;
+                  if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                    jobDate = `${year}-${month}-${day}`;
+                  }
+                } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  // Already in YYYY-MM-DD format
+                  jobDate = dateString;
+                }
+              }
+              
+              if (!jobDate) {
+                skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+                continue;
+              }
+              
+              try {
+                await addDoc(collection(db, 'jobs'), {
+                  ownerId,
+                  clientId: clientInfo.id,
+                  providerId: 'test-provider-1',
+                  serviceId: 'Historic Completed Service',
+                  propertyDetails: clientInfo.address,
+                  scheduledTime: jobDate + 'T09:00:00',
+                  status: 'completed',
+                  price: amount,
+                  paymentStatus: 'unpaid'
+                });
+                imported++;
+              } catch (e) {
+                console.error('Error creating job:', e, 'for row:', row);
+                skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+              }
+            }
+
+            let message = `Import Complete!\n\nSuccessfully imported: ${imported} completed jobs.`;
+            if (skipped.length > 0) {
+              message += `\n\nSkipped ${skipped.length} rows:`;
+              skipped.forEach((s, idx) => {
+                if (idx < 5) {
+                  message += `\n• ${s.identifier}: ${s.reason}`;
+                }
+              });
+              if (skipped.length > 5) {
+                message += `\n• ... and ${skipped.length - 5} more`;
+              }
+            }
+            showAlert('Import Result', message);
+
+          } catch (err) {
+            console.error('Job import error', err);
+            showAlert('Error', 'Import failed');
+          } finally {
+            resolve();
+          }
+        };
+        input.click();
+      });
+      return;
+    }
+
+    // Mobile implementation (similar structure)
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+      if (result.canceled || !result.assets || !result.assets[0]) return;
+      const file = result.assets[0];
+      
+      let rows: any[] = [];
+      
+      if (file.name.endsWith('.csv')) {
+        const response = await fetch(file.uri);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors.length) {
+          console.error('CSV Parsing Errors:', parsed.errors);
+          Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
+          return;
+        }
+        rows = parsed.data as any[];
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const response = await fetch(file.uri);
+        const ab = await response.arrayBuffer();
+        const workbook = XLSX.read(ab, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+      } else {
+        Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
+        return;
+      }
+
+      // Same processing logic as web version
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Error', 'Could not determine account owner. Please log in again.');
+        return;
+      }
+
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const clientsSnapshot = await getDocs(clientsQuery);
+      const accountToClientMap = new Map<string, { id: string; address: string }>();
+      
+      clientsSnapshot.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.accountNumber) {
+          const address = `${data.address1 || data.address || ''}, ${data.town || ''}, ${data.postcode || ''}`;
+          accountToClientMap.set(data.accountNumber.toUpperCase(), { id: doc.id, address });
+        }
+      });
+
+      const validRows: any[] = [];
+      const skipped: any[] = [];
+      const requiredJobFields = ['Account Number', 'Date', 'Amount (£)'];
+      
+      rows.forEach((r, index) => {
+        const missing = requiredJobFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
+        if (missing.length) {
+          const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
+          skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+        } else {
+          let accountNumber = (r as any)['Account Number']?.toString().trim();
+          if (!accountNumber.toUpperCase().startsWith('RWC')) {
+            accountNumber = 'RWC' + accountNumber;
+          }
+          if (!accountToClientMap.has(accountNumber.toUpperCase())) {
+            const rowIdentifier = accountNumber || `Row ${index + 2}`;
+            skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+          } else {
+            validRows.push(r);
+          }
+        }
+      });
+
+      const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} completed jobs (skipping ${skipped.length}). Continue?`);
+      if (!proceed) return;
+
+      let imported = 0;
+      
+      for (let i = 0; i < validRows.length; i++) {
+        const row = validRows[i];
+        
+        let accountNumber = (row as any)['Account Number']?.toString().trim();
+        if (!accountNumber.toUpperCase().startsWith('RWC')) {
+          accountNumber = 'RWC' + accountNumber;
+        }
+        const clientInfo = accountToClientMap.get(accountNumber.toUpperCase());
+        
+        if (!clientInfo) continue;
+        
+        const amountString = (row as any)['Amount (£)']?.toString().trim();
+        const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+        const amount = parseFloat(sanitizedAmount) || 0;
+        
+        let jobDate = '';
+        const dateString = (row as any)['Date']?.toString().trim();
+        if (dateString) {
+          const parts = dateString.split('/');
+          if (parts.length === 3) {
+            const [day, month, year] = parts;
+            if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+              jobDate = `${year}-${month}-${day}`;
+            }
+          } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            jobDate = dateString;
+          }
+        }
+        
+        if (!jobDate) {
+          skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+          continue;
+        }
+        
+        try {
+          await addDoc(collection(db, 'jobs'), {
+            ownerId,
+            clientId: clientInfo.id,
+            providerId: 'test-provider-1',
+            serviceId: 'Historic Completed Service',
+            propertyDetails: clientInfo.address,
+            scheduledTime: jobDate + 'T09:00:00',
+            status: 'completed',
+            price: amount,
+            paymentStatus: 'unpaid'
+          });
+          imported++;
+        } catch (e) {
+          console.error('Error creating job:', e, 'for row:', row);
+          skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+        }
+      }
+
+      let message = `Import Complete!\n\nSuccessfully imported: ${imported} completed jobs.`;
+      if (skipped.length > 0) {
+        message += `\n\nSkipped ${skipped.length} rows:`;
+        skipped.forEach((s, idx) => {
+          if (idx < 5) {
+            message += `\n• ${s.identifier}: ${s.reason}`;
+          }
+        });
+        if (skipped.length > 5) {
+          message += `\n• ... and ${skipped.length - 5} more`;
+        }
+      }
+      showAlert('Import Result', message);
+      
+    } catch (e) {
+      console.error('Import process error:', e);
+      Alert.alert('Import Error', 'Failed to import CSV.');
+    }
+  };
+
   const handleDeleteAllClients = async () => {
     const confirmed = Platform.OS === 'web'
       ? window.confirm('Are you sure you want to delete ALL client records? This action cannot be undone.')
@@ -1002,6 +1672,14 @@ export default function SettingsScreen() {
       
       <View style={styles.buttonContainer}>
         <StyledButton title="Import Clients from CSV" onPress={handleImport} />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <StyledButton title="Import Payments from CSV" onPress={handleImportPayments} />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <StyledButton title="Import Completed Jobs from CSV" onPress={handleImportCompletedJobs} />
       </View>
 
       <View style={styles.buttonContainer}>

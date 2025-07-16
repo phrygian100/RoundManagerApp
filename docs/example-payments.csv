@@ -1,0 +1,9 @@
+Account Number,Date,Amount (£),Type,Notes
+RWC001,15/01/2025,25.00,cash,Paid in person
+RWC002,20/01/2025,50.00,BACS,Bank transfer ref: PAYMENT123
+RWC003,22/01/2025,75.00,card,Paid via card machine
+RWC004,23/01/2025,100.00,cheque,Cheque #1234
+RWC005,24/01/2025,35.00,other,PayPal payment
+001,25/01/2025,45.00,cash,Cash payment - will auto-add RWC prefix
+RWC006,26/01/2025,60.00,bank,Standing order payment
+RWC007,27/01/2025,80.00,cash, 
