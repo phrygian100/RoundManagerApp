@@ -482,150 +482,27 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 
 ---
 
-## 2025-07-15 - Firestore Index Configuration Fix
+## 2025-01-17 – Quote Modal Consistency & Notes Display 📋
+• **Unified quote modals**: Made the "Progress to Pending" modal in quotes screen match the nicer runsheet version
+• **Added quote notes display**: Top-level quote notes are now shown in the progress modal
+• **Improved UI consistency**: Both modals now have:
+  - Transparent background overlay
+  - Rounded white content box
+  - Scrollable content area
+  - Better styled input fields with labels
+  - "Add Another Line" button functionality
+  - Consistent button text ("Save & Progress" instead of just "Save")
 
-- **Issue**: Deployment of indexes failed due to invalid single-field index definition for members.uid.
-- **Fix**: Removed the redundant single-field index from firestore.indexes.json, as single-field indexes are managed automatically. Deployed the updated configuration successfully.
-- **Note**: To fully resolve, remove any existing single-field exemption for members.uid in the Firestore console to allow auto-creation of the index.
+**Issue**: 
+- Modal for progressing quotes was different between runsheet and quotes screens
+- Quote notes weren't visible when progressing to pending status
 
-**Files modified**: firestore.indexes.json
+**Resolution**: 
+- Replaced the simple modal in quotes.tsx with the enhanced version from runsheet
+- Added a dedicated section to display quote notes at the top of the modal
+- Removed unused `detailsForm` state
 
----
-
-## [DATE: YYYY-MM-DD] Remove all remaining Supabase code, 100% Firebase
-
-- Deleted all Supabase client code from the web app and shared code.
-- Removed all Supabase imports/usages from password reset, invite, and admin flows.
-- Added TODOs to implement password reset, invite, and admin flows with Firebase.
-- Project is now 100% Firebase for all authentication, user, and data logic.
-
-## 2024-07-14
-
-- Updated `app/add-client.tsx` to use `await getDataOwnerId()` for `ownerId` when creating clients, ensuring strict Firestore rules compliance. Added error handling for missing ownerId.
-- Updated `app/runsheet/[week].tsx` to include `ownerId` using `await getDataOwnerId()` in client creation logic, with error handling for missing ownerId.
-- Updated `app/(tabs)/settings.tsx` to ensure all client import logic uses `await getDataOwnerId()` for `ownerId` and handles missing ownerId with an error message.
-- These changes ensure that all client creation operations comply with Firestore security rules requiring `ownerId` to match the authenticated user's UID.
-
-- Migrated invite email flow from Supabase Edge Functions to Firebase Cloud Functions v2 (Node.js 22+).
-- Implemented invite email sending using the Resend API, with domain and sender verified.
-- Updated Firestore rules for strict access and team member invites.
-- Refactored the invite acceptance frontend to work with the new Firestore invite flow.
-- Troubleshot Cloud Functions v2 environment variable issues: attempted to use `functions.config()`, `getConfig()`, and finally `process.env.RESEND_KEY`.
-- Blocked by Firebase CLI not supporting `--update-env-vars` for v2 functions in the current environment, preventing the Resend API key from being set as an environment variable.
-- All code changes are committed and pushed to the repository. Function code is ready for deployment once CLI or environment variable issue is resolved.
-
-## 2025-07-15 - Invite Acceptance Refactor
-
-- **Issue**: acceptTeamInvite was inefficiently scanning all accounts; failing to find fresh invites.
-- **Fix**: Refactored to use collectionGroup query on members with inviteCode and status filters. Added composite index to firestore.indexes.json and deployed.
-
-**Files modified**: functions/index.js, firestore.indexes.json
-
----
-
-## 2025-07-16 - Fixed Persistent Invite Member Flow with Full Firebase Implementation
-
-- Implemented seamless invite flow for new and existing users using Firebase Auth and Cloud Functions.
-- New users receive a password set link and auto-join after setting password.
-- Existing users receive a code to enter after login.
-- Updated frontend screens to handle query params and improve UX.
-
-**Files modified**: functions/index.js, services/accountService.ts, app/set-password.tsx, app/enter-invite-code.tsx
-
----
-
-## 2025-07-16 - Fixed Settings Redirect, Invite Errors
-
-- Added loading state in root layout to prevent auth race redirects.
-- Enhanced logging in cloud functions for invite flow.
-- Added UID check in acceptance to prevent mismatches.
-- Improved error messages in frontend.
-
-**Files modified**: app/_layout.tsx, functions/index.js, app/(tabs)/team.tsx, app/enter-invite-code.tsx
-
----
-
-## 2025-07-18 - Temporary Fix for Invite Member Email
-
-- **Issue**: Invite emails broken due to missing RESEND_KEY and APP_URL environment variables in production.
-- **Temporary Fix**: Added fallback values in code for RESEND_KEY (using provided key) and APP_URL ('https://guvnor.app') to enable functionality.
-- **Note**: This is temporary; set these variables properly in Google Cloud Console > Cloud Functions > inviteMember > Runtime > Environment variables, then remove the hardcodes from code and redeploy for security.
-- Deployed the updated function.
-
-**Files modified**: functions/index.js
-
----
-
-## 2025-07-18 - Fixed Invite Code Input Validation
-
-- **Issue**: Users were getting "Invalid or expired invite code" errors when entering invite codes with trailing punctuation (e.g., "353384." instead of "353384").
-- **Root Cause**: The acceptTeamInvite function was searching for exact matches, but users were accidentally adding periods or other punctuation.
-- **Fix**: 
-  - Added input sanitization to remove trailing punctuation before submitting
-  - Restricted input to numeric characters only with keyboardType="numeric"
-  - Added validation to ensure only valid numeric codes can be submitted
-  - Improved error messaging for invalid codes
-- **Result**: Users can no longer accidentally enter invalid characters, preventing the error.
-
-**Files modified**: app/enter-invite-code.tsx
-
----
-
-## 2025-07-18 - Fixed Undefined Email Error in acceptTeamInvite
-
-- **Issue**: When accepting team invites, users were getting "INTERNAL" error due to undefined email in Firebase Auth context.
-- **Root Cause**: The acceptTeamInvite function was trying to use `user.email` from Firebase Auth, which can be undefined for some authentication methods.
-- **Fix**: Changed to use `memberData.email` (which was stored during invite creation) as the primary source, falling back to `user.email` only if needed.
-- **Result**: Team invitations now work properly even when Firebase Auth doesn't provide the email in the auth context.
-
-**Files modified**: functions/index.js
-
----
-
-## 2025-01-18 - Fixed Member Permissions System
-
-- **Issue**: After inviting members, their permissions were broken:
-  - Members could see screens they shouldn't have access to
-  - Members couldn't see the owner's data (clients, jobs, etc.)
-  - Members were seeing their own account data instead of the owner's
-- **Root Cause**: 
-  - The `acceptTeamInvite` function wasn't updating the user's document with the new `accountId`
-  - Home screen was checking permissions from the wrong source
-  - Firebase rules didn't allow members to access their owner's account data
-  - Services were using incorrect accountId for members
-- **Fix**:
-  1. Updated `acceptTeamInvite` to set the user's `accountId` in their users document
-  2. Updated home screen to use `getUserSession()` instead of directly reading users document
-  3. Updated Firebase rules to add `hasAccountAccess()` function that checks both owner and member status
-  4. Updated `refreshClaims` to also update the user's document with correct accountId
-  5. Deployed all updated functions and rules
-- **Result**: Members now properly:
-  - See only the screens the owner has granted permission to
-  - Access the owner's account data (clients, jobs, etc.) based on their permissions
-  - Have their accountId properly set when accepting invites
-
-**Files modified**: 
-- functions/index.js (acceptTeamInvite, refreshClaims)
-- app/(tabs)/index.tsx
-- firestore.rules
-
----
-
-## 2025-01-18 - Added Refresh Account Feature for Existing Members
-
-- **Issue**: Members who accepted invites before the permission fixes were deployed still had incorrect accountId and couldn't see owner's data
-- **Solution**: Added two ways to fix existing member accounts:
-  1. **Log out and log back in** - The login process calls refreshClaims which updates the accountId
-  2. **New "Refresh Account" button** in Settings screen - Manually triggers refreshClaims to fix permissions
-- **How it works**:
-  - The refreshClaims function looks up the member record
-  - Updates the user's document with the correct accountId  
-  - Refreshes the authentication token with proper claims
-  - On web, the page reloads to apply changes
-  - On mobile, users need to restart the app
-- **Result**: Existing members can now fix their permissions without needing a new invite
-
-**Files modified**: app/settings.tsx
+Files: `app/quotes.tsx`
 
 ---
 

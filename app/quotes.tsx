@@ -61,7 +61,6 @@ export default function QuotesScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [webDate, setWebDate] = useState<Date | null>(null);
   const [detailsModal, setDetailsModal] = useState<{ visible: boolean, quote: Quote | null }>({ visible: false, quote: null });
-  const [detailsForm, setDetailsForm] = useState({ frequency: '4 weekly', value: '', notes: '' });
   const [addClientModal, setAddClientModal] = useState<{ visible: boolean, quote: Quote | null }>({ visible: false, quote: null });
   const [clientForm, setClientForm] = useState({ name: '', address: '', town: '', mobileNumber: '', quote: '', frequency: '' });
   const { setQuoteData } = useQuoteToClient();
@@ -473,49 +472,51 @@ export default function QuotesScreen() {
         </View>
       </Modal>
       {/* Details Modal for Scheduled Quotes */}
-      <Modal visible={detailsModal.visible} animationType="slide">
-        <View style={{ flex: 1, justifyContent: 'center', padding: 20 }}>
-          <Text style={{ fontSize: 20, marginBottom: 10 }}>Quote Details</Text>
-          {/* For backward compatibility, if lines are not present, use legacy fields */}
-          {quoteLines.length === 0 ? (
-            <>
-              <Text style={{ marginBottom: 8 }}>Visit Frequency</Text>
-              <Picker
-                selectedValue={detailsForm.frequency}
-                onValueChange={v => setDetailsForm(f => ({ ...f, frequency: v }))}
-                style={{ marginBottom: 8 }}
-              >
-                <Picker.Item label="4 weekly" value="4 weekly" />
-                <Picker.Item label="8 weekly" value="8 weekly" />
-                <Picker.Item label="one-off" value="one-off" />
-              </Picker>
-              <TextInput placeholder="Quote £ value" value={detailsForm.value} onChangeText={v => setDetailsForm(f => ({ ...f, value: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
-              <TextInput placeholder="Notes" value={detailsForm.notes} onChangeText={v => setDetailsForm(f => ({ ...f, notes: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} multiline />
-            </>
-          ) : (
-            quoteLines.map((line, idx) => (
-              <View key={idx} style={{ marginBottom: 12, borderWidth: 1, borderColor: '#eee', borderRadius: 8, padding: 8 }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Line {idx + 1}</Text>
-                <TextInput placeholder="Service Type (e.g. Window Cleaning)" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} />
-                <Picker
-                  selectedValue={line.frequency}
-                  onValueChange={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
-                  style={{ marginBottom: 4 }}
-                >
-                  <Picker.Item label="4 weekly" value="4 weekly" />
-                  <Picker.Item label="8 weekly" value="8 weekly" />
-                  <Picker.Item label="one-off" value="one-off" />
-                </Picker>
-                <TextInput placeholder="Quote £ value" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} keyboardType="numeric" />
-                <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, marginBottom: 4, padding: 6 }} multiline />
-                {quoteLines.length > 1 && (
-                  <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
-                )}
+      <Modal visible={detailsModal.visible} animationType="slide" transparent onRequestClose={() => setDetailsModal({ visible: false, quote: null })}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+          <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340, maxHeight: 600 }}>
+            <ScrollView style={{ maxHeight: 450 }} contentContainerStyle={{ paddingBottom: 16 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
+              
+              {/* Display the quote notes if they exist */}
+              {detailsModal.quote?.notes && (
+                <View style={{ marginBottom: 16, padding: 12, backgroundColor: '#f0f8ff', borderRadius: 8 }}>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Quote Notes:</Text>
+                  <Text style={{ fontSize: 14, color: '#333' }}>{detailsModal.quote.notes}</Text>
+                </View>
+              )}
+
+              {quoteLines.map((line, idx) => (
+                <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
+                  <Text style={{ marginBottom: 2 }}>Service Type</Text>
+                  <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
+                  <Text style={{ marginBottom: 2 }}>Frequency</Text>
+                  <Picker
+                    selectedValue={line.frequency}
+                    onValueChange={(v: string) => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, frequency: v } : l))}
+                    style={{ marginBottom: 8 }}
+                  >
+                    <Picker.Item label="4 weekly" value="4 weekly" />
+                    <Picker.Item label="8 weekly" value="8 weekly" />
+                    <Picker.Item label="one-off" value="one-off" />
+                  </Picker>
+                  <Text style={{ marginBottom: 2 }}>Value (£)</Text>
+                  <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
+                  <Text style={{ marginBottom: 2 }}>Notes</Text>
+                  <TextInput placeholder="Notes" value={line.notes} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, notes: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} multiline />
+                  {quoteLines.length > 1 && (
+                    <Button title="Remove Line" color="red" onPress={() => setQuoteLines(lines => lines.filter((_, i) => i !== idx))} />
+                  )}
+                </View>
+              ))}
+              <View style={{ marginBottom: 16 }}>
+                <Button title="Add Another Line" onPress={() => setQuoteLines(lines => [...lines, { serviceType: '', frequency: '4 weekly', value: '', notes: '' }])} />
               </View>
-            ))
-          )}
-          <Button title="Save" onPress={handleSaveDetails} />
-          <Button title="Cancel" onPress={() => setDetailsModal({ visible: false, quote: null })} color="red" />
+            </ScrollView>
+            <Button title="Save & Progress" onPress={handleSaveDetails} />
+            <Button title="Cancel" onPress={() => setDetailsModal({ visible: false, quote: null })} color="red" />
+          </View>
         </View>
       </Modal>
     </ScrollView>
