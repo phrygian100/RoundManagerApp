@@ -5,6 +5,41 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-26 - CSV Import Error Reporting & RWC Prefix Fix
+
+### Bug Fixes:
+1. **Enhanced CSV Import Error Reporting**: CSV import now shows specific row details when rows are skipped instead of just a count
+2. **Fixed Double RWC Prefix Issue**: Resolved issue where account numbers were getting "RWC" prefix applied twice during CSV import
+
+### Implementation Details:
+
+**Improved Error Reporting (`app/(tabs)/settings.tsx`)**:
+- Added row identifiers (Name, Account Number, or Row number) to skipped row tracking
+- Enhanced error messages to show up to 5 specific failed rows with reasons
+- Displays format: "• Client Name: Missing Address Line 1, Quote (£)"
+- Shows "... and X more" when more than 5 rows are skipped
+- Applied consistently across all three import paths (web CSV, mobile CSV, mobile Excel)
+
+**RWC Prefix Logic Fix (`app/(tabs)/settings.tsx`)**:
+- Replaced conditional check with proactive cleanup approach
+- New logic removes any existing "RWC" prefix first, then adds clean prefix
+- Prevents duplicate prefixes regardless of input data format
+- Uses case-insensitive regex `/^RWC/i` for robust detection
+- Applied consistently across all three import paths
+
+### Technical Improvements:
+- **Better UX**: Users can now identify exactly which data rows need to be fixed
+- **Robust Processing**: Account number processing now handles any edge cases with existing prefixes
+- **Consistent Logic**: All import paths (web/mobile, CSV/Excel) use identical processing logic
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Enhanced error reporting and RWC prefix logic
+- `docs/code-changes.md` - Documentation update
+
+**Impact**: Significantly improves CSV import debugging experience and eliminates account number formatting issues.
+
+---
+
 ## 2025-01-24 - Comprehensive CSV Import Enhancement & Flexible Visit Frequency System
 
 ### Major Features Added:

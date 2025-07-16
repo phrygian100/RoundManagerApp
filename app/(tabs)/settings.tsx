@@ -153,11 +153,12 @@ export default function SettingsScreen() {
             // Validate rows
             const validRows: any[] = [];
             const skipped: any[] = [];
-            rows.forEach(r => {
+            rows.forEach((r, index) => {
               // Check required fields
               const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
               if (missing.length) {
-                skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+                const rowIdentifier = (r as any)['Name'] || (r as any)['Account Number'] || `Row ${index + 2}`; // +2 because of header row
+                skipped.push({ row: r, reason: 'Missing '+missing.join(','), identifier: rowIdentifier });
               } else {
                 validRows.push(r);
               }
@@ -188,8 +189,10 @@ export default function SettingsScreen() {
 
               // Add RWC prefix to account number if not already present
               let accountNumber = (row as any)['Account Number']?.toString().trim();
-              if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
-                accountNumber = `RWC${accountNumber}`;
+              if (accountNumber) {
+                // Remove any existing RWC prefix first to prevent duplicates
+                const cleanAccountNumber = accountNumber.replace(/^RWC/i, '').trim();
+                accountNumber = `RWC${cleanAccountNumber}`;
               }
 
               const clientData: any = {
@@ -277,7 +280,15 @@ export default function SettingsScreen() {
 
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
             if (skipped.length > 0) {
-              message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+              message += `\n\nSkipped ${skipped.length} rows:`;
+              skipped.forEach((s, idx) => {
+                if (idx < 5) { // Limit to first 5 for readability
+                  message += `\n• ${s.identifier}: ${s.reason}`;
+                }
+              });
+              if (skipped.length > 5) {
+                message += `\n• ... and ${skipped.length - 5} more`;
+              }
               console.log('Skipped rows:', skipped);
             }
             showAlert('Import Result', message);
@@ -313,11 +324,12 @@ export default function SettingsScreen() {
         // Validate rows
         const validRows: any[] = [];
         const skipped: any[] = [];
-        rows.forEach(r => {
+        rows.forEach((r, index) => {
           // Check required fields
           const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
           if (missing.length) {
-            skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+            const rowIdentifier = (r as any)['Name'] || (r as any)['Account Number'] || `Row ${index + 2}`; // +2 because of header row
+            skipped.push({ row: r, reason: 'Missing '+missing.join(','), identifier: rowIdentifier });
           } else {
             validRows.push(r);
           }
@@ -348,8 +360,10 @@ export default function SettingsScreen() {
 
           // Add RWC prefix to account number if not already present
           let accountNumber = (row as any)['Account Number']?.toString().trim();
-          if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
-            accountNumber = `RWC${accountNumber}`;
+          if (accountNumber) {
+            // Remove any existing RWC prefix first to prevent duplicates
+            const cleanAccountNumber = accountNumber.replace(/^RWC/i, '').trim();
+            accountNumber = `RWC${cleanAccountNumber}`;
           }
 
           const clientData: any = {
@@ -437,7 +451,15 @@ export default function SettingsScreen() {
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
-          message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+          message += `\n\nSkipped ${skipped.length} rows:`;
+          skipped.forEach((s, idx) => {
+            if (idx < 5) { // Limit to first 5 for readability
+              message += `\n• ${s.identifier}: ${s.reason}`;
+            }
+          });
+          if (skipped.length > 5) {
+            message += `\n• ... and ${skipped.length - 5} more`;
+          }
           console.log('Skipped rows:', skipped);
         }
         showAlert('Import Result', message);
@@ -452,11 +474,12 @@ export default function SettingsScreen() {
         // Validate rows
         const validRows: any[] = [];
         const skipped: any[] = [];
-        rows.forEach(r => {
+        rows.forEach((r, index) => {
           // Check required fields
           const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
           if (missing.length) {
-            skipped.push({ row: r, reason: 'Missing '+missing.join(',') });
+            const rowIdentifier = (r as any)['Name'] || (r as any)['Account Number'] || `Row ${index + 2}`; // +2 because of header row
+            skipped.push({ row: r, reason: 'Missing '+missing.join(','), identifier: rowIdentifier });
           } else {
             validRows.push(r);
           }
@@ -487,8 +510,10 @@ export default function SettingsScreen() {
 
           // Add RWC prefix to account number if not already present
           let accountNumber = (row as any)['Account Number']?.toString().trim();
-          if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
-            accountNumber = `RWC${accountNumber}`;
+          if (accountNumber) {
+            // Remove any existing RWC prefix first to prevent duplicates
+            const cleanAccountNumber = accountNumber.replace(/^RWC/i, '').trim();
+            accountNumber = `RWC${cleanAccountNumber}`;
           }
 
           const clientData: any = {
@@ -576,7 +601,15 @@ export default function SettingsScreen() {
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
-          message += `\n\nSkipped: ${skipped.length} rows due to missing data (Name, Address, or Next Due Date) or other errors.`;
+          message += `\n\nSkipped ${skipped.length} rows:`;
+          skipped.forEach((s, idx) => {
+            if (idx < 5) { // Limit to first 5 for readability
+              message += `\n• ${s.identifier}: ${s.reason}`;
+            }
+          });
+          if (skipped.length > 5) {
+            message += `\n• ... and ${skipped.length - 5} more`;
+          }
           console.log('Skipped rows:', skipped);
         }
         showAlert('Import Result', message);
