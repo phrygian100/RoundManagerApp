@@ -5,6 +5,60 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-26 - Moved Refresh Capacity to Settings
+
+### UI/UX Improvement: Centralized Capacity Management
+Moved the "Refresh Capacity" functionality from the runsheet header to the settings screen for better organization and user experience.
+
+### Implementation Details:
+
+**Settings Screen (`app/(tabs)/settings.tsx`)**:
+- Added `isRefreshingCapacity` state to track loading state
+- Added `handleRefreshCapacityForCurrentWeek()` function that:
+  - Uses `startOfWeek()` to get current week date
+  - Imports and calls `manualRefreshWeekCapacity()` service
+  - Shows detailed results with job redistribution counts and warnings
+- Added "Refresh Capacity for Current Week" button after "Repair Client Order"
+- Button shows "Refreshing..." state and is disabled during operation
+
+**Runsheet Screen (`app/runsheet/[week].tsx`)**:
+- Removed `isRefreshingCapacity` state and related loading logic
+- Removed `handleCapacityRefresh()` and `handleDebugCapacity()` functions
+- Removed refresh capacity and debug buttons from header
+- Simplified header to only show home button
+
+**User Experience**:
+- Capacity refresh is now accessible from main settings area
+- No longer clutters the runsheet header interface
+- Maintains all existing functionality and error handling
+- Provides same detailed feedback on redistribution results
+
+### Technical Implementation:
+```typescript
+// Settings screen function
+const handleRefreshCapacityForCurrentWeek = async () => {
+  setIsRefreshingCapacity(true);
+  try {
+    const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
+    const result = await manualRefreshWeekCapacity(currentWeek);
+    
+    // Show detailed results with job counts and warnings
+    Alert.alert('Capacity Refresh Complete', alertMessage);
+  } catch (error) {
+    Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
+  } finally {
+    setIsRefreshingCapacity(false);
+  }
+};
+```
+
+### Files Modified:
+- `app/(tabs)/settings.tsx`: Added refresh capacity functionality
+- `app/runsheet/[week].tsx`: Removed refresh capacity functionality
+
+---
+
 ## 2025-01-26 - Vehicle-Based Collapse/Expand in Runsheets
 
 ### New Feature: Vehicle-Level Job Grouping

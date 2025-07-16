@@ -43,7 +43,6 @@ export default function RunsheetWeekScreen() {
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
-  const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
   const router = useRouter();
 
   // Parse week param
@@ -607,91 +606,6 @@ export default function RunsheetWeekScreen() {
     }
   };
 
-  // Manual capacity refresh for current week
-  const handleCapacityRefresh = async () => {
-    setIsRefreshingCapacity(true);
-    try {
-      const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
-      const result = await manualRefreshWeekCapacity(weekStart);
-      
-      let alertMessage = `Capacity refresh completed!\n\n`;
-      
-      if (result.redistributedJobs > 0) {
-        alertMessage += `• ${result.redistributedJobs} jobs redistributed\n`;
-        alertMessage += `• Modified days: ${result.daysModified.join(', ')}\n`;
-        
-        if (result.warnings.length > 0) {
-          alertMessage += `\nWarnings:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
-        }
-        
-        // Refresh the screen to show updated job positions
-        if (Platform.OS === 'web') {
-          window.location.reload();
-        } else {
-          // For mobile, refetch data
-          const startDate = format(weekStart, 'yyyy-MM-dd');
-          const endDate = format(weekEnd, 'yyyy-MM-dd');
-          const jobsForWeek = await getJobsForWeek(startDate, endDate);
-          
-          // Refetch and update local state
-          const fetchJobsAndClients = async () => {
-            // Reuse the existing fetch logic
-            window.location.reload();
-          };
-          fetchJobsAndClients();
-        }
-      } else {
-        alertMessage += `No jobs needed redistribution - all days are within capacity limits.`;
-        
-        if (result.warnings.length > 0) {
-          alertMessage += `\n\nNotes:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
-        }
-      }
-      
-      Alert.alert('Capacity Refresh Complete', alertMessage);
-    } catch (error) {
-      console.error('Error refreshing capacity:', error);
-      Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
-    } finally {
-      setIsRefreshingCapacity(false);
-    }
-  };
-
-  // Debug capacity analysis
-  const handleDebugCapacity = async () => {
-    try {
-      const { debugWeekCapacity } = await import('../../services/capacityService');
-      const result = await debugWeekCapacity(weekStart);
-      
-      let debugMessage = `Debug Analysis for ${result.weekInfo}\n\n`;
-      debugMessage += `Total Jobs: ${result.totalJobs}\n\n`;
-      
-      result.dailyCapacities.forEach(day => {
-        debugMessage += `${day.dayName}:\n`;
-        debugMessage += `  Capacity: £${day.totalCapacity}\n`;
-        debugMessage += `  Jobs Value: £${day.currentJobsValue}\n`;
-        debugMessage += `  Available: £${day.availableCapacity}\n`;
-        debugMessage += `  Over Capacity: ${day.isOverCapacity ? 'YES' : 'NO'}\n`;
-        debugMessage += `  Team Members: ${day.availableMembers.length}\n\n`;
-      });
-      
-      if (result.redistributionResult) {
-        debugMessage += `Redistribution Test:\n`;
-        debugMessage += `  Jobs Moved: ${result.redistributionResult.redistributedJobs}\n`;
-        debugMessage += `  Days Modified: ${result.redistributionResult.daysModified.join(', ')}\n`;
-        if (result.redistributionResult.warnings.length > 0) {
-          debugMessage += `  Warnings: ${result.redistributionResult.warnings.join('; ')}\n`;
-        }
-      }
-      
-      console.log('🔍 DEBUG CAPACITY ANALYSIS:', debugMessage);
-      Alert.alert('Debug Capacity Analysis', debugMessage);
-    } catch (error) {
-      console.error('Error debugging capacity:', error);
-      Alert.alert('Debug Error', `Failed to analyze capacity: ${error}`);
-    }
-  };
-
   const renderItem = ({ item, index, section }: any) => {
     if (isQuoteJob(item)) {
       // Only show complete for first incomplete quote job on today
@@ -919,26 +833,6 @@ export default function RunsheetWeekScreen() {
           </Pressable>
           <Text style={styles.title}>{weekTitle}</Text>
           <View style={styles.headerButtons}>
-            {isCurrentWeek && (
-              <>
-                <Pressable 
-                  style={[styles.capacityRefreshButton, isRefreshingCapacity && styles.capacityRefreshButtonDisabled]} 
-                  onPress={handleCapacityRefresh}
-                  disabled={isRefreshingCapacity}
-                >
-                  <Text style={styles.capacityRefreshButtonText}>
-                    {isRefreshingCapacity ? '⟳' : '⚖️'} {isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity'}
-                  </Text>
-                </Pressable>
-                <Pressable 
-                  style={[styles.debugCapacityButton, isRefreshingCapacity && styles.debugCapacityButtonDisabled]} 
-                  onPress={handleDebugCapacity}
-                  disabled={isRefreshingCapacity}
-                >
-                  <Text style={styles.debugCapacityButtonText}>🔍 Debug</Text>
-                </Pressable>
-              </>
-            )}
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
             </Pressable>

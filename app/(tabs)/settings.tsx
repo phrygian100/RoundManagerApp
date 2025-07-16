@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { startOfWeek } from 'date-fns';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
@@ -84,6 +85,7 @@ export default function SettingsScreen() {
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
+  const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
@@ -955,6 +957,40 @@ export default function SettingsScreen() {
     }
   };
 
+  // Refresh capacity for current week
+  const handleRefreshCapacityForCurrentWeek = async () => {
+    setIsRefreshingCapacity(true);
+    try {
+      const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
+      const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
+      const result = await manualRefreshWeekCapacity(currentWeek);
+      
+      let alertMessage = `Capacity refresh completed for current week!\n\n`;
+      
+      if (result.redistributedJobs > 0) {
+        alertMessage += `• ${result.redistributedJobs} jobs redistributed\n`;
+        alertMessage += `• Modified days: ${result.daysModified.join(', ')}\n`;
+        
+        if (result.warnings.length > 0) {
+          alertMessage += `\nWarnings:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
+        }
+      } else {
+        alertMessage += `No jobs needed redistribution - all days are within capacity limits.`;
+        
+        if (result.warnings.length > 0) {
+          alertMessage += `\n\nNotes:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
+        }
+      }
+      
+      Alert.alert('Capacity Refresh Complete', alertMessage);
+    } catch (error) {
+      console.error('Error refreshing capacity:', error);
+      Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
+    } finally {
+      setIsRefreshingCapacity(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
@@ -1006,6 +1042,14 @@ export default function SettingsScreen() {
           title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'}
           onPress={handleRepairClients}
           disabled={loading}
+        />
+      </View>
+
+      <View style={styles.buttonContainer}>
+        <StyledButton
+          title={isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity for Current Week'}
+          onPress={handleRefreshCapacityForCurrentWeek}
+          disabled={isRefreshingCapacity || loading}
         />
       </View>
 
