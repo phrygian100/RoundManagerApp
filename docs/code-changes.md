@@ -5,6 +5,34 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-27 - Fixed Note Job Positioning in Runsheets
+
+### Bug Fix: Note Jobs Now Correctly Position Below Selected Job
+Fixed an issue where note jobs were appearing at the top of the day instead of directly below the job where the user clicked "add note below". The sorting algorithm has been completely rewritten to ensure notes maintain their position relative to their original job.
+
+### Technical Changes:
+
+**Enhanced Sorting Algorithm (`app/runsheet/[week].tsx`)**:
+- Removed flawed `originalIndex` approach that didn't work for newly added notes
+- Implemented smart sorting based on `originalJobId` reference
+- Note jobs now always appear directly after their associated job
+- Multiple notes for the same job are sorted by creation timestamp
+- Notes maintain position even when their original job moves due to ETA or round order changes
+
+**Sorting Rules**:
+1. Regular jobs sort by ETA (if set), then by roundOrderNumber
+2. Note jobs always appear immediately after their original job
+3. When comparing a note to its original job, the note always comes after
+4. When comparing notes to other jobs, they use their original job's position
+5. Multiple notes for the same job sort by `createdAt` timestamp
+
+### Bug Details:
+- **Issue**: Notes were being sorted to the top of the day due to insertion order not being preserved
+- **Root Cause**: The `originalIndex` approach failed because it was assigned after insertion
+- **Solution**: Use the `originalJobId` field to maintain proper parent-child relationship
+
+---
+
 ## 2025-01-27 - Add Note Below Functionality in Runsheets
 
 ### New Feature: Text-Based Note Jobs

@@ -282,51 +282,80 @@ export default function RunsheetWeekScreen() {
   // Group jobs by day of week
   const sections = daysOfWeek.map((day, i) => {
     const dayDate = addDays(weekStart, i);
-    // Add original index to preserve insertion order
-    const jobsWithIndex = jobs.map((job, index) => ({ ...job, originalIndex: index }));
     
-    const jobsForDay = jobsWithIndex
+    const jobsForDay = jobs
       .filter((job: any) => {
         const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
         const matches = jobDate && jobDate.toDateString() === dayDate.toDateString();
         return matches;
       })
       .sort((a: any, b: any) => {
-        // For note jobs, always preserve their original insertion order
-        if (isNoteJob(a) && isNoteJob(b)) {
-          return a.originalIndex - b.originalIndex;
+        // First, sort non-note jobs by their business logic
+        if (!isNoteJob(a) && !isNoteJob(b)) {
+          // If both jobs have ETA, sort by ETA (earliest first)
+          if (a.eta && b.eta) {
+            // Parse as HH:mm
+            const [aHour, aMin] = a.eta.split(':').map(Number);
+            const [bHour, bMin] = b.eta.split(':').map(Number);
+            if (aHour !== bHour) return aHour - bHour;
+            if (aMin !== bMin) return aMin - bMin;
+          }
+          // If only one has ETA, that one comes first
+          if (a.eta && !b.eta) return -1;
+          if (!a.eta && b.eta) return 1;
+          
+          // Sort by roundOrderNumber
+          return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
         }
+        
+        // If one is a note and the other isn't, position notes after their original job
         if (isNoteJob(a) && !isNoteJob(b)) {
-          // Use original index to maintain position relative to other jobs
-          return a.originalIndex - b.originalIndex;
+          // If this note belongs to job b, it should come after b
+          if (a.originalJobId === b.id) return 1;
+          // Otherwise, find the positions of their associated jobs and compare
+          const aOriginalJob = jobs.find((j: any) => j.id === a.originalJobId);
+          const aPosition = aOriginalJob ? (aOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
+          const bPosition = b.client?.roundOrderNumber ?? 0;
+          
+          // If positions are equal, the note comes after
+          if (aPosition === bPosition) return 1;
+          return aPosition - bPosition;
         }
+        
         if (!isNoteJob(a) && isNoteJob(b)) {
-          // Use original index to maintain position relative to other jobs
-          return a.originalIndex - b.originalIndex;
+          // If this note belongs to job a, it should come after a
+          if (b.originalJobId === a.id) return -1;
+          // Otherwise, find the positions of their associated jobs and compare
+          const bOriginalJob = jobs.find((j: any) => j.id === b.originalJobId);
+          const bPosition = bOriginalJob ? (bOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
+          const aPosition = a.client?.roundOrderNumber ?? 0;
+          
+          // If positions are equal, the job comes before
+          if (aPosition === bPosition) return -1;
+          return aPosition - bPosition;
         }
         
-        // For regular jobs only, apply business logic sorting, but fall back to original index
-        // Regular job sorting logic
-        // If both jobs have ETA, sort by ETA (earliest first)
-        if (a.eta && b.eta) {
-          // Parse as HH:mm
-          const [aHour, aMin] = a.eta.split(':').map(Number);
-          const [bHour, bMin] = b.eta.split(':').map(Number);
-          if (aHour !== bHour) return aHour - bHour;
-          if (aMin !== bMin) return aMin - bMin;
-          // If ETA is the same, preserve original order
-          return a.originalIndex - b.originalIndex;
+        // If both are notes, sort by their original job positions, then by creation time
+        if (isNoteJob(a) && isNoteJob(b)) {
+          // If they belong to the same original job, sort by creation time
+          if (a.originalJobId === b.originalJobId) {
+            return (a.createdAt || 0) - (b.createdAt || 0);
+          }
+          
+          // Otherwise, find their original jobs and compare positions
+          const aOriginalJob = jobs.find((j: any) => j.id === a.originalJobId);
+          const bOriginalJob = jobs.find((j: any) => j.id === b.originalJobId);
+          
+          const aPosition = aOriginalJob ? (aOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
+          const bPosition = bOriginalJob ? (bOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
+          
+          if (aPosition !== bPosition) return aPosition - bPosition;
+          
+          // If positions are equal, sort by creation time
+          return (a.createdAt || 0) - (b.createdAt || 0);
         }
-        // If only one has ETA, that one comes first
-        if (a.eta && !b.eta) return -1;
-        if (!a.eta && b.eta) return 1;
         
-        // Sort by roundOrderNumber, but preserve original order for ties
-        const roundOrderDiff = (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
-        if (roundOrderDiff !== 0) return roundOrderDiff;
-        
-        // If round order is the same, preserve original insertion order
-        return a.originalIndex - b.originalIndex;
+        return 0;
       });
     
     if (jobsForDay.length > 0) {
