@@ -151,11 +151,16 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
         createdAt: new Date().toISOString(),
       }, { merge: true });
 
+      // Show success message briefly, then auto-navigate
       Alert.alert(
         'Setup Complete',
-        'Your account has been configured successfully!',
-        [{ text: 'OK', onPress: () => onComplete(false) }]
+        'Your account has been configured successfully!'
       );
+      
+      // Auto-navigate after a short delay
+      setTimeout(() => {
+        onComplete(false);
+      }, 1500);
     } catch (error) {
       console.error('Error saving setup:', error);
       Alert.alert('Error', 'Failed to save setup. Please try again.');
@@ -242,7 +247,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
               <Text style={styles.label}>Vehicle Name or Registration</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., White Transit Van or AB21 CDE"
+                placeholder="eg. registration, white transit, bicycle"
                 value={vehicleNameOrReg}
                 onChangeText={setVehicleNameOrReg}
                 editable={!saving}

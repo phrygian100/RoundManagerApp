@@ -625,3 +625,23 @@ Files: `app/quotes.tsx`
 Files: `components/FirstTimeSetupModal.tsx`, `app/(tabs)/index.tsx`, `app/enter-invite-code.tsx`
 
 ---
+
+## 2025-01-23 – First-Time Setup UX Improvements 🎨
+• **Issue**: Vehicle field placeholder text was confusing and setup completion had poor UX
+• **Request**: Update placeholder text and fix navigation after setup completion
+
+**Changes made**:
+• **Vehicle Placeholder**: Changed from "e.g., White Transit Van or AB21 CDE" to "eg. registration, white transit, bicycle"
+• **Setup Completion**: Fixed the issue where button stayed grey for 30 seconds after completion
+  - Changed from alert with OK button to auto-dismissing success message
+  - Modal now automatically closes and navigates after 1.5 seconds
+  - Prevents confusion where button returns to blue while waiting for user action
+
+**User Experience**:
+• Clearer placeholder text showing more diverse vehicle examples
+• Smooth transition after setup - success message appears briefly then auto-navigates
+• No more waiting for user to click OK - automatic progression to home screen
+
+Files: `components/FirstTimeSetupModal.tsx`
+
+---
