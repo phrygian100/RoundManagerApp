@@ -51,6 +51,10 @@ export default function RunsheetWeekScreen() {
   
   const router = useRouter();
 
+  // Helper functions
+  const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
+  const isNoteJob = (job: any) => job && job.serviceId === 'note';
+
   // Parse week param
   const weekStart = week ? parseISO(week as string) : startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -157,40 +161,50 @@ export default function RunsheetWeekScreen() {
       // 5. Fetch and verify completed days for this week
       try {
         const ownerId = await getDataOwnerId();
-        const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${startDate}`));
-        if (completedDaysDoc.exists()) {
-          const data = completedDaysDoc.data();
-          const loadedCompletedDays = data.completedDays || [];
-          console.log(`Loaded completed days from Firestore for week ${startDate}:`, loadedCompletedDays);
-
-          const verifiedCompletedDays = loadedCompletedDays.filter((dayTitle: string) => {
-            const dayIndex = daysOfWeek.indexOf(dayTitle);
-            if (dayIndex === -1) return false;
-
-            const dayDate = addDays(weekStart, dayIndex);
-            const jobsForDay = jobsWithClients.filter((job: any) => {
-                const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-                return jobDate && jobDate.toDateString() === dayDate.toDateString();
-            });
-            
-            const isActuallyComplete = jobsForDay.length > 0 && jobsForDay.every(job => job.status === 'completed');
-
-            if (jobsForDay.length > 0 && !isActuallyComplete) {
-                console.warn(`Data inconsistency: Day "${dayTitle}" was marked as complete in Firestore, but has incomplete jobs. Ignoring for this session.`);
-            }
-
-            return isActuallyComplete;
-          });
-          
-          console.log('Verified completed days:', verifiedCompletedDays);
-          setCompletedDays(verifiedCompletedDays);
-
-        } else {
-          console.log(`No completed days document found for week ${startDate}.`);
+        if (!ownerId) {
+          console.log('No ownerId found, skipping completed days fetch');
           setCompletedDays([]);
+        } else {
+          try {
+            const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${startDate}`));
+            if (completedDaysDoc.exists()) {
+              const data = completedDaysDoc.data();
+              const loadedCompletedDays = data.completedDays || [];
+              console.log(`Loaded completed days from Firestore for week ${startDate}:`, loadedCompletedDays);
+
+              const verifiedCompletedDays = loadedCompletedDays.filter((dayTitle: string) => {
+                const dayIndex = daysOfWeek.indexOf(dayTitle);
+                if (dayIndex === -1) return false;
+
+                const dayDate = addDays(weekStart, dayIndex);
+                const jobsForDay = jobsWithClients.filter((job: any) => {
+                    const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+                    return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
+                });
+                
+                const isActuallyComplete = jobsForDay.length > 0 && jobsForDay.every(job => job.status === 'completed');
+
+                if (jobsForDay.length > 0 && !isActuallyComplete) {
+                    console.warn(`Data inconsistency: Day "${dayTitle}" was marked as complete in Firestore, but has incomplete jobs. Ignoring for this session.`);
+                }
+
+                return isActuallyComplete;
+              });
+              
+              console.log('Verified completed days:', verifiedCompletedDays);
+              setCompletedDays(verifiedCompletedDays);
+
+            } else {
+              console.log(`No completed days document found for week ${startDate}.`);
+              setCompletedDays([]);
+            }
+          } catch (docError) {
+            console.warn('Error fetching completed days document (permissions or does not exist):', docError);
+            setCompletedDays([]);
+          }
         }
       } catch (error) {
-        console.error('Error fetching completed days:', error);
+        console.error('Error in completed days fetch process:', error);
         setCompletedDays([]);
       }
       
@@ -394,9 +408,6 @@ export default function RunsheetWeekScreen() {
     Alert.alert('Success', 'Job moved to selected date');
   };
 
-  const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
-  const isNoteJob = (job: any) => job && job.serviceId === 'note';
-
   const handleJobPress = (job: any) => {
     if (isQuoteJob(job)) {
       if (Platform.OS === 'ios') {
@@ -597,11 +608,9 @@ export default function RunsheetWeekScreen() {
 
       await addDoc(collection(db, 'jobs'), noteJobData);
       
-      // Refresh the jobs list
-      const startDate = format(weekStart, 'yyyy-MM-dd');
-      const endDate = format(weekEnd, 'yyyy-MM-dd');
-      const jobsForWeek = await getJobsForWeek(startDate, endDate);
-      setJobs(jobsForWeek.map(job => ({ ...job, client: null })));
+      // Trigger a re-fetch by setting loading and clearing jobs first
+      setLoading(true);
+      setJobs([]);
       
       setAddNoteModalVisible(false);
       setAddNoteText('');
