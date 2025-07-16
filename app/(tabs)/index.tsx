@@ -1,9 +1,11 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
-import { auth } from '../../core/firebase';
+import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
+import { auth, db } from '../../core/firebase';
 import { getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
@@ -16,6 +18,8 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState<string | null>(null);
   const [navigationInProgress, setNavigationInProgress] = useState(false);
+  const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(false);
+  const [checkingFirstTime, setCheckingFirstTime] = useState(true);
 
   const handleNavigation = (path: string) => {
     if (navigationInProgress) return;
@@ -23,6 +27,41 @@ export default function HomeScreen() {
     router.push(path as any);
     // Reset navigation flag after a short delay
     setTimeout(() => setNavigationInProgress(false), 1000);
+  };
+
+  const checkFirstTimeSetup = async (firebaseUser: User) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        if (!userData.firstTimeSetupCompleted) {
+          setShowFirstTimeSetup(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking first time setup:', error);
+    } finally {
+      setCheckingFirstTime(false);
+    }
+  };
+
+  const handleFirstTimeSetupComplete = (hasInviteCode: boolean) => {
+    setShowFirstTimeSetup(false);
+    if (hasInviteCode) {
+      // User chose to enter invite code, navigate there
+      router.push('/enter-invite-code');
+    } else {
+      // User completed setup, reload to refresh the UI
+      if (Platform.OS === 'web') {
+        window.location.reload();
+      } else {
+        // For mobile, refetch user session
+        const firebaseUser = auth.currentUser;
+        if (firebaseUser) {
+          buildButtonsForUser(firebaseUser);
+        }
+      }
+    }
   };
 
   const buildButtonsForUser = async (firebaseUser: User) => {
@@ -77,6 +116,7 @@ export default function HomeScreen() {
       }
       unsub(); // Stop listening once we have the user
       buildButtonsForUser(firebaseUser);
+      checkFirstTimeSetup(firebaseUser); // Check if first-time setup is needed
     });
 
     return () => unsub();
@@ -166,6 +206,12 @@ export default function HomeScreen() {
       ))}
       {email && (
         <Text style={styles.email}>Logged in as {email}</Text>
+      )}
+      {showFirstTimeSetup && (
+        <FirstTimeSetupModal 
+          visible={showFirstTimeSetup} 
+          onComplete={handleFirstTimeSetupComplete} 
+        />
       )}
     </View>
   );

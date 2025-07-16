@@ -2,9 +2,11 @@
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
+import { db } from '../core/firebase';
 
 export default function EnterInviteCodeScreen() {
   const router = useRouter();
@@ -50,6 +52,12 @@ export default function EnterInviteCodeScreen() {
         const currentUser = auth.currentUser;
         if (currentUser) {
           await currentUser.getIdToken(true);
+          
+          // Mark first-time setup as complete
+          await updateDoc(doc(db, 'users', currentUser.uid), {
+            firstTimeSetupCompleted: true,
+            updatedAt: new Date().toISOString(),
+          });
         }
         
         // Redirect to home or team page after success

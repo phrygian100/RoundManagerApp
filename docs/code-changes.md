@@ -590,3 +590,29 @@ Files: `app/runsheet/[week].tsx`, `app/quotes.tsx`
 Files: `app/quotes.tsx`
 
 ---
+
+## 2025-01-21 – First-Time Setup Modal 🚀
+• **Issue**: New users had no guidance on initial setup and configuration
+• **Request**: Add a first-time setup modal that asks about invite codes, working days, vehicle info, and daily limits
+
+**Changes made**:
+• **Setup Modal**: Created a new modal that appears when users log in for the first time
+• **Three-Step Process**: 
+  - Step 1: Ask if they have an invite code to join an organization
+  - Step 2: Select default working days (if creating own organization)
+  - Step 3: Enter vehicle details and daily turnover limit
+• **Default Rota**: Automatically creates 52 weeks of rota entries based on selected working days
+• **Vehicle Creation**: Creates a vehicle record with registration and daily limit
+• **Navigation**: Routes users to invite code screen if they have one, or completes setup
+
+**Implementation details**:
+• Created `FirstTimeSetupModal` component with multi-step wizard interface
+• Added `firstTimeSetupCompleted` flag to user documents
+• Added fields: `defaultWorkingDays`, `vehicleName`, `vehicleRegistration`, `dailyTurnoverLimit`
+• Modified home screen to check for first-time users and show modal
+• Updated invite code flow to mark setup as complete when joining a team
+• Automatically populates rota for the next 52 weeks based on working day preferences
+
+Files: `components/FirstTimeSetupModal.tsx`, `app/(tabs)/index.tsx`, `app/enter-invite-code.tsx`
+
+---
