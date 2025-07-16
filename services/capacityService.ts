@@ -118,103 +118,96 @@ export async function redistributeJobsForWeek(
   }
   
   const weekCapacity = await getWeekCapacity(weekStart, jobs, memberMap, rotaMap);
-  const jobsToRedistribute: (Job & { client: Client | null })[] = [];
   const batch = writeBatch(db);
   
-  // Process each day from Monday to Sunday
-  for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-    const dayCapacity = weekCapacity[dayIndex];
+  // Get all jobs for the week sorted by round order (continuous sequence)
+  const allWeekJobs = jobs
+    .filter(job => job.client) // Only jobs with clients (have round order)
+    .sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+  
+  if (allWeekJobs.length === 0) {
+    return result;
+  }
+  
+  // Get available days (days with capacity > 0) in order
+  const availableDays = weekCapacity.filter(day => day.totalCapacity > 0);
+  
+  if (availableDays.length === 0) {
+    result.warnings.push('No days with available team members found');
+    return result;
+  }
+  
+  // Distribute jobs sequentially across available days
+  let currentDayIndex = 0;
+  let currentDayValue = 0;
+  const jobDistribution: Record<string, (Job & { client: Client | null })[]> = {};
+  
+  // Initialize distribution arrays for each available day
+  availableDays.forEach(day => {
+    jobDistribution[day.dateKey] = [];
+  });
+  
+  // Distribute jobs in round order sequence across available days
+  for (const job of allWeekJobs) {
+    const jobValue = job.price || 0;
+    const currentDay = availableDays[currentDayIndex];
     
-    if (!dayCapacity.isOverCapacity) continue;
-    
-    // Get jobs for this day sorted by round order
-    const jobsForDay = jobs.filter((job: Job & { client: Client | null }) => {
-      const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-      return jobDate && jobDate.toDateString() === dayCapacity.date.toDateString();
-    }).sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
-    
-    // Calculate which jobs need to be moved
-    let runningTotal = 0;
-    const jobsToMove: (Job & { client: Client | null })[] = [];
-    
-    for (const job of jobsForDay) {
-      runningTotal += (job.price || 0);
-      if (runningTotal > dayCapacity.totalCapacity) {
-        jobsToMove.push(job);
-      }
-    }
-    
-    if (jobsToMove.length === 0) continue;
-    
-    // Find target day(s) for overflow jobs - start from the LAST available day
-    const jobsStillToMove = [...jobsToMove];
-    
-    // Find all available days after the current day (with capacity > 0)
-    const availableDays: number[] = [];
-    for (let i = dayIndex + 1; i < 7; i++) {
-      if (weekCapacity[i].totalCapacity > 0) {
-        availableDays.push(i);
-      }
-    }
-    
-    // Process available days in reverse order (last day first)
-    for (let i = availableDays.length - 1; i >= 0 && jobsStillToMove.length > 0; i--) {
-      const targetDayIndex = availableDays[i];
-      const targetDayCapacity = weekCapacity[targetDayIndex];
-      
-      // Move jobs that fit into this day's available capacity
-      const jobsToMoveToday: (Job & { client: Client | null })[] = [];
-      let moveRunningTotal = 0;
-      
-      for (let j = 0; j < jobsStillToMove.length; j++) {
-        const job = jobsStillToMove[j];
-        const jobValue = job.price || 0;
-        
-        if (moveRunningTotal + jobValue <= targetDayCapacity.availableCapacity) {
-          jobsToMoveToday.push(job);
-          moveRunningTotal += jobValue;
-        } else {
-          break; // Can't fit any more jobs in this day
-        }
-      }
-      
-      // Update job schedules for jobs that can be moved
-      for (const job of jobsToMoveToday) {
-        const newScheduledTime = format(targetDayCapacity.date, 'yyyy-MM-dd') + 'T09:00:00';
-        const jobRef = doc(db, 'jobs', job.id);
-        batch.update(jobRef, { scheduledTime: newScheduledTime });
-        
-        // Remove from jobs still to move
-        const index = jobsStillToMove.indexOf(job);
-        if (index > -1) {
-          jobsStillToMove.splice(index, 1);
-        }
-        
-        result.redistributedJobs++;
-      }
-      
-      // Update target day capacity for next iteration
-      weekCapacity[targetDayIndex].currentJobsValue += moveRunningTotal;
-      weekCapacity[targetDayIndex].availableCapacity -= moveRunningTotal;
-      
-      if (jobsToMoveToday.length > 0) {
-        result.daysModified.push(targetDayCapacity.dayName);
-      }
-    }
-    
-    // If it's the last day or no more capacity in the week, keep remaining jobs
-    if (jobsStillToMove.length > 0) {
-      if (dayIndex === 6) {
-        result.warnings.push(`${jobsStillToMove.length} jobs remain over capacity on ${dayCapacity.dayName} (final day of week)`);
+    // Check if job fits in current day's capacity
+    if (currentDayValue + jobValue <= currentDay.totalCapacity || currentDayIndex >= availableDays.length - 1) {
+      // Job fits in current day OR we're on the last available day (accept overflow)
+      jobDistribution[currentDay.dateKey].push(job);
+      currentDayValue += jobValue;
+    } else {
+      // Move to next available day
+      currentDayIndex++;
+      if (currentDayIndex < availableDays.length) {
+        const nextDay = availableDays[currentDayIndex];
+        jobDistribution[nextDay.dateKey].push(job);
+        currentDayValue = jobValue;
       } else {
-        result.warnings.push(`${jobsStillToMove.length} jobs could not be redistributed from ${dayCapacity.dayName} - insufficient capacity in remaining days`);
+        // No more days available, add to last day
+        const lastDay = availableDays[availableDays.length - 1];
+        jobDistribution[lastDay.dateKey].push(job);
       }
-    }
-    
-    if (result.redistributedJobs > 0) {
-      result.daysModified.push(dayCapacity.dayName);
     }
   }
+  
+  // Update job schedules based on new distribution
+  const daysModified = new Set<string>();
+  
+  for (const [dateKey, jobsForDay] of Object.entries(jobDistribution)) {
+    for (const job of jobsForDay) {
+      const currentJobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+      const newScheduledTime = dateKey + 'T09:00:00';
+      
+      // Only update if the job is moving to a different day
+      if (currentJobDate && format(currentJobDate, 'yyyy-MM-dd') !== dateKey) {
+        const jobRef = doc(db, 'jobs', job.id);
+        batch.update(jobRef, { scheduledTime: newScheduledTime });
+        result.redistributedJobs++;
+        
+        // Track which days were modified
+        const dayName = availableDays.find(d => d.dateKey === dateKey)?.dayName;
+        if (dayName) {
+          daysModified.add(dayName);
+        }
+      }
+    }
+  }
+  
+  // Check for capacity overages and add warnings
+  for (const [dateKey, jobsForDay] of Object.entries(jobDistribution)) {
+    const dayCapacity = availableDays.find(d => d.dateKey === dateKey);
+    if (dayCapacity) {
+      const totalValue = jobsForDay.reduce((sum, job) => sum + (job.price || 0), 0);
+      if (totalValue > dayCapacity.totalCapacity) {
+        const excess = totalValue - dayCapacity.totalCapacity;
+        result.warnings.push(`${dayCapacity.dayName} over capacity by £${excess.toFixed(2)}`);
+      }
+    }
+  }
+  
+  result.daysModified = Array.from(daysModified);
   
   // Commit all job updates
   if (result.redistributedJobs > 0) {

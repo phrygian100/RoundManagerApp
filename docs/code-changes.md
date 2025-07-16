@@ -985,15 +985,21 @@ For each day Monday-Sunday:
 ### Algorithm Logic Update:
 
 ```
-For each day Monday-Sunday with overflow:
-  Identify all available days after current day (with capacity > 0)
-  Process available days in REVERSE order (Saturday → Friday → Thursday etc.)
-  For each target day (starting from last):
-    Move jobs that fit into available capacity
-    Update capacity calculations
-  If jobs still remain:
-    Keep on current day (accept overflow)
+Step 1: Get all jobs for the week sorted by round order (continuous sequence 1,2,3,4,5...)
+Step 2: Identify all available days (days with team capacity > 0)
+Step 3: Distribute jobs sequentially:
+  For each job in round order:
+    If job fits in current day capacity:
+      Add job to current day
+    Else if more days available:
+      Move to next available day
+      Add job to new current day
+    Else:
+      Add job to final available day (accept overflow)
+Step 4: Update job schedules to match new distribution
 ```
+
+**Key Correction**: The algorithm now properly maintains **continuous round order sequence** across the entire week, rather than trying to move overflow jobs between days. This ensures jobs appear as 1,2,3,4,5,6,7... across Monday→Tuesday→Wednesday→etc., maintaining routing efficiency.
 
 ### User Experience Impact:
 
@@ -1002,5 +1008,53 @@ For each day Monday-Sunday with overflow:
 - **Predictable Behavior**: Future week changes automatically redistribute, current week protected
 
 **Files modified**: `services/capacityService.ts`, `services/rotaService.ts`
+
+---
+
+## Capacity Algorithm Complete Rewrite (2025-01-21 - CORRECTED)
+
+### Critical Issues Identified and Fixed:
+
+**1. Fundamental Algorithm Misunderstanding**:
+- **Problem**: Previous implementation tried to move "overflow" jobs from each day to other days
+- **Root Cause**: Misunderstood that the system needs a **continuous round order sequence** across the entire week
+- **Fix**: Complete rewrite to distribute **all** jobs sequentially based on round order
+
+**2. Round Order Sequence Broken**:
+- **Problem**: Jobs were appearing out of order (e.g., 10, 489, 11) within days
+- **Root Cause**: Day-by-day overflow approach disrupted continuous sequencing
+- **Fix**: Process all jobs as a single sorted list, then distribute across available days
+
+### Corrected Algorithm Behavior:
+
+**Input**: All jobs for week in round order sequence (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12...)
+
+**Process**:
+1. **Sequential Day Filling**: Start with first available day (e.g., Monday)
+2. **Capacity-Based Distribution**: Fill day until capacity limit reached
+3. **Flow to Next Day**: When day full, continue sequence on next available day
+4. **Final Day Overflow**: Any remaining jobs accumulate on last available day
+
+**Output**: Continuous round order maintained across all days:
+- Monday: Jobs 1, 2, 3, 4 (capacity reached)
+- Tuesday: Jobs 5, 6, 7 (capacity reached)  
+- Wednesday: Jobs 8, 9, 10, 11 (capacity reached)
+- Thursday: Jobs 12, 13, 14, 15, 16, 17 (overflow accepted)
+
+### Technical Implementation:
+
+**Complete Function Rewrite**: `redistributeJobsForWeek()` in `services/capacityService.ts`
+- Removed day-by-day overflow processing
+- Added continuous job sequence processing
+- Implemented forward-filling algorithm across available days
+- Maintained round order integrity throughout distribution
+
+**Key Changes**:
+- Single sorted job list processed sequentially
+- Day capacity tracking with forward progression
+- Proper overflow handling on final available day
+- Batch database updates for moved jobs only
+
+**Files modified**: `services/capacityService.ts`
 
 ---
