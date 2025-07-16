@@ -296,9 +296,15 @@ export default function RunsheetWeekScreen() {
         return matches;
       })
       .sort((a: any, b: any) => {
-        // Skip note jobs in the main sort - they'll be inserted later
-        if (isNoteJob(a) || isNoteJob(b)) {
-          return 0;
+        // Don't sort note jobs - keep them in their current position
+        if (isNoteJob(a) && isNoteJob(b)) {
+          return 0; // Keep existing order for note jobs
+        }
+        if (isNoteJob(a) && !isNoteJob(b)) {
+          return 1; // Note jobs come after regular jobs in sort, but we'll maintain their actual position
+        }
+        if (!isNoteJob(a) && isNoteJob(b)) {
+          return -1; // Regular jobs come before note jobs in sort
         }
         
         // Regular job sorting logic
@@ -316,52 +322,12 @@ export default function RunsheetWeekScreen() {
         // Otherwise, sort by roundOrderNumber
         return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
       });
-
-    // Now properly position note jobs after their original jobs
-    const regularJobs = jobsForDay.filter(job => !isNoteJob(job));
-    const noteJobs = jobsForDay.filter(job => isNoteJob(job));
     
-    console.log(`🗒️ Day ${day} sorting:`, {
-      totalJobs: jobsForDay.length,
-      regularJobs: regularJobs.length,
-      noteJobs: noteJobs.length,
-      noteJobIds: noteJobs.map(nj => ({ id: nj.id, originalId: (nj as any).originalJobId }))
-    });
-    
-    const finalJobsForDay: any[] = [];
-    
-    regularJobs.forEach(regularJob => {
-      // Add the regular job
-      finalJobsForDay.push(regularJob);
-      
-      // Find and add any note jobs that belong after this job
-      const relatedNoteJobs = noteJobs
-        .filter(noteJob => (noteJob as any).originalJobId === regularJob.id)
-        .sort((a, b) => ((a as any).createdAt || 0) - ((b as any).createdAt || 0)); // Sort by creation time
-      
-      if (relatedNoteJobs.length > 0) {
-        console.log(`🗒️ Found ${relatedNoteJobs.length} note(s) for job ${regularJob.id}`);
-      }
-      
-      finalJobsForDay.push(...relatedNoteJobs);
-    });
-    
-    // Add any orphaned note jobs (original job not found) at the end
-    const orphanedNoteJobs = noteJobs.filter(noteJob => 
-      !regularJobs.some(regularJob => regularJob.id === (noteJob as any).originalJobId)
-    );
-    
-    if (orphanedNoteJobs.length > 0) {
-      console.log(`🗒️ Found ${orphanedNoteJobs.length} orphaned note job(s)`);
+    if (jobsForDay.length > 0) {
+      console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
-    finalJobsForDay.push(...orphanedNoteJobs);
-    
-    if (finalJobsForDay.length > 0) {
-      console.log(`📅 ${day}: ${finalJobsForDay.length} jobs (${regularJobs.length} regular, ${noteJobs.length} notes)`);
-    }
-    
-    const allocated = allocateJobsForDay(dayDate, finalJobsForDay);
+    const allocated = allocateJobsForDay(dayDate, jobsForDay);
     return {
       title: day,
       data: allocated,
@@ -641,18 +607,18 @@ export default function RunsheetWeekScreen() {
         client: null
       };
       
-      console.log('🗒️ Adding note job:', {
-        noteJobId: noteJobWithClient.id,
-        originalJobId: noteJobData.originalJobId,
-        originalJobScheduledTime: addNoteForJob.scheduledTime,
-        noteJobScheduledTime: noteJobData.scheduledTime
-      });
-      
-      // Add to global jobs array
+      // Simply insert the note right after the job the user clicked on
       setJobs(prevJobs => {
-        const updated = [...prevJobs, noteJobWithClient as any];
-        console.log('🗒️ Updated jobs count:', updated.length);
-        return updated;
+        const originalJobIndex = prevJobs.findIndex(job => job.id === addNoteForJob.id);
+        if (originalJobIndex !== -1) {
+          // Insert the note right after the original job
+          const newJobs = [...prevJobs];
+          newJobs.splice(originalJobIndex + 1, 0, noteJobWithClient as any);
+          return newJobs;
+        } else {
+          // Fallback: add at end if original job not found
+          return [...prevJobs, noteJobWithClient as any];
+        }
       });
       
       setAddNoteModalVisible(false);
