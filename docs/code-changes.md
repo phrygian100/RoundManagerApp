@@ -564,3 +564,29 @@ Files: `firestore.rules`, `firestore.indexes.json`, `app/(tabs)/clients/[id].tsx
 Files: `app/runsheet/[week].tsx`, `app/quotes.tsx`
 
 ---
+
+## 2025-01-21 – Collapsible Completed Quotes 🎯
+• **Issue**: Completed quotes were showing all details, making the list lengthy and hard to scan
+• **Request**: Collapse completed quotes to show only the address, expandable to show full details
+
+**Changes made**:
+• **Collapsible State**: Added `collapsedQuotes` state to track which completed quotes are collapsed
+• **Address-Only View**: When collapsed, completed quotes show only the address in a larger font
+• **Click to Toggle**: Clicking on a completed quote toggles between collapsed/expanded views
+• **Visual Indicators**: Added arrow indicators (▶/▼) to show collapsed/expanded state
+• **Smart Layout**: Action buttons (delete) only show when expanded to keep the interface clean
+• **Auto-Collapse**: Completed quotes are automatically collapsed when first loaded for a cleaner initial view
+• **Visual Distinction**: Completed quotes have a subtle green background to distinguish them
+
+**Implementation details**:
+• Added `collapsedQuotes` Set state to track collapsed quote IDs
+• Modified `QuoteCard` component to check if quote is completed and in collapsed set
+• Added `toggleCollapse` function to add/remove quote IDs from collapsed set
+• Wrapped quote content in Pressable for click handling on completed quotes
+• Conditional rendering based on `isCollapsed` state
+• Updated `useEffect` to auto-collapse completed quotes on initial load
+• Added green-tinted background color for completed quote cards
+
+Files: `app/quotes.tsx`
+
+---

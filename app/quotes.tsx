@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button, Modal, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -68,6 +68,7 @@ export default function QuotesScreen() {
     { serviceType: '', frequency: '4 weekly', value: '', notes: '' }
   ]);
   const [completeSearchQuery, setCompleteSearchQuery] = useState('');
+  const [collapsedQuotes, setCollapsedQuotes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -78,7 +79,14 @@ export default function QuotesScreen() {
       }
       const q = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
       const snap = await getDocs(q);
-      setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+      const quotesData = snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote);
+      setQuotes(quotesData);
+      
+      // Automatically collapse all completed quotes
+      const completedQuoteIds = quotesData
+        .filter(quote => quote.status === 'complete')
+        .map(quote => quote.id);
+      setCollapsedQuotes(new Set(completedQuoteIds));
     };
     fetchQuotes();
   }, []);
@@ -219,39 +227,92 @@ export default function QuotesScreen() {
   const QuoteCard = ({ quote, action, onDelete }: { quote: Quote; action?: React.ReactNode; onDelete?: () => void }) => {
     // For backward compatibility, if lines are not present, use legacy fields
     const lines = quote.lines || [{ serviceType: '', frequency: quote.frequency || '4 weekly', value: quote.value || '', notes: quote.notes || '' }];
+    
+    // Check if this quote is completed and collapsed
+    const isCompleted = quote.status === 'complete';
+    const isCollapsed = isCompleted && collapsedQuotes.has(quote.id);
+    
+    // Toggle collapse state
+    const toggleCollapse = () => {
+      if (isCompleted) {
+        const newCollapsed = new Set(collapsedQuotes);
+        if (newCollapsed.has(quote.id)) {
+          newCollapsed.delete(quote.id);
+        } else {
+          newCollapsed.add(quote.id);
+        }
+        setCollapsedQuotes(newCollapsed);
+      }
+    };
 
     return (
-      <View style={{ backgroundColor: '#f9f9f9', borderRadius: 8, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#eee', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{quote.name}</Text>
-          <Text style={{ color: '#555', marginBottom: 2 }}>{quote.address}, {quote.town}</Text>
-          <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
-          {lines.length > 0 && (
-            <View style={{ marginTop: 8 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Lines:</Text>
-              {lines.map((line, idx) => (
-                <View key={idx} style={{ marginBottom: 4 }}>
-                  <Text style={{ fontSize: 13 }}>{line.serviceType}</Text>
-                  <Text style={{ fontSize: 12, color: '#555' }}>Freq: {line.frequency}, Value: £{line.value}, Notes: {line.notes}</Text>
-                </View>
-              ))}
-            </View>
+      <View style={{ 
+        backgroundColor: isCompleted ? '#f0f8f0' : '#f9f9f9', 
+        borderRadius: 8, 
+        padding: 16, 
+        marginBottom: 12, 
+        borderWidth: 1, 
+        borderColor: isCompleted ? '#c8e6c9' : '#eee' 
+      }}>
+        <Pressable 
+          onPress={isCompleted ? toggleCollapse : undefined}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+        >
+          <View style={{ flex: 1 }}>
+            {/* Always show address for completed quotes */}
+            <Text style={{ 
+              fontWeight: 'bold', 
+              fontSize: isCollapsed ? 18 : 16,
+              marginBottom: isCollapsed ? 0 : 4 
+            }}>
+              {quote.address}, {quote.town}
+            </Text>
+            
+            {/* Only show other details if not collapsed */}
+            {!isCollapsed && (
+              <>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, marginTop: 8 }}>{quote.name}</Text>
+                <Text style={{ color: '#888', fontSize: 13 }}>Date: {quote.date}</Text>
+                {lines.length > 0 && (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 14 }}>Lines:</Text>
+                    {lines.map((line, idx) => (
+                      <View key={idx} style={{ marginBottom: 4 }}>
+                        <Text style={{ fontSize: 13 }}>{line.serviceType}</Text>
+                        <Text style={{ fontSize: 12, color: '#555' }}>Freq: {line.frequency}, Value: £{line.value}, Notes: {line.notes}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {quote.notes && (
+                  <View style={{ marginTop: 8, backgroundColor: '#f0f0f0', padding: 8, borderRadius: 4 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 2 }}>Notes:</Text>
+                    <Text style={{ fontSize: 13, color: '#333' }}>{quote.notes}</Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+          
+          {/* Show expand/collapse indicator for completed quotes */}
+          {isCompleted && (
+            <Text style={{ fontSize: 20, color: '#666', marginLeft: 8 }}>
+              {isCollapsed ? '▶' : '▼'}
+            </Text>
           )}
-          {quote.notes && (
-            <View style={{ marginTop: 8, backgroundColor: '#f0f0f0', padding: 8, borderRadius: 4 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 13, marginBottom: 2 }}>Notes:</Text>
-              <Text style={{ fontSize: 13, color: '#333' }}>{quote.notes}</Text>
-            </View>
-          )}
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          {action}
-          {onDelete && (
-            <TouchableOpacity onPress={onDelete} style={{ marginLeft: 8, padding: 6, borderRadius: 6, backgroundColor: '#ffeaea' }}>
-              <Ionicons name="trash-outline" size={20} color="#d32f2f" />
-            </TouchableOpacity>
-          )}
-        </View>
+        </Pressable>
+        
+        {/* Action buttons - only show if not collapsed */}
+        {!isCollapsed && (action || onDelete) && (
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+            {action}
+            {onDelete && (
+              <TouchableOpacity onPress={onDelete} style={{ paddingHorizontal: 12, paddingVertical: 8, backgroundColor: '#ff4444', borderRadius: 6 }}>
+                <Text style={{ color: '#fff' }}>Delete</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
       </View>
     );
   };
