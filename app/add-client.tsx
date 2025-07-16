@@ -26,7 +26,9 @@ export default function AddClientScreen() {
   const [address1, setAddress1] = useState('');
   const [town, setTown] = useState('');
   const [postcode, setPostcode] = useState('');
-  const [frequency, setFrequency] = useState<'4' | '8' | 'one-off'>('4');
+  const [frequency, setFrequency] = useState<number | 'one-off'>(4);
+  const [isOneOff, setIsOneOff] = useState(false);
+  const [frequencyText, setFrequencyText] = useState('4');
   const [nextVisit, setNextVisit] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [quote, setQuote] = useState('');
@@ -134,7 +136,19 @@ export default function AddClientScreen() {
     if (params.address1) setAddress1(String(params.address1));
     if (params.town) setTown(String(params.town));
     if (params.postcode) setPostcode(String(params.postcode));
-    if (params.frequency) setFrequency(params.frequency as '4' | '8' | 'one-off');
+    if (params.frequency) {
+      const freq = String(params.frequency);
+      if (freq === 'one-off') {
+        setIsOneOff(true);
+        setFrequency('one-off');
+        setFrequencyText('');
+      } else {
+        const numFreq = Number(freq) || 4;
+        setIsOneOff(false);
+        setFrequency(numFreq);
+        setFrequencyText(String(numFreq));
+      }
+    }
     if (params.nextVisit) setNextVisit(String(params.nextVisit));
     if (params.mobileNumber) setMobileNumber(String(params.mobileNumber));
     if (params.quote) setQuote(String(params.quote));
@@ -155,7 +169,16 @@ export default function AddClientScreen() {
       let freq = quoteData.frequency || '';
       if (freq === '4 weekly') freq = '4';
       if (freq === '8 weekly') freq = '8';
-      setFrequency((freq as '4' | '8' | 'one-off') || '4');
+      if (freq === 'one-off' || freq === 'one off') {
+        setIsOneOff(true);
+        setFrequency('one-off');
+        setFrequencyText('');
+      } else {
+        const numFreq = Number(freq) || 4;
+        setIsOneOff(false);
+        setFrequency(numFreq);
+        setFrequencyText(String(numFreq));
+      }
       // setNotes(quoteData.notes || '');
       // setNextVisit(quoteData.date || '');
     }
@@ -168,9 +191,16 @@ export default function AddClientScreen() {
       return;
     }
 
-    if (!name.trim() || !address1.trim() || !town.trim() || !frequency.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
+    if (!name.trim() || !address1.trim() || !town.trim() || !nextVisit.trim() || !mobileNumber.trim() || !quote.trim()) {
       console.log('Validation failed: missing required fields');
       Alert.alert('Error', 'Please fill out all required fields.');
+      return;
+    }
+
+    // Validate frequency
+    if (!isOneOff && (!frequencyText.trim() || isNaN(Number(frequencyText)) || Number(frequencyText) <= 0)) {
+      console.log('Validation failed: invalid frequency');
+      Alert.alert('Error', 'Please enter a valid frequency (number of weeks) or select One-off.');
       return;
     }
 
@@ -189,7 +219,7 @@ export default function AddClientScreen() {
 
       if (isNaN(frequencyValue) || frequencyValue <= 0) {
         console.log('Validation failed: invalid frequency');
-        Alert.alert('Error', 'Frequency must be 4, 8, or one-off.');
+        Alert.alert('Error', 'Frequency must be a positive number of weeks.');
         return;
       }
     }
@@ -416,15 +446,43 @@ export default function AddClientScreen() {
         </Pressable>
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
-        <Picker
-          selectedValue={frequency}
-          onValueChange={(itemValue) => setFrequency(itemValue as '4' | '8' | 'one-off')}
-          style={styles.input}
-        >
-          <Picker.Item label="Every 4 weeks" value="4" />
-          <Picker.Item label="Every 8 weeks" value="8" />
-          <Picker.Item label="One-off" value="one-off" />
-        </Picker>
+        <View style={styles.frequencyContainer}>
+          <Pressable 
+            style={[styles.checkboxContainer, isOneOff && styles.checkboxChecked]}
+            onPress={() => {
+              setIsOneOff(!isOneOff);
+              if (!isOneOff) {
+                setFrequency('one-off');
+                setFrequencyText('');
+              } else {
+                setFrequency(Number(frequencyText) || 4);
+              }
+            }}
+          >
+            <ThemedText style={styles.checkboxText}>One-off</ThemedText>
+          </Pressable>
+          {!isOneOff && (
+            <View style={styles.frequencyInputContainer}>
+              <TextInput
+                value={frequencyText}
+                onChangeText={(text) => {
+                  // Only allow positive numbers
+                  if (/^\d*$/.test(text)) {
+                    setFrequencyText(text);
+                    const num = Number(text);
+                    if (num > 0) {
+                      setFrequency(num);
+                    }
+                  }
+                }}
+                style={styles.frequencyInput}
+                placeholder="e.g. 4"
+                keyboardType="numeric"
+              />
+              <ThemedText style={styles.frequencyLabel}>weeks</ThemedText>
+            </View>
+          )}
+        </View>
 
         <ThemedText style={styles.label}>Starting Date</ThemedText>
         {Platform.OS === 'web' ? (
@@ -543,5 +601,45 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  frequencyContainer: {
+    gap: 12,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  frequencyInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  frequencyInput: {
+    height: 50,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    flex: 1,
+    textAlign: 'center',
+  },
+  frequencyLabel: {
+    fontSize: 16,
+    color: '#666',
   },
 });

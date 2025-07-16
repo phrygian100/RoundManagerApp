@@ -5,6 +5,7 @@ export type QuoteLine = {
   frequency: string;
   value: string;
   notes: string;
+  customFrequency?: string;
 };
 
 export type QuoteToClientData = {

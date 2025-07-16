@@ -75,7 +75,8 @@ export default function SettingsScreen() {
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [loadingMessage, setLoadingMessage] = useState('');
 
-  const requiredFields = ['Address Line 1','Name','Mobile Number','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date','Starting Balance'];
+  // Updated required fields - made Email optional, Mobile Number optional for CSV import  
+  const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
 
   // Determine if current user is owner and if they're a member of another account
   useEffect(() => {
@@ -170,20 +171,44 @@ export default function SettingsScreen() {
             
             for (let i = 0; i < validRows.length; i++) {
               const row = validRows[i];
+              
+              // Process visit frequency - support any number or 'one-off'
+              let frequency: number | string = 'one-off';
+              const frequencyValue = (row as any)['Visit Frequency']?.toString().trim();
+              if (frequencyValue) {
+                if (frequencyValue.toLowerCase() === 'one-off' || frequencyValue.toLowerCase() === 'one off') {
+                  frequency = 'one-off';
+                } else {
+                  const numFreq = Number(frequencyValue);
+                  if (!isNaN(numFreq) && numFreq > 0) {
+                    frequency = numFreq;
+                  }
+                }
+              }
+
+              // Add RWC prefix to account number if not already present
+              let accountNumber = (row as any)['Account Number']?.toString().trim();
+              if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
+                accountNumber = `RWC${accountNumber}`;
+              }
+
               const clientData: any = {
                 name: (row as any)['Name']?.trim(),
-                address: (row as any)['Address Line 1']?.trim(),
+                address1: (row as any)['Address Line 1']?.trim(),
                 town: (row as any)['Town']?.trim(),
                 postcode: (row as any)['Postcode']?.trim(),
-                mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+                // For backward compatibility, also store combined address
+                address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
+                mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
                 quote: 0,
-                frequency: (row as any)['Visit Frequency']?.trim(),
+                frequency: frequency,
                 nextVisit: '',
-                roundOrderNumber: Number((row as any)['Round Order']) || i,
-                email: (row as any)['Email']?.trim(),
-                source: (row as any)['Source']?.trim(),
-                startingBalance: Number((row as any)['Starting Balance']||0),
-                accountNumber: (row as any)['Account Number']?.trim(),
+                roundOrderNumber: Number((row as any)['Round Order']) || i + 1,
+                email: (row as any)['Email']?.trim() || '',
+                source: (row as any)['Source']?.trim() || '',
+                startingBalance: Number((row as any)['Starting Balance'] || 0),
+                accountNumber: accountNumber || '',
+                runsheetNotes: (row as any)['Runsheet Note']?.trim() || '',
               };
 
               const quoteString = (row as any)['Quote (£)']?.toString().trim();
@@ -205,7 +230,20 @@ export default function SettingsScreen() {
                 }
               }
 
-              if (clientData.name && clientData.address && clientData.nextVisit) {
+              // Process account notes
+              const accountNotesText = (row as any)['Account notes']?.trim();
+              if (accountNotesText) {
+                const accountNote = {
+                  id: Date.now().toString() + '_' + i,
+                  date: new Date().toISOString(),
+                  author: 'CSV Import',
+                  authorId: 'system',
+                  text: accountNotesText
+                };
+                clientData.accountNotes = [accountNote];
+              }
+
+              if (clientData.name && clientData.address1 && clientData.nextVisit) {
                 const ownerId = await getDataOwnerId();
                 if (!ownerId) {
                   showAlert('Error', 'Could not determine account owner. Please log in again.');
@@ -216,8 +254,7 @@ export default function SettingsScreen() {
                   await addDoc(collection(db, 'clients'), {
                     ...clientData,
                     dateAdded: new Date().toISOString(),
-                    source: clientData.source || '',
-                    email: clientData.email || '',
+                    status: 'active',
                     ownerId,
                   });
                   imported++;
@@ -294,20 +331,44 @@ export default function SettingsScreen() {
         
         for (let i = 0; i < validRows.length; i++) {
           const row = validRows[i];
+          
+          // Process visit frequency - support any number or 'one-off'
+          let frequency: number | string = 'one-off';
+          const frequencyValue = (row as any)['Visit Frequency']?.toString().trim();
+          if (frequencyValue) {
+            if (frequencyValue.toLowerCase() === 'one-off' || frequencyValue.toLowerCase() === 'one off') {
+              frequency = 'one-off';
+            } else {
+              const numFreq = Number(frequencyValue);
+              if (!isNaN(numFreq) && numFreq > 0) {
+                frequency = numFreq;
+              }
+            }
+          }
+
+          // Add RWC prefix to account number if not already present
+          let accountNumber = (row as any)['Account Number']?.toString().trim();
+          if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
+            accountNumber = `RWC${accountNumber}`;
+          }
+
           const clientData: any = {
             name: (row as any)['Name']?.trim(),
-            address: (row as any)['Address Line 1']?.trim(),
+            address1: (row as any)['Address Line 1']?.trim(),
             town: (row as any)['Town']?.trim(),
             postcode: (row as any)['Postcode']?.trim(),
-            mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+            // For backward compatibility, also store combined address
+            address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
+            mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
             quote: 0,
-            frequency: (row as any)['Visit Frequency']?.trim(),
+            frequency: frequency,
             nextVisit: '',
-            roundOrderNumber: Number((row as any)['Round Order']) || i,
-            email: (row as any)['Email']?.trim(),
-            source: (row as any)['Source']?.trim(),
-            startingBalance: Number((row as any)['Starting Balance']||0),
-            accountNumber: (row as any)['Account Number']?.trim(),
+            roundOrderNumber: Number((row as any)['Round Order']) || i + 1,
+            email: (row as any)['Email']?.trim() || '',
+            source: (row as any)['Source']?.trim() || '',
+            startingBalance: Number((row as any)['Starting Balance'] || 0),
+            accountNumber: accountNumber || '',
+            runsheetNotes: (row as any)['Runsheet Note']?.trim() || '',
           };
 
           const quoteString = (row as any)['Quote (£)']?.toString().trim();
@@ -329,7 +390,20 @@ export default function SettingsScreen() {
             }
           }
 
-          if (clientData.name && clientData.address && clientData.nextVisit) {
+          // Process account notes
+          const accountNotesText = (row as any)['Account notes']?.trim();
+          if (accountNotesText) {
+            const accountNote = {
+              id: Date.now().toString() + '_' + i,
+              date: new Date().toISOString(),
+              author: 'CSV Import',
+              authorId: 'system',
+              text: accountNotesText
+            };
+            clientData.accountNotes = [accountNote];
+          }
+
+          if (clientData.name && clientData.address1 && clientData.nextVisit) {
             const ownerId = await getDataOwnerId();
             if (!ownerId) {
               showAlert('Error', 'Could not determine account owner. Please log in again.');
@@ -340,8 +414,7 @@ export default function SettingsScreen() {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
                 dateAdded: new Date().toISOString(),
-                source: clientData.source || '',
-                email: clientData.email || '',
+                status: 'active',
                 ownerId,
               });
               imported++;
@@ -397,20 +470,44 @@ export default function SettingsScreen() {
         
         for (let i = 0; i < validRows.length; i++) {
           const row = validRows[i];
+          
+          // Process visit frequency - support any number or 'one-off'
+          let frequency: number | string = 'one-off';
+          const frequencyValue = (row as any)['Visit Frequency']?.toString().trim();
+          if (frequencyValue) {
+            if (frequencyValue.toLowerCase() === 'one-off' || frequencyValue.toLowerCase() === 'one off') {
+              frequency = 'one-off';
+            } else {
+              const numFreq = Number(frequencyValue);
+              if (!isNaN(numFreq) && numFreq > 0) {
+                frequency = numFreq;
+              }
+            }
+          }
+
+          // Add RWC prefix to account number if not already present
+          let accountNumber = (row as any)['Account Number']?.toString().trim();
+          if (accountNumber && !accountNumber.toUpperCase().startsWith('RWC')) {
+            accountNumber = `RWC${accountNumber}`;
+          }
+
           const clientData: any = {
             name: (row as any)['Name']?.trim(),
-            address: (row as any)['Address Line 1']?.trim(),
+            address1: (row as any)['Address Line 1']?.trim(),
             town: (row as any)['Town']?.trim(),
             postcode: (row as any)['Postcode']?.trim(),
-            mobileNumber: (row as any)['Mobile Number']?.toString().trim(),
+            // For backward compatibility, also store combined address
+            address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
+            mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
             quote: 0,
-            frequency: (row as any)['Visit Frequency']?.trim(),
+            frequency: frequency,
             nextVisit: '',
-            roundOrderNumber: Number((row as any)['Round Order']) || i,
-            email: (row as any)['Email']?.trim(),
-            source: (row as any)['Source']?.trim(),
-            startingBalance: Number((row as any)['Starting Balance']||0),
-            accountNumber: (row as any)['Account Number']?.trim(),
+            roundOrderNumber: Number((row as any)['Round Order']) || i + 1,
+            email: (row as any)['Email']?.trim() || '',
+            source: (row as any)['Source']?.trim() || '',
+            startingBalance: Number((row as any)['Starting Balance'] || 0),
+            accountNumber: accountNumber || '',
+            runsheetNotes: (row as any)['Runsheet Note']?.trim() || '',
           };
 
           const quoteString = (row as any)['Quote (£)']?.toString().trim();
@@ -432,7 +529,20 @@ export default function SettingsScreen() {
             }
           }
 
-          if (clientData.name && clientData.address && clientData.nextVisit) {
+          // Process account notes
+          const accountNotesText = (row as any)['Account notes']?.trim();
+          if (accountNotesText) {
+            const accountNote = {
+              id: Date.now().toString() + '_' + i,
+              date: new Date().toISOString(),
+              author: 'CSV Import',
+              authorId: 'system',
+              text: accountNotesText
+            };
+            clientData.accountNotes = [accountNote];
+          }
+
+          if (clientData.name && clientData.address1 && clientData.nextVisit) {
             const ownerId = await getDataOwnerId();
             if (!ownerId) {
               showAlert('Error', 'Could not determine account owner. Please log in again.');
@@ -443,8 +553,7 @@ export default function SettingsScreen() {
               await addDoc(collection(db, 'clients'), {
                 ...clientData,
                 dateAdded: new Date().toISOString(),
-                source: clientData.source || '',
-                email: clientData.email || '',
+                status: 'active',
                 ownerId,
               });
               imported++;

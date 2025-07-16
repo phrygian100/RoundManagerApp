@@ -5,6 +5,57 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-24 - Comprehensive CSV Import Enhancement & Flexible Visit Frequency System
+
+### Major Features Added:
+1. **Enhanced CSV Import Fields**: Added support for "Runsheet Note" and "Account notes" columns in CSV imports
+2. **Automatic RWC Prefix**: Account numbers from CSV automatically get "RWC" prefix if not already present
+3. **Flexible Visit Frequency**: Complete overhaul of visit frequency system to support any number of weeks (not just 4, 8, one-off)
+4. **Updated Client Forms**: Add-client form now uses text input + checkbox for flexible frequency input
+5. **Enhanced Quote System**: Quote forms support expanded frequency options (4, 8, 12, 16, 24, 52 weekly, one-off, Other)
+
+### Implementation Details:
+
+**CSV Import Enhancements (`app/(tabs)/settings.tsx`)**:
+- Added "Runsheet Note" field mapping for direct import to client.runsheetNotes
+- Added "Account notes" field with automatic attribution ("CSV Import", system authorId)
+- Implemented automatic RWC prefix addition for account numbers
+- Enhanced visit frequency processing to accept any positive number or "one-off"
+- Updated all three import paths (web CSV, mobile CSV, mobile Excel) with consistent logic
+- Made Email and Mobile Number optional fields for CSV import
+
+**Flexible Visit Frequency System**:
+- **Client Forms**: Replaced hardcoded dropdowns with text input + one-off checkbox
+- **Quote System**: Extended frequency options and added "Other" with custom text input
+- **Type System**: Updated QuoteLine types to support customFrequency field
+- **Job Generation**: Verified existing logic already handles any numeric frequency correctly
+
+**Updated Example Data (`scripts/generate-clients.js`)**:
+- Generated new example CSV with 200 clients showing varied frequencies (4, 6, 8, 12, 16, 24, one-off)
+- Included sample runsheet notes (every 5th client) and account notes (every 7th client)
+- Demonstrates the full flexibility of the new import system
+
+### Technical Improvements:
+- **Backward Compatibility**: All changes maintain compatibility with existing client data
+- **Data Validation**: Enhanced validation for flexible frequency input across all forms
+- **User Experience**: Improved form UI with clear frequency input and one-off toggle
+- **Import Robustness**: Better error handling and data sanitization in CSV processing
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Core CSV import enhancements
+- `app/add-client.tsx` - Flexible frequency form with text input + checkbox
+- `app/quotes.tsx` - Extended frequency options with custom input
+- `app/runsheet/[week].tsx` - Enhanced quote progression modal frequencies
+- `contexts/QuoteToClientContext.tsx` - Updated QuoteLine type
+- `scripts/generate-clients.js` - New example CSV with enhanced fields
+- `docs/example-clients.csv` - Generated with new format
+
+**Breaking Changes**: None - all changes are backward compatible
+
+**Impact**: This enhancement significantly improves CSV import capabilities and visit frequency flexibility, supporting any business model (weekly, bi-weekly, monthly, quarterly, etc.) while maintaining full compatibility with existing data.
+
+---
+
 ## 2025-01-21 - Critical Team Member System Fixes
 
 - **Issues Fixed**: Multiple critical issues with team member system after Firestore migration:

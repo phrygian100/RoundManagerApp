@@ -15,6 +15,7 @@ type QuoteLine = {
   frequency: string;
   value: string;
   notes: string;
+  customFrequency?: string;
 };
 
 type Quote = {
@@ -580,8 +581,25 @@ export default function QuotesScreen() {
                   >
                     <Picker.Item label="4 weekly" value="4 weekly" />
                     <Picker.Item label="8 weekly" value="8 weekly" />
+                    <Picker.Item label="12 weekly" value="12 weekly" />
+                    <Picker.Item label="16 weekly" value="16 weekly" />
+                    <Picker.Item label="24 weekly" value="24 weekly" />
+                    <Picker.Item label="52 weekly" value="52 weekly" />
                     <Picker.Item label="one-off" value="one-off" />
+                    <Picker.Item label="Other" value="other" />
                   </Picker>
+                  {line.frequency === 'other' && (
+                    <>
+                      <Text style={{ marginBottom: 2 }}>Custom Frequency (weeks)</Text>
+                      <TextInput 
+                        placeholder="e.g. 6" 
+                        value={line.customFrequency || ''} 
+                        onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, customFrequency: v } : l))} 
+                        style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} 
+                        keyboardType="numeric" 
+                      />
+                    </>
+                  )}
                   <Text style={{ marginBottom: 2 }}>Value (£)</Text>
                   <TextInput placeholder="e.g. 25" value={line.value} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, value: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} keyboardType="numeric" />
                   <Text style={{ marginBottom: 2 }}>Notes</Text>
