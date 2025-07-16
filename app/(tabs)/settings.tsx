@@ -280,15 +280,19 @@ export default function SettingsScreen() {
 
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
             if (skipped.length > 0) {
+              console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
+              console.log('[DEBUG] Skipped array:', skipped);
               message += `\n\nSkipped ${skipped.length} rows:`;
               skipped.forEach((s, idx) => {
                 if (idx < 5) { // Limit to first 5 for readability
+                  console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
                   message += `\n• ${s.identifier}: ${s.reason}`;
                 }
               });
               if (skipped.length > 5) {
                 message += `\n• ... and ${skipped.length - 5} more`;
               }
+              console.log('[DEBUG] Final message:', message);
               console.log('Skipped rows:', skipped);
             }
             showAlert('Import Result', message);
@@ -451,15 +455,19 @@ export default function SettingsScreen() {
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
+          console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
+          console.log('[DEBUG] Skipped array:', skipped);
           message += `\n\nSkipped ${skipped.length} rows:`;
           skipped.forEach((s, idx) => {
             if (idx < 5) { // Limit to first 5 for readability
+              console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
               message += `\n• ${s.identifier}: ${s.reason}`;
             }
           });
           if (skipped.length > 5) {
             message += `\n• ... and ${skipped.length - 5} more`;
           }
+          console.log('[DEBUG] Final message:', message);
           console.log('Skipped rows:', skipped);
         }
         showAlert('Import Result', message);
@@ -601,15 +609,19 @@ export default function SettingsScreen() {
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
+          console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
+          console.log('[DEBUG] Skipped array:', skipped);
           message += `\n\nSkipped ${skipped.length} rows:`;
           skipped.forEach((s, idx) => {
             if (idx < 5) { // Limit to first 5 for readability
+              console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
               message += `\n• ${s.identifier}: ${s.reason}`;
             }
           });
           if (skipped.length > 5) {
             message += `\n• ... and ${skipped.length - 5} more`;
           }
+          console.log('[DEBUG] Final message:', message);
           console.log('Skipped rows:', skipped);
         }
         showAlert('Import Result', message);
