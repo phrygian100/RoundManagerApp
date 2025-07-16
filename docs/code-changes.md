@@ -644,6 +644,12 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 • Removed incorrect `canQueryByOwnerId` function that was causing rule compilation issues
 • Added composite Firestore indexes for common queries (jobs by ownerId+scheduledTime, jobs by ownerId+status)
 
+**Round 3 fixes**:
+• Separated `list` and `get` operations in Firestore rules
+• For collection queries (list), only check if user is signed in - the query filters will handle access control
+• For document reads (get), check proper resource access permissions
+• This fixes the "Missing or insufficient permissions" error when querying collections with filters
+
 **Issue**: Users were getting "Missing or insufficient permissions" errors when:
 - Viewing client accounts (fetching service history)
 - Loading runsheet

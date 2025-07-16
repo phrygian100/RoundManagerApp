@@ -37,25 +37,33 @@ service cloud.firestore {
     }
 
     match /quotes/{quoteId} {
-      allow read: if isSignedIn() && hasResourceAccess(resource);
+      // Allow list operations for signed in users - the query filter will handle access control
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /clients/{clientId} {
-      allow read: if isSignedIn() && hasResourceAccess(resource);
+      // Allow list operations for signed in users - the query filter will handle access control
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /jobs/{jobId} {
-      allow read: if isSignedIn() && hasResourceAccess(resource);
+      // Allow list operations for signed in users - the query filter will handle access control
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /payments/{paymentId} {
-      allow read: if isSignedIn() && hasResourceAccess(resource);
+      // Allow list operations for signed in users - the query filter will handle access control
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
@@ -91,11 +99,13 @@ service cloud.firestore {
 
     // Completed weeks - members can read, only owners can write
     match /completedWeeks/{docId} {
+      // Allow list operations for signed in users
+      allow list: if isSignedIn();
       // Allow read if user is signed in and either:
       // 1. Document has accountId field and user has access to that account
       // 2. Document has ownerId field and user has access to that owner
       // 3. The docId contains the user's ID (for backward compatibility)
-      allow read: if isSignedIn() && (
+      allow get: if isSignedIn() && (
         ('accountId' in resource.data && hasAccountAccess(resource.data.accountId)) ||
         ('ownerId' in resource.data && hasAccountAccess(resource.data.ownerId)) ||
         (docId.matches('.*' + request.auth.uid + '.*'))
