@@ -49,6 +49,10 @@ export default function RunsheetWeekScreen() {
   const [addNoteText, setAddNoteText] = useState('');
   const [addNoteForJob, setAddNoteForJob] = useState<Job & { client: Client | null } | null>(null);
   
+  // Delete note functionality
+  const [deleteNoteModalVisible, setDeleteNoteModalVisible] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<Job & { client: Client | null } | null>(null);
+  
   const router = useRouter();
 
   // Helper functions
@@ -648,6 +652,31 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  const handleNotePress = (noteJob: Job & { client: Client | null }) => {
+    setNoteToDelete(noteJob);
+    setDeleteNoteModalVisible(true);
+  };
+
+  const handleDeleteNote = async () => {
+    if (!noteToDelete) return;
+
+    try {
+      // Delete the note job from Firestore
+      await deleteDoc(doc(db, 'jobs', noteToDelete.id));
+      
+      // Remove the note job from local state
+      setJobs(prevJobs => prevJobs.filter(job => job.id !== noteToDelete.id));
+      
+      setDeleteNoteModalVisible(false);
+      setNoteToDelete(null);
+      
+      Alert.alert('Success', 'Note deleted successfully.');
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      Alert.alert('Error', 'Failed to delete note.');
+    }
+  };
+
   const toggleDay = (title: string) => {
     setCollapsedDays((prev) =>
       prev.includes(title) ? prev.filter((d) => d !== title) : [...prev, title]
@@ -768,13 +797,15 @@ export default function RunsheetWeekScreen() {
       return (
         <View style={[styles.clientRow, { backgroundColor: '#fff8e1' }]}> {/* yellow highlight for notes */}
           <View style={{ flex: 1 }}>
-            <View style={styles.addressBlock}>
-              <Text style={styles.addressTitle}>📝 Note</Text>
-            </View>
-            <View style={{ backgroundColor: '#ffcc02', padding: 4, borderRadius: 6, marginBottom: 4 }}>
-              <Text style={{ color: '#000', fontWeight: 'bold' }}>Note</Text>
-            </View>
-            <Text style={styles.clientName}>{item.noteText || item.propertyDetails}</Text>
+            <Pressable onPress={() => handleNotePress(item)}>
+              <View style={styles.addressBlock}>
+                <Text style={styles.addressTitle}>📝 Note</Text>
+              </View>
+              <View style={{ backgroundColor: '#ffcc02', padding: 4, borderRadius: 6, marginBottom: 4 }}>
+                <Text style={{ color: '#000', fontWeight: 'bold' }}>Note</Text>
+              </View>
+              <Text style={styles.clientName}>{(item as any).noteText || item.propertyDetails}</Text>
+            </Pressable>
           </View>
           {/* Note jobs don't have any controls */}
         </View>
@@ -1141,6 +1172,40 @@ export default function RunsheetWeekScreen() {
                   onPress={handleSaveNote}
                 >
                   <Text style={styles.addNoteModalSaveText}>Save Note</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Delete Note Modal */}
+        <Modal
+          visible={deleteNoteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setDeleteNoteModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.addNoteModalContent}>
+              <Text style={styles.addNoteModalTitle}>Delete Note</Text>
+              <Text style={styles.deleteNoteText}>
+                Are you sure you want to delete this note?
+              </Text>
+              <Text style={styles.deleteNotePreview}>
+                "{(noteToDelete as any)?.noteText || noteToDelete?.propertyDetails || ''}"
+              </Text>
+              <View style={styles.addNoteModalButtons}>
+                <Pressable 
+                  style={[styles.addNoteModalButton, styles.addNoteModalCancelButton]} 
+                  onPress={() => setDeleteNoteModalVisible(false)}
+                >
+                  <Text style={styles.addNoteModalCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.addNoteModalButton, styles.deleteNoteButton]} 
+                  onPress={handleDeleteNote}
+                >
+                  <Text style={styles.deleteNoteButtonText}>Delete Note</Text>
                 </Pressable>
               </View>
             </View>
@@ -1664,6 +1729,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   addNoteModalSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  deleteNoteText: {
+    fontSize: 16,
+    marginBottom: 12,
+    textAlign: 'center',
+    color: '#333',
+  },
+  deleteNotePreview: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    marginBottom: 16,
+    textAlign: 'center',
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+    padding: 8,
+    borderRadius: 6,
+  },
+  deleteNoteButton: {
+    backgroundColor: '#ff3b30',
+  },
+  deleteNoteButtonText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,

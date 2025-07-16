@@ -5,6 +5,37 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-27 - Added Note Deletion Functionality
+
+### New Feature: Delete Notes by Tapping
+Added the ability to delete note jobs by tapping on them. When a note is tapped, a confirmation modal appears with a delete button.
+
+### Implementation Details (`app/runsheet/[week].tsx`):
+
+**User Interface**:
+- Made note jobs tappable by wrapping in `Pressable` component
+- Added delete confirmation modal with note preview
+- Modal shows the note text and asks for confirmation before deletion
+
+**State Management**:
+- Added `deleteNoteModalVisible` and `noteToDelete` state variables
+- Added `handleNotePress()` function to open delete modal
+- Added `handleDeleteNote()` function to perform deletion
+
+**Delete Functionality**:
+- Removes note job from Firestore using `deleteDoc()`
+- Updates local state to remove note immediately
+- Shows success/error alerts
+- Maintains referential integrity (no orphaned data)
+
+**Visual Design**:
+- Delete modal matches existing modal styling
+- Shows note preview in italics with gray background
+- Red delete button to indicate destructive action
+- Cancel button for safety
+
+---
+
 ## 2025-01-27 - Fixed Note Job Positioning Bug in allocateJobsForDay
 
 ### Bug Fix: Note Jobs Now Maintain Correct Position Below Selected Job
