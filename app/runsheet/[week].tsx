@@ -41,6 +41,7 @@ export default function RunsheetWeekScreen() {
   const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
+  const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
   const router = useRouter();
 
   // Parse week param
@@ -522,7 +523,8 @@ export default function RunsheetWeekScreen() {
       ? quote.lines
       : [{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }];
     setQuoteLines(lines);
-    setQuoteDetails({ frequency: '', value: '', notes: '', quoteId: (job as any).quoteId });
+    setQuoteData(quote); // Store full quote data
+    setQuoteDetails({ frequency: '', value: '', notes: quote.notes || '', quoteId: (job as any).quoteId });
     setShowQuoteDetailsModal(true);
     setActionSheetJob(null);
   };
@@ -1029,6 +1031,27 @@ export default function RunsheetWeekScreen() {
             <View style={{ backgroundColor: '#fff', padding: 24, borderRadius: 12, width: 340, maxHeight: 600 }}>
               <ScrollView style={{ maxHeight: 450 }} contentContainerStyle={{ paddingBottom: 16 }}>
                 <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
+                
+                {/* Display and edit quote notes */}
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Quote Notes:</Text>
+                  <TextInput
+                    placeholder="Add or edit quote notes..."
+                    value={quoteDetails.notes}
+                    onChangeText={v => setQuoteDetails(d => ({ ...d, notes: v }))}
+                    style={{ 
+                      borderWidth: 1, 
+                      borderColor: '#ccc', 
+                      padding: 8, 
+                      borderRadius: 6, 
+                      backgroundColor: '#f0f8ff',
+                      minHeight: 80
+                    }}
+                    multiline
+                    numberOfLines={3}
+                  />
+                </View>
+                
                 {quoteLines.map((line, idx) => (
                   <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
                     <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
@@ -1061,6 +1084,7 @@ export default function RunsheetWeekScreen() {
                 if (quoteLines.length > 0) {
                   await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
                     lines: quoteLines,
+                    notes: quoteDetails.notes,
                     status: 'pending',
                   });
                 } else {

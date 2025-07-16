@@ -160,6 +160,7 @@ export default function QuotesScreen() {
     const ref = doc(db, 'quotes', detailsModal.quote.id);
     await updateDoc(ref, {
       lines: quoteLines, // Update with the current quoteLines state
+      notes: detailsModal.quote.notes || '', // Save the updated quote notes
       status: 'pending',
     });
     setDetailsModal({ visible: false, quote: null });
@@ -478,13 +479,28 @@ export default function QuotesScreen() {
             <ScrollView style={{ maxHeight: 450 }} contentContainerStyle={{ paddingBottom: 16 }}>
               <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>Progress Quote to Pending</Text>
               
-              {/* Display the quote notes if they exist */}
-              {detailsModal.quote?.notes && (
-                <View style={{ marginBottom: 16, padding: 12, backgroundColor: '#f0f8ff', borderRadius: 8 }}>
-                  <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Quote Notes:</Text>
-                  <Text style={{ fontSize: 14, color: '#333' }}>{detailsModal.quote.notes}</Text>
-                </View>
-              )}
+              {/* Display and edit quote notes */}
+              <View style={{ marginBottom: 16 }}>
+                <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Quote Notes:</Text>
+                <TextInput
+                  placeholder="Add or edit quote notes..."
+                  value={detailsModal.quote?.notes || ''}
+                  onChangeText={v => setDetailsModal(prev => ({
+                    ...prev,
+                    quote: prev.quote ? { ...prev.quote, notes: v } : null
+                  }))}
+                  style={{ 
+                    borderWidth: 1, 
+                    borderColor: '#ccc', 
+                    padding: 8, 
+                    borderRadius: 6, 
+                    backgroundColor: '#f0f8ff',
+                    minHeight: 80
+                  }}
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
 
               {quoteLines.map((line, idx) => (
                 <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>

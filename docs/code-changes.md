@@ -544,3 +544,23 @@ Files: `app/quotes.tsx`
 Files: `firestore.rules`, `firestore.indexes.json`, `app/(tabs)/clients/[id].tsx`, `app/runsheet/[week].tsx`
 
 ---
+
+## 2025-01-21 – Quote Notes Editing Enhancement 📝
+• **Issue**: Quote notes were not visible or editable in the runsheet modal when progressing quotes to pending
+• **Issue**: Line-level notes were emphasized over overall quote notes
+
+**Changes made**:
+• **Runsheet Modal**: Added editable quote notes field at the top of the "Progress Quote to Pending" modal
+• **Quotes Screen Modal**: Updated to make quote notes editable (previously read-only)
+• **Consistent Experience**: Both modals now allow users to view and edit the overall quote notes
+• **Data Persistence**: Quote notes are now properly saved when progressing to pending status from either location
+
+**Implementation details**:
+• Added `quoteData` state to store full quote information in runsheet
+• Updated `handleProgressToPending` to fetch and store quote notes
+• Added editable TextInput for quote notes in both modals
+• Updated save handlers to persist edited quote notes to Firestore
+
+Files: `app/runsheet/[week].tsx`, `app/quotes.tsx`
+
+---
