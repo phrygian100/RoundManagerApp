@@ -282,31 +282,30 @@ export default function RunsheetWeekScreen() {
   // Group jobs by day of week
   const sections = daysOfWeek.map((day, i) => {
     const dayDate = addDays(weekStart, i);
-    const jobsForDay = jobs
+    // Add original index to preserve insertion order
+    const jobsWithIndex = jobs.map((job, index) => ({ ...job, originalIndex: index }));
+    
+    const jobsForDay = jobsWithIndex
       .filter((job: any) => {
         const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
         const matches = jobDate && jobDate.toDateString() === dayDate.toDateString();
-        if (!matches && job.scheduledTime) {
-          console.log(`❌ Job ${job.id} filtered out for ${day}:`, {
-            jobDate: job.scheduledTime,
-            dayDate: dayDate.toDateString(),
-            jobDateString: jobDate?.toDateString()
-          });
-        }
         return matches;
       })
       .sort((a: any, b: any) => {
-        // Don't sort note jobs - keep them in their current position
+        // For note jobs, always preserve their original insertion order
         if (isNoteJob(a) && isNoteJob(b)) {
-          return 0; // Keep existing order for note jobs
+          return a.originalIndex - b.originalIndex;
         }
         if (isNoteJob(a) && !isNoteJob(b)) {
-          return 1; // Note jobs come after regular jobs in sort, but we'll maintain their actual position
+          // Use original index to maintain position relative to other jobs
+          return a.originalIndex - b.originalIndex;
         }
         if (!isNoteJob(a) && isNoteJob(b)) {
-          return -1; // Regular jobs come before note jobs in sort
+          // Use original index to maintain position relative to other jobs
+          return a.originalIndex - b.originalIndex;
         }
         
+        // For regular jobs only, apply business logic sorting, but fall back to original index
         // Regular job sorting logic
         // If both jobs have ETA, sort by ETA (earliest first)
         if (a.eta && b.eta) {
@@ -314,13 +313,20 @@ export default function RunsheetWeekScreen() {
           const [aHour, aMin] = a.eta.split(':').map(Number);
           const [bHour, bMin] = b.eta.split(':').map(Number);
           if (aHour !== bHour) return aHour - bHour;
-          return aMin - bMin;
+          if (aMin !== bMin) return aMin - bMin;
+          // If ETA is the same, preserve original order
+          return a.originalIndex - b.originalIndex;
         }
         // If only one has ETA, that one comes first
         if (a.eta && !b.eta) return -1;
         if (!a.eta && b.eta) return 1;
-        // Otherwise, sort by roundOrderNumber
-        return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
+        
+        // Sort by roundOrderNumber, but preserve original order for ties
+        const roundOrderDiff = (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
+        if (roundOrderDiff !== 0) return roundOrderDiff;
+        
+        // If round order is the same, preserve original insertion order
+        return a.originalIndex - b.originalIndex;
       });
     
     if (jobsForDay.length > 0) {
