@@ -43,6 +43,12 @@ export default function RunsheetWeekScreen() {
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
+  
+  // Note job functionality
+  const [addNoteModalVisible, setAddNoteModalVisible] = useState(false);
+  const [addNoteText, setAddNoteText] = useState('');
+  const [addNoteForJob, setAddNoteForJob] = useState<Job & { client: Client | null } | null>(null);
+  
   const router = useRouter();
 
   // Parse week param
@@ -276,6 +282,26 @@ export default function RunsheetWeekScreen() {
         return matches;
       })
       .sort((a: any, b: any) => {
+        // Note jobs should be sorted by their original job position and then by creation order
+        if (isNoteJob(a) && isNoteJob(b)) {
+          // If both are note jobs, sort by original job position, then by creation time
+          if (a.originalJobId === b.originalJobId) {
+            return (a.createdAt || 0) - (b.createdAt || 0);
+          }
+          return a.originalJobId.localeCompare(b.originalJobId);
+        }
+        if (isNoteJob(a) && !isNoteJob(b)) {
+          // Note job should come after its original job
+          if (a.originalJobId === b.id) return 1;
+          return 0; // Will be handled by the regular sorting for the original job
+        }
+        if (!isNoteJob(a) && isNoteJob(b)) {
+          // Regular job should come before its note job
+          if (a.id === b.originalJobId) return -1;
+          return 0; // Will be handled by the regular sorting for the original job
+        }
+        
+        // Regular job sorting logic
         // If both jobs have ETA, sort by ETA (earliest first)
         if (a.eta && b.eta) {
           // Parse as HH:mm
@@ -369,21 +395,23 @@ export default function RunsheetWeekScreen() {
   };
 
   const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
+  const isNoteJob = (job: any) => job && job.serviceId === 'note';
 
   const handleJobPress = (job: any) => {
     if (isQuoteJob(job)) {
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            options: ['Message ETA', 'Navigate', 'View Details', 'Delete', 'Cancel'],
-            destructiveButtonIndex: 3,
-            cancelButtonIndex: 4,
+            options: ['Message ETA', 'Navigate', 'View Details', 'Add note below', 'Delete', 'Cancel'],
+            destructiveButtonIndex: 4,
+            cancelButtonIndex: 5,
           },
           (buttonIndex) => {
             if (buttonIndex === 0) handleMessageETA(job);
             if (buttonIndex === 1) handleNavigate(job.client);
             if (buttonIndex === 2) job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/');
-            if (buttonIndex === 3) handleDeleteQuoteJob(job);
+            if (buttonIndex === 3) handleAddNoteBelow(job);
+            if (buttonIndex === 4) handleDeleteQuoteJob(job);
           }
         );
       } else {
@@ -394,15 +422,16 @@ export default function RunsheetWeekScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Navigate?', 'View details?', 'Message ETA', 'Delete Job', 'Cancel'],
-          destructiveButtonIndex: 3,
-          cancelButtonIndex: 4,
+          options: ['Navigate?', 'View details?', 'Message ETA', 'Add note below', 'Delete Job', 'Cancel'],
+          destructiveButtonIndex: 4,
+          cancelButtonIndex: 5,
         },
         (buttonIndex) => {
           if (buttonIndex === 0) handleNavigate(job.client);
           if (buttonIndex === 1) handleViewDetails(job.client);
           if (buttonIndex === 2) handleMessageETA(job);
-          if (buttonIndex === 3) handleDeleteJob(job.id);
+          if (buttonIndex === 3) handleAddNoteBelow(job);
+          if (buttonIndex === 4) handleDeleteJob(job.id);
         }
       );
     } else {
@@ -530,6 +559,60 @@ export default function RunsheetWeekScreen() {
     setActionSheetJob(null);
   };
 
+  const handleAddNoteBelow = (job: Job & { client: Client | null }) => {
+    setAddNoteForJob(job);
+    setAddNoteText('');
+    setAddNoteModalVisible(true);
+    setActionSheetJob(null);
+  };
+
+  const handleSaveNote = async () => {
+    if (!addNoteText.trim() || !addNoteForJob) {
+      Alert.alert('Error', 'Please enter a note.');
+      return;
+    }
+
+    try {
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        Alert.alert('Error', 'Authentication error.');
+        return;
+      }
+
+      // Create the note job with a special structure
+      const noteJobData = {
+        ownerId,
+        clientId: 'NOTE_JOB', // Special clientId for note jobs
+        serviceId: 'note',
+        propertyDetails: addNoteText.trim(),
+        scheduledTime: addNoteForJob.scheduledTime, // Same date as the original job
+        status: 'pending',
+        price: 0,
+        paymentStatus: 'paid', // Note jobs don't need payment
+        noteText: addNoteText.trim(),
+        originalJobId: addNoteForJob.id, // Reference to the job it was added below
+        isNoteJob: true, // Flag to easily identify note jobs
+        createdAt: Date.now(), // Timestamp for sorting
+      };
+
+      await addDoc(collection(db, 'jobs'), noteJobData);
+      
+      // Refresh the jobs list
+      const startDate = format(weekStart, 'yyyy-MM-dd');
+      const endDate = format(weekEnd, 'yyyy-MM-dd');
+      const jobsForWeek = await getJobsForWeek(startDate, endDate);
+      setJobs(jobsForWeek.map(job => ({ ...job, client: null })));
+      
+      setAddNoteModalVisible(false);
+      setAddNoteText('');
+      setAddNoteForJob(null);
+      
+    } catch (error) {
+      console.error('Error saving note:', error);
+      Alert.alert('Error', 'Failed to save note.');
+    }
+  };
+
   const toggleDay = (title: string) => {
     setCollapsedDays((prev) =>
       prev.includes(title) ? prev.filter((d) => d !== title) : [...prev, title]
@@ -548,7 +631,7 @@ export default function RunsheetWeekScreen() {
     const dayDate = addDays(weekStart, dayIndex);
     const jobsForDay = jobs.filter((job) => {
       const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-      return jobDate && jobDate.toDateString() === dayDate.toDateString();
+      return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
     });
     return jobsForDay.length > 0 && jobsForDay.every((job) => job.status === 'completed');
   };
@@ -564,8 +647,8 @@ export default function RunsheetWeekScreen() {
   };
 
   const handleDayComplete = async (dayTitle: string) => {
-    // Only include real jobs (exclude vehicle blocks or any without an id)
-    const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type);
+    // Only include real jobs (exclude vehicle blocks, note jobs, or any without an id)
+    const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type && !isNoteJob(job));
     if (dayJobs.length === 0) return;
 
     try {
@@ -614,7 +697,7 @@ export default function RunsheetWeekScreen() {
       const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
       const isToday = jobDate && jobDate.toDateString() === today.toDateString();
       const sectionIndex = sections.findIndex(s => s.title === section.title);
-      const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && job.status !== 'completed');
+      const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
       const isDayCompleted = completedDays.includes(section.title);
       return (
         <View style={[styles.clientRow, { backgroundColor: '#e3f2fd' }]}> {/* blue highlight for quote */}
@@ -646,6 +729,23 @@ export default function RunsheetWeekScreen() {
       );
     }
 
+    if (isNoteJob(item)) {
+      return (
+        <View style={[styles.clientRow, { backgroundColor: '#fff8e1' }]}> {/* yellow highlight for notes */}
+          <View style={{ flex: 1 }}>
+            <View style={styles.addressBlock}>
+              <Text style={styles.addressTitle}>📝 Note</Text>
+            </View>
+            <View style={{ backgroundColor: '#ffcc02', padding: 4, borderRadius: 6, marginBottom: 4 }}>
+              <Text style={{ color: '#000', fontWeight: 'bold' }}>Note</Text>
+            </View>
+            <Text style={styles.clientName}>{item.noteText || item.propertyDetails}</Text>
+          </View>
+          {/* Note jobs don't have any controls */}
+        </View>
+      );
+    }
+
     if ((item as any).__type === 'vehicle') {
       // Count total vehicles in this day to determine if collapse button should be shown
       const vehicleItemsInDay = section.data.filter((dataItem: any) => dataItem.__type === 'vehicle');
@@ -667,8 +767,8 @@ export default function RunsheetWeekScreen() {
     const isCompleted = item.status === 'completed';
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
-    // Find the first incomplete job in this section
-    const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && job.status !== 'completed');
+    // Find the first incomplete job in this section (excluding note jobs)
+    const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
@@ -941,6 +1041,7 @@ export default function RunsheetWeekScreen() {
                   <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
                   <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
                   <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
+                  <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
                   <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
                 </>
               ) : (
@@ -948,6 +1049,7 @@ export default function RunsheetWeekScreen() {
                   <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
                   <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
                   <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                  <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
                   <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
                 </>
               )}
@@ -968,6 +1070,44 @@ export default function RunsheetWeekScreen() {
               <Pressable style={styles.notesModalClose} onPress={() => setNoteModalVisible(false)}>
                 <Text style={styles.notesModalCloseText}>Close</Text>
               </Pressable>
+            </View>
+          </View>
+        </Modal>
+        
+        {/* Add Note Modal */}
+        <Modal
+          visible={addNoteModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setAddNoteModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.addNoteModalContent}>
+              <Text style={styles.addNoteModalTitle}>Add Note Below</Text>
+              <TextInput
+                style={styles.addNoteInput}
+                placeholder="Enter your note here..."
+                value={addNoteText}
+                onChangeText={setAddNoteText}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+                autoFocus
+              />
+              <View style={styles.addNoteModalButtons}>
+                <Pressable 
+                  style={[styles.addNoteModalButton, styles.addNoteModalCancelButton]} 
+                  onPress={() => setAddNoteModalVisible(false)}
+                >
+                  <Text style={styles.addNoteModalCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.addNoteModalButton, styles.addNoteModalSaveButton]} 
+                  onPress={handleSaveNote}
+                >
+                  <Text style={styles.addNoteModalSaveText}>Save Note</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1439,5 +1579,58 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 16,
+  },
+  addNoteModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 300,
+    maxWidth: 400,
+    alignItems: 'stretch',
+  },
+  addNoteModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  addNoteInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    minHeight: 100,
+    marginBottom: 16,
+  },
+  addNoteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  addNoteModalButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  addNoteModalCancelButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  addNoteModalSaveButton: {
+    backgroundColor: '#007AFF',
+  },
+  addNoteModalCancelText: {
+    color: '#333',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  addNoteModalSaveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 }); 

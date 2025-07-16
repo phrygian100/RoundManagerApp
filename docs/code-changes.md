@@ -5,6 +5,103 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-27 - Add Note Below Functionality in Runsheets
+
+### New Feature: Text-Based Note Jobs
+Added the ability to insert text-based note jobs below any job in the runsheet. These note jobs display custom text and are excluded from completion logic and other job processing.
+
+### Implementation Details:
+
+**User Interface (`app/runsheet/[week].tsx`)**:
+- Added "Add note below" button to both iOS ActionSheet and Android/web modal for all job types (regular and quote jobs)
+- Added note input modal with:
+  - Text input field for multi-line note text
+  - Cancel and Save buttons
+  - Clean modal styling matching existing UI patterns
+
+**State Management**:
+- Added `addNoteModalVisible`, `addNoteText`, and `addNoteForJob` state variables
+- Added `handleAddNoteBelow()` function to open note input modal
+- Added `handleSaveNote()` function to create and save note jobs
+
+**Note Job Structure**:
+- Uses `serviceId: 'note'` to identify note jobs
+- Special `clientId: 'NOTE_JOB'` for easy filtering
+- Contains `noteText` field with user-entered text
+- References `originalJobId` to track which job it was added below
+- Includes `createdAt` timestamp for proper sorting
+- Sets `price: 0` and `paymentStatus: 'paid'` since note jobs don't require payment
+
+**Visual Design**:
+- Note jobs display with yellow highlight (`#fff8e1` background)
+- Shows "📝 Note" as address title
+- Yellow badge with "Note" label
+- Displays note text as client name
+- No control buttons (ETA, Complete, etc.)
+
+**Smart Sorting Algorithm**:
+- Enhanced job sorting to position note jobs immediately after their original job
+- Note jobs sort by `originalJobId` and then by `createdAt` timestamp
+- Regular job sorting (ETA, roundOrderNumber) preserved for non-note jobs
+
+**Exclusion from Job Logic**:
+- Added `isNoteJob()` helper function for easy identification
+- Excluded note jobs from:
+  - Day completion logic (`isDayComplete()`)
+  - Batch day completion (`handleDayComplete()`)
+  - First incomplete job detection
+  - All job processing that affects workflow
+
+### Technical Implementation:
+```typescript
+// Note job detection
+const isNoteJob = (job: any) => job && job.serviceId === 'note';
+
+// Note job creation
+const noteJobData = {
+  ownerId,
+  clientId: 'NOTE_JOB',
+  serviceId: 'note',
+  propertyDetails: addNoteText.trim(),
+  scheduledTime: addNoteForJob.scheduledTime,
+  status: 'pending',
+  price: 0,
+  paymentStatus: 'paid',
+  noteText: addNoteText.trim(),
+  originalJobId: addNoteForJob.id,
+  isNoteJob: true,
+  createdAt: Date.now(),
+};
+
+// Enhanced sorting with note job positioning
+.sort((a: any, b: any) => {
+  if (isNoteJob(a) && !isNoteJob(b)) {
+    if (a.originalJobId === b.id) return 1; // Note after original
+  }
+  if (!isNoteJob(a) && isNoteJob(b)) {
+    if (a.id === b.originalJobId) return -1; // Original before note
+  }
+  // Regular sorting logic...
+});
+
+// Exclusion from completion logic
+const jobsForDay = jobs.filter((job) => {
+  return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
+});
+```
+
+### User Experience:
+- Note jobs provide flexible text annotation capabilities
+- Positioned immediately below the job they relate to
+- Visually distinct but integrated into runsheet flow
+- Don't interfere with completion tracking or workflow
+- Support multi-line text for detailed notes
+
+### Files Modified:
+- `app/runsheet/[week].tsx`: Complete note functionality implementation
+
+---
+
 ## 2025-01-26 - Moved Refresh Capacity to Settings
 
 ### UI/UX Improvement: Centralized Capacity Management
