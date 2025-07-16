@@ -288,81 +288,63 @@ export default function RunsheetWeekScreen() {
         const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
         const matches = jobDate && jobDate.toDateString() === dayDate.toDateString();
         return matches;
-      })
-      .sort((a: any, b: any) => {
-        // First, sort non-note jobs by their business logic
-        if (!isNoteJob(a) && !isNoteJob(b)) {
-          // If both jobs have ETA, sort by ETA (earliest first)
-          if (a.eta && b.eta) {
-            // Parse as HH:mm
-            const [aHour, aMin] = a.eta.split(':').map(Number);
-            const [bHour, bMin] = b.eta.split(':').map(Number);
-            if (aHour !== bHour) return aHour - bHour;
-            if (aMin !== bMin) return aMin - bMin;
-          }
-          // If only one has ETA, that one comes first
-          if (a.eta && !b.eta) return -1;
-          if (!a.eta && b.eta) return 1;
-          
-          // Sort by roundOrderNumber
-          return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
-        }
-        
-        // If one is a note and the other isn't, position notes after their original job
-        if (isNoteJob(a) && !isNoteJob(b)) {
-          // If this note belongs to job b, it should come after b
-          if (a.originalJobId === b.id) return 1;
-          // Otherwise, find the positions of their associated jobs and compare
-          const aOriginalJob = jobs.find((j: any) => j.id === a.originalJobId);
-          const aPosition = aOriginalJob ? (aOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
-          const bPosition = b.client?.roundOrderNumber ?? 0;
-          
-          // If positions are equal, the note comes after
-          if (aPosition === bPosition) return 1;
-          return aPosition - bPosition;
-        }
-        
-        if (!isNoteJob(a) && isNoteJob(b)) {
-          // If this note belongs to job a, it should come after a
-          if (b.originalJobId === a.id) return -1;
-          // Otherwise, find the positions of their associated jobs and compare
-          const bOriginalJob = jobs.find((j: any) => j.id === b.originalJobId);
-          const bPosition = bOriginalJob ? (bOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
-          const aPosition = a.client?.roundOrderNumber ?? 0;
-          
-          // If positions are equal, the job comes before
-          if (aPosition === bPosition) return -1;
-          return aPosition - bPosition;
-        }
-        
-        // If both are notes, sort by their original job positions, then by creation time
-        if (isNoteJob(a) && isNoteJob(b)) {
-          // If they belong to the same original job, sort by creation time
-          if (a.originalJobId === b.originalJobId) {
-            return (a.createdAt || 0) - (b.createdAt || 0);
-          }
-          
-          // Otherwise, find their original jobs and compare positions
-          const aOriginalJob = jobs.find((j: any) => j.id === a.originalJobId);
-          const bOriginalJob = jobs.find((j: any) => j.id === b.originalJobId);
-          
-          const aPosition = aOriginalJob ? (aOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
-          const bPosition = bOriginalJob ? (bOriginalJob.client?.roundOrderNumber ?? 0) : 999999;
-          
-          if (aPosition !== bPosition) return aPosition - bPosition;
-          
-          // If positions are equal, sort by creation time
-          return (a.createdAt || 0) - (b.createdAt || 0);
-        }
-        
-        return 0;
       });
+    
+    // First, sort non-note jobs
+    const nonNoteJobs = jobsForDay
+      .filter(job => !isNoteJob(job))
+      .sort((a: any, b: any) => {
+        // If both jobs have ETA, sort by ETA (earliest first)
+        if (a.eta && b.eta) {
+          const [aHour, aMin] = a.eta.split(':').map(Number);
+          const [bHour, bMin] = b.eta.split(':').map(Number);
+          if (aHour !== bHour) return aHour - bHour;
+          if (aMin !== bMin) return aMin - bMin;
+        }
+        // If only one has ETA, that one comes first
+        if (a.eta && !b.eta) return -1;
+        if (!a.eta && b.eta) return 1;
+        
+        // Sort by roundOrderNumber
+        return (a.client?.roundOrderNumber ?? 999999) - (b.client?.roundOrderNumber ?? 999999);
+      });
+    
+    // Group note jobs by their originalJobId
+    const notesByJobId: Record<string, any[]> = {};
+    jobsForDay
+      .filter(job => isNoteJob(job))
+      .forEach(note => {
+        const jobId = note.originalJobId || 'orphaned';
+        if (!notesByJobId[jobId]) notesByJobId[jobId] = [];
+        notesByJobId[jobId].push(note);
+      });
+    
+    // Sort notes for each job by createdAt
+    Object.keys(notesByJobId).forEach(jobId => {
+      notesByJobId[jobId].sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    });
+    
+    // Build final sorted list: insert notes after their original jobs
+    const sortedJobsWithNotes: any[] = [];
+    nonNoteJobs.forEach(job => {
+      sortedJobsWithNotes.push(job);
+      const jobNotes = notesByJobId[job.id] || [];
+      sortedJobsWithNotes.push(...jobNotes);
+      delete notesByJobId[job.id]; // Remove to track orphaned
+    });
+    
+    // Add any orphaned notes at the end (notes whose original job is not in this day)
+    const orphanedNotes = Object.values(notesByJobId).flat();
+    if (orphanedNotes.length > 0) {
+      console.warn('Found orphaned notes:', orphanedNotes);
+      sortedJobsWithNotes.push(...orphanedNotes);
+    }
     
     if (jobsForDay.length > 0) {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
-    const allocated = allocateJobsForDay(dayDate, jobsForDay);
+    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes);
     return {
       title: day,
       data: allocated,
