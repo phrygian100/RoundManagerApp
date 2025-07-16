@@ -322,7 +322,7 @@ exports.removeMember = onCall(async (request) => {
   const memberRef = db.collection(`accounts/${accountId}/members`).doc(memberUid);
   const memberDoc = await memberRef.get();
   
-  if (!memberDoc.exists()) {
+  if (!memberDoc.exists) {
     throw new functions.https.HttpsError('not-found', 'Member not found.');
   }
   
