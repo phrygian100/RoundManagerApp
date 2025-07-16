@@ -16,6 +16,16 @@ import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { deleteAllPayments } from '../../services/paymentService';
 
+// Helper function to format mobile numbers for UK
+const formatMobileNumber = (input: string): string => {
+  if (!input) return '';
+  const cleanNumber = input.replace(/\D/g, ''); // Remove non-digits
+  if (cleanNumber.length === 10 && !cleanNumber.startsWith('0')) {
+    return `0${cleanNumber}`; // Add leading 0 if missing
+  }
+  return input.trim(); // Return original if already formatted or invalid
+};
+
 const StyledButton = ({ title, onPress, disabled = false, color }: { title: string; onPress: () => void | Promise<void>; disabled?: boolean; color?: string; }) => {
   const bgColor = disabled
     ? '#ccc'
@@ -202,7 +212,7 @@ export default function SettingsScreen() {
                 postcode: (row as any)['Postcode']?.trim(),
                 // For backward compatibility, also store combined address
                 address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
-                mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
+                mobileNumber: formatMobileNumber((row as any)['Mobile Number']?.toString().trim() || ''),
                 quote: 0,
                 frequency: frequency,
                 nextVisit: '',
@@ -280,19 +290,15 @@ export default function SettingsScreen() {
 
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
             if (skipped.length > 0) {
-              console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
-              console.log('[DEBUG] Skipped array:', skipped);
               message += `\n\nSkipped ${skipped.length} rows:`;
               skipped.forEach((s, idx) => {
                 if (idx < 5) { // Limit to first 5 for readability
-                  console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
                   message += `\n• ${s.identifier}: ${s.reason}`;
                 }
               });
               if (skipped.length > 5) {
                 message += `\n• ... and ${skipped.length - 5} more`;
               }
-              console.log('[DEBUG] Final message:', message);
               console.log('Skipped rows:', skipped);
             }
             showAlert('Import Result', message);
@@ -377,7 +383,7 @@ export default function SettingsScreen() {
             postcode: (row as any)['Postcode']?.trim(),
             // For backward compatibility, also store combined address
             address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
-            mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
+            mobileNumber: formatMobileNumber((row as any)['Mobile Number']?.toString().trim() || ''),
             quote: 0,
             frequency: frequency,
             nextVisit: '',
@@ -531,7 +537,7 @@ export default function SettingsScreen() {
             postcode: (row as any)['Postcode']?.trim(),
             // For backward compatibility, also store combined address
             address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
-            mobileNumber: (row as any)['Mobile Number']?.toString().trim() || '',
+            mobileNumber: formatMobileNumber((row as any)['Mobile Number']?.toString().trim() || ''),
             quote: 0,
             frequency: frequency,
             nextVisit: '',
@@ -609,19 +615,15 @@ export default function SettingsScreen() {
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
         if (skipped.length > 0) {
-          console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
-          console.log('[DEBUG] Skipped array:', skipped);
           message += `\n\nSkipped ${skipped.length} rows:`;
           skipped.forEach((s, idx) => {
             if (idx < 5) { // Limit to first 5 for readability
-              console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
               message += `\n• ${s.identifier}: ${s.reason}`;
             }
           });
           if (skipped.length > 5) {
             message += `\n• ... and ${skipped.length - 5} more`;
           }
-          console.log('[DEBUG] Final message:', message);
           console.log('Skipped rows:', skipped);
         }
         showAlert('Import Result', message);

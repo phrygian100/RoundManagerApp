@@ -5,11 +5,13 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
-## 2025-01-26 - CSV Import Error Reporting & RWC Prefix Fix
+## 2025-01-26 - CSV Import Enhancements & Client List Display Fix
 
 ### Bug Fixes:
 1. **Enhanced CSV Import Error Reporting**: CSV import now shows specific row details when rows are skipped instead of just a count
 2. **Fixed Double RWC Prefix Issue**: Resolved issue where account numbers were getting "RWC" prefix applied twice during CSV import
+3. **Mobile Number Formatting**: CSV import now automatically adds leading "0" to UK mobile numbers that are missing it
+4. **Client List Next Visit Display**: Fixed issue where "Next Visit: N/A" was showing in clients list even when jobs existed
 
 ### Implementation Details:
 
@@ -27,16 +29,31 @@ For full debugging notes see project history; this file now focuses on high-leve
 - Uses case-insensitive regex `/^RWC/i` for robust detection
 - Applied consistently across all three import paths
 
+**Mobile Number Formatting (`app/(tabs)/settings.tsx`)**:
+- Added `formatMobileNumber()` helper function for UK mobile number processing
+- Automatically adds leading "0" to 10-digit numbers that don't start with "0"
+- Handles numbers like "7795324567" → "07795324567" 
+- Applied to all three CSV import paths (web CSV, mobile CSV, mobile Excel)
+- Preserves original input if already formatted or invalid length
+
+**Client List Display Fix (`app/clients.tsx`)**:
+- Added `useFocusEffect` to refresh next visit data when screen gains focus
+- Extracted `fetchNextVisits` function for reusable next visit fetching
+- Added comprehensive debug logging to troubleshoot data fetching issues
+- Ensures next visit display stays synchronized with job updates
+
 ### Technical Improvements:
 - **Better UX**: Users can now identify exactly which data rows need to be fixed
 - **Robust Processing**: Account number processing now handles any edge cases with existing prefixes
 - **Consistent Logic**: All import paths (web/mobile, CSV/Excel) use identical processing logic
 
 ### Files Modified:
-- `app/(tabs)/settings.tsx` - Enhanced error reporting and RWC prefix logic
+- `app/(tabs)/settings.tsx` - Enhanced error reporting, RWC prefix logic, and mobile number formatting
+- `app/clients.tsx` - Fixed next visit display synchronization with focus refresh
+- `utils/account.ts` - Fixed double RWC prefix display issue 
 - `docs/code-changes.md` - Documentation update
 
-**Impact**: Significantly improves CSV import debugging experience and eliminates account number formatting issues.
+**Impact**: Significantly improves CSV import debugging experience, eliminates account number formatting issues, ensures proper UK mobile number formatting, and keeps client list display synchronized with job updates.
 
 ---
 

@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
@@ -84,43 +85,51 @@ export default function ClientsScreen() {
     fetchClientBalances();
   }, [clients]);
 
-  useEffect(() => {
+  // Fetch next scheduled visit for each client
+  const fetchNextVisits = async () => {
     if (clients.length === 0) return;
-
-    // Fetch next scheduled visit for each client
-    const fetchNextVisits = async () => {
-      const result: Record<string, string | null> = {};
-      for (const client of clients) {
-        try {
-          // ownerId filter is unnecessary and requires an extra composite index.
-          // Align with the query used in the client-detail screen.
-          const jobsQuery = query(
-            collection(db, 'jobs'),
-            where('clientId', '==', client.id),
-            where('status', 'in', ['pending', 'scheduled', 'in_progress'])
-          );
-          const jobsSnapshot = await getDocs(jobsQuery);
-          const now = new Date();
-          let nextJobDate: Date | null = null;
-          jobsSnapshot.forEach(doc => {
-            const job = doc.data();
-            if (job.scheduledTime) {
-              const jobDate: Date = new Date(job.scheduledTime);
-              if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
-                nextJobDate = jobDate;
-              }
+    
+    const result: Record<string, string | null> = {};
+    for (const client of clients) {
+      try {
+        // ownerId filter is unnecessary and requires an extra composite index.
+        // Align with the query used in the client-detail screen.
+        const jobsQuery = query(
+          collection(db, 'jobs'),
+          where('clientId', '==', client.id),
+          where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+        );
+        const jobsSnapshot = await getDocs(jobsQuery);
+        const now = new Date();
+        let nextJobDate: Date | null = null;
+        jobsSnapshot.forEach(doc => {
+          const job = doc.data();
+          if (job.scheduledTime) {
+            const jobDate: Date = new Date(job.scheduledTime);
+            if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
+              nextJobDate = jobDate;
             }
-          });
-          result[client.id] = nextJobDate ? (nextJobDate as Date).toISOString() : null;
-        } catch (error) {
-          result[client.id] = null;
-        }
+          }
+        });
+        result[client.id] = nextJobDate ? (nextJobDate as Date).toISOString() : null;
+      } catch (error) {
+        console.error(`Error fetching next visit for ${client.name}:`, error);
+        result[client.id] = null;
       }
-      setNextVisits(result);
-    };
+    }
+    setNextVisits(result);
+  };
 
+  useEffect(() => {
     fetchNextVisits();
   }, [clients]);
+
+  // Refresh next visits when screen gains focus (in case jobs were added/updated)
+  useFocusEffect(
+    useCallback(() => {
+      fetchNextVisits();
+    }, [clients])
+  );
 
   useEffect(() => {
     // Ensure we have valid data before applying filters
