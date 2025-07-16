@@ -650,6 +650,41 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  // Debug capacity analysis
+  const handleDebugCapacity = async () => {
+    try {
+      const { debugWeekCapacity } = await import('../../services/capacityService');
+      const result = await debugWeekCapacity(weekStart);
+      
+      let debugMessage = `Debug Analysis for ${result.weekInfo}\n\n`;
+      debugMessage += `Total Jobs: ${result.totalJobs}\n\n`;
+      
+      result.dailyCapacities.forEach(day => {
+        debugMessage += `${day.dayName}:\n`;
+        debugMessage += `  Capacity: £${day.totalCapacity}\n`;
+        debugMessage += `  Jobs Value: £${day.currentJobsValue}\n`;
+        debugMessage += `  Available: £${day.availableCapacity}\n`;
+        debugMessage += `  Over Capacity: ${day.isOverCapacity ? 'YES' : 'NO'}\n`;
+        debugMessage += `  Team Members: ${day.availableMembers.length}\n\n`;
+      });
+      
+      if (result.redistributionResult) {
+        debugMessage += `Redistribution Test:\n`;
+        debugMessage += `  Jobs Moved: ${result.redistributionResult.redistributedJobs}\n`;
+        debugMessage += `  Days Modified: ${result.redistributionResult.daysModified.join(', ')}\n`;
+        if (result.redistributionResult.warnings.length > 0) {
+          debugMessage += `  Warnings: ${result.redistributionResult.warnings.join('; ')}\n`;
+        }
+      }
+      
+      console.log('🔍 DEBUG CAPACITY ANALYSIS:', debugMessage);
+      Alert.alert('Debug Capacity Analysis', debugMessage);
+    } catch (error) {
+      console.error('Error debugging capacity:', error);
+      Alert.alert('Debug Error', `Failed to analyze capacity: ${error}`);
+    }
+  };
+
   const renderItem = ({ item, index, section }: any) => {
     if (isQuoteJob(item)) {
       // Only show complete for first incomplete quote job on today
@@ -868,15 +903,24 @@ export default function RunsheetWeekScreen() {
           <Text style={styles.title}>{weekTitle}</Text>
           <View style={styles.headerButtons}>
             {isCurrentWeek && (
-              <Pressable 
-                style={[styles.capacityRefreshButton, isRefreshingCapacity && styles.capacityRefreshButtonDisabled]} 
-                onPress={handleCapacityRefresh}
-                disabled={isRefreshingCapacity}
-              >
-                <Text style={styles.capacityRefreshButtonText}>
-                  {isRefreshingCapacity ? '⟳' : '⚖️'} {isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity'}
-                </Text>
-              </Pressable>
+              <>
+                <Pressable 
+                  style={[styles.capacityRefreshButton, isRefreshingCapacity && styles.capacityRefreshButtonDisabled]} 
+                  onPress={handleCapacityRefresh}
+                  disabled={isRefreshingCapacity}
+                >
+                  <Text style={styles.capacityRefreshButtonText}>
+                    {isRefreshingCapacity ? '⟳' : '⚖️'} {isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity'}
+                  </Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.debugCapacityButton, isRefreshingCapacity && styles.debugCapacityButtonDisabled]} 
+                  onPress={handleDebugCapacity}
+                  disabled={isRefreshingCapacity}
+                >
+                  <Text style={styles.debugCapacityButtonText}>🔍 Debug</Text>
+                </Pressable>
+              </>
             )}
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
@@ -1230,6 +1274,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   capacityRefreshButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
+  },
+  debugCapacityButton: {
+    backgroundColor: '#4CAF50', // A green color for debugging
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  debugCapacityButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  debugCapacityButtonDisabled: {
     backgroundColor: '#ccc',
     opacity: 0.7,
   },

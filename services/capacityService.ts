@@ -83,7 +83,7 @@ export async function getWeekCapacity(
     const dayDate = addDays(weekStart, i);
     
     // Get jobs for this day
-    const jobsForDay = jobs.filter((job) => {
+    const jobsForDay = jobs.filter((job: Job & { client: Client | null }) => {
       const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
       return jobDate && jobDate.toDateString() === dayDate.toDateString();
     });
@@ -128,7 +128,7 @@ export async function redistributeJobsForWeek(
     if (!dayCapacity.isOverCapacity) continue;
     
     // Get jobs for this day sorted by round order
-    const jobsForDay = jobs.filter((job) => {
+    const jobsForDay = jobs.filter((job: Job & { client: Client | null }) => {
       const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
       return jobDate && jobDate.toDateString() === dayCapacity.date.toDateString();
     }).sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
@@ -304,8 +304,109 @@ async function getJobsForWeek(weekStart: Date): Promise<Job[]> {
     const fallbackSnap = await getDocs(ownerOnlyQuery);
     return fallbackSnap.docs
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job))
-      .filter(job => job.scheduledTime >= startDate + 'T00:00:00' && job.scheduledTime < endDate + 'T00:00:00');
+      .filter((job: Job) => job.scheduledTime >= startDate + 'T00:00:00' && job.scheduledTime < endDate + 'T00:00:00');
   }
+}
+
+/**
+ * Debug function to analyze capacity for a specific week
+ */
+export async function debugWeekCapacity(
+  weekStart: Date
+): Promise<{
+  weekInfo: string;
+  dailyCapacities: DayCapacity[];
+  totalJobs: number;
+  redistributionResult?: JobRedistributionResult;
+}> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) throw new Error('Not authenticated');
+  
+  console.log(`🔍 DEBUG: Analyzing capacity for week starting ${format(weekStart, 'yyyy-MM-dd')}`);
+  
+  // Fetch all required data
+  const [jobsForWeek, memberList] = await Promise.all([
+    getJobsForWeek(weekStart),
+    listMembers()
+  ]);
+  
+  console.log(`📋 Found ${jobsForWeek.length} jobs for the week`);
+  console.log(`👥 Found ${memberList.length} team members`);
+  
+  // Build member map
+  const memberMap: Record<string, MemberRecord> = {};
+  memberList.forEach((m: MemberRecord) => { 
+    memberMap[m.uid] = m;
+    console.log(`👤 Member ${m.uid}: dailyRate=${m.dailyRate}, vehicleId=${m.vehicleId}`);
+  });
+  
+  // Get rota for this week
+  const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+  const rotaMap = await fetchRotaRange(weekStart, weekEnd);
+  
+  console.log(`📅 Rota data:`, rotaMap);
+  
+  // Fetch client data for jobs
+  const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+  const clientChunks = [];
+  for (let i = 0; i < clientIds.length; i += 30) {
+    clientChunks.push(clientIds.slice(i, i + 30));
+  }
+  
+  const clientsMap = new Map<string, Client>();
+  const clientPromises = clientChunks.map(chunk => 
+    getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
+  );
+  const clientSnapshots = await Promise.all(clientPromises);
+  
+  clientSnapshots.forEach(snapshot => {
+    snapshot.forEach(docSnap => {
+      clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+    });
+  });
+  
+  // Map clients back to jobs
+  const jobsWithClients = jobsForWeek.map(job => ({
+    ...job,
+    client: clientsMap.get(job.clientId) || null,
+  }));
+  
+  console.log(`📊 Jobs with clients: ${jobsWithClients.length}`);
+  
+  // Get week capacity analysis
+  const dailyCapacities = await getWeekCapacity(weekStart, jobsWithClients, memberMap, rotaMap);
+  
+  // Log daily analysis
+  dailyCapacities.forEach(day => {
+    console.log(`📈 ${day.dayName} (${day.dateKey}):`);
+    console.log(`   Available members: ${day.availableMembers.length}`);
+    console.log(`   Total capacity: £${day.totalCapacity}`);
+    console.log(`   Current jobs value: £${day.currentJobsValue}`);
+    console.log(`   Available capacity: £${day.availableCapacity}`);
+    console.log(`   Over capacity: ${day.isOverCapacity}`);
+    
+    if (day.availableMembers.length > 0) {
+      day.availableMembers.forEach(member => {
+        console.log(`     - ${member.uid}: £${member.dailyRate}/day`);
+      });
+    }
+  });
+  
+  // Test redistribution (force current week)
+  let redistributionResult: JobRedistributionResult | undefined;
+  try {
+    redistributionResult = await redistributeJobsForWeek(weekStart, jobsWithClients, memberMap, rotaMap, false);
+    console.log(`🔄 Redistribution result:`, redistributionResult);
+  } catch (error) {
+    console.error(`❌ Redistribution error:`, error);
+  }
+  
+  return {
+    weekInfo: `Week ${format(weekStart, 'yyyy-MM-dd')} - ${dailyCapacities.filter(d => d.isOverCapacity).length} days over capacity`,
+    dailyCapacities,
+    totalJobs: jobsWithClients.length,
+    redistributionResult
+  };
 }
 
 /**

@@ -45,20 +45,33 @@ export async function setAvailability(date: string, memberId: string, status: Av
   // Use setDoc merge to avoid overwriting others
   await setDoc(docRef, { [memberId]: status }, { merge: true });
   
-  // Trigger capacity redistribution for future weeks when availability changes
+  // Trigger capacity redistribution for ANY week when availability changes
   try {
     const changeDate = parseISO(date);
-    const today = new Date();
     
-    // Only trigger for future date changes
-    if (changeDate >= today) {
-      // Dynamically import to avoid circular dependencies
-      const { triggerCapacityRedistribution } = await import('./capacityService');
-      const weekStart = startOfWeek(changeDate, { weekStartsOn: 1 });
-      await triggerCapacityRedistribution('team_availability_changed', [weekStart]);
+    // Always trigger for ANY date change (including current week)
+    console.log(`🔄 Triggering capacity redistribution for date change: ${date}`);
+    
+    // Dynamically import to avoid circular dependencies
+    const { debugWeekCapacity, manualRefreshWeekCapacity } = await import('./capacityService');
+    const weekStart = startOfWeek(changeDate, { weekStartsOn: 1 });
+    
+    // Force redistribution regardless of current week restrictions
+    console.log(`🔄 Force redistributing for week starting: ${weekStart.toISOString()}`);
+    const result = await manualRefreshWeekCapacity(weekStart);
+    
+    console.log(`✅ Capacity redistribution completed:`, result);
+    
+    if (result.redistributedJobs > 0) {
+      console.log(`📊 ${result.redistributedJobs} jobs redistributed across: ${result.daysModified.join(', ')}`);
     }
+    
+    if (result.warnings.length > 0) {
+      console.warn(`⚠️ Redistribution warnings:`, result.warnings);
+    }
+    
   } catch (error) {
-    console.warn('Failed to trigger capacity redistribution after availability change:', error);
+    console.error('Failed to trigger capacity redistribution after availability change:', error);
     // Don't fail the availability update if capacity redistribution fails
   }
 }
