@@ -851,3 +851,107 @@ The `fetchNextVisits` function was making individual Firebase queries for each c
 **Files modified**: `app/clients.tsx`
 
 ---
+
+## 2025-01-27 - Comprehensive Job Capacity Management System
+
+### Major Feature: Automatic Job Redistribution Based on Team Capacity
+
+**Problem Solved**: Runsheets were displaying jobs that exceeded the daily capacity limits of available team members, causing operational inefficiencies and overloading.
+
+### Core Functionality:
+
+**1. Capacity Calculation System**:
+- Calculates daily capacity = sum of (available team members' daily turnover limits)
+- Factors in team member availability from rota (on/off/n/a status)
+- Real-time capacity monitoring per day within each week
+
+**2. Intelligent Job Redistribution**:
+- **Overflow Detection**: Identifies when jobs exceed daily capacity limits
+- **Round Order Preservation**: Maintains routing efficiency by moving job blocks, not individual jobs
+- **Sequential Spillover**: Excess jobs roll to next day, then next, until capacity allows
+- **Week Boundary Respect**: Jobs never move to following weeks - stay within current week
+- **Final Day Exception**: If all future days lack capacity, keeps overflow on final viable day
+
+**3. Automated Triggers**:
+- **Job Addition**: Triggers redistribution when new jobs are created (future weeks only)
+- **Team Changes**: Triggers when daily turnover limits change
+- **Availability Changes**: Triggers when rota availability is modified
+- **Current Week Protection**: Auto-triggers skip current week to avoid disrupting active operations
+
+**4. Manual Override**:
+- **Current Week Refresh**: Manual button on runsheet for current week capacity redistribution
+- **Visual Feedback**: Shows redistribution results, warnings, and job counts moved
+- **Real-time Updates**: Automatically refreshes screen after redistribution
+
+### Algorithm Logic:
+
+```
+For each day Monday-Sunday:
+  If (current jobs value > daily capacity):
+    Calculate overflow jobs (maintaining round order)
+    For each subsequent day in week:
+      If (target day has available capacity):
+        Move jobs that fit into available capacity
+        Update capacity calculations
+      Else:
+        Continue to next day
+    If (last day OR no remaining capacity):
+      Keep remaining jobs on current day (accept overflow)
+```
+
+### Key Constraints:
+
+- **Round Order Maintenance**: Jobs move as coherent blocks to preserve routing efficiency
+- **Week Boundaries**: No cross-week job movement - contains work within current week
+- **Capacity Respect**: Only moves jobs when target days have sufficient capacity
+- **Team Availability**: Only counts team members marked as 'on' in rota for capacity calculations
+
+### Technical Implementation:
+
+**New Service**: `services/capacityService.ts`
+- `calculateDayCapacity()`: Daily capacity computation with team availability
+- `redistributeJobsForWeek()`: Core redistribution algorithm with round order preservation
+- `manualRefreshWeekCapacity()`: Current week manual refresh functionality
+- `triggerCapacityRedistribution()`: Automated trigger system for future weeks
+
+**Integration Points**:
+- `services/jobService.ts`: Auto-trigger on job creation
+- `services/accountService.ts`: Auto-trigger on daily rate changes
+- `services/rotaService.ts`: Auto-trigger on availability changes
+- `app/runsheet/[week].tsx`: Manual refresh UI and capacity management integration
+
+**Performance Optimizations**:
+- Batched Firebase updates for job redistributions
+- Dynamic imports to avoid circular dependencies
+- Error isolation - capacity failures don't break core operations
+- Efficient capacity calculations with in-memory processing
+
+### User Experience:
+
+**Automated Operation**: System automatically redistributes jobs for future weeks without user intervention when:
+- New jobs are added to the system
+- Team member daily limits are modified
+- Team availability changes in the rota
+
+**Manual Control**: Users can manually apply redistribution to current week using the "Refresh Capacity" button, which provides:
+- Detailed feedback on jobs moved
+- Warning messages for overflow situations
+- Immediate visual updates to runsheet layout
+
+**Exception Handling**: System gracefully handles edge cases:
+- Days with no available team members
+- Weeks with insufficient total capacity
+- Final day overflow situations
+
+### Business Impact:
+
+- **Operational Efficiency**: Prevents team overloading and ensures realistic daily schedules
+- **Route Optimization**: Maintains round order for efficient job sequencing
+- **Workload Balance**: Distributes work evenly across available team capacity
+- **Proactive Management**: Automatic redistribution prevents capacity issues before they occur
+
+**Files created**: `services/capacityService.ts`
+
+**Files modified**: `app/runsheet/[week].tsx`, `services/jobService.ts`, `services/accountService.ts`, `services/rotaService.ts`
+
+---

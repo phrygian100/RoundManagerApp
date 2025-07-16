@@ -101,5 +101,15 @@ export async function updateMemberDailyRate(uid: string, dailyRate: number): Pro
   if (!sess) throw new Error('Not authenticated');
   const memberRef = doc(db, `accounts/${sess.accountId}/members/${uid}`);
   await updateDoc(memberRef, { dailyRate });
+  
+  // Trigger capacity redistribution for future weeks when daily rates change
+  try {
+    // Dynamically import to avoid circular dependencies
+    const { triggerCapacityRedistribution } = await import('./capacityService');
+    await triggerCapacityRedistribution('daily_limit_changed');
+  } catch (error) {
+    console.warn('Failed to trigger capacity redistribution after daily rate change:', error);
+    // Don't fail the rate update if capacity redistribution fails
+  }
 } 
  

@@ -1,4 +1,4 @@
-import { addWeeks, format, getDay, isBefore, parseISO, startOfWeek } from 'date-fns';
+import { addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -32,6 +32,24 @@ export async function createJob(job: Omit<Job, 'id'>) {
   if (!ownerId) throw new Error('User not authenticated');
   const jobsRef = collection(db, JOBS_COLLECTION);
   const docRef = await addDoc(jobsRef, { ...job, ownerId });
+  
+  // Trigger capacity redistribution for future weeks when a new job is added
+  try {
+    // Only trigger if the job is scheduled for a future week
+    const jobDate = parseISO(job.scheduledTime);
+    const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const jobWeekStart = startOfWeek(jobDate, { weekStartsOn: 1 });
+    
+    if (jobWeekStart > currentWeekStart) {
+      // Dynamically import to avoid circular dependencies
+      const { triggerCapacityRedistribution } = await import('./capacityService');
+      await triggerCapacityRedistribution('job_added', [jobWeekStart]);
+    }
+  } catch (error) {
+    console.warn('Failed to trigger capacity redistribution after job creation:', error);
+    // Don't fail the job creation if capacity redistribution fails
+  }
+  
   return docRef.id;
 }
 
@@ -476,7 +494,7 @@ export async function isTodayMarkedComplete(): Promise<boolean> {
     const data = completedDoc.data();
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     // getDay: 0=Sunday, 1=Monday, ...
-    const todayDay = daysOfWeek[getDay(today) === 0 ? 6 : getDay(today) - 1];
+    const todayDay = daysOfWeek[today.getDay() === 0 ? 6 : today.getDay() - 1];
     if (data.completedDays && data.completedDays.includes(todayDay)) {
       return true;
     }

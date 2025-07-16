@@ -42,6 +42,7 @@ export default function RunsheetWeekScreen() {
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
+  const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
   const router = useRouter();
 
   // Parse week param
@@ -599,6 +600,56 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  // Manual capacity refresh for current week
+  const handleCapacityRefresh = async () => {
+    setIsRefreshingCapacity(true);
+    try {
+      const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
+      const result = await manualRefreshWeekCapacity(weekStart);
+      
+      let alertMessage = `Capacity refresh completed!\n\n`;
+      
+      if (result.redistributedJobs > 0) {
+        alertMessage += `• ${result.redistributedJobs} jobs redistributed\n`;
+        alertMessage += `• Modified days: ${result.daysModified.join(', ')}\n`;
+        
+        if (result.warnings.length > 0) {
+          alertMessage += `\nWarnings:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
+        }
+        
+        // Refresh the screen to show updated job positions
+        if (Platform.OS === 'web') {
+          window.location.reload();
+        } else {
+          // For mobile, refetch data
+          const startDate = format(weekStart, 'yyyy-MM-dd');
+          const endDate = format(weekEnd, 'yyyy-MM-dd');
+          const jobsForWeek = await getJobsForWeek(startDate, endDate);
+          
+          // Refetch and update local state
+          const fetchJobsAndClients = async () => {
+            // Reuse the existing fetch logic
+            window.location.reload();
+          };
+          fetchJobsAndClients();
+        }
+      } else {
+        alertMessage += `No jobs needed redistribution - all days are within capacity limits.`;
+        
+        if (result.warnings.length > 0) {
+          alertMessage += `\n\nNotes:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
+        }
+      }
+      
+      Alert.alert('Capacity Refresh Complete', alertMessage);
+    } catch (error) {
+      console.error('Error refreshing capacity:', error);
+      Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
+    } finally {
+      setIsRefreshingCapacity(false);
+    }
+  };
+
   const renderItem = ({ item, index, section }: any) => {
     if (isQuoteJob(item)) {
       // Only show complete for first incomplete quote job on today
@@ -815,9 +866,22 @@ export default function RunsheetWeekScreen() {
             <Ionicons name="calendar-outline" size={22} color="#007AFF" />
           </Pressable>
           <Text style={styles.title}>{weekTitle}</Text>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
-            <Text style={styles.homeButtonText}>🏠</Text>
-          </Pressable>
+          <View style={styles.headerButtons}>
+            {isCurrentWeek && (
+              <Pressable 
+                style={[styles.capacityRefreshButton, isRefreshingCapacity && styles.capacityRefreshButtonDisabled]} 
+                onPress={handleCapacityRefresh}
+                disabled={isRefreshingCapacity}
+              >
+                <Text style={styles.capacityRefreshButtonText}>
+                  {isRefreshingCapacity ? '⟳' : '⚖️'} {isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity'}
+                </Text>
+              </Pressable>
+            )}
+            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+              <Text style={styles.homeButtonText}>🏠</Text>
+            </Pressable>
+          </View>
         </View>
         {loading ? (
           <ActivityIndicator size="large" />
@@ -1148,6 +1212,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  capacityRefreshButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+  },
+  capacityRefreshButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  capacityRefreshButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
   },
   sectionHeaderContainer: {
     flexDirection: 'row',

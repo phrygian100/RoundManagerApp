@@ -1,4 +1,4 @@
-import { formatISO, isBefore, isEqual, parseISO } from 'date-fns';
+import { formatISO, isBefore, isEqual, parseISO, startOfWeek } from 'date-fns';
 import { collection, deleteDoc, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -44,6 +44,23 @@ export async function setAvailability(date: string, memberId: string, status: Av
   const docRef = doc(db, `accounts/${sess.accountId}/rota/${date}`);
   // Use setDoc merge to avoid overwriting others
   await setDoc(docRef, { [memberId]: status }, { merge: true });
+  
+  // Trigger capacity redistribution for future weeks when availability changes
+  try {
+    const changeDate = parseISO(date);
+    const today = new Date();
+    
+    // Only trigger for future date changes
+    if (changeDate >= today) {
+      // Dynamically import to avoid circular dependencies
+      const { triggerCapacityRedistribution } = await import('./capacityService');
+      const weekStart = startOfWeek(changeDate, { weekStartsOn: 1 });
+      await triggerCapacityRedistribution('team_availability_changed', [weekStart]);
+    }
+  } catch (error) {
+    console.warn('Failed to trigger capacity redistribution after availability change:', error);
+    // Don't fail the availability update if capacity redistribution fails
+  }
 }
 
 /**
