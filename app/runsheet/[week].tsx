@@ -321,6 +321,13 @@ export default function RunsheetWeekScreen() {
     const regularJobs = jobsForDay.filter(job => !isNoteJob(job));
     const noteJobs = jobsForDay.filter(job => isNoteJob(job));
     
+    console.log(`🗒️ Day ${day} sorting:`, {
+      totalJobs: jobsForDay.length,
+      regularJobs: regularJobs.length,
+      noteJobs: noteJobs.length,
+      noteJobIds: noteJobs.map(nj => ({ id: nj.id, originalId: (nj as any).originalJobId }))
+    });
+    
     const finalJobsForDay: any[] = [];
     
     regularJobs.forEach(regularJob => {
@@ -329,16 +336,25 @@ export default function RunsheetWeekScreen() {
       
       // Find and add any note jobs that belong after this job
       const relatedNoteJobs = noteJobs
-        .filter(noteJob => noteJob.originalJobId === regularJob.id)
-        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); // Sort by creation time
+        .filter(noteJob => (noteJob as any).originalJobId === regularJob.id)
+        .sort((a, b) => ((a as any).createdAt || 0) - ((b as any).createdAt || 0)); // Sort by creation time
+      
+      if (relatedNoteJobs.length > 0) {
+        console.log(`🗒️ Found ${relatedNoteJobs.length} note(s) for job ${regularJob.id}`);
+      }
       
       finalJobsForDay.push(...relatedNoteJobs);
     });
     
     // Add any orphaned note jobs (original job not found) at the end
     const orphanedNoteJobs = noteJobs.filter(noteJob => 
-      !regularJobs.some(regularJob => regularJob.id === noteJob.originalJobId)
+      !regularJobs.some(regularJob => regularJob.id === (noteJob as any).originalJobId)
     );
+    
+    if (orphanedNoteJobs.length > 0) {
+      console.log(`🗒️ Found ${orphanedNoteJobs.length} orphaned note job(s)`);
+    }
+    
     finalJobsForDay.push(...orphanedNoteJobs);
     
     if (finalJobsForDay.length > 0) {
@@ -625,7 +641,19 @@ export default function RunsheetWeekScreen() {
         client: null
       };
       
-      setJobs(prevJobs => [...prevJobs, noteJobWithClient as any]);
+      console.log('🗒️ Adding note job:', {
+        noteJobId: noteJobWithClient.id,
+        originalJobId: noteJobData.originalJobId,
+        originalJobScheduledTime: addNoteForJob.scheduledTime,
+        noteJobScheduledTime: noteJobData.scheduledTime
+      });
+      
+      // Add to global jobs array
+      setJobs(prevJobs => {
+        const updated = [...prevJobs, noteJobWithClient as any];
+        console.log('🗒️ Updated jobs count:', updated.length);
+        return updated;
+      });
       
       setAddNoteModalVisible(false);
       setAddNoteText('');
