@@ -89,35 +89,51 @@ export default function ClientsScreen() {
   const fetchNextVisits = async () => {
     if (clients.length === 0) return;
     
-    const result: Record<string, string | null> = {};
-    for (const client of clients) {
-      try {
-        // ownerId filter is unnecessary and requires an extra composite index.
-        // Align with the query used in the client-detail screen.
-        const jobsQuery = query(
-          collection(db, 'jobs'),
-          where('clientId', '==', client.id),
-          where('status', 'in', ['pending', 'scheduled', 'in_progress'])
-        );
-        const jobsSnapshot = await getDocs(jobsQuery);
-        const now = new Date();
-        let nextJobDate: Date | null = null;
-        jobsSnapshot.forEach(doc => {
-          const job = doc.data();
-          if (job.scheduledTime) {
-            const jobDate: Date = new Date(job.scheduledTime);
-            if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
-              nextJobDate = jobDate;
+    try {
+      const ownerId = await getDataOwnerId();
+      
+      // Get all pending/scheduled/in_progress jobs for this data owner
+      const jobsQuery = query(
+        collection(db, 'jobs'),
+        where('ownerId', '==', ownerId),
+        where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+      );
+      
+      const jobsSnapshot = await getDocs(jobsQuery);
+      const now = new Date();
+      
+      // Group jobs by clientId and find the next scheduled date for each
+      const clientNextVisits: Record<string, string | null> = {};
+      
+      // Initialize all clients with null
+      clients.forEach(client => {
+        clientNextVisits[client.id] = null;
+      });
+      
+      // Process all jobs and find earliest future date for each client
+      jobsSnapshot.forEach(doc => {
+        const job = doc.data();
+        if (job.clientId && job.scheduledTime) {
+          const jobDate = new Date(job.scheduledTime);
+          if (jobDate >= now) {
+            const currentNext = clientNextVisits[job.clientId];
+            if (!currentNext || jobDate < new Date(currentNext)) {
+              clientNextVisits[job.clientId] = jobDate.toISOString();
             }
           }
-        });
-        result[client.id] = nextJobDate ? (nextJobDate as Date).toISOString() : null;
-      } catch (error) {
-        console.error(`Error fetching next visit for ${client.name}:`, error);
-        result[client.id] = null;
-      }
+        }
+      });
+      
+      setNextVisits(clientNextVisits);
+    } catch (error) {
+      console.error('Error fetching next visits:', error);
+      // Set all clients to null on error
+      const emptyResult: Record<string, string | null> = {};
+      clients.forEach(client => {
+        emptyResult[client.id] = null;
+      });
+      setNextVisits(emptyResult);
     }
-    setNextVisits(result);
   };
 
   useEffect(() => {

@@ -818,3 +818,36 @@ Files: `components/FirstTimeSetupModal.tsx`
 **Files modified**: `functions/index.js`, `app/(tabs)/team.tsx`, `services/accountService.ts`
 
 ---
+
+## 2025-01-27 - Performance Optimization: Client List Next Visit Loading
+
+### Bug Fix:
+**Fixed Performance Issue with Next Visit Display**: Resolved major performance bottleneck in clients list where "Next Visit: N/A" was showing despite jobs existing.
+
+### Root Cause:
+The `fetchNextVisits` function was making individual Firebase queries for each client in a sequential loop. With 529 clients, this meant 529 separate database queries, causing:
+- Extremely slow loading times
+- Component rendering before all queries completed
+- "N/A" displaying while queries were still running
+
+### Solution:
+**Optimized Query Strategy (`app/clients.tsx`)**:
+- Replaced individual client queries with single bulk query
+- Fetches ALL pending/scheduled/in_progress jobs for the data owner at once
+- Groups results by clientId in memory to find next visit dates
+- Reduces 529 database queries to just 1 query
+
+### Performance Impact:
+- **Before**: 529 sequential Firebase queries (very slow)
+- **After**: 1 Firebase query + in-memory processing (fast)
+- **Result**: Next Visit data now loads immediately and displays correctly
+
+### Technical Implementation:
+- Single query: `where('ownerId', '==', ownerId)` + `where('status', 'in', ['pending', 'scheduled', 'in_progress'])`
+- In-memory grouping by clientId to find earliest future job date
+- Maintains same logic for date calculation and formatting
+- Improved error handling with fallback to empty state
+
+**Files modified**: `app/clients.tsx`
+
+---
