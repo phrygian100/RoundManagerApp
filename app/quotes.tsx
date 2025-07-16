@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button, Modal, Platform, Pressable, ScrollView, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -55,6 +55,7 @@ const sourceOptions = [
 
 export default function QuotesScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '', notes: '' });
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -324,6 +325,9 @@ export default function QuotesScreen() {
     </View>
   );
 
+  const isWeb = Platform.OS === 'web';
+  const isLargeScreen = isWeb && width > 768;
+
   // --- Main Render ---
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
@@ -340,8 +344,8 @@ export default function QuotesScreen() {
         </View>
       </View>
       {/* Main Content Container */}
-      {Platform.OS === 'web' ? (
-        <View style={{ width: '100%', maxWidth: 1200, flexDirection: 'row', gap: 32, alignItems: 'flex-start', padding: 16 }}>
+      {isLargeScreen ? (
+        <View style={{ width: '100%', maxWidth: 1200, flexDirection: 'row', gap: 32, alignItems: 'flex-start', padding: 16, marginHorizontal: 'auto' }}>
           {/* Left Column: Scheduled + Pending */}
           <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
             <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
@@ -402,7 +406,7 @@ export default function QuotesScreen() {
         </View>
       ) : (
         // Mobile/stacked layout
-        <View style={{ width: '100%', maxWidth: 700, padding: 16 }}>
+        <View style={{ width: '100%', maxWidth: 700, padding: 16, marginHorizontal: 'auto' }}>
           <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
             {scheduledQuotes.length === 0 ? (
               <EmptyState message="No scheduled quotes." />

@@ -102,65 +102,83 @@ export default function TeamScreen() {
 
   const renderMember = ({ item }: { item: MemberRecord }) => (
     <ThemedView style={styles.card}>
-      <View style={styles.detailRow}>
-        <ThemedText style={styles.label}>Vehicle:</ThemedText>
-        <Picker
-          selectedValue={item.vehicleId || 'none'}
-          onValueChange={async (val) => {
-            const newVal = val === 'none' ? null : val;
-            await handleUpdateVehicle(item.uid, newVal);
-          }}
-          style={styles.picker}
-        >
-          <Picker.Item label="None" value="none" />
-          {vehicles.map(v => (
-            <Picker.Item key={v.id} label={v.name} value={v.id} />
-          ))}
-        </Picker>
-      </View>
-      <ThemedText type="subtitle" style={styles.memberEmail}>{item.email}</ThemedText>
-      <View style={styles.detailRow}>
-        <ThemedText style={styles.label}>£/day:</ThemedText>
-        <TextInput
-          style={styles.rateInput}
-          keyboardType="numeric"
-          value={item.dailyRate != null ? String(item.dailyRate) : ''}
-          onChangeText={(val) => {
-            const num = Number(val);
-            setMembers(prev => prev.map(m => m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m));
-          }}
-          onBlur={async () => {
-            if (item.dailyRate != null) {
-              await updateMemberDailyRate(item.uid, item.dailyRate);
-            }
-          }}
-        />
-      </View>
-      {item.role !== 'owner' && (
-        <View style={styles.detailRow}>
-          <ThemedText style={styles.label}>Permissions:</ThemedText>
-          <View style={styles.permRow}>
-            {PERM_KEYS.map(p => {
-              const hasPerm = !!item.perms?.[p.key];
-              return (
-                <TouchableOpacity
-                  key={p.key}
-                  style={[
-                    styles.permBadge,
-                    hasPerm ? styles.permBadgeActive : styles.permBadgeInactive,
-                  ]}
-                  onPress={() => handleToggle(item.uid, p.key, !hasPerm)}
-                >
-                  <ThemedText style={styles.permText}>{p.label}</ThemedText>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+      {item.status === 'invited' && (
+        <View style={styles.pendingBadge}>
+          <ThemedText style={styles.pendingText}>Pending Invitation</ThemedText>
         </View>
       )}
+      
+      {item.status === 'active' && (
+        <View style={styles.detailRow}>
+          <ThemedText style={styles.label}>Vehicle:</ThemedText>
+          <Picker
+            selectedValue={item.vehicleId || 'none'}
+            onValueChange={async (val) => {
+              const newVal = val === 'none' ? null : val;
+              await handleUpdateVehicle(item.uid, newVal);
+            }}
+            style={styles.picker}
+          >
+            <Picker.Item label="None" value="none" />
+            {vehicles.map(v => (
+              <Picker.Item key={v.id} label={v.name} value={v.id} />
+            ))}
+          </Picker>
+        </View>
+      )}
+      
+      <ThemedText type="subtitle" style={styles.memberEmail}>{item.email}</ThemedText>
+      
+      {item.status === 'active' && (
+        <>
+          <View style={styles.detailRow}>
+            <ThemedText style={styles.label}>£/day:</ThemedText>
+            <TextInput
+              style={styles.rateInput}
+              keyboardType="numeric"
+              value={item.dailyRate != null ? String(item.dailyRate) : ''}
+              onChangeText={(val) => {
+                const num = Number(val);
+                setMembers(prev => prev.map(m => m.uid === item.uid ? { ...m, dailyRate: isNaN(num) ? undefined : num } : m));
+              }}
+              onBlur={async () => {
+                if (item.dailyRate != null) {
+                  await updateMemberDailyRate(item.uid, item.dailyRate);
+                }
+              }}
+            />
+          </View>
+          
+          {item.role !== 'owner' && (
+            <View style={styles.detailRow}>
+              <ThemedText style={styles.label}>Permissions:</ThemedText>
+              <View style={styles.permRow}>
+                {PERM_KEYS.map(p => {
+                  const hasPerm = !!item.perms?.[p.key];
+                  return (
+                    <TouchableOpacity
+                      key={p.key}
+                      style={[
+                        styles.permBadge,
+                        hasPerm ? styles.permBadgeActive : styles.permBadgeInactive,
+                      ]}
+                      onPress={() => handleToggle(item.uid, p.key, !hasPerm)}
+                    >
+                      <ThemedText style={styles.permText}>{p.label}</ThemedText>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+        </>
+      )}
+      
       {item.role !== 'owner' && (
         <TouchableOpacity style={styles.deleteButton} onPress={() => handleRemove(item.uid)}>
-          <Text style={styles.deleteButtonText}>Remove</Text>
+          <Text style={styles.deleteButtonText}>
+            {item.status === 'invited' ? 'Cancel Invitation' : 'Remove'}
+          </Text>
         </TouchableOpacity>
       )}
     </ThemedView>
@@ -337,5 +355,18 @@ const styles = StyleSheet.create({
   closeButtonText: {
     fontSize: 24,
     color: '#000',
+  },
+  pendingBadge: {
+    backgroundColor: '#FFD700', // Gold color for pending
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
+  pendingText: {
+    color: '#000',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 }); 

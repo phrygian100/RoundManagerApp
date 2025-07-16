@@ -46,22 +46,13 @@ exports.inviteMember = onCall(async (request) => {
   }
   const resend = new Resend(apiKey);
   const appUrl = process.env.APP_URL || 'https://guvnor.app';
-  let uid;
+  
   try {
-    let isNewUser = false;
-    try {
-      const userRecord = await admin.auth().getUserByEmail(email);
-      uid = userRecord.uid;
-    } catch (err) {
-      if (err.code !== 'auth/user-not-found') throw err;
-      isNewUser = true;
-      const userRecord = await admin.auth().createUser({ email });
-      uid = userRecord.uid;
-    }
     // Create temporary member doc with inviteCode as doc ID
+    // Don't create Firebase user yet - they'll register themselves
     const memberRef = db.collection(`accounts/${accountId}/members`).doc(inviteCode);
     await memberRef.set({
-      uid,
+      uid: null, // No uid yet - will be set when they accept the invite
       email,
       role: 'member',
       perms: { viewClients: true, viewRunsheet: true, viewPayments: false },
@@ -69,31 +60,25 @@ exports.inviteMember = onCall(async (request) => {
       inviteCode,
       createdAt: new Date().toISOString(),
     });
-    if (isNewUser) {
-      // New user - send password set link
-      const actionCodeSettings = {
-        url: `${appUrl}/set-password?inviteCode=${inviteCode}`,
-        handleCodeInApp: true,
-      };
-      const link = await admin.auth().generatePasswordResetLink(email, actionCodeSettings);
-      const { error } = await resend.emails.send({
-        from: 'noreply@guvnor.app',
-        to: email,
-        subject: 'Set Your Password and Join the Team',
-        html: `<p>You've been invited to join a team! Click <a href="${link}">here</a> to set your password and complete registration.</p>`,
-      });
-      if (error) throw error;
-    } else {
-      // Existing user - send invite code link
-      const inviteLink = `${appUrl}/enter-invite-code?code=${inviteCode}`;
-      const { error } = await resend.emails.send({
-        from: 'noreply@guvnor.app',
-        to: email,
-        subject: 'You Have Been Invited to Join a Team',
-        html: `<p>You've been invited to join a team! Login to your account and click <a href="${inviteLink}">here</a> or enter code: <b>${inviteCode}</b>.</p>`,
-      });
-      if (error) throw error;
-    }
+    
+    // Send invite email with code
+    const { error } = await resend.emails.send({
+      from: 'noreply@guvnor.app',
+      to: email,
+      subject: 'You Have Been Invited to Join a Team',
+      html: `
+        <h2>You've been invited to join a team on Guvnor!</h2>
+        <p>To accept this invitation:</p>
+        <ol>
+          <li>Download the Guvnor app or visit <a href="${appUrl}">guvnor.app</a></li>
+          <li>Register for an account (if you don't have one)</li>
+          <li>Enter this invite code: <strong>${inviteCode}</strong></li>
+        </ol>
+        <p>Or click this link after logging in: <a href="${appUrl}/enter-invite-code?code=${inviteCode}">${appUrl}/enter-invite-code?code=${inviteCode}</a></p>
+      `,
+    });
+    if (error) throw error;
+    
     return { success: true, message: 'Invite sent successfully.' };
   } catch (err) {
     console.error('Invite error details:', err);

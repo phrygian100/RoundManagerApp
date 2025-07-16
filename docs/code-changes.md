@@ -645,3 +645,47 @@ Files: `components/FirstTimeSetupModal.tsx`, `app/(tabs)/index.tsx`, `app/enter-
 Files: `components/FirstTimeSetupModal.tsx`
 
 ---
+
+## 2025-01-23 – Quotes Screen Mobile Layout Fix 📱
+• **Issue**: On mobile web browsers, the "Completed" quotes section wasn't visible as it was displayed in a side column
+• **Request**: Stack the sections vertically on mobile instead of side-by-side columns
+
+**Changes made**:
+• **Added responsive layout**: Imported `useWindowDimensions` hook to detect screen width
+• **Breakpoint logic**: Two-column layout only shows on web when screen width > 768px
+• **Mobile experience**: All sections (Scheduled, Pending, Complete) now stack vertically on mobile browsers
+• **Centered content**: Added `marginHorizontal: 'auto'` to center containers on larger screens
+
+**Result**: Mobile web users can now see all quote sections by scrolling vertically
+
+**Files modified**: `app/quotes.tsx`
+
+---
+
+## 2025-01-23 – Team Invitation Flow Fix 🔧
+• **Issue**: "Domain not allowlisted by project" error when inviting team members who haven't registered yet
+• **Root cause**: Firebase function was trying to create user accounts immediately, which failed for non-allowlisted domains
+
+**Changes made**:
+• **Firebase function update**: Modified `inviteMember` to:
+  - No longer creates Firebase user accounts upfront
+  - Stores invitation in Firestore with `uid: null` and `status: 'invited'`
+  - Sends email with invite code and registration instructions
+• **Email template**: Clear instructions for new users to register first, then enter code
+• **Team screen UI**: 
+  - Shows "Pending Invitation" badge for invited members
+  - Hides vehicle/permissions controls until invitation accepted
+  - Shows "Cancel Invitation" instead of "Remove" for pending invites
+
+**New flow**:
+1. Owner invites any email address
+2. Recipient gets email with 6-digit code
+3. Recipient registers account (if needed)
+4. Recipient enters code to join team
+5. Team screen updates to show active member
+
+**Result**: Team invitations now work for any email address, regardless of registration status
+
+**Files modified**: `functions/index.js`, `app/(tabs)/team.tsx`
+
+---
