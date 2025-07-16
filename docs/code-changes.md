@@ -5,6 +5,73 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-26 - Vehicle-Based Collapse/Expand in Runsheets
+
+### New Feature: Vehicle-Level Job Grouping
+Added vehicle-based collapse/expand functionality to the runsheet screen to better organize jobs when multiple vehicles are operating on the same day.
+
+### Implementation Details:
+
+**State Management (`app/runsheet/[week].tsx`)**:
+- Added `collapsedVehicles` state array to track which vehicle blocks are collapsed
+- Added `toggleVehicle()` function to handle expand/collapse of individual vehicles
+- Vehicle IDs use format `${vehicleId}-${dateKey}` for unique identification per day
+
+**Vehicle Block Rendering Enhancement**:
+- Vehicle headers now show +/- collapse buttons only when 2+ vehicles exist for the day
+- Button appears to the left of vehicle name in a horizontal layout
+- Uses `Pressable` component for touch interaction
+- Shows `-` when expanded, `+` when collapsed
+
+**Smart Job Filtering**:
+- Enhanced `SectionList` renderItem logic to hide jobs belonging to collapsed vehicles
+- Implemented backward lookup algorithm to find which vehicle each job belongs to
+- Jobs under collapsed vehicles are completely hidden from view
+- Preserves existing day-level collapse functionality
+
+**User Experience**:
+- Only displays vehicle collapse controls when there are multiple vehicles
+- Single vehicle days remain unchanged in appearance
+- Vehicle collapse state is independent of day-level collapse
+- Maintains existing ETA, completion, and job management functionality
+
+### Technical Implementation:
+```typescript
+// Vehicle collapse state
+const [collapsedVehicles, setCollapsedVehicles] = useState<string[]>([]);
+
+// Toggle function
+const toggleVehicle = (vehicleId: string) => {
+  setCollapsedVehicles((prev) =>
+    prev.includes(vehicleId) ? prev.filter((v) => v !== vehicleId) : [...prev, vehicleId]
+  );
+};
+
+// Smart rendering with vehicle awareness
+renderItem={({ item, index, section }) => {
+  // Hide jobs for collapsed vehicles by looking backward for vehicle block
+  if (!(item as any).__type && !isQuoteJob(item)) {
+    let vehicleId = null;
+    for (let i = index - 1; i >= 0; i--) {
+      const prevItem = section.data[i];
+      if (prevItem && (prevItem as any).__type === 'vehicle') {
+        vehicleId = prevItem.id;
+        break;
+      }
+    }
+    if (vehicleId && collapsedVehicles.includes(vehicleId)) {
+      return null;
+    }
+  }
+  return renderItem({ item, index, section });
+}}
+```
+
+### Files Modified:
+- `app/runsheet/[week].tsx`: Added vehicle collapse/expand functionality
+
+---
+
 ## 2025-01-26 - CSV Import Enhancements & Client List Display Fix
 
 ### Bug Fixes:

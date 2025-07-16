@@ -28,6 +28,7 @@ export default function RunsheetWeekScreen() {
   const [rotaMap, setRotaMap] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
+  const [collapsedVehicles, setCollapsedVehicles] = useState<string[]>([]);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
   const [completedDays, setCompletedDays] = useState<string[]>([]);
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -536,6 +537,12 @@ export default function RunsheetWeekScreen() {
     );
   };
 
+  const toggleVehicle = (vehicleId: string) => {
+    setCollapsedVehicles((prev) =>
+      prev.includes(vehicleId) ? prev.filter((v) => v !== vehicleId) : [...prev, vehicleId]
+    );
+  };
+
   const isDayComplete = (dayTitle: string) => {
     const dayIndex = daysOfWeek.indexOf(dayTitle);
     if (dayIndex === -1) return false;
@@ -726,9 +733,19 @@ export default function RunsheetWeekScreen() {
     }
 
     if ((item as any).__type === 'vehicle') {
+      // Count total vehicles in this day to determine if collapse button should be shown
+      const vehicleItemsInDay = section.data.filter((dataItem: any) => dataItem.__type === 'vehicle');
+      const shouldShowCollapseButton = vehicleItemsInDay.length > 1;
+      const isCollapsed = collapsedVehicles.includes(item.id);
+      
       return (
-        <View style={{ paddingVertical: 4, backgroundColor: '#F0F0F0' }}>
-          <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
+        <View style={{ paddingVertical: 4, backgroundColor: '#F0F0F0', flexDirection: 'row', alignItems: 'center' }}>
+          {shouldShowCollapseButton && (
+            <Pressable onPress={() => toggleVehicle(item.id)} style={{ marginRight: 8 }}>
+              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{isCollapsed ? '+' : '-'}</Text>
+            </Pressable>
+          )}
+          <Text style={{ fontWeight: 'bold', flex: 1 }}>{item.name}</Text>
         </View>
       );
     }
@@ -933,9 +950,29 @@ export default function RunsheetWeekScreen() {
           <SectionList
             sections={sections}
             keyExtractor={(item) => item.id}
-            renderItem={({ item, index, section }) =>
-              collapsedDays.includes(section.title) ? null : renderItem({ item, index, section })
-            }
+            renderItem={({ item, index, section }) => {
+              // Don't render anything if the day is collapsed
+              if (collapsedDays.includes(section.title)) return null;
+              
+              // Don't render jobs that belong to collapsed vehicles
+              if (!(item as any).__type && !isQuoteJob(item)) {
+                // Find the vehicle this job belongs to by looking backwards for the most recent vehicle block
+                let vehicleId = null;
+                for (let i = index - 1; i >= 0; i--) {
+                  const prevItem = section.data[i];
+                  if (prevItem && (prevItem as any).__type === 'vehicle') {
+                    vehicleId = prevItem.id;
+                    break;
+                  }
+                }
+                // If this job belongs to a collapsed vehicle, don't render it
+                if (vehicleId && collapsedVehicles.includes(vehicleId)) {
+                  return null;
+                }
+              }
+              
+              return renderItem({ item, index, section });
+            }}
             renderSectionHeader={({ section: { title, data } }) => {
               const dayIsPast = isDayInPast(title);
               const dayIsCompleted = completedDays.includes(title);
