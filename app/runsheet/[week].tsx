@@ -296,23 +296,9 @@ export default function RunsheetWeekScreen() {
         return matches;
       })
       .sort((a: any, b: any) => {
-        // Note jobs should be sorted by their original job position and then by creation order
-        if (isNoteJob(a) && isNoteJob(b)) {
-          // If both are note jobs, sort by original job position, then by creation time
-          if (a.originalJobId === b.originalJobId) {
-            return (a.createdAt || 0) - (b.createdAt || 0);
-          }
-          return a.originalJobId.localeCompare(b.originalJobId);
-        }
-        if (isNoteJob(a) && !isNoteJob(b)) {
-          // Note job should come after its original job
-          if (a.originalJobId === b.id) return 1;
-          return 0; // Will be handled by the regular sorting for the original job
-        }
-        if (!isNoteJob(a) && isNoteJob(b)) {
-          // Regular job should come before its note job
-          if (a.id === b.originalJobId) return -1;
-          return 0; // Will be handled by the regular sorting for the original job
+        // Skip note jobs in the main sort - they'll be inserted later
+        if (isNoteJob(a) || isNoteJob(b)) {
+          return 0;
         }
         
         // Regular job sorting logic
@@ -330,12 +316,36 @@ export default function RunsheetWeekScreen() {
         // Otherwise, sort by roundOrderNumber
         return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
       });
+
+    // Now properly position note jobs after their original jobs
+    const regularJobs = jobsForDay.filter(job => !isNoteJob(job));
+    const noteJobs = jobsForDay.filter(job => isNoteJob(job));
     
-    if (jobsForDay.length > 0) {
-      console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
+    const finalJobsForDay: any[] = [];
+    
+    regularJobs.forEach(regularJob => {
+      // Add the regular job
+      finalJobsForDay.push(regularJob);
+      
+      // Find and add any note jobs that belong after this job
+      const relatedNoteJobs = noteJobs
+        .filter(noteJob => noteJob.originalJobId === regularJob.id)
+        .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0)); // Sort by creation time
+      
+      finalJobsForDay.push(...relatedNoteJobs);
+    });
+    
+    // Add any orphaned note jobs (original job not found) at the end
+    const orphanedNoteJobs = noteJobs.filter(noteJob => 
+      !regularJobs.some(regularJob => regularJob.id === noteJob.originalJobId)
+    );
+    finalJobsForDay.push(...orphanedNoteJobs);
+    
+    if (finalJobsForDay.length > 0) {
+      console.log(`📅 ${day}: ${finalJobsForDay.length} jobs (${regularJobs.length} regular, ${noteJobs.length} notes)`);
     }
     
-    const allocated = allocateJobsForDay(dayDate, jobsForDay);
+    const allocated = allocateJobsForDay(dayDate, finalJobsForDay);
     return {
       title: day,
       data: allocated,
@@ -608,9 +618,14 @@ export default function RunsheetWeekScreen() {
 
       await addDoc(collection(db, 'jobs'), noteJobData);
       
-      // Trigger a re-fetch by setting loading and clearing jobs first
-      setLoading(true);
-      setJobs([]);
+      // Add the note job to the current jobs list immediately
+      const noteJobWithClient = {
+        ...noteJobData,
+        id: 'temp-' + Date.now(), // Temporary ID until we get the real one from Firestore
+        client: null
+      };
+      
+      setJobs(prevJobs => [...prevJobs, noteJobWithClient as any]);
       
       setAddNoteModalVisible(false);
       setAddNoteText('');
