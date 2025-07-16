@@ -45,21 +45,16 @@ export default function HomeScreen() {
     }
   };
 
-  const handleFirstTimeSetupComplete = (hasInviteCode: boolean) => {
+  const handleFirstTimeSetupComplete = async (hasInviteCode: boolean) => {
     setShowFirstTimeSetup(false);
     if (hasInviteCode) {
       // User chose to enter invite code, navigate there
       router.push('/enter-invite-code');
     } else {
-      // User completed setup, reload to refresh the UI
-      if (Platform.OS === 'web') {
-        window.location.reload();
-      } else {
-        // For mobile, refetch user session
-        const firebaseUser = auth.currentUser;
-        if (firebaseUser) {
-          buildButtonsForUser(firebaseUser);
-        }
+      // User completed setup, refetch user session and rebuild buttons
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        await buildButtonsForUser(firebaseUser);
       }
     }
   };

@@ -14,7 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { db } from '../core/firebase';
+import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
 import { AvailabilityStatus } from '../services/rotaService';
 
@@ -45,8 +45,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
     saturday: false,
     sunday: false,
   });
-  const [vehicleName, setVehicleName] = useState('');
-  const [vehicleRegistration, setVehicleRegistration] = useState('');
+  const [vehicleNameOrReg, setVehicleNameOrReg] = useState('');
   const [dailyTurnoverLimit, setDailyTurnoverLimit] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -101,12 +100,8 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
   };
 
   const handleSave = async () => {
-    if (!vehicleName.trim()) {
-      Alert.alert('Error', 'Please enter a vehicle name.');
-      return;
-    }
-    if (!vehicleRegistration.trim()) {
-      Alert.alert('Error', 'Please enter a vehicle registration.');
+    if (!vehicleNameOrReg.trim()) {
+      Alert.alert('Error', 'Please enter a vehicle name or registration.');
       return;
     }
     if (!dailyTurnoverLimit.trim() || isNaN(Number(dailyTurnoverLimit))) {
@@ -123,8 +118,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       await updateDoc(doc(db, 'users', session.uid), {
         firstTimeSetupCompleted: true,
         defaultWorkingDays: workingDays,
-        vehicleName: vehicleName.trim(),
-        vehicleRegistration: vehicleRegistration.trim(),
+        vehicleName: vehicleNameOrReg.trim(),
         dailyTurnoverLimit: Number(dailyTurnoverLimit),
         updatedAt: new Date().toISOString(),
       });
@@ -133,13 +127,29 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       await setupDefaultRota(session);
 
       // Create vehicle
-      await addDoc(collection(db, `accounts/${session.accountId}/vehicles`), {
-        name: vehicleName.trim(),
-        registration: vehicleRegistration.trim(),
+      const vehicleDoc = await addDoc(collection(db, `accounts/${session.accountId}/vehicles`), {
+        name: vehicleNameOrReg.trim(),
+        registration: vehicleNameOrReg.trim(),
         dailyLimit: Number(dailyTurnoverLimit),
         createdAt: new Date().toISOString(),
         ownerId: session.accountId,
       });
+
+      // Create/update member record with vehicle assignment and daily rate
+      await setDoc(doc(db, `accounts/${session.accountId}/members/${session.uid}`), {
+        uid: session.uid,
+        email: auth.currentUser?.email || '',
+        role: 'owner',
+        perms: {
+          viewClients: true,
+          viewRunsheet: true,
+          viewPayments: true,
+        },
+        status: 'active',
+        vehicleId: vehicleDoc.id,
+        dailyRate: Number(dailyTurnoverLimit),
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
 
       Alert.alert(
         'Setup Complete',
@@ -164,7 +174,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         {step === 1 && (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Welcome to Round Manager!</Text>
+            <Text style={styles.title}>Welcome to Guvnor!</Text>
             <Text style={styles.subtitle}>Let's set up your account</Text>
             
             <View style={styles.questionContainer}>
@@ -184,7 +194,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
                   style={[styles.choiceButton, styles.noButton]}
                   onPress={() => handleInviteCodeChoice(false)}
                 >
-                  <Text style={styles.buttonText}>No, create my own</Text>
+                  <Text style={styles.buttonText}>No, continue without</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -229,24 +239,12 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
             <Text style={styles.title}>Vehicle & Daily Limit</Text>
             
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Name</Text>
+              <Text style={styles.label}>Vehicle Name or Registration</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g., White Transit Van"
-                value={vehicleName}
-                onChangeText={setVehicleName}
-                editable={!saving}
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Registration</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., AB21 CDE"
-                value={vehicleRegistration}
-                onChangeText={setVehicleRegistration}
-                autoCapitalize="characters"
+                placeholder="e.g., White Transit Van or AB21 CDE"
+                value={vehicleNameOrReg}
+                onChangeText={setVehicleNameOrReg}
                 editable={!saving}
               />
             </View>

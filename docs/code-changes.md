@@ -605,13 +605,22 @@ Files: `app/quotes.tsx`
 • **Vehicle Creation**: Creates a vehicle record with registration and daily limit
 • **Navigation**: Routes users to invite code screen if they have one, or completes setup
 
+**Updates based on feedback**:
+• Changed title to "Welcome to Guvnor!"
+• Changed button text to "No, continue without"
+• Combined vehicle name and registration into single field
+• Fixed navigation delay after setup completion
+• Creates member record with vehicle assignment and daily rate
+• Automatically assigns the created vehicle to the user
+
 **Implementation details**:
 • Created `FirstTimeSetupModal` component with multi-step wizard interface
 • Added `firstTimeSetupCompleted` flag to user documents
-• Added fields: `defaultWorkingDays`, `vehicleName`, `vehicleRegistration`, `dailyTurnoverLimit`
+• Added fields: `defaultWorkingDays`, `vehicleName`, `dailyTurnoverLimit`
 • Modified home screen to check for first-time users and show modal
 • Updated invite code flow to mark setup as complete when joining a team
 • Automatically populates rota for the next 52 weeks based on working day preferences
+• Creates member record with vehicle assignment and daily rate for proper team screen integration
 
 Files: `components/FirstTimeSetupModal.tsx`, `app/(tabs)/index.tsx`, `app/enter-invite-code.tsx`
 
