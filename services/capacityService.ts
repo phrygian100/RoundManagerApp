@@ -146,26 +146,28 @@ export async function redistributeJobsForWeek(
     
     if (jobsToMove.length === 0) continue;
     
-    // Find target day(s) for overflow jobs
-    let targetDayIndex = dayIndex + 1;
+    // Find target day(s) for overflow jobs - start from the LAST available day
     const jobsStillToMove = [...jobsToMove];
     
-    while (jobsStillToMove.length > 0 && targetDayIndex < 7) {
-      const targetDayCapacity = weekCapacity[targetDayIndex];
-      
-      // Check if target day has capacity and available members
-      if (targetDayCapacity.totalCapacity === 0) {
-        result.warnings.push(`${targetDayCapacity.dayName} has no available team members`);
-        targetDayIndex++;
-        continue;
+    // Find all available days after the current day (with capacity > 0)
+    const availableDays: number[] = [];
+    for (let i = dayIndex + 1; i < 7; i++) {
+      if (weekCapacity[i].totalCapacity > 0) {
+        availableDays.push(i);
       }
+    }
+    
+    // Process available days in reverse order (last day first)
+    for (let i = availableDays.length - 1; i >= 0 && jobsStillToMove.length > 0; i--) {
+      const targetDayIndex = availableDays[i];
+      const targetDayCapacity = weekCapacity[targetDayIndex];
       
       // Move jobs that fit into this day's available capacity
       const jobsToMoveToday: (Job & { client: Client | null })[] = [];
       let moveRunningTotal = 0;
       
-      for (let i = 0; i < jobsStillToMove.length; i++) {
-        const job = jobsStillToMove[i];
+      for (let j = 0; j < jobsStillToMove.length; j++) {
+        const job = jobsStillToMove[j];
         const jobValue = job.price || 0;
         
         if (moveRunningTotal + jobValue <= targetDayCapacity.availableCapacity) {
@@ -198,8 +200,6 @@ export async function redistributeJobsForWeek(
       if (jobsToMoveToday.length > 0) {
         result.daysModified.push(targetDayCapacity.dayName);
       }
-      
-      targetDayIndex++;
     }
     
     // If it's the last day or no more capacity in the week, keep remaining jobs

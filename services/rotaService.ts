@@ -45,29 +45,29 @@ export async function setAvailability(date: string, memberId: string, status: Av
   // Use setDoc merge to avoid overwriting others
   await setDoc(docRef, { [memberId]: status }, { merge: true });
   
-  // Trigger capacity redistribution for ANY week when availability changes
+  // Trigger capacity redistribution for future weeks when availability changes
   try {
     const changeDate = parseISO(date);
-    
-    // Always trigger for ANY date change (including current week)
-    console.log(`🔄 Triggering capacity redistribution for date change: ${date}`);
-    
-    // Dynamically import to avoid circular dependencies
-    const { debugWeekCapacity, manualRefreshWeekCapacity } = await import('./capacityService');
     const weekStart = startOfWeek(changeDate, { weekStartsOn: 1 });
     
-    // Force redistribution regardless of current week restrictions
-    console.log(`🔄 Force redistributing for week starting: ${weekStart.toISOString()}`);
-    const result = await manualRefreshWeekCapacity(weekStart);
+    // Only trigger for future weeks - current week uses manual "Refresh Capacity" button
+    console.log(`🔄 Triggering capacity redistribution for availability change on: ${date}`);
+    
+    // Dynamically import to avoid circular dependencies
+    const { triggerCapacityRedistribution } = await import('./capacityService');
+    
+    // Use the proper trigger function that respects current week protection
+    const result = await triggerCapacityRedistribution('team_availability_changed', [weekStart]);
     
     console.log(`✅ Capacity redistribution completed:`, result);
     
-    if (result.redistributedJobs > 0) {
-      console.log(`📊 ${result.redistributedJobs} jobs redistributed across: ${result.daysModified.join(', ')}`);
-    }
-    
-    if (result.warnings.length > 0) {
-      console.warn(`⚠️ Redistribution warnings:`, result.warnings);
+    if (result.totalRedistributed > 0) {
+      console.log(`📊 ${result.totalRedistributed} total jobs redistributed across ${result.weekResults.length} weeks`);
+      result.weekResults.forEach(weekResult => {
+        if (weekResult.result.redistributedJobs > 0) {
+          console.log(`  Week ${weekResult.week}: ${weekResult.result.redistributedJobs} jobs redistributed`);
+        }
+      });
     }
     
   } catch (error) {

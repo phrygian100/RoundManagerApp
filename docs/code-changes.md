@@ -955,3 +955,52 @@ For each day Monday-Sunday:
 **Files modified**: `app/runsheet/[week].tsx`, `services/jobService.ts`, `services/accountService.ts`, `services/rotaService.ts`
 
 ---
+
+## Capacity Management Bug Fixes (2025-01-21)
+
+### Issues Fixed:
+
+**1. Job Distribution Logic Correction**:
+- **Problem**: Excess jobs were being distributed to the first available day with capacity
+- **Fix**: Changed algorithm to distribute excess jobs to the LAST available day with capacity
+- **Impact**: Jobs now correctly overflow to Saturday (last available day) instead of Monday
+
+**2. Current Week Auto-Application Prevention**:
+- **Problem**: Rota availability changes were automatically triggering redistribution on current week
+- **Fix**: Modified `rotaService.ts` to only trigger redistribution for future weeks
+- **Impact**: Current week redistribution now only happens via manual "Refresh Capacity" button
+
+### Technical Changes:
+
+**`services/capacityService.ts`**:
+- Modified `redistributeJobsForWeek()` function
+- Changed target day selection from sequential forward search to reverse search
+- Jobs now fill available capacity starting from the last available day in the week
+
+**`services/rotaService.ts`**:
+- Updated `setAvailability()` function
+- Replaced `manualRefreshWeekCapacity()` call with `triggerCapacityRedistribution()`
+- Added proper current week protection for automatic triggers
+
+### Algorithm Logic Update:
+
+```
+For each day Monday-Sunday with overflow:
+  Identify all available days after current day (with capacity > 0)
+  Process available days in REVERSE order (Saturday → Friday → Thursday etc.)
+  For each target day (starting from last):
+    Move jobs that fit into available capacity
+    Update capacity calculations
+  If jobs still remain:
+    Keep on current day (accept overflow)
+```
+
+### User Experience Impact:
+
+- **Correct Distribution**: Excess jobs now properly distribute to the end of the week
+- **Manual Control**: Current week changes require explicit user action via "Refresh Capacity" button
+- **Predictable Behavior**: Future week changes automatically redistribute, current week protected
+
+**Files modified**: `services/capacityService.ts`, `services/rotaService.ts`
+
+---
