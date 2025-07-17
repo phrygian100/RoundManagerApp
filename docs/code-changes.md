@@ -1351,4 +1351,5 @@ Added a new feature to handle payments with unmatched account numbers during CSV
 - `app/unknown-payments.tsx` - New file for unknown payments screen
 - `app/accounts.tsx` - Added unknown payments button and adjusted styles
 - `app/(tabs)/settings.tsx` - Modified payment import logic to handle unknown payments
+- `firestore.rules` - Added security rules for unknownPayments collection
 - `docs/code-changes.md` - Documentation update

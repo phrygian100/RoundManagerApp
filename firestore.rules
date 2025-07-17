@@ -68,6 +68,14 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
+    match /unknownPayments/{unknownPaymentId} {
+      // Allow list operations for signed in users - the query filter will handle access control
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
+    }
+
     // Each user can manage a single document under /users/{uid}
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
