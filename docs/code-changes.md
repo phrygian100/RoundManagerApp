@@ -1488,3 +1488,61 @@ Added functionality to edit individual job prices directly from the runsheet mod
 - `app/runsheet/[week].tsx` - Added price edit functionality and UI
 - `types/models.ts` - Added hasCustomPrice field to Job type
 - `docs/code-changes.md` - Documentation update
+
+---
+
+## 2025-01-17 - Additional Services Edit/Delete Functionality
+
+### Added clickable additional services with edit/delete modal
+
+**Files Modified:**
+- `app/(tabs)/clients/[id].tsx`
+
+**Changes Made:**
+1. **Made Additional Services Area Clickable**: 
+   - Wrapped each `additionalServiceCard` with a `Pressable` component
+   - Users can now click on any additional service (like "Lantern" in the screenshot) to edit it
+
+2. **Added Edit Service Modal State Management**:
+   - Added new state variables for edit modal functionality:
+     - `editServiceModalVisible` - Controls modal visibility
+     - `selectedService` - Stores the service being edited
+     - `editServiceType`, `editCustomServiceType` - Service type selection
+     - `editServiceFrequency` - Frequency picker state
+     - `editServicePrice` - Price input state
+     - `editServiceNextVisit` - Next visit date picker state
+     - `showEditServiceDatePicker` - Date picker visibility
+
+3. **Created Edit Additional Service Modal**:
+   - Full modal with service type picker (including custom "Other" option)
+   - Frequency picker (4-52 weeks)
+   - Price input field
+   - Next visit date picker (web and mobile compatible)
+   - Save changes button
+   - Delete service button with confirmation dialog
+   - Cancel button
+
+4. **Added Handler Functions**:
+   - `onEditServiceDateChange()` - Handles date picker changes for edit modal
+   - Pressable onPress handler - Initializes edit modal with selected service data
+   - Edit modal save handler - Updates service in Firestore and local state
+   - Delete handler - Removes service with confirmation dialog
+
+5. **Smart Service Type Detection**:
+   - Automatically detects if a service is predefined or custom
+   - If custom, sets picker to "Other" and populates custom text field
+   - If predefined, selects correct picker option
+
+**User Experience:**
+- Users can click anywhere in the additional service box to edit
+- No visual changes to the UI - maintains clean appearance
+- Edit modal preserves all existing service data
+- Delete functionality with safety confirmation
+- Form validation ensures data integrity
+
+**Technical Notes:**
+- Updated service type picker options to match those in add modal
+- Proper state cleanup on modal close
+- Firestore document updates with error handling
+- Local state synchronization for immediate UI updates
+- Refreshes client data after changes to update service history

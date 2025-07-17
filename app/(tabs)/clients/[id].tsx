@@ -59,6 +59,16 @@ export default function ClientDetailScreen() {
   const [recurringNextVisit, setRecurringNextVisit] = useState(new Date());
   const [showRecurringDatePicker, setShowRecurringDatePicker] = useState(false);
 
+  // Additional service edit states
+  const [editServiceModalVisible, setEditServiceModalVisible] = useState(false);
+  const [selectedService, setSelectedService] = useState<AdditionalService | null>(null);
+  const [editServiceType, setEditServiceType] = useState('');
+  const [editCustomServiceType, setEditCustomServiceType] = useState('');
+  const [editServiceFrequency, setEditServiceFrequency] = useState(12);
+  const [editServicePrice, setEditServicePrice] = useState('');
+  const [editServiceNextVisit, setEditServiceNextVisit] = useState(new Date());
+  const [showEditServiceDatePicker, setShowEditServiceDatePicker] = useState(false);
+
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
       const docRef = doc(db, 'clients', id);
@@ -424,6 +434,13 @@ export default function ClientDetailScreen() {
     }
   };
 
+  const onEditServiceDateChange = (event: any, selectedDate?: Date) => {
+    setShowEditServiceDatePicker(false);
+    if (selectedDate) {
+      setEditServiceNextVisit(selectedDate);
+    }
+  };
+
   const handleAddRecurringService = async () => {
     if (!recurringPrice) {
       Alert.alert('Error', 'Please enter a price for the recurring service.');
@@ -583,24 +600,42 @@ export default function ClientDetailScreen() {
                   <View style={styles.additionalServicesPanel}>
                     <ThemedText style={styles.additionalServicesPanelTitle}>Additional Services</ThemedText>
                     {client.additionalServices.filter(service => service.isActive).map((service) => (
-                      <View key={service.id} style={styles.additionalServiceCard}>
-                        <ThemedText style={styles.additionalServiceName}>
-                          {service.serviceType}
-                        </ThemedText>
-                        <ThemedText style={styles.additionalServiceDetails}>
-                          Every {service.frequency} weeks
-                        </ThemedText>
-                        <ThemedText style={styles.additionalServicePrice}>
-                          £{service.price.toFixed(2)}
-                        </ThemedText>
-                        <ThemedText style={styles.additionalServiceNext}>
-                          Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </ThemedText>
-                      </View>
+                                             <Pressable key={service.id} onPress={() => {
+                         setSelectedService(service);
+                         // Check if it's a predefined service type or a custom one
+                         const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
+                         if (predefinedTypes.includes(service.serviceType)) {
+                           setEditServiceType(service.serviceType);
+                           setEditCustomServiceType('');
+                         } else {
+                           setEditServiceType('Other');
+                           setEditCustomServiceType(service.serviceType);
+                         }
+                         setEditServiceFrequency(service.frequency);
+                         setEditServicePrice(service.price.toString());
+                         setEditServiceNextVisit(new Date(service.nextVisit));
+                         setShowEditServiceDatePicker(false); // Reset date picker
+                         setEditServiceModalVisible(true);
+                       }}>
+                        <View style={styles.additionalServiceCard}>
+                          <ThemedText style={styles.additionalServiceName}>
+                            {service.serviceType}
+                          </ThemedText>
+                          <ThemedText style={styles.additionalServiceDetails}>
+                            Every {service.frequency} weeks
+                          </ThemedText>
+                          <ThemedText style={styles.additionalServicePrice}>
+                            £{service.price.toFixed(2)}
+                          </ThemedText>
+                          <ThemedText style={styles.additionalServiceNext}>
+                            Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </ThemedText>
+                        </View>
+                      </Pressable>
                     ))}
                   </View>
                 )}
@@ -1024,6 +1059,206 @@ export default function ClientDetailScreen() {
                   }
                 }}
                 disabled={!newAccountNoteText.trim()}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Additional Service Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={editServiceModalVisible}
+        onRequestClose={() => {
+          setEditServiceModalVisible(false);
+          setSelectedService(null);
+          setEditServiceType('');
+          setEditCustomServiceType('');
+          setEditServiceFrequency(12);
+          setEditServicePrice('');
+          setEditServiceNextVisit(new Date());
+          setShowEditServiceDatePicker(false);
+        }}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText type="subtitle">{selectedService ? 'Edit Additional Service' : 'Add Additional Service'}</ThemedText>
+
+                         <Picker
+               selectedValue={editServiceType}
+               onValueChange={(itemValue) => setEditServiceType(itemValue)}
+               style={styles.picker}
+             >
+               <Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+               <Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
+               <Picker.Item label="Conservatory roof" value="Conservatory roof" />
+               <Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+               <Picker.Item label="Pressure washing" value="Pressure washing" />
+               <Picker.Item label="Other" value="Other" />
+             </Picker>
+            
+            {editServiceType === 'Other' && (
+              <TextInput
+                style={styles.input}
+                placeholder="Enter custom service type"
+                value={editCustomServiceType}
+                onChangeText={setEditCustomServiceType}
+              />
+            )}
+
+            {/* Frequency Picker */}
+            <ThemedText style={styles.fieldLabel}>Frequency (weeks between visits):</ThemedText>
+            <Picker
+              selectedValue={editServiceFrequency}
+              onValueChange={(itemValue) => setEditServiceFrequency(itemValue)}
+              style={styles.picker}
+            >
+              {[4,8,12,16,20,24,28,32,36,40,44,48,52].map(weeks => (
+                <Picker.Item key={weeks} label={`${weeks} weeks`} value={weeks} />
+              ))}
+            </Picker>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Service Price (£)"
+              value={editServicePrice}
+              onChangeText={setEditServicePrice}
+              keyboardType="numeric"
+            />
+
+            <View style={styles.datePickerContainer}>
+              <ThemedText style={styles.dateText}>Next visit: {format(editServiceNextVisit, 'do MMMM yyyy')}</ThemedText>
+              {Platform.OS === 'web' ? (
+                <input
+                  type="date"
+                  value={format(editServiceNextVisit, 'yyyy-MM-dd')}
+                  onChange={e => {
+                    const newDate = new Date(e.target.value + 'T00:00:00');
+                    setEditServiceNextVisit(newDate);
+                  }}
+                  style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
+                />
+              ) : (
+                <Pressable style={styles.calendarButton} onPress={() => setShowEditServiceDatePicker(true)}>
+                  <ThemedText style={styles.calendarIcon}>📅</ThemedText>
+                </Pressable>
+              )}
+            </View>
+            {showEditServiceDatePicker && Platform.OS !== 'web' && (
+              <DateTimePicker
+                testID="editServiceDateTimePicker"
+                value={editServiceNextVisit}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={onEditServiceDateChange}
+              />
+            )}
+
+            <View style={styles.modalButtons}>
+              <Button title="Cancel" onPress={() => setEditServiceModalVisible(false)} color="red" />
+              {selectedService && (
+                <Button 
+                  title="Delete Service" 
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Service',
+                      'Are you sure you want to delete this additional service? This cannot be undone.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Delete',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              const currentAdditionalServices = client?.additionalServices || [];
+                              const updatedAdditionalServices = currentAdditionalServices.filter(service => 
+                                service.id !== selectedService.id
+                              );
+
+                              await updateDoc(doc(db, 'clients', id as string), {
+                                additionalServices: updatedAdditionalServices
+                              });
+
+                              setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
+                              setEditServiceModalVisible(false);
+                              setSelectedService(null);
+                              setEditServiceType('');
+                              setEditCustomServiceType('');
+                              setEditServiceFrequency(12);
+                              setEditServicePrice('');
+                              setEditServiceNextVisit(new Date());
+                              setShowEditServiceDatePicker(false);
+                              Alert.alert('Success', 'Service deleted successfully.');
+                              fetchClient(); // Refresh history
+                            } catch (error) {
+                              console.error('Error deleting service:', error);
+                              Alert.alert('Error', 'Failed to delete service. Please try again.');
+                            }
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  color="#ff4444"
+                />
+              )}
+              <Button 
+                title={selectedService ? "Save Changes" : "Add Service"} 
+                onPress={async () => {
+                  if (!editServicePrice) {
+                    Alert.alert('Error', 'Please enter a price for the service.');
+                    return;
+                  }
+
+                  if (editServiceType === 'Other' && !editCustomServiceType.trim()) {
+                    Alert.alert('Error', 'Please enter a custom service type.');
+                    return;
+                  }
+
+                  if (!editServiceFrequency || editServiceFrequency < 4 || editServiceFrequency > 52) {
+                    Alert.alert('Error', 'Please select a frequency between 4 and 52 weeks.');
+                    return;
+                  }
+
+                  const finalServiceType = editServiceType === 'Other' ? editCustomServiceType.trim() : editServiceType;
+
+                  try {
+                    const updatedService: AdditionalService = {
+                      ...selectedService!,
+                      serviceType: finalServiceType,
+                      frequency: editServiceFrequency,
+                      price: Number(editServicePrice),
+                      nextVisit: format(editServiceNextVisit, 'yyyy-MM-dd'),
+                      isActive: true, // Assuming editing means keeping it active
+                    };
+
+                    const currentAdditionalServices = client?.additionalServices || [];
+                    const updatedAdditionalServices = currentAdditionalServices.map(service => 
+                      service.id === updatedService.id ? updatedService : service
+                    );
+
+                    await updateDoc(doc(db, 'clients', id as string), {
+                      additionalServices: updatedAdditionalServices
+                    });
+
+                    setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
+                    setEditServiceModalVisible(false);
+                    setSelectedService(null);
+                    setEditServiceType('');
+                    setEditCustomServiceType('');
+                    setEditServiceFrequency(12);
+                    setEditServicePrice('');
+                    setEditServiceNextVisit(new Date());
+                    setShowEditServiceDatePicker(false);
+                    Alert.alert('Success', 'Service updated successfully.');
+                    fetchClient(); // Refresh history
+                  } catch (error) {
+                    console.error('Error updating service:', error);
+                    Alert.alert('Error', 'Failed to update service. Please try again.');
+                  }
+                }}
+                disabled={!editServicePrice.trim() || !editServiceType || !editServiceFrequency}
               />
             </View>
           </View>
