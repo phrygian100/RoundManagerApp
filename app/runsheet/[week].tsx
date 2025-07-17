@@ -294,6 +294,56 @@ export default function RunsheetWeekScreen() {
       }
     });
 
+    // Sort jobs within each vehicle block by ETA
+    activeBlocks.forEach(block => {
+      // Separate note jobs and non-note jobs
+      const noteJobs: any[] = [];
+      const nonNoteJobs: any[] = [];
+      
+      block.jobs.forEach(job => {
+        if (isNoteJob(job)) {
+          noteJobs.push(job);
+        } else {
+          nonNoteJobs.push(job);
+        }
+      });
+      
+      // Sort non-note jobs by ETA
+      nonNoteJobs.sort((a: any, b: any) => {
+        // If both jobs have ETA, sort by ETA (earliest first)
+        if (a.eta && b.eta) {
+          const [aHour, aMin] = a.eta.split(':').map(Number);
+          const [bHour, bMin] = b.eta.split(':').map(Number);
+          if (aHour !== bHour) return aHour - bHour;
+          if (aMin !== bMin) return aMin - bMin;
+        }
+        // If only one has ETA, that one comes first
+        if (a.eta && !b.eta) return -1;
+        if (!a.eta && b.eta) return 1;
+        
+        // If no ETA difference, maintain roundOrderNumber order
+        return 0;
+      });
+      
+      // Rebuild the jobs list with notes in correct positions
+      const sortedJobs: any[] = [];
+      nonNoteJobs.forEach(job => {
+        sortedJobs.push(job);
+        // Add any notes that belong to this job
+        const jobNotes = noteJobs.filter(note => (note as any).originalJobId === job.id);
+        sortedJobs.push(...jobNotes);
+      });
+      
+      // Add any orphaned notes at the end
+      const orphanedNotes = noteJobs.filter(note => 
+        !nonNoteJobs.some(job => job.id === (note as any).originalJobId)
+      );
+      sortedJobs.push(...orphanedNotes);
+      
+      // Replace the block's jobs with the sorted list
+      block.jobs = sortedJobs;
+    });
+
     // Flatten result with subtitles
     const result: any[] = [];
     activeBlocks.forEach(block => {
@@ -314,22 +364,12 @@ export default function RunsheetWeekScreen() {
         return matches;
       });
     
-    // First, sort non-note jobs
+    // First, sort non-note jobs by roundOrderNumber only (NOT by ETA)
+    // ETA sorting will happen within each vehicle in allocateJobsForDay
     const nonNoteJobs = jobsForDay
       .filter(job => !isNoteJob(job))
       .sort((a: any, b: any) => {
-        // If both jobs have ETA, sort by ETA (earliest first)
-        if (a.eta && b.eta) {
-          const [aHour, aMin] = a.eta.split(':').map(Number);
-          const [bHour, bMin] = b.eta.split(':').map(Number);
-          if (aHour !== bHour) return aHour - bHour;
-          if (aMin !== bMin) return aMin - bMin;
-        }
-        // If only one has ETA, that one comes first
-        if (a.eta && !b.eta) return -1;
-        if (!a.eta && b.eta) return 1;
-        
-        // Sort by roundOrderNumber
+        // Sort by roundOrderNumber only
         return (a.client?.roundOrderNumber ?? 999999) - (b.client?.roundOrderNumber ?? 999999);
       });
     

@@ -1722,3 +1722,55 @@ const defaultTime = initialTime || previousJobEta || '09:00';
 - ✅ No regression risk - isolated changes to time picker only
 
 ---
+
+## 2025-01-28 - Fixed ETA Sorting to Respect Vehicle Boundaries
+
+### Summary
+Fixed a bug where setting ETAs would cause jobs to jump between vehicles. Now ETA-based reordering only happens within the same vehicle assignment.
+
+### The Problem:
+- When setting an ETA on a job that was earlier than jobs in another vehicle, the job would move to that other vehicle
+- Example: Setting 09:00 ETA on a Vehicle 2 job would move it to Vehicle 1 if Vehicle 1 had later jobs
+- This broke the intended vehicle assignments and work distribution
+
+### Technical Fix:
+
+1. **Removed Global ETA Sorting** (`app/runsheet/[week].tsx` - sections mapping):
+   - Previously: Jobs were sorted by ETA globally across all vehicles before allocation
+   - Now: Jobs are only sorted by roundOrderNumber initially
+
+2. **Added Vehicle-Scoped ETA Sorting** (`allocateJobsForDay` function):
+   - After jobs are allocated to vehicles based on capacity
+   - Each vehicle's jobs are sorted by ETA independently
+   - Note jobs remain attached to their original jobs
+
+### Implementation Details:
+```javascript
+// Old approach - global ETA sorting before vehicle allocation:
+const nonNoteJobs = jobsForDay
+  .filter(job => !isNoteJob(job))
+  .sort((a, b) => {
+    // ETA sorting happened here globally
+    if (a.eta && b.eta) { /* compare ETAs */ }
+    return (a.client?.roundOrderNumber ?? 999999) - (b.client?.roundOrderNumber ?? 999999);
+  });
+
+// New approach - ETA sorting within each vehicle:
+activeBlocks.forEach(block => {
+  // Sort this vehicle's jobs by ETA
+  nonNoteJobs.sort((a, b) => {
+    if (a.eta && b.eta) {
+      // Compare ETAs only within this vehicle
+    }
+  });
+});
+```
+
+### Benefits:
+- ✅ Jobs stay within their assigned vehicles regardless of ETA
+- ✅ Vehicle capacity planning remains intact
+- ✅ Workers stay with their assigned vehicle routes
+- ✅ ETA optimization still works within each vehicle
+- ✅ Note jobs continue to follow their parent jobs
+
+---
