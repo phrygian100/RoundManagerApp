@@ -949,6 +949,7 @@ export default function RunsheetWeekScreen() {
       today.setHours(0, 0, 0, 0);
       const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
       const isToday = jobDate && jobDate.toDateString() === today.toDateString();
+      const isFutureDay = jobDate && jobDate > today;
       const sectionIndex = sections.findIndex(s => s.title === section.title);
       const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
       const isDayCompleted = completedDays.includes(section.title);
@@ -975,6 +976,11 @@ export default function RunsheetWeekScreen() {
             {isCurrentWeek && isToday && index === firstIncompleteIndex && !item.status && !isDayCompleted && (
               <Pressable onPress={() => setQuoteCompleteModal({ job: item, visible: true })} style={styles.completeButton}>
                 <Text style={styles.completeButtonText}>Complete?</Text>
+              </Pressable>
+            )}
+            {(isToday || isFutureDay) && !isDayCompleted && (
+              <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
+                <Text style={styles.deferButtonText}>Move</Text>
               </Pressable>
             )}
           </View>
@@ -1942,14 +1948,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   completeButton: {
-    marginTop: 8,
-    backgroundColor: '#eee',
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    marginBottom: 8,
   },
   completeButtonText: {
-    color: '#007A33',
+    color: '#fff',
     fontWeight: 'bold',
   },
   androidSheetOverlay: {
@@ -1992,11 +1998,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   deferButton: {
-    marginTop: 8,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#2196F3',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    marginBottom: 8,
   },
   deferButtonText: {
     color: '#fff',

@@ -1828,3 +1828,20 @@ const autoAllocateJobs = jobsForDay.filter(job => !job.vehicleId);
 - Manual assignments can be cleared by selecting "Automatic"
 
 ---
+
+## 2025-01-30 - Added Move Button to Quote Jobs
+
+### Summary
+Fixed an inconsistency where quote jobs on the runsheet were missing the "Move" button that regular jobs have. Quote jobs can now be moved to different dates and vehicles just like regular jobs.
+
+### Changes:
+- Added Move button to quote job rendering in `app/runsheet/[week].tsx`
+- Used the same conditional logic as regular jobs: shows when job is today or in the future and the day isn't completed
+- No additional functionality needed - existing handleDeferJob function works perfectly with quote jobs
+
+### User Experience:
+- ✅ Quote jobs now have consistent controls with regular jobs
+- ✅ Users can reschedule quotes to different dates/vehicles
+- ✅ All existing move functionality (date selection, vehicle assignment) works for quotes
+
+---
