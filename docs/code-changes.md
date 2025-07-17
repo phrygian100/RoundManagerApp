@@ -5,6 +5,41 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-17 - Mobile Browser Round Order Manager Fix 📱
+
+### Problem Fixed
+Round Order Manager navigation buttons were not working properly in Chrome browser on Android devices. The down arrow button was either cut off or had inadequate touch targets.
+
+### Root Cause
+Chrome on Android reports `Platform.OS === 'web'` but requires mobile-optimized UI elements:
+- Touch targets were too small (50x50px) for mobile interaction
+- Insufficient bottom padding caused button cutoff by browser UI
+- No mobile browser-specific styling applied
+
+### Solution Implemented (`app/round-order-manager.tsx`):
+
+**Mobile Browser Detection**:
+- Added `isMobileBrowser()` utility function to detect mobile browsers
+- Uses user agent string to identify Android/iOS browsers
+
+**Enhanced Touch Targets**:
+- Increased button size from 50x50px to 60x60px for mobile browsers
+- Added larger margins and padding for better touch accessibility
+- Increased arrow text size from 24px to 28px for better visibility
+
+**Layout Improvements**:
+- Increased bottom padding from 100px to 150px for mobile browsers
+- Added minimum height constraints for button containers
+- Enhanced visual feedback with shadows on mobile
+
+**Code Quality**:
+- Fixed TypeScript error in router params by properly handling complex objects
+- Improved type safety for navigation parameters
+
+**Result**: Navigation buttons now work reliably on mobile browsers with appropriate touch targets and visibility.
+
+---
+
 ## 2025-01-27 - Added Note Deletion Functionality
 
 ### New Feature: Delete Notes by Tapping

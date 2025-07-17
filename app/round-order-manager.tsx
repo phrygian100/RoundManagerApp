@@ -19,6 +19,13 @@ const { height: screenHeight } = Dimensions.get('window');
 const ITEM_HEIGHT = 60;
 const VISIBLE_ITEMS = 7;
 
+// Add mobile browser detection utility near the top
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+};
+
 export default function RoundOrderManagerScreen() {
   const router = useRouter();
   const { newClientData, editingClientId } = useLocalSearchParams();
@@ -240,9 +247,24 @@ export default function RoundOrderManagerScreen() {
         router.back(); // Go back to client details
       } else if (newClientData && !activeClient.id) {
         // New client - go to add-client with round order
+        const simpleParams = {
+          name: activeClient.name || '',
+          address1: activeClient.address1 || '',
+          town: activeClient.town || '',
+          postcode: activeClient.postcode || '',
+          frequency: String(activeClient.frequency || ''),
+          nextVisit: activeClient.nextVisit || '',
+          mobileNumber: activeClient.mobileNumber || '',
+          quote: String(activeClient.quote || ''),
+          accountNumber: String(activeClient.accountNumber || ''),
+          status: activeClient.status || 'active',
+          source: activeClient.source || '',
+          email: activeClient.email || '',
+          roundOrderNumber: String(selectedPosition)
+        };
         router.push({
           pathname: '/add-client',
-          params: { ...activeClient, roundOrderNumber: String(selectedPosition) }
+          params: simpleParams
         });
       } else {
         router.push('/clients'); // Go to clients list
@@ -540,7 +562,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 60,
-    paddingBottom: 100,
+    paddingBottom: Platform.OS === 'web' ? (isMobileBrowser() ? 150 : 100) : 100, // Extra padding for mobile browsers
   },
   subtitle: {
     fontSize: 16,
@@ -643,23 +665,32 @@ const styles = StyleSheet.create({
   },
   navigationButtons: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: isMobileBrowser() ? 16 : 8, // More padding for mobile browsers
+    minHeight: isMobileBrowser() ? 80 : 60, // Ensure minimum touch area
   },
   navButton: {
     backgroundColor: '#007AFF',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
+    width: isMobileBrowser() ? 60 : 50, // Larger touch target for mobile browsers
+    height: isMobileBrowser() ? 60 : 50,
+    borderRadius: isMobileBrowser() ? 30 : 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: 4,
+    marginVertical: isMobileBrowser() ? 8 : 4, // More spacing for mobile browsers
+    // Enhanced touch area for mobile browsers
+    ...(isMobileBrowser() && {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.25,
+      shadowRadius: 3.84,
+      elevation: 5,
+    }),
   },
   navButtonDisabled: {
     backgroundColor: '#ccc',
   },
   navButtonText: {
     color: '#fff',
-    fontSize: 24,
+    fontSize: isMobileBrowser() ? 28 : 24, // Larger text for mobile browsers
     fontWeight: 'bold',
   },
   wheelPickerContainer: {
