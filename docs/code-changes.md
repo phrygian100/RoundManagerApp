@@ -1443,3 +1443,48 @@ Added a new feature to handle payments with unmatched account numbers during CSV
 - `app/(tabs)/settings.tsx` - Modified payment import logic to handle unknown payments
 - `firestore.rules` - Added security rules for unknownPayments collection
 - `docs/code-changes.md` - Documentation update
+
+## 2025-01-17: Edit Job Price Feature
+
+Added functionality to edit individual job prices directly from the runsheet modal without affecting the client's quote value.
+
+### Implementation Details:
+
+**State Management (`app/runsheet/[week].tsx`)**:
+- Added `priceEditModalVisible`, `priceEditJob`, and `priceEditValue` state variables
+- Added `handleEditPrice()` function to open the edit modal with current job price
+- Added `handleSavePriceEdit()` function to validate and save the new price
+
+**UI Components**:
+- Added "Edit Price" button to both iOS ActionSheet and Android/Web modal
+- Created price edit modal with:
+  - Display of client name and original quote price
+  - Numeric input field with £ symbol
+  - Save/Cancel buttons
+  - Input validation for positive numbers
+
+**Display Changes**:
+- Changed job display from `client.quote` to `job.price`
+- Added visual indicator (✏️) for jobs with custom prices
+- Custom prices persist through job movements and capacity redistribution
+
+**Data Model Updates (`types/models.ts`)**:
+- Added `hasCustomPrice?: boolean` field to Job type
+- Field is set to `true` when price is manually edited
+
+**Technical Considerations**:
+- Prices are stored on individual job documents
+- Custom prices persist when jobs are moved between days
+- Capacity distribution algorithm only updates `scheduledTime`, not prices
+- Job regeneration (when editing client frequency) resets prices to client quote
+
+### User Experience:
+- All users with runsheet access can edit prices
+- Works for both pending and completed jobs
+- Quote jobs are excluded from price editing
+- Success confirmation shown after price update
+
+### Files Modified:
+- `app/runsheet/[week].tsx` - Added price edit functionality and UI
+- `types/models.ts` - Added hasCustomPrice field to Job type
+- `docs/code-changes.md` - Documentation update

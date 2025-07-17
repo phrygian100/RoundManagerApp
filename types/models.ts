@@ -31,6 +31,7 @@ export type Job = {
   rating?: number; // client rating for this job
   review?: string;
   paymentStatus: 'unpaid' | 'paid' | 'released';
+  hasCustomPrice?: boolean; // Indicates if the price has been manually edited
 };
 
 export type Payment = {

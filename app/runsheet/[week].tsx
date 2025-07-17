@@ -53,6 +53,11 @@ export default function RunsheetWeekScreen() {
   const [deleteNoteModalVisible, setDeleteNoteModalVisible] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Job & { client: Client | null } | null>(null);
   
+  // Price edit functionality
+  const [priceEditModalVisible, setPriceEditModalVisible] = useState(false);
+  const [priceEditJob, setPriceEditJob] = useState<Job & { client: Client | null } | null>(null);
+  const [priceEditValue, setPriceEditValue] = useState('');
+
   const router = useRouter();
 
   // Helper functions
@@ -446,16 +451,17 @@ export default function RunsheetWeekScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Navigate?', 'View details?', 'Message ETA', 'Add note below', 'Delete Job', 'Cancel'],
-          destructiveButtonIndex: 4,
-          cancelButtonIndex: 5,
+          options: ['Navigate?', 'View details?', 'Message ETA', 'Edit Price', 'Add note below', 'Delete Job', 'Cancel'],
+          destructiveButtonIndex: 5,
+          cancelButtonIndex: 6,
         },
         (buttonIndex) => {
           if (buttonIndex === 0) handleNavigate(job.client);
           if (buttonIndex === 1) handleViewDetails(job.client);
           if (buttonIndex === 2) handleMessageETA(job);
-          if (buttonIndex === 3) handleAddNoteBelow(job);
-          if (buttonIndex === 4) handleDeleteJob(job.id);
+          if (buttonIndex === 3) handleEditPrice(job);
+          if (buttonIndex === 4) handleAddNoteBelow(job);
+          if (buttonIndex === 5) handleDeleteJob(job.id);
         }
       );
     } else {
@@ -588,6 +594,57 @@ export default function RunsheetWeekScreen() {
     setAddNoteText('');
     setAddNoteModalVisible(true);
     setActionSheetJob(null);
+  };
+
+  const handleEditPrice = (job: Job & { client: Client | null }) => {
+    setPriceEditJob(job);
+    setPriceEditValue(job.price?.toString() || '0');
+    setPriceEditModalVisible(true);
+    setActionSheetJob(null);
+  };
+
+  const handleSavePriceEdit = async () => {
+    if (!priceEditJob || !priceEditValue.trim()) {
+      Alert.alert('Error', 'Please enter a valid price.');
+      return;
+    }
+
+    const newPrice = parseFloat(priceEditValue);
+    if (isNaN(newPrice) || newPrice < 0) {
+      Alert.alert('Error', 'Please enter a valid positive number.');
+      return;
+    }
+
+    try {
+      // Update job in Firestore with new price and mark it as having custom price
+      const jobRef = doc(db, 'jobs', priceEditJob.id);
+      await updateDoc(jobRef, { 
+        price: newPrice,
+        hasCustomPrice: true 
+      });
+
+      // Update local state
+      setJobs(prevJobs =>
+        prevJobs.map(job =>
+          job.id === priceEditJob.id 
+            ? { ...job, price: newPrice, hasCustomPrice: true } as Job & { client: Client | null }
+            : job
+        )
+      );
+
+      setPriceEditModalVisible(false);
+      setPriceEditJob(null);
+      setPriceEditValue('');
+      
+      if (Platform.OS === 'web') {
+        window.alert('Price updated successfully!');
+      } else {
+        Alert.alert('Success', 'Price updated successfully!');
+      }
+    } catch (error) {
+      console.error('Error updating job price:', error);
+      Alert.alert('Error', 'Failed to update price. Please try again.');
+    }
   };
 
   const handleSaveNote = async () => {
@@ -865,7 +922,11 @@ export default function RunsheetWeekScreen() {
                 <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
               </View>
             )}
-            <Text style={styles.clientName}>{client?.name}{typeof client?.quote === 'number' ? ` — £${client.quote.toFixed(2)}` : ''}</Text>
+            <Text style={styles.clientName}>
+              {client?.name}
+              {typeof item.price === 'number' ? ` — £${item.price.toFixed(2)}` : ''}
+              {(item as any).hasCustomPrice && ' ✏️'}
+            </Text>
             {client?.accountNumber !== undefined && (
               <Text style={styles.accountNumberText}>{displayAccountNumber(client.accountNumber)}</Text>
             )}
@@ -1115,6 +1176,7 @@ export default function RunsheetWeekScreen() {
                   <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
                   <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
                   <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                  <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
                   <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
                   <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
                 </>
@@ -1395,6 +1457,62 @@ export default function RunsheetWeekScreen() {
                 if (Platform.OS === 'web') window.location.reload();
               }} />
               <Button title="Cancel" onPress={() => setShowQuoteDetailsModal(false)} color="red" />
+            </View>
+          </View>
+        </Modal>
+        
+        {/* Price Edit Modal */}
+        <Modal
+          visible={priceEditModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPriceEditModalVisible(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.priceEditModalContent}>
+              <Text style={styles.priceEditModalTitle}>Edit Job Price</Text>
+              
+              {priceEditJob && (
+                <>
+                  <Text style={styles.priceEditClientName}>
+                    {priceEditJob.client?.name || 'Unknown Client'}
+                  </Text>
+                  <Text style={styles.priceEditOriginalPrice}>
+                    Original price: £{priceEditJob.client?.quote?.toFixed(2) || '0.00'}
+                  </Text>
+                </>
+              )}
+              
+              <View style={styles.priceEditInputContainer}>
+                <Text style={styles.priceEditPoundSign}>£</Text>
+                <TextInput
+                  style={styles.priceEditInput}
+                  placeholder="0.00"
+                  value={priceEditValue}
+                  onChangeText={setPriceEditValue}
+                  keyboardType="decimal-pad"
+                  autoFocus
+                />
+              </View>
+              
+              <View style={styles.priceEditModalButtons}>
+                <Pressable 
+                  style={[styles.priceEditModalButton, styles.priceEditModalCancelButton]} 
+                  onPress={() => {
+                    setPriceEditModalVisible(false);
+                    setPriceEditJob(null);
+                    setPriceEditValue('');
+                  }}
+                >
+                  <Text style={styles.priceEditModalCancelText}>Cancel</Text>
+                </Pressable>
+                <Pressable 
+                  style={[styles.priceEditModalButton, styles.priceEditModalSaveButton]} 
+                  onPress={handleSavePriceEdit}
+                >
+                  <Text style={styles.priceEditModalSaveText}>Save</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
         </Modal>
@@ -1753,6 +1871,78 @@ const styles = StyleSheet.create({
     backgroundColor: '#ff3b30',
   },
   deleteNoteButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  priceEditModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    minWidth: 300,
+    maxWidth: 400,
+    alignItems: 'stretch',
+  },
+  priceEditModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 18,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  priceEditClientName: {
+    fontSize: 16,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  priceEditOriginalPrice: {
+    fontSize: 14,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  priceEditInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  priceEditPoundSign: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  priceEditInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    width: 100,
+  },
+  priceEditModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  priceEditModalButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  priceEditModalCancelButton: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  priceEditModalSaveButton: {
+    backgroundColor: '#007AFF',
+  },
+  priceEditModalCancelText: {
+    color: '#333',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  priceEditModalSaveText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
