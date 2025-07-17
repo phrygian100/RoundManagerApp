@@ -5,9 +5,9 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
-## 2025-01-29 - Fixed Delete Service Button in Edit Additional Service Modal
+## 2025-01-29 - Fixed Delete Service Button and Custom Service Tags on Runsheet
 
-### Bug Fix: Delete Service Button Now Works Properly on All Platforms
+### Bug Fix 1: Delete Service Button Now Works Properly on All Platforms
 Fixed an issue where the delete service button in the Edit Additional Service modal would briefly turn grey but not actually delete the service. The button was unresponsive due to platform-specific issues with button colors and alert dialogs.
 
 ### Root Cause Analysis:
@@ -43,6 +43,37 @@ if (Platform.OS === 'web') {
 - ✅ Success/error messages display appropriately
 - ✅ Service is properly removed from Firestore and UI updates immediately
 - ✅ Consistent behavior across Windows web environment and mobile apps
+
+### Bug Fix 2: Custom Additional Service Types Now Display on Runsheet
+Fixed an issue where custom additional service types (like "Lantern") created through the "Other" option weren't appearing as tags on the runsheet. Previously, only predefined service types ('Gutter cleaning', 'Conservatory roof', etc.) were shown as labels.
+
+### Root Cause Analysis:
+The runsheet was only displaying labels for a hardcoded list of "one-off" job types. Custom service types entered via the "Other" option were correctly stored in the `serviceId` field but weren't included in the display logic.
+
+### Technical Fix (`app/runsheet/[week].tsx`):
+- **Added detection for additional services**: Created `isAdditionalService` variable to identify any job that isn't regular window cleaning or a predefined one-off job
+- **Added custom styling**: Created new styles for additional service rows with light blue background
+- **Added service labels**: Display custom service type in a blue label badge, similar to one-off jobs
+
+### Implementation Details:
+```javascript
+// Before: Only predefined one-off jobs got labels
+const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', ...].includes(item.serviceId);
+
+// After: All non-window-cleaning services get labels
+const isAdditionalService = item.serviceId && item.serviceId !== 'window-cleaning' && !isOneOffJob;
+```
+
+### Visual Design:
+- Additional services have a light blue background (#f0f8ff) to distinguish them
+- Service type appears in a blue badge (#4a90e2) with white text
+- Consistent with the existing one-off job styling but with different colors
+
+### Impact:
+- ✅ Custom service types like "Lantern" now display as tags on the runsheet
+- ✅ All additional services are visually distinct from regular window cleaning
+- ✅ Better visibility for workers to identify different service types
+- ✅ Consistent labeling across predefined and custom service types
 
 ---
 

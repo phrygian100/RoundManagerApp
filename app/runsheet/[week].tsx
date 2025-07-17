@@ -937,6 +937,7 @@ export default function RunsheetWeekScreen() {
     const showCompleteButton = isCurrentWeek && isToday && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
+    const isAdditionalService = item.serviceId && item.serviceId !== 'window-cleaning' && !isOneOffJob;
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
@@ -945,7 +946,8 @@ export default function RunsheetWeekScreen() {
       <View style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
-        isOneOffJob && !isCompleted && styles.oneOffJobRow
+        isOneOffJob && !isCompleted && styles.oneOffJobRow,
+        isAdditionalService && !isCompleted && styles.additionalServiceRow
       ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
@@ -955,6 +957,11 @@ export default function RunsheetWeekScreen() {
             {isOneOffJob && (
               <View style={styles.oneOffJobLabel}>
                 <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
+              </View>
+            )}
+            {isAdditionalService && (
+              <View style={styles.additionalServiceLabel}>
+                <Text style={styles.additionalServiceText}>{item.serviceId}</Text>
               </View>
             )}
             <Text style={styles.clientName}>
@@ -1710,6 +1717,23 @@ const styles = StyleSheet.create({
   },
   oneOffJobText: {
     color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  additionalServiceRow: {
+    backgroundColor: '#f0f8ff', // Light blue background for additional services
+    borderColor: '#b0d4f1',
+  },
+  additionalServiceLabel: {
+    backgroundColor: '#4a90e2',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    borderBottomRightRadius: 10,
+    marginBottom: 4,
+  },
+  additionalServiceText: {
+    color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,
   },
