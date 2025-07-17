@@ -37,3 +37,20 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Data files - NEVER commit customer data
+*.csv
+*.xlsx
+*.xls
+docs/importToGuvnor*.csv
+docs/import*.csv
+exports/
+data/
+
+# Sensitive files
+*.env
+*.env.local
+*.env.production
+*.log
+backup/
+dumps/
