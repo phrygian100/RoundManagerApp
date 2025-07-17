@@ -86,6 +86,12 @@ export default function AccountsScreen() {
               Total: £{paymentsTotal.toFixed(2)} ({paymentsCount} payments)
             </ThemedText>
           </Pressable>
+          <Pressable style={styles.dashButton} onPress={() => router.push('/unknown-payments')}>
+            <ThemedText style={styles.dashButtonText}>Unknown Payments</ThemedText>
+            <ThemedText style={styles.dashButtonSubText}>
+              Payments with unmatched accounts
+            </ThemedText>
+          </Pressable>
         </View>
       </ThemedView>
     </PermissionGate>
@@ -127,7 +133,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   dashButton: {
-    width: Platform.OS === 'web' ? '48%' : '100%',
+    width: Platform.OS === 'web' ? '31%' : '100%',
     aspectRatio: Platform.OS === 'web' ? 1 : 1.5,
     backgroundColor: 'white',
     borderRadius: 16,

@@ -701,6 +701,7 @@ export default function SettingsScreen() {
 
             // Validate rows
             const validRows: any[] = [];
+            const unknownAccountRows: any[] = [];
             const skipped: any[] = [];
             const requiredPaymentFields = ['Account Number', 'Date', 'Amount (£)', 'Type'];
             
@@ -709,7 +710,7 @@ export default function SettingsScreen() {
               const missing = requiredPaymentFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
               if (missing.length) {
                 const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
-                skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+                skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier, rowNumber: index + 2 });
               } else {
                 // Check if account exists
                 let accountNumber = (r as any)['Account Number']?.toString().trim();
@@ -718,7 +719,7 @@ export default function SettingsScreen() {
                 }
                 if (!accountToClientMap.has(accountNumber.toUpperCase())) {
                   const rowIdentifier = accountNumber || `Row ${index + 2}`;
-                  skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+                  unknownAccountRows.push({ row: r, rowNumber: index + 2, accountNumber });
                 } else {
                   validRows.push(r);
                 }
@@ -726,13 +727,14 @@ export default function SettingsScreen() {
             });
 
             // Confirm import
-            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments (skipping ${skipped.length}). Continue?`);
+            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments and ${unknownAccountRows.length} unknown payments (skipping ${skipped.length}). Continue?`);
             if (!proceed) {
               resolve();
               return;
             }
 
             let imported = 0;
+            let unknownImported = 0;
             
             for (let i = 0; i < validRows.length; i++) {
               const row = validRows[i];
@@ -800,7 +802,77 @@ export default function SettingsScreen() {
               }
             }
 
+            // Process unknown account payments
+            for (let i = 0; i < unknownAccountRows.length; i++) {
+              const { row, rowNumber, accountNumber } = unknownAccountRows[i];
+              
+              // Parse amount
+              const amountString = (row as any)['Amount (£)']?.toString().trim();
+              const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+              const amount = parseFloat(sanitizedAmount) || 0;
+              
+              // Parse date
+              let paymentDate = '';
+              const dateString = (row as any)['Date']?.toString().trim();
+              if (dateString) {
+                // Try DD/MM/YYYY format first
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                  const [day, month, year] = parts;
+                  if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                    paymentDate = `${year}-${month}-${day}`;
+                  }
+                } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                  // Already in YYYY-MM-DD format
+                  paymentDate = dateString;
+                }
+              }
+              
+              if (!paymentDate) {
+                skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+                continue;
+              }
+              
+              // Map payment type
+              const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
+              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+              
+              if (typeString === 'cash') method = 'cash';
+              else if (typeString === 'card') method = 'card';
+              else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
+              else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+              
+              // Get notes
+              const notes = (row as any)['Notes']?.trim() || '';
+              
+              const now = new Date().toISOString();
+              
+              try {
+                await addDoc(collection(db, 'unknownPayments'), {
+                  ownerId,
+                  amount,
+                  date: paymentDate,
+                  method,
+                  notes: notes || undefined,
+                  // Import metadata
+                  importDate: now,
+                  importFilename: file.name,
+                  csvRowNumber: rowNumber,
+                  originalAccountIdentifier: accountNumber,
+                  createdAt: now,
+                  updatedAt: now,
+                });
+                unknownImported++;
+              } catch (e) {
+                console.error('Error creating unknown payment:', e, 'for row:', row);
+                skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+              }
+            }
+
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} payments.`;
+            if (unknownImported > 0) {
+              message += `\n\nImported ${unknownImported} unknown payments (accounts not found).`;
+            }
             if (skipped.length > 0) {
               message += `\n\nSkipped ${skipped.length} rows:`;
               skipped.forEach((s, idx) => {
@@ -874,6 +946,7 @@ export default function SettingsScreen() {
       });
 
       const validRows: any[] = [];
+      const unknownAccountRows: any[] = [];
       const skipped: any[] = [];
       const requiredPaymentFields = ['Account Number', 'Date', 'Amount (£)', 'Type'];
       
@@ -889,17 +962,18 @@ export default function SettingsScreen() {
           }
           if (!accountToClientMap.has(accountNumber.toUpperCase())) {
             const rowIdentifier = accountNumber || `Row ${index + 2}`;
-            skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+            unknownAccountRows.push({ row: r, rowNumber: index + 2, accountNumber });
           } else {
             validRows.push(r);
           }
         }
       });
 
-      const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments (skipping ${skipped.length}). Continue?`);
+      const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} payments and ${unknownAccountRows.length} unknown payments (skipping ${skipped.length}). Continue?`);
       if (!proceed) return;
 
       let imported = 0;
+      let unknownImported = 0;
       
       for (let i = 0; i < validRows.length; i++) {
         const row = validRows[i];
@@ -960,7 +1034,76 @@ export default function SettingsScreen() {
         }
       }
 
+      for (let i = 0; i < unknownAccountRows.length; i++) {
+        const { row, rowNumber, accountNumber } = unknownAccountRows[i];
+        
+        // Parse amount
+        const amountString = (row as any)['Amount (£)']?.toString().trim();
+        const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+        const amount = parseFloat(sanitizedAmount) || 0;
+        
+        // Parse date
+        let paymentDate = '';
+        const dateString = (row as any)['Date']?.toString().trim();
+        if (dateString) {
+          // Try DD/MM/YYYY format first
+          const parts = dateString.split('/');
+          if (parts.length === 3) {
+            const [day, month, year] = parts;
+            if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+              paymentDate = `${year}-${month}-${day}`;
+            }
+          } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            // Already in YYYY-MM-DD format
+            paymentDate = dateString;
+          }
+        }
+        
+        if (!paymentDate) {
+          skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+          continue;
+        }
+        
+        // Map payment type
+        const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
+        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+        
+        if (typeString === 'cash') method = 'cash';
+        else if (typeString === 'card') method = 'card';
+        else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
+        else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+        
+        // Get notes
+        const notes = (row as any)['Notes']?.trim() || '';
+        
+        const now = new Date().toISOString();
+        
+        try {
+          await addDoc(collection(db, 'unknownPayments'), {
+            ownerId,
+            amount,
+            date: paymentDate,
+            method,
+            notes: notes || undefined,
+            // Import metadata
+            importDate: now,
+            importFilename: file.name,
+            csvRowNumber: rowNumber,
+            originalAccountIdentifier: accountNumber,
+            createdAt: now,
+            updatedAt: now,
+          });
+          unknownImported++;
+        } catch (e) {
+          console.error('Error creating unknown payment:', e, 'for row:', row);
+          skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+        }
+      }
+
       let message = `Import Complete!\n\nSuccessfully imported: ${imported} payments.`;
+      if (unknownImported > 0) {
+        message += `\n\nImported ${unknownImported} unknown payments (accounts not found).`;
+      }
       if (skipped.length > 0) {
         message += `\n\nSkipped ${skipped.length} rows:`;
         skipped.forEach((s, idx) => {
@@ -1544,7 +1687,7 @@ export default function SettingsScreen() {
       // and redirect unauthenticated users to /login automatically.
       // This avoids the race condition where we redirect too early and then
       // immediately bounce back to the home screen because the user session
-      // hasn’t fully cleared yet.
+      // hasn't fully cleared yet.
     } catch (error) {
       console.error('Logout error', error);
       Alert.alert('Error', 'Failed to log out.');

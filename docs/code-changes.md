@@ -1315,3 +1315,40 @@ For each day Monday-Sunday:
 - `docs/code-changes.md` - Documentation update
 
 **Impact**: Enables bulk import of historical financial data, allowing users to quickly populate their system with past payments and completed jobs while maintaining full integration with existing features like balance calculations, client history, and reporting.
+
+---
+
+## 2025-01-18 - Unknown Payments Feature
+
+### Summary
+Added a new feature to handle payments with unmatched account numbers during CSV import. Instead of skipping these payments, they are now saved to a separate "unknownPayments" collection with import metadata for future reconciliation.
+
+### Implementation Details:
+
+**Unknown Payments Storage**:
+- New Firestore collection: `unknownPayments`
+- Stores all payment data plus import metadata (import date, filename, CSV row number, original account identifier)
+- Payments with invalid account numbers (RWC numbers not in system, "unknwn", "x", etc.) are saved here
+
+**Unknown Payments Screen (`app/unknown-payments.tsx`)**:
+- New screen to view all unknown payments
+- Search/filter by account identifier, amount, date, or notes
+- Displays payment details and import metadata
+- Accessible from accounts screen via new button
+
+**Import Process Updates (`app/(tabs)/settings.tsx`)**:
+- Modified `handleImportPayments` to separate unknown account payments from skipped ones
+- Unknown payments are saved to `unknownPayments` collection instead of being skipped
+- Import confirmation shows counts for regular payments, unknown payments, and skipped rows
+- Import result message includes unknown payment count
+
+**Navigation Updates (`app/accounts.tsx`)**:
+- Added "Unknown Payments" button in accounts dashboard
+- Button positioned under "All Payments" button
+- Updated dashboard button width to accommodate 3 buttons on web (31% width)
+
+### Files Modified:
+- `app/unknown-payments.tsx` - New file for unknown payments screen
+- `app/accounts.tsx` - Added unknown payments button and adjusted styles
+- `app/(tabs)/settings.tsx` - Modified payment import logic to handle unknown payments
+- `docs/code-changes.md` - Documentation update
