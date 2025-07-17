@@ -156,8 +156,23 @@ Fixed a critical issue where the delete job button in the runsheet modal wasn't 
     <View style={styles.androidSheet}>
 ```
 
+### Additional Fix - Platform-Specific Alert Handling:
+The delete functionality still wasn't working on web because `Alert.alert` doesn't function on web platforms. Updated both `handleDeleteJob` and `handleDeleteQuoteJob` functions to use platform-specific confirmation dialogs:
+
+```javascript
+// Now checks platform and uses appropriate confirmation method
+if (Platform.OS === 'web') {
+  if (window.confirm('Are you sure you want to permanently delete this job?')) {
+    // Delete logic
+  }
+} else {
+  Alert.alert(...) // Native alert for iOS/Android
+}
+```
+
 ### Impact:
 - ✅ Delete job button now works reliably on Android and web
+- ✅ Confirmation dialogs appear correctly on all platforms
 - ✅ All other action sheet buttons function correctly
 - ✅ Modal dismissal still works when tapping outside
 - ✅ Consistent behavior across all platforms

@@ -538,37 +538,72 @@ export default function RunsheetWeekScreen() {
   };
 
   const handleDeleteJob = (jobId: string) => {
-    Alert.alert(
-      'Delete Job',
-      'Are you sure you want to permanently delete this job?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteDoc(doc(db, 'jobs', jobId));
-            setJobs((prev) => prev.filter((job) => job.id !== jobId));
-            setActionSheetJob(null);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to permanently delete this job?')) {
+        deleteDoc(doc(db, 'jobs', jobId)).then(() => {
+          setJobs((prev) => prev.filter((job) => job.id !== jobId));
+          setActionSheetJob(null);
+        });
+      }
+    } else {
+      Alert.alert(
+        'Delete Job',
+        'Are you sure you want to permanently delete this job?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await deleteDoc(doc(db, 'jobs', jobId));
+              setJobs((prev) => prev.filter((job) => job.id !== jobId));
+              setActionSheetJob(null);
+            },
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   // Delete logic for quote jobs (removes both job and associated quote)
   const handleDeleteQuoteJob = async (job: any) => {
-    if (window.confirm('Are you sure you want to permanently delete this quote job?')) {
-      if (job.quoteId) {
-        try {
-          await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
-        } catch (e) {
-          console.warn('Failed to delete quote document:', e);
+    if (Platform.OS === 'web') {
+      if (window.confirm('Are you sure you want to permanently delete this quote job?')) {
+        if (job.quoteId) {
+          try {
+            await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
+          } catch (e) {
+            console.warn('Failed to delete quote document:', e);
+          }
         }
+        await deleteDoc(doc(db, 'jobs', job.id));
+        setJobs((prev) => prev.filter((j) => j.id !== job.id));
+        setActionSheetJob(null);
       }
-      await deleteDoc(doc(db, 'jobs', job.id));
-      setJobs((prev) => prev.filter((j) => j.id !== job.id));
-      setActionSheetJob(null);
+    } else {
+      Alert.alert(
+        'Delete Quote Job',
+        'Are you sure you want to permanently delete this quote job?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              if (job.quoteId) {
+                try {
+                  await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
+                } catch (e) {
+                  console.warn('Failed to delete quote document:', e);
+                }
+              }
+              await deleteDoc(doc(db, 'jobs', job.id));
+              setJobs((prev) => prev.filter((j) => j.id !== job.id));
+              setActionSheetJob(null);
+            },
+          },
+        ]
+      );
     }
   };
 
