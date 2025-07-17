@@ -1160,29 +1160,40 @@ export default function RunsheetWeekScreen() {
           />
         )}
         {actionSheetJob && (Platform.OS === 'android' || Platform.OS === 'web') && (
-          <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
-            <View style={styles.androidSheet} pointerEvents="box-none">
-              {isQuoteJob(actionSheetJob) ? (
-                <>
-                  <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
-                  <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
-                  <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
-                  <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
-                  <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
-                  <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
-                </>
-              ) : (
-                <>
-                  <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
-                  <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
-                  <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
-                  <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
-                  <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
-                  <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
-                </>
-              )}
+          <Modal
+            visible={true}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setActionSheetJob(null)}
+          >
+            <View style={styles.androidSheetOverlay}>
+              <Pressable 
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
+                onPress={() => setActionSheetJob(null)}
+              />
+              <View style={styles.androidSheet}>
+                {isQuoteJob(actionSheetJob) ? (
+                  <>
+                    <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                    <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
+                    <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
+                    <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
+                    <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
+                    <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
+                  </>
+                ) : (
+                  <>
+                    <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
+                    <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
+                    <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                    <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
+                    <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
+                    <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
+                  </>
+                )}
+              </View>
             </View>
-          </Pressable>
+          </Modal>
         )}
         {/* Notes Modal */}
         <Modal
@@ -1679,12 +1690,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   androidSheetOverlay: {
-    position: 'absolute',
-    top: 0, left: 0, right: 0, bottom: 0,
+    flex: 1,
     backgroundColor: 'rgba(0,0,0,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 10,
   },
   androidSheet: {
     backgroundColor: '#fff',

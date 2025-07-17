@@ -126,6 +126,45 @@ Added the ability to delete note jobs by tapping on them. When a note is tapped,
 
 ---
 
+## 2025-01-27 - Fixed Delete Job Button Not Working in Runsheet Modal
+
+### Bug Fix: Delete Job Button Now Functions Properly on Android/Web
+Fixed a critical issue where the delete job button in the runsheet modal wasn't responding to user taps on Android and web platforms. The issue was caused by overlapping touch event handlers and improper modal structure.
+
+### Root Cause Analysis:
+1. The original modal used a `Pressable` overlay with `pointerEvents="box-none"` on the inner View
+2. This configuration interfered with touch events reaching the button components
+3. The overlay was capturing touch events intended for the buttons
+4. iOS ActionSheet worked fine, but Android/Web modal had touch event conflicts
+
+### Technical Fix (`app/runsheet/[week].tsx`):
+- **Replaced overlay structure**: Changed from `Pressable` overlay to proper `Modal` component
+- **Fixed touch event handling**: Used separate background `Pressable` for dismissal
+- **Updated modal styling**: Adjusted `androidSheetOverlay` to use `flex: 1` instead of absolute positioning
+- **Maintained functionality**: All button actions (Navigate, Message ETA, Edit Price, Delete Job, etc.) now work correctly
+
+### Implementation Details:
+```javascript
+// Before: Problematic Pressable overlay
+<Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
+  <View style={styles.androidSheet} pointerEvents="box-none">
+
+// After: Proper Modal with separate background handler
+<Modal visible={true} transparent animationType="fade">
+  <View style={styles.androidSheetOverlay}>
+    <Pressable style={{...absoluteFill}} onPress={() => setActionSheetJob(null)} />
+    <View style={styles.androidSheet}>
+```
+
+### Impact:
+- ✅ Delete job button now works reliably on Android and web
+- ✅ All other action sheet buttons function correctly
+- ✅ Modal dismissal still works when tapping outside
+- ✅ Consistent behavior across all platforms
+- ✅ Improved user experience for runsheet management
+
+---
+
 ## 2025-01-27 - Fixed Note Job Positioning Bug in allocateJobsForDay
 
 ### Bug Fix: Note Jobs Now Maintain Correct Position Below Selected Job
