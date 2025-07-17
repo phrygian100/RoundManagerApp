@@ -5,6 +5,38 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-29 - Settings Screen Cleanup and Role-Based Access Control
+
+### Changes Made:
+1. **Removed redundant buttons** from the settings screen:
+   - Refresh Account button - No longer needed
+   - Generate Recurring Jobs button - This is now automatic
+   - Weekly Rollover (Test) button - Testing function no longer required
+   - Repair Client Order button - Legacy maintenance function
+
+2. **Added role-based access control** for destructive operations:
+   - Delete All Payments button - Now only visible to owner accounts
+   - Delete All Jobs button - Now only visible to owner accounts  
+   - Delete All Clients button - Now only visible to owner accounts
+   - Members can no longer see or access these dangerous operations
+
+### Technical Implementation:
+- Used existing `isOwner` state to conditionally render delete buttons
+- Wrapped delete buttons in a conditional fragment that checks `isOwner && (<buttons>)`
+- Removed unused handler functions: `handleRefreshAccount`, `handleGenerateJobs`, `handleWeeklyRollover`, `handleRepairClients`
+- Cleaned up unused state variable `loadingMessage`
+
+### Impact:
+- ✅ Cleaner, more focused settings screen with only relevant options
+- ✅ Improved security by restricting destructive operations to owners only
+- ✅ Reduced code complexity by removing obsolete functionality
+- ✅ Better user experience with less confusing options
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Removed buttons, added role-based visibility, cleaned up unused code
+
+---
+
 ## 2025-01-29 - Fixed Delete Service Button and Custom Service Tags on Runsheet
 
 ### Bug Fix 1: Delete Service Button Now Works Properly on All Platforms

@@ -3,8 +3,7 @@ import { startOfWeek } from 'date-fns';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { signOut } from 'firebase/auth';
-import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -84,7 +83,6 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
-  const [loadingMessage, setLoadingMessage] = useState('');
   const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
@@ -1556,125 +1554,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleGenerateJobs = async () => {
-    Alert.alert(
-      'Generate Recurring Jobs',
-      'This will generate recurring jobs for the next 8 weeks.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Generate',
-          style: 'default',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              await generateRecurringJobs();
-              Alert.alert('Success', 'Recurring jobs have been generated.');
-            } catch (error) {
-              console.error('Error generating jobs:', error);
-              Alert.alert('Error', 'Could not generate recurring jobs.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
-  const handleWeeklyRollover = async () => {
-    Alert.alert(
-      'Weekly Rollover',
-      'This will simulate the weekly rollover process:\n\n1. Move completed jobs from last week to "completed"\n2. Create jobs for the new week (8 weeks ahead)\n\nThis is normally automated but can be triggered manually for testing.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Run Rollover',
-          style: 'default',
-          onPress: async () => {
-            setLoading(true);
-            try {
-              const result = await handleWeeklyRollover();
-              Alert.alert(
-                'Weekly Rollover Complete', 
-                'Weekly rollover has been completed successfully.'
-              );
-            } catch (error) {
-              console.error('Error in weekly rollover:', error);
-              Alert.alert('Error', 'Could not complete weekly rollover.');
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleRepairClients = async () => {
-    Alert.alert(
-      'Repair Client Data',
-      'This will attempt to repair any corrupted client data.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Repair',
-          style: 'default',
-          onPress: async () => {
-            setLoading(true);
-            setLoadingMessage('Repairing client data...');
-            try {
-              const ownerId = await getDataOwnerId();
-              if (!ownerId) {
-                showAlert('Error', 'Could not determine account owner. Please log in again.');
-                setLoading(false);
-                setLoadingMessage('');
-                return;
-              }
-              const clientsRef = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
-              const querySnapshot = await getDocs(clientsRef);
-              
-              const BATCH_SIZE = 450;
-              const batches: any[] = [writeBatch(db)];
-              let currentBatchIndex = 0;
-              let writeCountInCurrentBatch = 0;
-              let totalUpdates = 0;
-
-              querySnapshot.docs.forEach((docSnap, index) => {
-                const client = docSnap.data();
-                if (typeof client.roundOrderNumber !== 'number') {
-                  if (writeCountInCurrentBatch === BATCH_SIZE) {
-                    batches.push(writeBatch(db));
-                    currentBatchIndex++;
-                    writeCountInCurrentBatch = 0;
-                  }
-                  batches[currentBatchIndex].update(docSnap.ref, { roundOrderNumber: index });
-                  writeCountInCurrentBatch++;
-                  totalUpdates++;
-                }
-              });
-
-              if (totalUpdates > 0) {
-                for (const batch of batches) {
-                  await batch.commit();
-                }
-                Alert.alert('Repair Complete', `${totalUpdates} clients were repaired.`);
-              } else {
-                Alert.alert('Repair Complete', 'No client data needed repair.');
-              }
-
-            } catch (error) {
-              console.error('Error repairing clients:', error);
-              Alert.alert('Error', 'Could not repair client data.');
-            } finally {
-              setLoading(false);
-              setLoadingMessage('');
-            }
-          },
-        },
-      ]
-    );
-  };
 
   const handleLogout = async () => {
     try {
@@ -1730,45 +1610,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleRefreshAccount = async () => {
-    setLoading(true);
-    setLoadingMessage('Refreshing account...');
-    try {
-      const functions = getFunctions();
-      const refreshClaims = httpsCallable(functions, 'refreshClaims');
-      const result = await refreshClaims();
-      
-      console.log('Claims refresh result:', result.data);
-      
-      // Force a token refresh to get the new claims
-      const user = auth.currentUser;
-      if (user) {
-        await user.getIdToken(true);
-      }
-      
-      if (Platform.OS === 'web') {
-        window.alert('Account refreshed successfully! The page will reload to apply changes.');
-        window.location.reload();
-      } else {
-        Alert.alert(
-          'Success', 
-          'Account refreshed successfully! Please restart the app to see changes.',
-          [{ text: 'OK' }]
-        );
-      }
-    } catch (error) {
-      console.error('Error refreshing account:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      if (Platform.OS === 'web') {
-        window.alert(`Failed to refresh account: ${errorMessage}`);
-      } else {
-        Alert.alert('Error', `Failed to refresh account: ${errorMessage}`);
-      }
-    } finally {
-      setLoading(false);
-      setLoadingMessage('');
-    }
-  };
+
 
   // Refresh capacity for current week
   const handleRefreshCapacityForCurrentWeek = async () => {
@@ -1825,46 +1667,27 @@ export default function SettingsScreen() {
         <StyledButton title="Import Completed Jobs from CSV" onPress={handleImportCompletedJobs} />
       </View>
 
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={loading && loadingMessage === 'Refreshing account...' ? loadingMessage : 'Refresh Account'}
-          onPress={handleRefreshAccount}
-          disabled={loading}
-        />
-      </View>
+      {/* Only show delete buttons for owners (not members) */}
+      {isOwner && (
+        <>
+          <View style={styles.buttonContainer}>
+            <StyledButton
+              title={loading ? 'Loading...' : 'Delete All Payments'}
+              onPress={handleDeleteAllPayments}
+              disabled={loading}
+              color="red"
+            />
+          </View>
 
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={loading ? 'Loading...' : 'Generate Recurring Jobs'}
-          onPress={handleGenerateJobs}
-          disabled={loading}
-        />
-      </View>
+          <View style={styles.buttonContainer}>
+            <StyledButton title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
+          </View>
 
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={loading ? 'Loading...' : 'Weekly Rollover (Test)'}
-          onPress={handleWeeklyRollover}
-          disabled={loading}
-        />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={loading ? 'Loading...' : 'Delete All Payments'}
-          onPress={handleDeleteAllPayments}
-          disabled={loading}
-          color="red"
-        />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={loading && loadingMessage ? loadingMessage : 'Repair Client Order'}
-          onPress={handleRepairClients}
-          disabled={loading}
-        />
-      </View>
+          <View style={styles.buttonContainer}>
+            <StyledButton title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
+          </View>
+        </>
+      )}
 
       <View style={styles.buttonContainer}>
         <StyledButton
@@ -1880,14 +1703,6 @@ export default function SettingsScreen() {
           <StyledButton title="Team Members" onPress={() => router.push('/team')} />
         </View>
       )}
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
-      </View>
 
       <View style={styles.buttonContainer}>
         <StyledButton title="Log Out" onPress={handleLogout} />
