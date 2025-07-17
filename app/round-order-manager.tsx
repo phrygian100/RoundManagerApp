@@ -19,11 +19,13 @@ const { height: screenHeight } = Dimensions.get('window');
 const ITEM_HEIGHT = 60;
 const VISIBLE_ITEMS = 7;
 
-// Add mobile browser detection utility near the top
+// Enhanced mobile browser detection
 const isMobileBrowser = () => {
   if (Platform.OS !== 'web') return false;
   if (typeof window === 'undefined') return false;
-  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(window.navigator.userAgent);
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768); // Also consider small screens as mobile
 };
 
 export default function RoundOrderManagerScreen() {
@@ -473,57 +475,83 @@ export default function RoundOrderManagerScreen() {
         {newClientData ? 'Position your new client' : 'Change client position'}
       </ThemedText>
 
-      <View style={styles.instructions}>
-        <ThemedText style={styles.instructionText}>
-          • {Platform.OS === 'web' 
-            ? 'Use ↑ and ↓ arrow keys or the buttons to choose where to insert the new client'
-            : 'Scroll to choose where to insert the new client'
-          }
-        </ThemedText>
-        <ThemedText style={styles.instructionText}>
-          • The blue highlight shows the selected position
-        </ThemedText>
-        <ThemedText style={styles.instructionText}>
-          • All clients at or below this position will move down by one
-        </ThemedText>
-      </View>
-
       <View style={styles.listContainer}>
         {Platform.OS === 'web' ? (
-          // Web version: Arrow keys + buttons
-          <>
-            <View style={styles.navigationButtons}>
-              <Pressable 
-                style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
-                onPress={moveUp}
-                disabled={selectedPosition <= 1}
-              >
-                <ThemedText style={styles.navButtonText}>↑</ThemedText>
-              </Pressable>
-            </View>
-            
-            <View style={styles.pickerWrapper}>
-              <View style={styles.list}>
-                {renderPositionList()}
+          // Web version with mobile-specific improvements
+          isMobileBrowser() ? (
+            // Mobile browser version - simplified and touch-optimized
+            <View style={styles.mobileContainer}>
+              <View style={styles.mobilePickerWrapper}>
+                <View style={styles.list}>
+                  {renderPositionList()}
+                </View>
+                <View style={styles.mobilePickerHighlight} pointerEvents="none">
+                  <ThemedText style={styles.mobileHighlightPositionText}>{selectedPosition}</ThemedText>
+                  <ThemedText style={styles.mobileHighlightClientText}>
+                    {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+                  </ThemedText>
+                </View>
               </View>
-              <View style={styles.pickerHighlight} pointerEvents="none">
-                <ThemedText style={styles.highlightPositionText}>{selectedPosition}</ThemedText>
-                <ThemedText style={styles.highlightClientText}>
-                  {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+              
+              {/* Navigation buttons grouped together for mobile */}
+              <View style={styles.mobileNavigationButtons}>
+                <Pressable 
+                  style={[styles.mobileNavButton, selectedPosition <= 1 && styles.mobileNavButtonDisabled]}
+                  onPress={moveUp}
+                  disabled={selectedPosition <= 1}
+                >
+                  <ThemedText style={styles.mobileNavButtonText}>▲</ThemedText>
+                </Pressable>
+                
+                <ThemedText style={styles.mobilePositionIndicator}>
+                  Position {selectedPosition} of {clients.length + 1}
                 </ThemedText>
+                
+                <Pressable 
+                  style={[styles.mobileNavButton, selectedPosition >= clients.length + 1 && styles.mobileNavButtonDisabled]}
+                  onPress={moveDown}
+                  disabled={selectedPosition >= clients.length + 1}
+                >
+                  <ThemedText style={styles.mobileNavButtonText}>▼</ThemedText>
+                </Pressable>
               </View>
             </View>
-            
-            <View style={styles.navigationButtons}>
-              <Pressable 
-                style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
-                onPress={moveDown}
-                disabled={selectedPosition >= clients.length + 1}
-              >
-                <ThemedText style={styles.navButtonText}>↓</ThemedText>
-              </Pressable>
-            </View>
-          </>
+          ) : (
+            // Desktop browser version
+            <>
+              <View style={styles.navigationButtons}>
+                <Pressable 
+                  style={[styles.navButton, selectedPosition <= 1 && styles.navButtonDisabled]}
+                  onPress={moveUp}
+                  disabled={selectedPosition <= 1}
+                >
+                  <ThemedText style={styles.navButtonText}>↑</ThemedText>
+                </Pressable>
+              </View>
+              
+              <View style={styles.pickerWrapper}>
+                <View style={styles.list}>
+                  {renderPositionList()}
+                </View>
+                <View style={styles.pickerHighlight} pointerEvents="none">
+                  <ThemedText style={styles.highlightPositionText}>{selectedPosition}</ThemedText>
+                  <ThemedText style={styles.highlightClientText}>
+                    {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+                  </ThemedText>
+                </View>
+              </View>
+              
+              <View style={styles.navigationButtons}>
+                <Pressable 
+                  style={[styles.navButton, selectedPosition >= clients.length + 1 && styles.navButtonDisabled]}
+                  onPress={moveDown}
+                  disabled={selectedPosition >= clients.length + 1}
+                >
+                  <ThemedText style={styles.navButtonText}>↓</ThemedText>
+                </Pressable>
+              </View>
+            </>
+          )
         ) : (
           // Mobile version: Wheel Picker
           <View style={styles.wheelPickerContainer}>
@@ -539,7 +567,9 @@ export default function RoundOrderManagerScreen() {
           </View>
         )}
       </View>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+      
+      {/* Action buttons with better positioning for mobile */}
+      <View style={[styles.actionButtonsContainer, isMobileBrowser() && styles.mobileActionButtonsContainer]}>
         <Pressable style={styles.cancelButton} onPress={() => router.back()} disabled={loading}>
           <ThemedText style={styles.buttonText}>Cancel</ThemedText>
         </Pressable>
@@ -562,7 +592,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
     paddingTop: 60,
-    paddingBottom: Platform.OS === 'web' ? (isMobileBrowser() ? 150 : 100) : 100, // Extra padding for mobile browsers
+    paddingBottom: Platform.OS === 'web' ? (isMobileBrowser() ? 20 : 100) : 100,
   },
   subtitle: {
     fontSize: 16,
@@ -585,6 +615,89 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     alignItems: 'center',
   },
+  // Mobile browser specific styles
+  mobileContainer: {
+    flex: 1,
+    width: '100%',
+    paddingBottom: 100, // Space for fixed action buttons
+  },
+  mobilePickerWrapper: {
+    flex: 1,
+    width: '100%',
+    marginBottom: 20,
+    maxHeight: ITEM_HEIGHT * VISIBLE_ITEMS,
+    overflow: 'scroll',
+  },
+  mobilePickerHighlight: {
+    position: 'absolute',
+    top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
+    left: 0,
+    right: 0,
+    height: ITEM_HEIGHT,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
+    borderTopWidth: 3,
+    borderBottomWidth: 3,
+    borderColor: '#007AFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginHorizontal: 8,
+  },
+  mobileHighlightPositionText: {
+    width: 50,
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  mobileHighlightClientText: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  mobileNavigationButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 20,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 12,
+    marginHorizontal: 8,
+    marginBottom: 16,
+  },
+  mobileNavButton: {
+    backgroundColor: '#007AFF',
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  mobileNavButtonDisabled: {
+    backgroundColor: '#ccc',
+    shadowOpacity: 0.1,
+    elevation: 2,
+  },
+  mobileNavButtonText: {
+    color: '#fff',
+    fontSize: 32,
+    fontWeight: 'bold',
+  },
+  mobilePositionIndicator: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    minWidth: 120,
+    textAlign: 'center',
+  },
+  // Desktop styles (unchanged)
   pickerWrapper: {
     height: ITEM_HEIGHT * VISIBLE_ITEMS,
     width: '100%',
@@ -647,6 +760,31 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#333',
   },
+  // Action buttons
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 16,
+    gap: 12,
+  },
+  mobileActionButtonsContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    paddingBottom: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+    marginTop: 0,
+  },
   cancelButton: {
     backgroundColor: '#ff6b6b',
     paddingHorizontal: 20,
@@ -665,18 +803,17 @@ const styles = StyleSheet.create({
   },
   navigationButtons: {
     alignItems: 'center',
-    paddingVertical: isMobileBrowser() ? 16 : 8, // More padding for mobile browsers
-    minHeight: isMobileBrowser() ? 80 : 60, // Ensure minimum touch area
+    paddingVertical: isMobileBrowser() ? 16 : 8,
+    minHeight: isMobileBrowser() ? 80 : 60,
   },
   navButton: {
     backgroundColor: '#007AFF',
-    width: isMobileBrowser() ? 60 : 50, // Larger touch target for mobile browsers
+    width: isMobileBrowser() ? 60 : 50,
     height: isMobileBrowser() ? 60 : 50,
     borderRadius: isMobileBrowser() ? 30 : 25,
     justifyContent: 'center',
     alignItems: 'center',
-    marginVertical: isMobileBrowser() ? 8 : 4, // More spacing for mobile browsers
-    // Enhanced touch area for mobile browsers
+    marginVertical: isMobileBrowser() ? 8 : 4,
     ...(isMobileBrowser() && {
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -690,7 +827,7 @@ const styles = StyleSheet.create({
   },
   navButtonText: {
     color: '#fff',
-    fontSize: isMobileBrowser() ? 28 : 24, // Larger text for mobile browsers
+    fontSize: isMobileBrowser() ? 28 : 24,
     fontWeight: 'bold',
   },
   wheelPickerContainer: {
