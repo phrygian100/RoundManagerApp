@@ -1672,3 +1672,53 @@ Added functionality to edit individual job prices directly from the runsheet mod
 - Firestore document updates with error handling
 - Local state synchronization for immediate UI updates
 - Refreshes client data after changes to update service history
+
+---
+
+## 2025-01-28 - Enhanced ETA Time Picker with Single Dropdown and Context-Aware Defaults
+
+### Summary
+Improved the ETA time selection interface in runsheets by replacing the dual hour/minute dropdowns with a single time selection dropdown, and added context-aware default selection based on the previous job's ETA.
+
+### Changes Made:
+
+1. **TimePickerModal Component** - Complete redesign:
+   - Replaced two separate hour/minute dropdowns with a single time slot dropdown
+   - Time slots range from 08:00 to 18:00 in 5-minute increments (e.g., 08:00, 08:05, 08:10... 18:00)
+   - Added support for `previousJobEta` prop to show context
+   - Shows "Previous job: HH:MM" text when using context from previous job
+   - Improved UI with single scrollable list on mobile and dropdown on web
+
+2. **Runsheet Week Screen** - Enhanced context awareness:
+   - Modified `showPickerForJob` to accept section data and job index
+   - Added logic to find previous job's ETA by looking backwards through the section data
+   - Skips over vehicle headers and note jobs when finding previous job
+   - Passes previous job's ETA to TimePickerModal for smart default selection
+
+### Implementation Details:
+```javascript
+// Time slot generation (08:00 to 18:00 in 5-min increments)
+const generateTimeSlots = () => {
+  const times = [];
+  for (let hour = 8; hour <= 18; hour++) {
+    for (let minute = 0; minute < 60; minute += 5) {
+      const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      times.push(timeString);
+    }
+  }
+  return times;
+};
+
+// Context-aware default selection
+const defaultTime = initialTime || previousJobEta || '09:00';
+```
+
+### Benefits:
+- ✅ Faster time selection with single interaction instead of two
+- ✅ Better mobile/touch experience with single scrollable list
+- ✅ Smart defaults save time by using previous job's ETA as starting point
+- ✅ Clear visual feedback showing context when using previous job's time
+- ✅ Consistent 5-minute increments match real-world scheduling patterns
+- ✅ No regression risk - isolated changes to time picker only
+
+---

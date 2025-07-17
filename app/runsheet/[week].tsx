@@ -240,8 +240,23 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(false);
   };
 
-  const showPickerForJob = (job: Job & { client: Client | null }) => {
+  const showPickerForJob = (job: Job & { client: Client | null }, section?: any, jobIndex?: number) => {
     setTimePickerJob(job);
+    
+    // Find previous job's ETA if section data and index are provided
+    let previousJobEta: string | undefined;
+    if (section && typeof jobIndex === 'number' && jobIndex > 0) {
+      // Look backwards from current index to find the previous non-vehicle, non-note job
+      for (let i = jobIndex - 1; i >= 0; i--) {
+        const prevItem = section.data[i];
+        if (prevItem && !(prevItem as any).__type && !isNoteJob(prevItem)) {
+          previousJobEta = prevItem.eta;
+          break;
+        }
+      }
+    }
+    
+    setTimePickerJob({ ...job, previousJobEta } as any);
     setShowTimePicker(true);
   };
 
@@ -872,7 +887,7 @@ export default function RunsheetWeekScreen() {
             </Pressable>
           </View>
           <View style={styles.controlsContainer}>
-            <Pressable onPress={() => showPickerForJob(item)} style={styles.etaButton}>
+            <Pressable onPress={() => showPickerForJob(item, section, index)} style={styles.etaButton}>
               <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
             </Pressable>
             {isCurrentWeek && isToday && index === firstIncompleteIndex && !item.status && !isDayCompleted && (
@@ -988,7 +1003,7 @@ export default function RunsheetWeekScreen() {
           </Pressable>
         )}
         <View style={styles.controlsContainer}>
-          <Pressable onPress={() => showPickerForJob(item)} style={styles.etaButton}>
+          <Pressable onPress={() => showPickerForJob(item, section, index)} style={styles.etaButton}>
             <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
           </Pressable>
           {showCompleteButton && (
@@ -1199,6 +1214,7 @@ export default function RunsheetWeekScreen() {
             }}
             onConfirm={handleSetEta}
             initialTime={timePickerJob.eta}
+            previousJobEta={(timePickerJob as any).previousJobEta}
           />
         )}
         {actionSheetJob && (Platform.OS === 'android' || Platform.OS === 'web') && (

@@ -6,32 +6,54 @@ const { width } = Dimensions.get('window');
 const ITEM_HEIGHT = Platform.OS === 'web' ? 40 : 50;
 const VISIBLE_ITEMS = 5;
 
-const hours = Array.from({ length: 16 }, (_, i) => String(i + 5).padStart(2, '0')); // 05 to 20
-const minutes = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')); // 00 to 55
+// Generate all times from 08:00 to 18:00 in 5-minute increments
+const generateTimeSlots = () => {
+  const times = [];
+  for (let hour = 8; hour <= 18; hour++) {
+    for (let minute = 0; minute < 60; minute += 5) {
+      const timeString = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+      times.push(timeString);
+    }
+  }
+  return times;
+};
+
+const timeSlots = generateTimeSlots();
 
 interface TimePickerModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: (time: string) => void;
   initialTime?: string;
+  previousJobEta?: string;
 }
 
-const TimePickerModal: React.FC<TimePickerModalProps> = ({ visible, onClose, onConfirm, initialTime }) => {
-  const initialHour = initialTime ? initialTime.split(':')[0] : '09';
-  const initialMinute = initialTime ? initialTime.split(':')[1] : '00';
-
-  const [selectedHour, setSelectedHour] = useState(initialHour);
-  const [selectedMinute, setSelectedMinute] = useState(initialMinute);
+const TimePickerModal: React.FC<TimePickerModalProps> = ({ 
+  visible, 
+  onClose, 
+  onConfirm, 
+  initialTime,
+  previousJobEta 
+}) => {
+  // Determine the initial selection: use initialTime if set, otherwise previousJobEta, otherwise 09:00
+  const defaultTime = initialTime || previousJobEta || '09:00';
+  const [selectedTime, setSelectedTime] = useState(defaultTime);
 
   const handleConfirm = () => {
-    onConfirm(`${selectedHour}:${selectedMinute}`);
+    onConfirm(selectedTime);
   };
 
-  const renderItem = (item: string, isSelected: boolean) => (
-    <View style={styles.item}>
-      <Text style={[styles.itemText, isSelected && styles.selectedItemText]}>{item}</Text>
-    </View>
-  );
+  const renderItem = ({ item }: { item: string }) => {
+    const isSelected = item === selectedTime;
+    return (
+      <Pressable
+        onPress={() => setSelectedTime(item)}
+        style={[styles.item, isSelected && styles.selectedItem]}
+      >
+        <Text style={[styles.itemText, isSelected && styles.selectedItemText]}>{item}</Text>
+      </Pressable>
+    );
+  };
 
   return (
     <Modal
@@ -43,78 +65,50 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({ visible, onClose, onC
       <View style={styles.modalContainer}>
         <View style={styles.pickerContainer}>
           <Text style={styles.title}>Select ETA</Text>
+          {previousJobEta && !initialTime && (
+            <Text style={styles.contextText}>Previous job: {previousJobEta}</Text>
+          )}
 
           {Platform.OS === 'web' ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 16 }}>
+            <View style={{ marginVertical: 16 }}>
               <Picker
-                selectedValue={selectedHour}
-                onValueChange={(val) => setSelectedHour(val as string)}
-                style={{ width: 120 }}
+                selectedValue={selectedTime}
+                onValueChange={(val) => setSelectedTime(val as string)}
+                style={{ width: 200, height: 44 }}
               >
-                {hours.map((h) => (
-                  <Picker.Item key={h} label={h} value={h} />
-                ))}
-              </Picker>
-              <Text style={styles.separator}>:</Text>
-              <Picker
-                selectedValue={selectedMinute}
-                onValueChange={(val) => setSelectedMinute(val as string)}
-                style={{ width: 120 }}
-              >
-                {minutes.map((m) => (
-                  <Picker.Item key={m} label={m} value={m} />
+                {timeSlots.map((time) => (
+                  <Picker.Item key={time} label={time} value={time} />
                 ))}
               </Picker>
             </View>
           ) : (
-            <View style={styles.pickerWrapper}>
-              <FlatList
-                data={hours}
-                renderItem={({ item }) => renderItem(item, item === selectedHour)}
-                keyExtractor={(item) => item}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={ITEM_HEIGHT}
-                decelerationRate="fast"
-                onMomentumScrollEnd={(e) => {
-                  const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                  setSelectedHour(hours[index]);
-                }}
-                getItemLayout={(_, index) => ({
-                  length: ITEM_HEIGHT,
-                  offset: ITEM_HEIGHT * index,
-                  index,
-                })}
-                initialScrollIndex={hours.indexOf(initialHour)}
-                contentContainerStyle={styles.listContentContainer}
-              />
-              <Text style={styles.separator}>:</Text>
-              <FlatList
-                data={minutes}
-                renderItem={({ item }) => renderItem(item, item === selectedMinute)}
-                keyExtractor={(item) => item}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={ITEM_HEIGHT}
-                decelerationRate="fast"
-                onMomentumScrollEnd={(e) => {
-                  const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-                  setSelectedMinute(minutes[index]);
-                }}
-                getItemLayout={(_, index) => ({
-                  length: ITEM_HEIGHT,
-                  offset: ITEM_HEIGHT * index,
-                  index,
-                })}
-                initialScrollIndex={minutes.indexOf(initialMinute)}
-                contentContainerStyle={styles.listContentContainer}
-              />
-            </View>
+            <FlatList
+              data={timeSlots}
+              renderItem={renderItem}
+              keyExtractor={(item) => item}
+              showsVerticalScrollIndicator={false}
+              snapToInterval={ITEM_HEIGHT}
+              decelerationRate="fast"
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+                setSelectedTime(timeSlots[index]);
+              }}
+              getItemLayout={(_, index) => ({
+                length: ITEM_HEIGHT,
+                offset: ITEM_HEIGHT * index,
+                index,
+              })}
+              initialScrollIndex={timeSlots.indexOf(defaultTime)}
+              contentContainerStyle={styles.listContentContainer}
+              style={styles.timeList}
+            />
           )}
 
           <View style={styles.buttonContainer}>
-            <Pressable style={[styles.button, styles.cancelButton]} onPress={onClose}>
+            <Pressable onPress={onClose} style={[styles.button, styles.cancelButton]}>
               <Text style={styles.buttonText}>Cancel</Text>
             </Pressable>
-            <Pressable style={[styles.button, styles.confirmButton]} onPress={handleConfirm}>
+            <Pressable onPress={handleConfirm} style={[styles.button, styles.confirmButton]}>
               <Text style={styles.buttonText}>Confirm</Text>
             </Pressable>
           </View>
@@ -141,17 +135,16 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: 'bold',
-    marginBottom: 20,
+    marginBottom: 10,
   },
-  pickerWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  contextText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 10,
+  },
+  timeList: {
     height: ITEM_HEIGHT * VISIBLE_ITEMS,
-  },
-  separator: {
-    fontSize: Platform.OS === 'web' ? 24 : 30,
-    fontWeight: 'bold',
-    marginHorizontal: 10,
+    width: '100%',
   },
   listContentContainer: {
     paddingVertical: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
@@ -160,13 +153,17 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  selectedItem: {
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
   },
   itemText: {
     fontSize: Platform.OS === 'web' ? 18 : 24,
     color: '#ccc',
   },
   selectedItemText: {
-    fontSize: Platform.OS === 'web' ? 28 : 36,
+    fontSize: Platform.OS === 'web' ? 22 : 30,
     color: '#000',
     fontWeight: 'bold',
   },
