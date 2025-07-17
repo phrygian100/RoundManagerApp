@@ -32,6 +32,7 @@ export type Job = {
   review?: string;
   paymentStatus: 'unpaid' | 'paid' | 'released';
   hasCustomPrice?: boolean; // Indicates if the price has been manually edited
+  vehicleId?: string; // Manual vehicle assignment (optional - if not set, uses automatic allocation)
 };
 
 export type Payment = {

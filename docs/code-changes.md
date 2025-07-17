@@ -1774,3 +1774,57 @@ activeBlocks.forEach(block => {
 - ✅ Note jobs continue to follow their parent jobs
 
 ---
+
+## 2025-01-30 - Added Van Selection to Move Job Modal
+
+### Summary
+Enhanced the "Move Job" functionality in runsheets to allow users to manually assign jobs to specific vans/vehicles in addition to selecting a date. This provides more control over job allocation while maintaining the automatic capacity-based distribution as a default option.
+
+### Key Changes:
+
+1. **Data Model Update** (`types/models.ts`):
+   - Added optional `vehicleId` field to the Job type
+   - Jobs without vehicleId use automatic allocation based on capacity
+
+2. **UI Enhancements** (`app/runsheet/[week].tsx`):
+   - Added vehicle dropdown below date picker in move job modal
+   - "Automatic (Based on capacity)" as default option
+   - Lists all available vehicles for manual selection
+   - Works on both web and mobile platforms
+
+3. **Allocation Algorithm Updates**:
+   - Modified `allocateJobsForDay` to respect manual vehicle assignments
+   - Manually assigned jobs are placed first into their designated vehicles
+   - Remaining jobs continue to use automatic capacity-based allocation
+   - Handles edge cases where assigned vehicle is unavailable
+
+### Technical Implementation:
+
+```typescript
+// Job type enhancement
+export type Job = {
+  // ... existing fields ...
+  vehicleId?: string; // Manual vehicle assignment (optional)
+};
+
+// Allocation logic respects manual assignments
+const manuallyAssignedJobs = jobsForDay.filter(job => job.vehicleId);
+const autoAllocateJobs = jobsForDay.filter(job => !job.vehicleId);
+
+// Place manual jobs first, then auto-allocate the rest
+```
+
+### User Experience:
+- ✅ Move job modal now shows both date and vehicle selection
+- ✅ Users can choose "Automatic" or a specific vehicle
+- ✅ Maintains backward compatibility - existing jobs work as before
+- ✅ Warnings logged if assigned vehicle is unavailable
+- ✅ Success message confirms both date and vehicle changes
+
+### Considerations:
+- Manual assignments override capacity limits
+- If assigned vehicle has no crew on target date, job falls back to auto-allocation
+- Future capacity redistribution respects manual assignments
+- Manual assignments can be cleared by selecting "Automatic"
+
+---

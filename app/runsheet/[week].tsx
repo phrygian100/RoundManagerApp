@@ -37,6 +37,7 @@ export default function RunsheetWeekScreen() {
   const [noteModalText, setNoteModalText] = useState<string | null>(null);
   const [deferJob, setDeferJob] = useState<Job & { client: Client | null } | null>(null);
   const [showDeferDatePicker, setShowDeferDatePicker] = useState(false);
+  const [deferSelectedVehicle, setDeferSelectedVehicle] = useState<string>('auto'); // 'auto' means automatic allocation
   const [quoteCompleteModal, setQuoteCompleteModal] = useState<{ job: any, visible: boolean }>({ job: null, visible: false });
   const [quoteForm, setQuoteForm] = useState({ frequency: '', cost: '', roundOrder: '' });
   const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
@@ -277,10 +278,36 @@ export default function RunsheetWeekScreen() {
     });
     if (activeBlocks.length === 0) return jobsForDay; // fallback
 
-    // Allocate jobs sequentially - PRESERVE THE INPUT ORDER (jobs are already sorted correctly)
-    // DO NOT re-sort here as it breaks the note positioning
-    let blockIndex = 0;
+    // Separate manually assigned jobs from auto-allocated jobs
+    const manuallyAssignedJobs: (Job & { client: Client | null })[] = [];
+    const autoAllocateJobs: (Job & { client: Client | null })[] = [];
+    
     jobsForDay.forEach(job => {
+      if (job.vehicleId) {
+        // Job has manual vehicle assignment
+        manuallyAssignedJobs.push(job);
+      } else {
+        // Job uses automatic allocation
+        autoAllocateJobs.push(job);
+      }
+    });
+    
+    // First, place manually assigned jobs into their designated vehicles
+    manuallyAssignedJobs.forEach(job => {
+      const targetBlock = activeBlocks.find(block => block.vehicle.id === job.vehicleId);
+      if (targetBlock) {
+        targetBlock.jobs.push(job);
+        targetBlock.remaining -= (job.price || 0);
+      } else {
+        // Vehicle not found or not active - add to auto-allocate list
+        console.warn(`Vehicle ${job.vehicleId} not found or not active for job ${job.id}, using auto-allocation`);
+        autoAllocateJobs.push(job);
+      }
+    });
+
+    // Then allocate remaining jobs sequentially - PRESERVE THE INPUT ORDER
+    let blockIndex = 0;
+    autoAllocateJobs.forEach(job => {
       if (blockIndex >= activeBlocks.length) {
         // overflow append to last block
         activeBlocks[activeBlocks.length - 1].jobs.push(job);
@@ -449,6 +476,7 @@ export default function RunsheetWeekScreen() {
 
   const handleDeferJob = (job: Job & { client: Client | null }) => {
     setDeferJob(job);
+    setDeferSelectedVehicle(job.vehicleId || 'auto'); // Initialize with current vehicle or 'auto'
     setShowDeferDatePicker(true);
   };
 
@@ -456,6 +484,7 @@ export default function RunsheetWeekScreen() {
     setShowDeferDatePicker(false);
     if (event.type === 'dismissed' || !selectedDate || !deferJob) {
       setDeferJob(null);
+      setDeferSelectedVehicle('auto');
       return;
     }
     // Prevent deferring to today if today is marked as complete
@@ -469,16 +498,29 @@ export default function RunsheetWeekScreen() {
     if (isToday && todayIsCompleted) {
       Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
       setDeferJob(null);
+      setDeferSelectedVehicle('auto');
       return;
     }
-    // Move job to selected date (09:00)
+    // Move job to selected date (09:00) and update vehicle if specified
     const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
-    await updateDoc(doc(db, 'jobs', deferJob.id), { scheduledTime: newDateString });
+    const updateData: any = { scheduledTime: newDateString };
+    
+    // Update vehicle assignment
+    if (deferSelectedVehicle === 'auto') {
+      // Clear manual assignment to use automatic allocation
+      updateData.vehicleId = null;
+    } else {
+      // Set manual vehicle assignment
+      updateData.vehicleId = deferSelectedVehicle;
+    }
+    
+    await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
     setJobs(prevJobs => prevJobs.map(j =>
-      j.id === deferJob.id ? { ...j, scheduledTime: newDateString } : j
+      j.id === deferJob.id ? { ...j, ...updateData } : j
     ));
     setDeferJob(null);
-    Alert.alert('Success', 'Job moved to selected date');
+    setDeferSelectedVehicle('auto');
+    Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
   };
 
   const handleJobPress = (job: any) => {
@@ -1391,46 +1433,152 @@ export default function RunsheetWeekScreen() {
               onRequestClose={() => {
                 setShowDeferDatePicker(false);
                 setDeferJob(null);
+                setDeferSelectedVehicle('auto');
               }}
             >
               <View style={styles.modalOverlay}>
                 <View style={styles.datePickerModal}>
                   <Text style={styles.datePickerTitle}>Move Job To:</Text>
+                  
                   <input
                     type="date"
                     value={deferJob.scheduledTime ? format(new Date(deferJob.scheduledTime), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
                     min={format(new Date(), 'yyyy-MM-dd')}
                     onChange={e => {
                       const selectedDate = new Date(e.target.value + 'T00:00:00');
-                      handleDeferDateChange({ type: 'set' }, selectedDate);
+                      if (deferJob) {
+                        setDeferJob({ ...deferJob, scheduledTime: format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00' });
+                      }
                     }}
                     style={{ 
                       padding: 10, 
                       fontSize: 16, 
                       borderRadius: 6, 
                       border: '1px solid #ccc',
-                      marginBottom: 16
+                      marginBottom: 16,
+                      width: '100%',
                     }}
                   />
-                  <Button
-                    title="Cancel"
-                    onPress={() => {
-                      setShowDeferDatePicker(false);
-                      setDeferJob(null);
-                    }}
-                    color="red"
-                  />
+                  
+                  <View style={styles.vehiclePickerContainer}>
+                    <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
+                    <select
+                      value={deferSelectedVehicle}
+                      onChange={(e) => setDeferSelectedVehicle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: 8,
+                        fontSize: 16,
+                        borderRadius: 6,
+                        border: '1px solid #ccc',
+                        backgroundColor: '#f9f9f9',
+                      }}
+                    >
+                      <option value="auto">Automatic (Based on capacity)</option>
+                      {vehicles.map(vehicle => (
+                        <option key={vehicle.id} value={vehicle.id}>
+                          {vehicle.name}
+                        </option>
+                      ))}
+                    </select>
+                  </View>
+                  
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                    <Button
+                      title="Move Job"
+                      onPress={() => {
+                        if (deferJob) {
+                          const selectedDate = new Date(deferJob.scheduledTime);
+                          handleDeferDateChange({ type: 'set' }, selectedDate);
+                        }
+                      }}
+                    />
+                    <Button
+                      title="Cancel"
+                      onPress={() => {
+                        setShowDeferDatePicker(false);
+                        setDeferJob(null);
+                        setDeferSelectedVehicle('auto');
+                      }}
+                      color="red"
+                    />
+                  </View>
                 </View>
               </View>
             </Modal>
           ) : (
-            <DateTimePicker
-              value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              minimumDate={new Date()}
-              onChange={handleDeferDateChange}
-            />
+            <Modal
+              visible={showDeferDatePicker}
+              transparent
+              animationType="slide"
+              onRequestClose={() => {
+                setShowDeferDatePicker(false);
+                setDeferJob(null);
+                setDeferSelectedVehicle('auto');
+              }}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <Text style={styles.datePickerTitle}>Move Job To:</Text>
+                  
+                  <DateTimePicker
+                    value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(event, date) => {
+                      if (date && deferJob) {
+                        setDeferJob({ ...deferJob, scheduledTime: format(date, 'yyyy-MM-dd') + 'T09:00:00' });
+                      }
+                    }}
+                  />
+                  
+                  <View style={styles.vehiclePickerContainer}>
+                    <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
+                    <View style={styles.vehiclePicker}>
+                      <RNPicker
+                        selectedValue={deferSelectedVehicle}
+                        onValueChange={setDeferSelectedVehicle}
+                        style={{ height: Platform.OS === 'ios' ? 200 : 50 }}
+                      >
+                        <RNPicker.Item label="Automatic (Based on capacity)" value="auto" />
+                        {vehicles.map(vehicle => (
+                          <RNPicker.Item 
+                            key={vehicle.id} 
+                            label={vehicle.name} 
+                            value={vehicle.id} 
+                          />
+                        ))}
+                      </RNPicker>
+                    </View>
+                  </View>
+                  
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                    <Pressable
+                      style={[styles.modalButton, styles.modalButtonPrimary]}
+                      onPress={() => {
+                        if (deferJob) {
+                          const selectedDate = new Date(deferJob.scheduledTime);
+                          handleDeferDateChange({ type: 'set' }, selectedDate);
+                        }
+                      }}
+                    >
+                      <Text style={styles.modalButtonPrimaryText}>Move Job</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.modalButton, styles.modalButtonSecondary]}
+                      onPress={() => {
+                        setShowDeferDatePicker(false);
+                        setDeferJob(null);
+                        setDeferSelectedVehicle('auto');
+                      }}
+                    >
+                      <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </Modal>
           )
         )}
         {/* Quote Completion Modal */}
@@ -1873,9 +2021,9 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   notesModalContent: {
     backgroundColor: '#fff',
@@ -1902,7 +2050,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   notesModalCloseText: {
-    color: '#fff',
+    color: '#007AFF',
     fontWeight: 'bold',
     fontSize: 16,
   },
@@ -1914,13 +2062,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 24,
-    width: 300,
-    alignItems: 'center',
+    minWidth: 300,
+    maxWidth: 400,
+    alignItems: 'stretch',
   },
   datePickerTitle: {
     fontWeight: 'bold',
     fontSize: 18,
     marginBottom: 16,
+    textAlign: 'center',
+  },
+  vehiclePickerContainer: {
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  vehiclePickerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    color: '#333',
+  },
+  vehiclePicker: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    backgroundColor: '#f9f9f9',
+  },
+  vehiclePickerWeb: {
+    height: 40,
+    padding: 8,
+    fontSize: 16,
   },
   addNoteModalContent: {
     backgroundColor: '#fff',
@@ -2068,6 +2239,43 @@ const styles = StyleSheet.create({
   },
   priceEditModalSaveText: {
     color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  androidDateButton: {
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 16,
+  },
+  androidDateButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+  },
+  modalButtonPrimary: {
+    backgroundColor: '#007AFF',
+  },
+  modalButtonSecondary: {
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  modalButtonPrimaryText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  modalButtonSecondaryText: {
+    color: '#333',
     fontWeight: 'bold',
     fontSize: 16,
   },
