@@ -1161,46 +1161,63 @@ export default function ClientDetailScreen() {
                 <Button 
                   title="Delete Service" 
                   onPress={() => {
-                    Alert.alert(
-                      'Delete Service',
-                      'Are you sure you want to delete this additional service? This cannot be undone.',
-                      [
-                        { text: 'Cancel', style: 'cancel' },
-                        {
-                          text: 'Delete',
-                          style: 'destructive',
-                          onPress: async () => {
-                            try {
-                              const currentAdditionalServices = client?.additionalServices || [];
-                              const updatedAdditionalServices = currentAdditionalServices.filter(service => 
-                                service.id !== selectedService.id
-                              );
+                    const performDelete = async () => {
+                      try {
+                        const currentAdditionalServices = client?.additionalServices || [];
+                        const updatedAdditionalServices = currentAdditionalServices.filter(service => 
+                          service.id !== selectedService.id
+                        );
 
-                              await updateDoc(doc(db, 'clients', id as string), {
-                                additionalServices: updatedAdditionalServices
-                              });
+                        await updateDoc(doc(db, 'clients', id as string), {
+                          additionalServices: updatedAdditionalServices
+                        });
 
-                              setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
-                              setEditServiceModalVisible(false);
-                              setSelectedService(null);
-                              setEditServiceType('');
-                              setEditCustomServiceType('');
-                              setEditServiceFrequency(12);
-                              setEditServicePrice('');
-                              setEditServiceNextVisit(new Date());
-                              setShowEditServiceDatePicker(false);
-                              Alert.alert('Success', 'Service deleted successfully.');
-                              fetchClient(); // Refresh history
-                            } catch (error) {
-                              console.error('Error deleting service:', error);
-                              Alert.alert('Error', 'Failed to delete service. Please try again.');
-                            }
+                        setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
+                        setEditServiceModalVisible(false);
+                        setSelectedService(null);
+                        setEditServiceType('');
+                        setEditCustomServiceType('');
+                        setEditServiceFrequency(12);
+                        setEditServicePrice('');
+                        setEditServiceNextVisit(new Date());
+                        setShowEditServiceDatePicker(false);
+                        
+                        if (Platform.OS === 'web') {
+                          alert('Service deleted successfully.');
+                        } else {
+                          Alert.alert('Success', 'Service deleted successfully.');
+                        }
+                        fetchClient(); // Refresh history
+                      } catch (error) {
+                        console.error('Error deleting service:', error);
+                        if (Platform.OS === 'web') {
+                          alert('Failed to delete service. Please try again.');
+                        } else {
+                          Alert.alert('Error', 'Failed to delete service. Please try again.');
+                        }
+                      }
+                    };
+
+                    if (Platform.OS === 'web') {
+                      if (window.confirm('Are you sure you want to delete this additional service? This cannot be undone.')) {
+                        performDelete();
+                      }
+                    } else {
+                      Alert.alert(
+                        'Delete Service',
+                        'Are you sure you want to delete this additional service? This cannot be undone.',
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Delete',
+                            style: 'destructive',
+                            onPress: performDelete,
                           },
-                        },
-                      ]
-                    );
+                        ]
+                      );
+                    }
                   }}
-                  color="#ff4444"
+                  color="red"
                 />
               )}
               <Button 

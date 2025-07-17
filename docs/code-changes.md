@@ -5,6 +5,47 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-29 - Fixed Delete Service Button in Edit Additional Service Modal
+
+### Bug Fix: Delete Service Button Now Works Properly on All Platforms
+Fixed an issue where the delete service button in the Edit Additional Service modal would briefly turn grey but not actually delete the service. The button was unresponsive due to platform-specific issues with button colors and alert dialogs.
+
+### Root Cause Analysis:
+1. The button used a custom hex color `#ff4444` which is not supported by React Native's Button component on all platforms
+2. `Alert.alert` doesn't function properly on web platforms, causing the delete confirmation to fail silently
+3. The issue was similar to the previously fixed "Delete Job Button" issue in the runsheet modal
+
+### Technical Fix (`app/(tabs)/clients/[id].tsx`):
+- **Changed button color**: From unsupported `#ff4444` to standard `red` color
+- **Added platform detection**: Used `Platform.OS` to handle web vs native environments differently
+- **Implemented web fallbacks**: Used `window.confirm()` and `alert()` for web platform
+- **Refactored delete logic**: Extracted delete functionality into `performDelete` function for reuse
+
+### Implementation Details:
+```javascript
+// Before: Unsupported color and no platform handling
+color="#ff4444"
+Alert.alert('Delete Service', ...)
+
+// After: Platform-specific implementation
+color="red"
+if (Platform.OS === 'web') {
+  window.confirm(...) // Web confirmation
+  alert(...) // Web success/error messages
+} else {
+  Alert.alert(...) // Native alerts for iOS/Android
+}
+```
+
+### Impact:
+- ✅ Delete service button now responds correctly on all platforms
+- ✅ Confirmation dialogs work on web, iOS, and Android
+- ✅ Success/error messages display appropriately
+- ✅ Service is properly removed from Firestore and UI updates immediately
+- ✅ Consistent behavior across Windows web environment and mobile apps
+
+---
+
 ## 2025-01-27 - Round Order Manager Mobile UI Overhaul 🎯
 
 ### Problem Fixed
@@ -1025,7 +1066,7 @@ Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` v
 
 ---
 ## 2025-07-14 – Email Sending Flow Consolidated ✉️
-• **Auth-Related Mail** (verification & password reset) now uses Firebase’s built-in templates. Sender address updated in Firebase console to `noreply@guvnor.app` – allow 24-48 h for DNS propagation.
+• **Auth-Related Mail** (verification & password reset) now uses Firebase's built-in templates. Sender address updated in Firebase console to `noreply@guvnor.app` – allow 24-48 h for DNS propagation.
 • **Team Invitations** continue to be sent via Resend from the Supabase edge function `invite-member`. Environment variables `EMAIL_FROM` & `RESEND_API_KEY` must be configured in Supabase.
 • No other parts of the codebase reference Resend.
 
