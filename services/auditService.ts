@@ -39,10 +39,14 @@ export async function logAction(
       actionType,
       entityType,
       entityId,
-      entityName,
       description,
       ownerId,
     };
+
+    // Only include entityName if it's provided and not undefined
+    if (entityName) {
+      (auditLog as any).entityName = entityName;
+    }
 
     await addDoc(collection(db, AUDIT_COLLECTION), auditLog);
     console.log(`✅ Audit logged: ${actionType} - ${description}`);
@@ -58,7 +62,11 @@ export async function logAction(
 export async function getAuditLogs(limitCount: number = 100): Promise<AuditLog[]> {
   try {
     const session = await getUserSession();
-    if (!session || !session.isOwner) {
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    if (!session.isOwner) {
       throw new Error('Access denied: Only owners can view audit logs');
     }
 

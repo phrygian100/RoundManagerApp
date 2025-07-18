@@ -125,6 +125,18 @@ service cloud.firestore {
       );
     }
 
+    // Audit logs - owners can read, authenticated users can create
+    match /auditLogs/{auditId} {
+      // Allow authenticated users to create audit log entries
+      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+      
+      // Allow owners to read audit logs for their account
+      allow read: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      
+      // Allow list operations for owners
+      allow list: if isSignedIn();
+    }
+
     // Deny all other access
     match /{document=**} {
       allow read, write: if false;
