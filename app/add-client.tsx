@@ -236,6 +236,13 @@ export default function AddClientScreen() {
       return;
     }
 
+    // Validate round order number is set
+    if (roundOrderNumber === null || roundOrderNumber === undefined) {
+      console.log('Validation failed: missing round order number');
+      Alert.alert('Error', 'Please set a round order position for this client.');
+      return;
+    }
+
     let frequencyValue: number | string;
     if (frequency === 'one-off') {
       frequencyValue = 'one-off';

@@ -1938,3 +1938,42 @@ if (newClientData && !activeClient.id) {
 **Files Modified**:
 - `app/round-order-manager.tsx`: Fixed Alert.alert calls + optimized logic for new clients
 - `app/add-client.tsx`: Fixed account number generation + consistent RWC formatting
+```
+
+---
+
+## 2025-01-28 - Added Round Order Validation to Prevent Saving Clients Without Position
+
+### Problem Fixed
+Users were able to create and save new clients without specifying a round order number, which could lead to clients without proper positioning in the round order sequence.
+
+### Root Cause
+The add-client validation logic checked for required fields like name, address, mobile number, etc., but did not validate that a round order number was set before allowing the client to be saved.
+
+### Solution Implemented (`app/add-client.tsx`):
+
+**Added Round Order Validation**:
+- Added validation check for `roundOrderNumber` in the `handleSave` function
+- Prevents saving if round order is null or undefined
+- Shows clear error message directing user to set round order position
+
+**Code Changes**:
+```javascript
+// Validate round order number is set
+if (roundOrderNumber === null || roundOrderNumber === undefined) {
+  console.log('Validation failed: missing round order number');
+  Alert.alert('Error', 'Please set a round order position for this client.');
+  return;
+}
+```
+
+### Impact:
+- ✅ Users must now set a round order position before saving any client
+- ✅ Clear error message guides users to the round order manager
+- ✅ Maintains data integrity by ensuring all clients have proper round order positions
+- ✅ Prevents gaps or missing positions in the round order sequence
+
+**Files Modified**:
+- `app/add-client.tsx`: Added round order validation to handleSave function
+
+**Result**: Users can no longer accidentally save clients without proper round order positioning, ensuring consistent route organization.
