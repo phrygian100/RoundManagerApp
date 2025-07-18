@@ -154,7 +154,33 @@ export default function RoundOrderManagerScreen() {
         return;
       }
 
-      // Step 1: Get ALL active clients from database
+      // For new clients (not yet saved), skip database operations and just navigate back with position
+      if (newClientData && !activeClient.id) {
+        console.log('New client - skipping database operations, just returning position');
+        // Navigate back to add-client with the selected position
+        const simpleParams = {
+          name: activeClient.name || '',
+          address1: activeClient.address1 || '',
+          town: activeClient.town || '',
+          postcode: activeClient.postcode || '',
+          frequency: String(activeClient.frequency || ''),
+          nextVisit: activeClient.nextVisit || '',
+          mobileNumber: activeClient.mobileNumber || '',
+          quote: String(activeClient.quote || ''),
+          accountNumber: String(activeClient.accountNumber || ''),
+          status: activeClient.status || 'active',
+          source: activeClient.source || '',
+          email: activeClient.email || '',
+          roundOrderNumber: String(selectedPosition)
+        };
+        router.push({
+          pathname: '/add-client',
+          params: simpleParams
+        });
+        return;
+      }
+
+      // Step 1: Get ALL active clients from database (only for existing client operations)
       const allClientsQuery = query(
         collection(db, 'clients'),
         where('ownerId', '==', ownerId)
@@ -184,6 +210,14 @@ export default function RoundOrderManagerScreen() {
         const newRoundOrderNumber = index + 1;
         const clientRef = doc(db, 'clients', client.id);
         
+        // Ensure client has an ID before attempting update
+        if (!client.id) {
+          console.error('Client missing ID:', client);
+          throw new Error('Client missing ID - cannot update round order');
+        }
+        
+        console.log(`Updating client ${client.id} to round order ${newRoundOrderNumber}`);
+        
         // Always update round order number
         batch.update(clientRef, { roundOrderNumber: newRoundOrderNumber });
         
@@ -193,7 +227,9 @@ export default function RoundOrderManagerScreen() {
         }
       });
 
+      console.log('Committing batch update for round order changes...');
       await batch.commit();
+      console.log('Batch update completed successfully');
 
       // Handle navigation and job generation for restored clients
       if (newClientData && activeClient.id) {
@@ -252,30 +288,9 @@ export default function RoundOrderManagerScreen() {
       // Clear any stored round order data
       await AsyncStorage.removeItem('selectedRoundOrder');
       
-      // Navigate appropriately
+      // Navigate appropriately (for existing client operations only)
       if (editingClientId) {
         router.back(); // Go back to client details
-      } else if (newClientData && !activeClient.id) {
-        // New client - go to add-client with round order
-        const simpleParams = {
-          name: activeClient.name || '',
-          address1: activeClient.address1 || '',
-          town: activeClient.town || '',
-          postcode: activeClient.postcode || '',
-          frequency: String(activeClient.frequency || ''),
-          nextVisit: activeClient.nextVisit || '',
-          mobileNumber: activeClient.mobileNumber || '',
-          quote: String(activeClient.quote || ''),
-          accountNumber: String(activeClient.accountNumber || ''),
-          status: activeClient.status || 'active',
-          source: activeClient.source || '',
-          email: activeClient.email || '',
-          roundOrderNumber: String(selectedPosition)
-        };
-        router.push({
-          pathname: '/add-client',
-          params: simpleParams
-        });
       } else {
         router.push('/clients'); // Go to clients list
       }

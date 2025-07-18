@@ -1883,42 +1883,58 @@ Fixed an inconsistency where quote jobs on the runsheet were missing the "Move" 
 ### Problem Fixed
 The "Confirm Position" button in the Round Order Manager was not working properly on Android Chrome browser. Users experienced a "blink" but no selection was made, and when pressing the browser back button, no selection appeared on the Add New Client screen.
 
+Additionally, two related issues were discovered:
+1. Account numbers were showing as "1" instead of "RWC530" for new clients
+2. The round order manager was performing unnecessary database operations for new clients
+
 ### Root Cause
-The `handleConfirm` function in `app/round-order-manager.tsx` was using `Alert.alert()` calls for error handling, but `Alert.alert()` doesn't work properly on web browsers, especially mobile Chrome. This caused:
-- Silent failures or JavaScript errors that prevented the function from completing
-- Incomplete execution that prevented navigation back to the add-client screen
-- No round order selection being passed back to the calling screen
+**Primary Issue**: The `handleConfirm` function in `app/round-order-manager.tsx` was using `Alert.alert()` calls for error handling, but `Alert.alert()` doesn't work properly on web browsers, especially mobile Chrome.
 
-### Solution Implemented (`app/round-order-manager.tsx`):
+**Account Number Issue**: The account number generation logic assumed all account numbers were stored as numbers, but CSV-imported clients have account numbers as strings like "RWC529". This caused the generation logic to fail.
 
-**Platform-Specific Error Handling**:
+**Round Order Logic Issue**: The round order manager was performing database batch operations to update existing client round orders even for new clients that hadn't been saved yet, which was unnecessary and could cause errors.
+
+### Solution Implemented (`app/round-order-manager.tsx` & `app/add-client.tsx`):
+
+**1. Platform-Specific Error Handling**:
 - Replaced `Alert.alert()` calls with platform-specific error dialogs
 - Used `window.alert()` for web platforms and `Alert.alert()` for native platforms
-- Applied the same pattern already used throughout the codebase in files like `app/runsheet/[week].tsx` and `app/(tabs)/settings.tsx`
 
-**Fixed Three Alert.alert Instances**:
+**2. Fixed Account Number Generation**:
+- Updated logic to handle both numeric and RWC-prefixed string account numbers
+- Extract numeric part from "RWC529" format and increment properly
+- New clients now display and save as "RWC530" format for consistency
+
+**3. Optimized Round Order Manager Logic**:
+- For new clients, skip database operations entirely
+- Only perform batch updates when editing existing clients or restoring ex-clients
+- Early return for new clients with just navigation back to add-client screen
+
+**Code Changes**:
 ```javascript
-// Before: Web-incompatible alerts
-Alert.alert('Error', 'No client data available.');
-Alert.alert('Error', 'Failed to load clients.');
-Alert.alert('Error', 'Failed to create client.');
+// Fixed account number generation to handle both formats
+if (typeof currentAccountNumber === 'string' && currentAccountNumber.toUpperCase().startsWith('RWC')) {
+  const numericPart = currentAccountNumber.replace(/^RWC/i, '');
+  const parsedNumber = parseInt(numericPart, 10);
+  nextAccountNumber = isNaN(parsedNumber) ? 1 : parsedNumber + 1;
+}
 
-// After: Platform-specific alerts
-if (Platform.OS === 'web') {
-  window.alert('Error: No client data available.');
-} else {
-  Alert.alert('Error', 'No client data available.');
+// Skip database operations for new clients
+if (newClientData && !activeClient.id) {
+  console.log('New client - skipping database operations, just returning position');
+  // Navigate back with position only
+  return;
 }
 ```
 
 ### Impact:
-- ✅ Confirm Position button now works reliably on Android Chrome
+- ✅ Confirm Position button works reliably on Android Chrome
+- ✅ Account numbers now display correctly as "RWC530" instead of "1"
 - ✅ Round order selection properly returns to Add New Client screen
-- ✅ Error dialogs display correctly on all platforms
+- ✅ Faster performance for new client round order selection (no database operations)
+- ✅ Maintains backward compatibility with both numeric and string account number formats
 - ✅ Consistent behavior across web and native platforms
-- ✅ Maintains existing functionality while fixing mobile web compatibility
 
 **Files Modified**:
-- `app/round-order-manager.tsx`: Fixed three Alert.alert calls to use platform-specific error dialogs
-
-**Result**: The Round Order Manager confirm functionality now works seamlessly on guvnor.app in Android Chrome browser, with proper error handling and navigation flow.
+- `app/round-order-manager.tsx`: Fixed Alert.alert calls + optimized logic for new clients
+- `app/add-client.tsx`: Fixed account number generation + consistent RWC formatting

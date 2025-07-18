@@ -87,15 +87,40 @@ export default function AddClientScreen() {
           const qs = await getDocs(q);
           if (!qs.empty) {
             const highestClient = qs.docs[0].data();
-            nextAccountNumber = (highestClient.accountNumber || 0) + 1;
+            const currentAccountNumber = highestClient.accountNumber;
+            
+            // Handle both string (RWC123) and numeric account numbers
+            if (typeof currentAccountNumber === 'string' && currentAccountNumber.toUpperCase().startsWith('RWC')) {
+              const numericPart = currentAccountNumber.replace(/^RWC/i, '');
+              const parsedNumber = parseInt(numericPart, 10);
+              nextAccountNumber = isNaN(parsedNumber) ? 1 : parsedNumber + 1;
+            } else if (typeof currentAccountNumber === 'number') {
+              nextAccountNumber = currentAccountNumber + 1;
+            } else {
+              nextAccountNumber = 1;
+            }
           }
         } catch (err) {
           console.warn('Composite index missing for accountNumber query, falling back', err);
           const qs = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+          let highestNumber = 0;
           qs.forEach(docSnap => {
-            const num = docSnap.data().accountNumber || 0;
-            if (num >= nextAccountNumber) nextAccountNumber = num + 1;
+            const accountNumber = docSnap.data().accountNumber;
+            let numericValue = 0;
+            
+            // Handle both string (RWC123) and numeric account numbers
+            if (typeof accountNumber === 'string' && accountNumber.toUpperCase().startsWith('RWC')) {
+              const numericPart = accountNumber.replace(/^RWC/i, '');
+              numericValue = parseInt(numericPart, 10) || 0;
+            } else if (typeof accountNumber === 'number') {
+              numericValue = accountNumber;
+            }
+            
+            if (numericValue > highestNumber) {
+              highestNumber = numericValue;
+            }
           });
+          nextAccountNumber = highestNumber + 1;
         }
         
         if (isMountedRef.current) {
@@ -253,7 +278,7 @@ export default function AddClientScreen() {
         nextVisit,
         mobileNumber,
         quote: quoteValue,
-        accountNumber,
+        accountNumber: `RWC${accountNumber}`, // Format as RWC### for consistency with CSV imports
         roundOrderNumber,
         status: 'active',
         dateAdded: new Date().toISOString(),
@@ -434,7 +459,7 @@ export default function AddClientScreen() {
         <ThemedText style={styles.label}>Account Number</ThemedText>
         <TextInput
           style={[styles.input, styles.disabledInput]}
-          value={accountNumber ? String(accountNumber) : 'Loading...'}
+          value={accountNumber ? `RWC${accountNumber}` : 'Loading...'}
           editable={false}
         />
 
