@@ -13,7 +13,7 @@ import {
     TextInput,
     View
 } from 'react-native';
-import { PermissionGate } from '../components/PermissionGate';
+import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { getAuditLogs } from '../services/auditService';
