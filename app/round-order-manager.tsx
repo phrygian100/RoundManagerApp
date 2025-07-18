@@ -118,7 +118,11 @@ export default function RoundOrderManagerScreen() {
 
       } catch (error) {
         console.error('Error loading clients:', error);
-        Alert.alert('Error', 'Failed to load clients.');
+        if (Platform.OS === 'web') {
+          window.alert('Error: Failed to load clients.');
+        } else {
+          Alert.alert('Error', 'Failed to load clients.');
+        }
       } finally {
         setLoading(false);
       }
@@ -142,7 +146,11 @@ export default function RoundOrderManagerScreen() {
       const ownerId = await getDataOwnerId();
 
       if (!activeClient) {
-        Alert.alert('Error', 'No client data available.');
+        if (Platform.OS === 'web') {
+          window.alert('Error: No client data available.');
+        } else {
+          Alert.alert('Error', 'No client data available.');
+        }
         return;
       }
 
@@ -274,7 +282,11 @@ export default function RoundOrderManagerScreen() {
       
     } catch (error) {
       console.error('Error creating client:', error);
-      Alert.alert('Error', 'Failed to create client.');
+      if (Platform.OS === 'web') {
+        window.alert('Error: Failed to create client.');
+      } else {
+        Alert.alert('Error', 'Failed to create client.');
+      }
     } finally {
       setLoading(false);
     }

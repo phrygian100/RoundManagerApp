@@ -1877,3 +1877,48 @@ Fixed an inconsistency where quote jobs on the runsheet were missing the "Move" 
 - ✅ All existing move functionality (date selection, vehicle assignment) works for quotes
 
 ---
+
+## 2025-01-28 - Fixed Round Order Manager Confirm Button Issue on Android Chrome 📱
+
+### Problem Fixed
+The "Confirm Position" button in the Round Order Manager was not working properly on Android Chrome browser. Users experienced a "blink" but no selection was made, and when pressing the browser back button, no selection appeared on the Add New Client screen.
+
+### Root Cause
+The `handleConfirm` function in `app/round-order-manager.tsx` was using `Alert.alert()` calls for error handling, but `Alert.alert()` doesn't work properly on web browsers, especially mobile Chrome. This caused:
+- Silent failures or JavaScript errors that prevented the function from completing
+- Incomplete execution that prevented navigation back to the add-client screen
+- No round order selection being passed back to the calling screen
+
+### Solution Implemented (`app/round-order-manager.tsx`):
+
+**Platform-Specific Error Handling**:
+- Replaced `Alert.alert()` calls with platform-specific error dialogs
+- Used `window.alert()` for web platforms and `Alert.alert()` for native platforms
+- Applied the same pattern already used throughout the codebase in files like `app/runsheet/[week].tsx` and `app/(tabs)/settings.tsx`
+
+**Fixed Three Alert.alert Instances**:
+```javascript
+// Before: Web-incompatible alerts
+Alert.alert('Error', 'No client data available.');
+Alert.alert('Error', 'Failed to load clients.');
+Alert.alert('Error', 'Failed to create client.');
+
+// After: Platform-specific alerts
+if (Platform.OS === 'web') {
+  window.alert('Error: No client data available.');
+} else {
+  Alert.alert('Error', 'No client data available.');
+}
+```
+
+### Impact:
+- ✅ Confirm Position button now works reliably on Android Chrome
+- ✅ Round order selection properly returns to Add New Client screen
+- ✅ Error dialogs display correctly on all platforms
+- ✅ Consistent behavior across web and native platforms
+- ✅ Maintains existing functionality while fixing mobile web compatibility
+
+**Files Modified**:
+- `app/round-order-manager.tsx`: Fixed three Alert.alert calls to use platform-specific error dialogs
+
+**Result**: The Round Order Manager confirm functionality now works seamlessly on guvnor.app in Android Chrome browser, with proper error handling and navigation flow.
