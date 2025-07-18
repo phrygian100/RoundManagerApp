@@ -5,6 +5,88 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-29 - Fixed Round Order Manager Display Inconsistency
+
+### Issue Resolved:
+**Problem**: Round order of clients in the Round Order Manager screen bore no resemblance to the correct round order shown in the Clients screen when sorted by "Round Order".
+
+### Root Cause Analysis:
+1. **Clients Screen (Correct)**: Used actual `roundOrderNumber` field for sorting clients by round order
+2. **Round Order Manager (Broken)**: Ignored actual `roundOrderNumber` and reassigned positions based on array index, causing complete order mismatch
+3. **Secondary Issue**: Missing Firestore composite index caused fallback to unordered query, returning clients in document creation order rather than round order
+
+### Technical Implementation:
+1. **Fixed Database Query Fallback**:
+   - Added manual sorting by `roundOrderNumber` when database index is missing
+   - Ensures correct order even when Firestore composite index fails
+
+2. **Fixed Display Position Logic**:
+   - Replaced array index mapping (`index + 1`) with actual `roundOrderNumber` usage
+   - Updated all three modes: CREATE, EDIT, and fallback
+
+3. **Updated Display Functions**:
+   - `renderPositionList()`: Now uses `clients.find(c => c.displayPosition === pos)` instead of array indexing
+   - `createMobileDisplayList()`: Added proper sorting and position-based insertion logic
+   - `renderMobileItem()`: Uses actual `displayPosition` instead of array index
+
+### Code Changes:
+```javascript
+// Before: Ignored actual round order
+clientsList = activeClients.map((client, index) => ({
+  ...client,
+  displayPosition: index + 1  // WRONG: Array index
+}));
+
+// After: Uses actual round order
+clientsList = activeClients.map(client => ({
+  ...client,
+  displayPosition: client.roundOrderNumber || 0  // CORRECT: Actual round order
+}));
+```
+
+### Impact:
+- ✅ Round order manager now displays clients in same order as clients screen
+- ✅ Fixes user confusion about round order discrepancies
+- ✅ Maintains correct round order data integrity
+- ✅ Works correctly even when database index is missing
+- ✅ No risk to existing functionality - purely display layer fix
+
+### Files Modified:
+- `app/round-order-manager.tsx` - Fixed position assignment and display logic
+
+---
+
+## 2025-01-29 - Enhanced Clients Screen Sorting Options
+
+### Changes Made:
+1. **Renamed "Name" sort option to "Address"**:
+   - The existing sort was already sorting by address, not name, so the label was corrected
+   - Now properly sorts by the full address (address1, town, postcode) or legacy address field
+
+2. **Added new "Account Number" sort option**:
+   - Sorts clients by their account numbers from RWC1 upwards
+   - Extracts numeric portion from account numbers for proper numerical sorting
+   - Handles missing or invalid account numbers gracefully
+
+### Technical Implementation:
+- Updated `SortOption` type to replace `'name'` with `'address'` and add `'accountNumber'`
+- Modified sorting logic in the `useEffect` hook:
+  - `address` case: Sorts by concatenated address fields or legacy address
+  - `accountNumber` case: Uses regex to extract numeric part for proper sorting
+- Updated sort options array and `getSortLabel()` function accordingly
+- Sort cycling order is now: None → Address → Next Visit → Round Order → Balance → Account Number
+
+### Impact:
+- ✅ More accurate sort option labeling (Address vs Name)
+- ✅ New account number sorting for better client organization
+- ✅ Proper numerical sorting of account numbers (RWC1, RWC2, etc.)
+- ✅ Maintains backward compatibility with existing address formats
+
+### Files Modified:
+- `app/clients.tsx` - Updated sort types, logic, and labels
+
+---
+
 ## 2025-01-29 - Settings Screen Cleanup and Role-Based Access Control
 
 ### Changes Made:

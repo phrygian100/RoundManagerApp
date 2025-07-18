@@ -52,12 +52,14 @@ export default function RoundOrderManagerScreen() {
           orderBy('roundOrderNumber', 'asc')
         );
         let clientsSnapshot;
+        let needsManualSort = false;
         try {
           clientsSnapshot = await getDocs(clientsQuery);
         } catch (err) {
           console.warn('RoundOrderManager: missing index for clients order query, falling back', err);
           const qs = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
           clientsSnapshot = qs;
+          needsManualSort = true; // Flag that we need to manually sort
         }
         
         const allClients: ClientWithPosition[] = clientsSnapshot.docs.map(doc => ({
@@ -67,14 +69,19 @@ export default function RoundOrderManagerScreen() {
         })) as ClientWithPosition[];
 
         // Only include active clients
-        const activeClients = allClients.filter(c => c.status !== 'ex-client');
+        let activeClients = allClients.filter(c => c.status !== 'ex-client');
+        
+        // Manual sort by roundOrderNumber when database index is missing
+        if (needsManualSort) {
+          activeClients.sort((a, b) => (a.roundOrderNumber || 999999) - (b.roundOrderNumber || 999999));
+        }
         
         if (newClientData) {
           // CREATE MODE
           activeClientData = JSON.parse(newClientData as string);
-          clientsList = activeClients.map((client, index) => ({
+          clientsList = activeClients.map(client => ({
             ...client,
-            displayPosition: index + 1
+            displayPosition: client.roundOrderNumber || 0
           }));
           initialPosition = 1; // Default to first position
         } else if (typeof editingClientId === 'string') {
@@ -85,16 +92,16 @@ export default function RoundOrderManagerScreen() {
             // Exclude the client being edited from the list
             clientsList = activeClients
               .filter(c => c.id !== editingClientId)
-              .map((client, index) => ({
+              .map(client => ({
                 ...client,
-                displayPosition: index + 1
+                displayPosition: client.roundOrderNumber || 0
               }));
             initialPosition = clientToEdit.roundOrderNumber;
           } else {
             // Fallback if client not found
-            clientsList = activeClients.map((client, index) => ({
+            clientsList = activeClients.map(client => ({
               ...client,
-              displayPosition: index + 1
+              displayPosition: client.roundOrderNumber || 0
             }));
           }
         }
@@ -322,9 +329,10 @@ export default function RoundOrderManagerScreen() {
         displayText = 'NEW CLIENT';
       } else if (pos > selectedPosition) {
         // Show clients that will be at this position after NEW CLIENT is inserted
-        const clientIndex = pos - 2; // -1 for position->index, -1 for NEW CLIENT insertion
-        if (clientIndex >= 0 && clientIndex < clients.length) {
-          const client = clients[clientIndex];
+        // Find client that will be at position (pos - 1) in the current array
+        const adjustedPosition = pos - 1;
+        const client = clients.find(c => c.displayPosition === adjustedPosition);
+        if (client) {
           const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
           displayText = addressParts.length > 0 ? addressParts.join(', ') : (client.address || 'No address');
         } else {
@@ -332,9 +340,8 @@ export default function RoundOrderManagerScreen() {
         }
       } else {
         // Show clients that will stay at this position
-        const clientIndex = pos - 1;
-        if (clientIndex >= 0 && clientIndex < clients.length) {
-          const client = clients[clientIndex];
+        const client = clients.find(c => c.displayPosition === pos);
+        if (client) {
           const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
           displayText = addressParts.length > 0 ? addressParts.join(', ') : (client.address || 'No address');
         } else {
@@ -359,14 +366,18 @@ export default function RoundOrderManagerScreen() {
   const createMobileDisplayList = () => {
     const displayList = [];
     
+    // Sort clients by their displayPosition to ensure correct order
+    const sortedClients = [...clients].sort((a, b) => (a.displayPosition || 0) - (b.displayPosition || 0));
+    
     // Create a simple list: just clients with NEW CLIENT inserted at selected position
-    clients.forEach((client, index) => {
-      if (index + 1 === selectedPosition) {
+    sortedClients.forEach((client) => {
+      if (client.displayPosition === selectedPosition) {
         // Insert NEW CLIENT before this client
         displayList.push({
           id: 'new-client',
           isNewClient: true,
-          address: 'NEW CLIENT'
+          address: 'NEW CLIENT',
+          displayPosition: selectedPosition
         });
       }
       
@@ -376,12 +387,14 @@ export default function RoundOrderManagerScreen() {
       });
     });
     
-    // If NEW CLIENT should be at the end
-    if (selectedPosition > clients.length) {
+    // If NEW CLIENT should be at the end (after all existing clients)
+    const maxClientPosition = Math.max(0, ...sortedClients.map(c => c.displayPosition || 0));
+    if (selectedPosition > maxClientPosition) {
       displayList.push({
         id: 'new-client',
         isNewClient: true,
-        address: 'NEW CLIENT'
+        address: 'NEW CLIENT',
+        displayPosition: selectedPosition
       });
     }
     
@@ -391,7 +404,7 @@ export default function RoundOrderManagerScreen() {
   const renderMobileItem = ({ item, index }: { item: any; index: number }) => {
     const isNewClient = item.isNewClient;
     let displayText = '';
-    let position = index + 1;
+    let position = item.displayPosition || (index + 1);
     
     if (isNewClient) {
       displayText = 'NEW CLIENT';
@@ -399,10 +412,7 @@ export default function RoundOrderManagerScreen() {
     } else {
       const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
       displayText = addressParts.length > 0 ? addressParts.join(', ') : (item.address || 'No address');
-      // Adjust position for clients after NEW CLIENT
-      if (index >= selectedPosition - 1) {
-        position = index;
-      }
+      position = item.displayPosition || 0;
     }
     
     return (

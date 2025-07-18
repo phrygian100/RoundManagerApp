@@ -14,7 +14,7 @@ import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 
 type Client = BaseClient & { startingBalance?: number };
-type SortOption = 'name' | 'nextVisit' | 'roundOrder' | 'none' | 'balance';
+type SortOption = 'address' | 'nextVisit' | 'roundOrder' | 'none' | 'balance' | 'accountNumber';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -188,11 +188,26 @@ export default function ClientsScreen() {
       try {
         filtered = [...filtered].sort((a, b) => {
           switch (sortBy) {
-            case 'name':
-              // Ensure we handle all edge cases safely for name sorting
-              const aName = (a.name && typeof a.name === 'string') ? a.name.trim() : '';
-              const bName = (b.name && typeof b.name === 'string') ? b.name.trim() : '';
-              return aName.localeCompare(bName);
+            case 'address':
+              // Sort by address (address1, town, postcode)
+              const aAddress = [a.address1, a.town, a.postcode].filter(Boolean).join(', ') || a.address || '';
+              const bAddress = [b.address1, b.town, b.postcode].filter(Boolean).join(', ') || b.address || '';
+              return aAddress.localeCompare(bAddress);
+            case 'accountNumber':
+              // Sort account numbers from RWC1 upwards
+              const aAccount = a.accountNumber || '';
+              const bAccount = b.accountNumber || '';
+              
+              // Extract numeric part from account numbers (e.g., "RWC123" -> 123)
+              const extractNumber = (account: string): number => {
+                const match = account.match(/\d+/);
+                return match ? parseInt(match[0], 10) : 0;
+              };
+              
+              const aNum = extractNumber(aAccount);
+              const bNum = extractNumber(bAccount);
+              
+              return aNum - bNum;
             case 'nextVisit':
               // Safer date parsing for sorting - use nextVisits state data
               let aDate: Date;
@@ -238,7 +253,7 @@ export default function ClientsScreen() {
   }, [searchQuery, clients, sortBy, clientBalances, nextVisits]);
 
   const handleSort = () => {
-    const sortOptions: SortOption[] = ['none', 'name', 'nextVisit', 'roundOrder', 'balance'];
+    const sortOptions: SortOption[] = ['none', 'address', 'nextVisit', 'roundOrder', 'balance', 'accountNumber'];
     const currentIndex = sortOptions.indexOf(sortBy);
     const nextIndex = (currentIndex + 1) % sortOptions.length;
     setSortBy(sortOptions[nextIndex]);
@@ -246,7 +261,8 @@ export default function ClientsScreen() {
 
   const getSortLabel = () => {
     switch (sortBy) {
-      case 'name': return 'Name';
+      case 'address': return 'Address';
+      case 'accountNumber': return 'Account Number';
       case 'nextVisit': return 'Next Visit';
       case 'roundOrder': return 'Round Order';
       case 'balance': return 'Balance';
