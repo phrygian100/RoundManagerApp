@@ -3,11 +3,12 @@ import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
+import { resetWeekToRoundOrder } from '../services/resetService';
 import type { Job } from '../types/models';
 
 export default function WorkloadForecastScreen() {
@@ -15,6 +16,7 @@ export default function WorkloadForecastScreen() {
   const [weeks, setWeeks] = useState<{ week: string; count: number }[]>([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [resettingWeek, setResettingWeek] = useState<string | null>(null);
   const router = useRouter();
 
   // Check permissions on load
@@ -70,6 +72,82 @@ export default function WorkloadForecastScreen() {
     }
   }, [hasPermission]);
 
+  const handleResetWeek = async (weekStartDate: string) => {
+    const weekDate = parseISO(weekStartDate);
+    const today = new Date();
+    const currentWeekStr = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    
+    // Don't allow reset of current week in workload forecast
+    if (weekStartDate === currentWeekStr) {
+      if (Platform.OS === 'web') {
+        window.alert('Cannot reset current week from workload forecast. Use individual day reset buttons on the runsheet instead.');
+      } else {
+        Alert.alert('Cannot Reset', 'Cannot reset current week from workload forecast. Use individual day reset buttons on the runsheet instead.');
+      }
+      return;
+    }
+    
+    // Confirmation dialog
+    const weekLabel = `Week Commencing ${weekDate.getDate()}${getOrdinalSuffix(weekDate.getDate())} ${format(weekDate, 'LLLL yyyy')}`;
+    const confirmReset = Platform.OS === 'web' 
+      ? window.confirm(`Reset ${weekLabel} to round order? This will remove all manual ETAs and vehicle assignments for future days in this week.`)
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Reset Week',
+            `Reset ${weekLabel} to round order? This will remove all manual ETAs and vehicle assignments for future days in this week.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Reset', style: 'destructive', onPress: () => resolve(true) }
+            ]
+          );
+        });
+    
+    if (!confirmReset) return;
+    
+    setResettingWeek(weekStartDate);
+    
+    try {
+      const result = await resetWeekToRoundOrder(weekDate);
+      
+      if (result.success) {
+        // Refresh the forecast data
+        await fetchJobs();
+        
+        const message = result.jobsReset > 0 
+          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} across ${result.daysReset} day${result.daysReset !== 1 ? 's' : ''} in ${weekLabel} to round order.`
+          : `No jobs needed resetting in ${weekLabel}.`;
+          
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Reset Complete', message);
+        }
+      } else {
+        if (Platform.OS === 'web') {
+          window.alert(`Failed to reset week: ${result.error || 'Unknown error'}`);
+        } else {
+          Alert.alert('Reset Failed', result.error || 'Unknown error occurred');
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting week:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to reset week. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to reset week. Please try again.');
+      }
+    } finally {
+      setResettingWeek(null);
+    }
+  };
+
+  // Helper function for ordinal suffixes
+  const getOrdinalSuffix = (n: number) => {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return s[(v - 20) % 10] || s[v] || s[0];
+  };
+
   // Refresh data when screen comes into focus
   useFocusEffect(
     useCallback(() => {
@@ -110,14 +188,54 @@ export default function WorkloadForecastScreen() {
     const today = new Date();
     const currentWeekStr = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd');
     const isCurrentWeek = item.week === currentWeekStr;
+    const showResetButton = !isCurrentWeek; // Only show for future weeks
+    
     return (
-      <Pressable
-        style={[styles.weekRow, isCurrentWeek && styles.currentWeekRow]}
-        onPress={() => router.push({ pathname: '/runsheet/[week]', params: { week: item.week } })}
-      >
-        <Text style={styles.weekLabel}>{label}</Text>
-        <Text style={styles.count}>{item.count} job{item.count !== 1 ? 's' : ''}</Text>
-      </Pressable>
+      <View style={[styles.weekRow, isCurrentWeek && styles.currentWeekRow]}>
+        <Pressable
+          style={styles.weekRowContent}
+          onPress={() => router.push({ pathname: '/runsheet/[week]', params: { week: item.week } })}
+        >
+          <Text style={styles.weekLabel}>{label}</Text>
+          <Text style={styles.count}>{item.count} job{item.count !== 1 ? 's' : ''}</Text>
+        </Pressable>
+        {showResetButton && (
+          Platform.OS === 'web'
+            ? (
+                <button
+                  style={{
+                    backgroundColor: '#FF9500',
+                    borderRadius: 6,
+                    padding: '6px 10px',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    border: 'none',
+                    cursor: 'pointer',
+                    marginLeft: 8,
+                    opacity: resettingWeek === item.week ? 0.5 : 1,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent navigation to runsheet
+                    handleResetWeek(item.week);
+                  }}
+                  disabled={resettingWeek === item.week}
+                >
+                  {resettingWeek === item.week ? '↻...' : '↻'}
+                </button>
+              )
+            : (
+                <Pressable
+                  style={[styles.resetWeekButton, resettingWeek === item.week && styles.resetWeekButtonDisabled]}
+                  onPress={() => handleResetWeek(item.week)}
+                  disabled={resettingWeek === item.week}
+                >
+                  <Text style={styles.resetWeekButtonText}>
+                    {resettingWeek === item.week ? '↻...' : '↻'}
+                  </Text>
+                </Pressable>
+              )
+        )}
+      </View>
     );
   };
 
@@ -163,6 +281,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#e0f7fa', // Light blue highlight
     borderRadius: 6,
   },
+  weekRowContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flex: 1,
+  },
   weekLabel: { fontSize: 15, flex: 1, flexWrap: 'wrap' },
   count: { fontSize: 15, fontWeight: 'bold', marginLeft: 8, minWidth: 60, textAlign: 'right' },
   empty: { textAlign: 'center', marginTop: 50 },
@@ -184,5 +308,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  resetWeekButton: {
+    backgroundColor: '#FF9500',
+    borderRadius: 6,
+    padding: 8,
+    paddingHorizontal: 12,
+  },
+  resetWeekButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  resetWeekButtonDisabled: {
+    opacity: 0.5,
   },
 }); 

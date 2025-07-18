@@ -2059,3 +2059,79 @@ if (roundOrderNumber === null || roundOrderNumber === undefined) {
 - `app/add-client.tsx`: Added round order validation to handleSave function
 
 **Result**: Users can no longer accidentally save clients without proper round order positioning, ensuring consistent route organization.
+
+---
+
+## 2025-01-30 - Added Reset to Round Order Functionality 🔄
+
+### New Feature: Reset ETAs and Vehicle Assignments
+Added refresh/reset buttons to allow users to quickly revert jobs back to their original round order by removing manual scheduling changes.
+
+### Implementation Details:
+
+**1. Day-Level Reset Buttons (Runsheet)**:
+- Small refresh icon (↻) button next to each day header on runsheet
+- Only visible for future days and non-completed days
+- Resets all jobs for that specific day back to round order
+- Removes all manual ETAs and vehicle assignments
+- Jobs automatically reorganize by round order using existing allocation system
+
+**2. Week-Level Reset Buttons (Workload Forecast)**:
+- Refresh icon (↻) button next to each week in workload forecast
+- Only visible for future weeks (not current week)
+- Resets all jobs for the entire week back to round order
+- Only affects future days within the week (protects current operations)
+- Provides detailed feedback on number of jobs and days reset
+
+**3. Reset Service (`services/resetService.ts`)**:
+- `resetDayToRoundOrder()`: Resets specific day with batch Firestore updates
+- `resetWeekToRoundOrder()`: Resets entire week with smart date filtering
+- Only affects jobs with status 'pending' or 'scheduled'
+- Sets `eta: null` and `vehicleId: null` to clear manual overrides
+- Comprehensive error handling and result reporting
+
+**4. User Experience**:
+- **Confirmation dialogs**: All reset operations require confirmation
+- **Loading states**: Visual feedback during reset operations (↻...)
+- **Platform-specific UI**: Uses web buttons on web, Pressable on mobile
+- **Smart restrictions**: Cannot reset past days, completed days, or current week from forecast
+- **Immediate feedback**: Success/error messages with job counts
+
+**5. Data Safety**:
+- Only removes manual overrides, doesn't delete job data
+- Existing allocation system handles reorganization automatically
+- Batch updates ensure data consistency
+- No risk to completed or historical data
+
+### Technical Implementation:
+```typescript
+// Day reset: removes ETAs and vehicle assignments for single day
+await resetDayToRoundOrder(dayDate);
+
+// Week reset: removes ETAs and vehicle assignments for future days in week
+await resetWeekToRoundOrder(weekStartDate);
+
+// Jobs automatically reorganize by round order via existing systems
+```
+
+### User Interface:
+- **Orange refresh icons** (↻) for easy identification
+- **Disabled state** during operations to prevent double-clicks
+- **Platform-optimized** styling (web buttons vs React Native components)
+- **Non-intrusive** design that doesn't clutter existing UI
+
+### Business Impact:
+- **Quick recovery** from scheduling mistakes or changes
+- **Maintains data integrity** while providing flexibility
+- **Preserves round order** logic for efficient route planning
+- **Reduces manual work** when reorganizing schedules
+
+**Files Created**: `services/resetService.ts`
+
+**Files Modified**: 
+- `app/runsheet/[week].tsx` - Added day reset buttons and functionality
+- `app/workload-forecast.tsx` - Added week reset buttons and functionality
+
+---
+
+## 2025-07-14  

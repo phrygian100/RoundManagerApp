@@ -11,6 +11,7 @@ import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
+import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
@@ -58,6 +59,9 @@ export default function RunsheetWeekScreen() {
   const [priceEditModalVisible, setPriceEditModalVisible] = useState(false);
   const [priceEditJob, setPriceEditJob] = useState<Job & { client: Client | null } | null>(null);
   const [priceEditValue, setPriceEditValue] = useState('');
+
+  // Day reset functionality
+  const [resettingDay, setResettingDay] = useState<string | null>(null);
 
   const router = useRouter();
 
@@ -942,6 +946,111 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  const handleResetDay = async (dayTitle: string) => {
+    const dayIndex = daysOfWeek.indexOf(dayTitle);
+    if (dayIndex === -1) return;
+    
+    const dayDate = addDays(weekStart, dayIndex);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Check if day is in the past or completed
+    const dayIsCompleted = completedDays.includes(dayTitle);
+    const dayIsPast = isBefore(dayDate, startOfToday());
+    
+    if (dayIsCompleted || dayIsPast) {
+      if (Platform.OS === 'web') {
+        window.alert('Cannot reset completed or past days.');
+      } else {
+        Alert.alert('Cannot Reset', 'Cannot reset completed or past days.');
+      }
+      return;
+    }
+    
+    // Confirmation dialog
+    const confirmReset = Platform.OS === 'web' 
+      ? window.confirm(`Reset ${dayTitle} to round order? This will remove all manual ETAs and vehicle assignments.`)
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Reset Day',
+            `Reset ${dayTitle} to round order? This will remove all manual ETAs and vehicle assignments.`,
+            [
+              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+              { text: 'Reset', style: 'destructive', onPress: () => resolve(true) }
+            ]
+          );
+        });
+    
+    if (!confirmReset) return;
+    
+    setResettingDay(dayTitle);
+    
+    try {
+      const result = await resetDayToRoundOrder(dayDate);
+      
+      if (result.success) {
+        // Refresh the jobs data to show the reset state
+        const startDate = format(weekStart, 'yyyy-MM-dd');
+        const endDate = format(weekEnd, 'yyyy-MM-dd');
+        const jobsForWeek = await getJobsForWeek(startDate, endDate);
+        
+        if (jobsForWeek.length > 0) {
+          // Re-fetch client data and update state
+          const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+          const clientChunks = [];
+          for (let i = 0; i < clientIds.length; i += 30) {
+            clientChunks.push(clientIds.slice(i, i + 30));
+          }
+          
+          const clientsMap = new Map<string, Client>();
+          for (const chunk of clientChunks) {
+            const validClientIds = chunk.filter(id => id && id !== 'NOTE_JOB' && id !== 'QUOTE_JOB');
+            if (validClientIds.length > 0) {
+              const clientsRef = collection(db, 'clients');
+              const clientsQuery = query(clientsRef, where('__name__', 'in', validClientIds));
+              const clientsSnapshot = await getDocs(clientsQuery);
+              clientsSnapshot.docs.forEach(doc => {
+                clientsMap.set(doc.id, { id: doc.id, ...doc.data() } as Client);
+              });
+            }
+          }
+          
+          const jobsWithClients = jobsForWeek.map(job => ({
+            ...job,
+            client: job.clientId ? clientsMap.get(job.clientId) || null : null,
+          }));
+          
+          setJobs(jobsWithClients);
+        }
+        
+        const message = result.jobsReset > 0 
+          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} on ${dayTitle} to round order.`
+          : `No jobs needed resetting on ${dayTitle}.`;
+          
+        if (Platform.OS === 'web') {
+          window.alert(message);
+        } else {
+          Alert.alert('Reset Complete', message);
+        }
+      } else {
+        if (Platform.OS === 'web') {
+          window.alert(`Failed to reset day: ${result.error || 'Unknown error'}`);
+        } else {
+          Alert.alert('Reset Failed', result.error || 'Unknown error occurred');
+        }
+      }
+    } catch (error) {
+      console.error('Error resetting day:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to reset day. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to reset day. Please try again.');
+      }
+    } finally {
+      setResettingDay(null);
+    }
+  };
+
   const renderItem = ({ item, index, section }: any) => {
     if (isQuoteJob(item)) {
       // Only show complete for first incomplete quote job on today
@@ -1277,6 +1386,39 @@ export default function RunsheetWeekScreen() {
                             onPress={() => handleDayComplete(title)}
                           >
                             <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
+                          </Pressable>
+                        )
+                  )}
+                  {!dayIsCompleted && !dayIsPast && (
+                    Platform.OS === 'web'
+                      ? (
+                          <button
+                            style={{
+                              backgroundColor: '#FF9500',
+                              borderRadius: 6,
+                              padding: '4px 8px',
+                              color: '#fff',
+                              fontWeight: 'bold',
+                              border: 'none',
+                              cursor: 'pointer',
+                              marginLeft: 8,
+                              opacity: resettingDay === title ? 0.5 : 1,
+                            }}
+                            onClick={() => handleResetDay(title)}
+                            disabled={resettingDay === title}
+                          >
+                            {resettingDay === title ? '↻...' : '↻'}
+                          </button>
+                        )
+                      : (
+                          <Pressable
+                            style={[styles.resetDayButton, resettingDay === title && styles.resetDayButtonDisabled]}
+                            onPress={() => handleResetDay(title)}
+                            disabled={resettingDay === title}
+                          >
+                            <Text style={styles.resetDayButtonText}>
+                              {resettingDay === title ? '↻...' : '↻'}
+                            </Text>
                           </Pressable>
                         )
                   )}
@@ -1994,6 +2136,21 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   dayCompletedText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  resetDayButton: {
+    backgroundColor: '#FF9500',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginLeft: 8,
+  },
+  resetDayButtonDisabled: {
+    backgroundColor: '#ccc',
+    opacity: 0.7,
+  },
+  resetDayButtonText: {
     color: '#fff',
     fontWeight: 'bold',
   },
