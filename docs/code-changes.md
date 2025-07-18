@@ -5,6 +5,76 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-29 - Enhanced Message ETA Feature with Service-Specific Templates
+
+### Summary
+Enhanced the "Message ETA" functionality in runsheets to send different professional message templates depending on whether it's a service job or quote job, with proper service type identification and customer address inclusion.
+
+### Changes Made:
+
+**1. Service Type Mapping**:
+- Added `getServiceTypeDisplay()` function to convert technical service IDs to user-friendly text
+- Maps `'window-cleaning'` → "Window cleaning", `'Gutter cleaning'` → "Gutter cleaning", etc.
+- Custom service names (like "Lantern") are used as-is
+
+**2. Differentiated Message Templates**:
+
+**Service Jobs Template**:
+```
+Hello [Customer Name],
+
+Courtesy message to let you know [Service Type] is due tomorrow at [Customer Address].
+Roughly estimated time of arrival:
+[ETA]
+
+Many thanks,
+Travis
+www.tgmwindowcleaning.co.uk
+```
+
+**Quote Jobs Template**:
+```
+Hello [Customer Name],
+
+Courtesy message to let you know we'll be over to quote tomorrow at [Customer Address].
+Roughly estimated time of arrival:
+[ETA]
+if you can't be home and access is available around the property, we will leave you a written quote.
+
+Many thanks,
+Travis
+www.tgmwindowcleaning.co.uk
+```
+
+**3. Address Integration**:
+- Service jobs: Uses `client.address1` (or fallback to `client.address`) 
+- Quote jobs: Uses quote's `address` field
+- Only includes first line of address for message brevity
+
+**4. Professional Branding**:
+- Added proper business signature with name and website
+- Consistent professional formatting across both message types
+
+### Technical Implementation:
+- Enhanced `handleMessageETA()` function in `app/runsheet/[week].tsx`
+- Added service type mapping for common services
+- Conditional template selection based on job type
+- Maintained existing ETA handling and SMS URL generation
+- Preserved all existing error handling and platform-specific SMS launching
+
+### Impact:
+- ✅ More professional and detailed customer communications
+- ✅ Service-specific messaging improves clarity
+- ✅ Customer address inclusion helps with job identification
+- ✅ Quote-specific messaging sets proper expectations
+- ✅ Consistent branding across all automated messages
+- ✅ Maintains backward compatibility with existing functionality
+
+### Files Modified:
+- `app/runsheet/[week].tsx` - Enhanced handleMessageETA function with service-specific templates
+
+---
+
 ## 2025-01-29 - Fixed Round Order Manager Display Inconsistency
 
 ### Issue Resolved:

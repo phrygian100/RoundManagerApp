@@ -602,18 +602,34 @@ export default function RunsheetWeekScreen() {
     setActionSheetJob(null);
   };
 
+  // Helper function to convert service IDs to user-friendly display text
+  const getServiceTypeDisplay = (serviceId: string): string => {
+    const serviceMap: Record<string, string> = {
+      'window-cleaning': 'Window cleaning',
+      'Gutter cleaning': 'Gutter cleaning',
+      'Conservatory roof': 'Conservatory roof cleaning',
+      'Soffit and fascias': 'Soffit and fascias cleaning',
+      'One-off window cleaning': 'One-off window cleaning',
+    };
+    
+    return serviceMap[serviceId] || serviceId; // Return custom service names as-is
+  };
+
   const handleMessageETA = (job: (Job & { client: Client | null })) => {
     let mobileNumber: string | null = null;
     let name: string = '';
+    let address: string = '';
     
     if (isQuoteJob(job)) {
-      // For quote jobs, use the quote's number and name
+      // For quote jobs, use the quote's number, name, and address
       mobileNumber = (job as any).number;
       name = (job as any).name;
+      address = (job as any).address || '';
     } else {
-      // For regular jobs, use the client's mobile number and name
+      // For regular jobs, use the client's mobile number, name, and address
       mobileNumber = job.client?.mobileNumber || null;
       name = job.client?.name || '';
+      address = job.client?.address1 || job.client?.address || '';
     }
     
     if (!mobileNumber) {
@@ -623,10 +639,34 @@ export default function RunsheetWeekScreen() {
     
     const { eta: jobEta } = job;
     const etaText = jobEta 
-      ? `Roughly estimated time of arrival: \n${jobEta}` 
+      ? `Roughly estimated time of arrival:\n${jobEta}` 
       : 'We will be with you as soon as possible tomorrow.';
 
-    const template = `Hello ${name},\n\nCourtesy message to let you know window cleaning is due tomorrow.\n${etaText}\n\nMany thanks,`;
+    let template: string;
+    
+    if (isQuoteJob(job)) {
+      // Quote job template
+      template = `Hello ${name},
+
+Courtesy message to let you know we'll be over to quote tomorrow at ${address}.
+${etaText}
+if you can't be home and access is available around the property, we will leave you a written quote.
+
+Many thanks,
+Travis
+www.tgmwindowcleaning.co.uk`;
+    } else {
+      // Service job template
+      const serviceType = getServiceTypeDisplay(job.serviceId || 'Window cleaning');
+      template = `Hello ${name},
+
+Courtesy message to let you know ${serviceType} is due tomorrow at ${address}.
+${etaText}
+
+Many thanks,
+Travis
+www.tgmwindowcleaning.co.uk`;
+    }
 
     let smsUrl = '';
     if (Platform.OS === 'ios') {
