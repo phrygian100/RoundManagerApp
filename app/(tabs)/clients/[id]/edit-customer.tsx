@@ -7,6 +7,7 @@ import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, 
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
+import { formatAuditDescription, logAction } from '../../../../services/auditService';
 
 export default function EditCustomerScreen() {
   const { id } = useLocalSearchParams();
@@ -199,6 +200,14 @@ export default function EditCustomerScreen() {
         }
 
         await updateDoc(doc(db, 'clients', id), updateData);
+        
+        // Log the client edit action
+        await logAction(
+          'client_edited',
+          'client',
+          id,
+          formatAuditDescription('client_edited', name)
+        );
         
         // Regenerate jobs if service routine was updated
         if (frequency.trim() && nextVisit.trim()) {

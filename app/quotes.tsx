@@ -9,6 +9,7 @@ import { Button, Modal, Platform, Pressable, ScrollView, Text, TextInput, Toucha
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { formatAuditDescription, logAction } from '../services/auditService';
 
 type QuoteLine = {
   serviceType: string;
@@ -114,6 +115,15 @@ export default function QuotesScreen() {
     }
     // Save quote to Firestore
     const docRef = await addDoc(collection(db, 'quotes'), quoteData);
+    
+    // Log the quote creation action
+    await logAction(
+      'quote_created',
+      'quote',
+      docRef.id,
+      formatAuditDescription('quote_created', `${form.name} - ${form.address}`)
+    );
+    
     // Create a 'Quote' job on the runsheet for the selected date
     await addDoc(collection(db, 'jobs'), {
       ownerId,
@@ -140,8 +150,21 @@ export default function QuotesScreen() {
   };
 
   const handleDeleteQuote = async (id: string) => {
+    // Get quote data for audit logging
+    const quoteToDelete = quotes.find(q => q.id === id);
+    const quoteName = quoteToDelete ? `${quoteToDelete.name} - ${quoteToDelete.address}` : 'Unknown Quote';
+    
     // Delete the quote document
     await deleteDoc(doc(db, 'quotes', id));
+    
+    // Log the quote deletion action
+    await logAction(
+      'quote_deleted',
+      'quote',
+      id,
+      formatAuditDescription('quote_deleted', quoteName)
+    );
+    
     // Also delete any job with this quoteId
     const jobsRef = collection(db, 'jobs');
     const q = query(jobsRef, where('quoteId', '==', id));
@@ -173,6 +196,15 @@ export default function QuotesScreen() {
       notes: detailsModal.quote.notes || '', // Save the updated quote notes
       status: 'pending',
     });
+    
+    // Log the quote progression action
+    await logAction(
+      'quote_progressed',
+      'quote',
+      detailsModal.quote.id,
+      formatAuditDescription('quote_progressed', `${detailsModal.quote.name} - ${detailsModal.quote.address}`)
+    );
+    
     setDetailsModal({ visible: false, quote: null });
     setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after saving
     // Refresh quotes

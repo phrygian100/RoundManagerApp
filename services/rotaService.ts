@@ -45,6 +45,8 @@ export async function setAvailability(date: string, memberId: string, status: Av
   // Use setDoc merge to avoid overwriting others
   await setDoc(docRef, { [memberId]: status }, { merge: true });
   
+  // TODO: Add audit logging for rota changes (requires resolving circular dependency)
+  
   // Trigger capacity redistribution for future weeks when availability changes
   try {
     const changeDate = parseISO(date);

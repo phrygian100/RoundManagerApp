@@ -10,6 +10,7 @@ import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { formatAuditDescription, logAction } from '../services/auditService';
 import { createJobsForClient } from '../services/jobService';
 
 function getOrdinal(n: number) {
@@ -296,6 +297,14 @@ export default function AddClientScreen() {
       });
 
       console.log('Client created with ID:', clientRef.id);
+
+      // Log the client creation action
+      await logAction(
+        'client_created',
+        'client',
+        clientRef.id,
+        formatAuditDescription('client_created', name)
+      );
 
       // Create jobs for the new client (only for recurring clients, not one-off)
       if (frequencyValue !== 'one-off') {

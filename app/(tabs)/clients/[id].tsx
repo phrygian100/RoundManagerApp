@@ -12,6 +12,7 @@ import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../../core/session';
+import { formatAuditDescription, logAction } from '../../../services/auditService';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
@@ -265,6 +266,15 @@ export default function ClientDetailScreen() {
                 }
                 
                 await archiveBatch.commit();
+                
+                // Log the client archiving action
+                await logAction(
+                  'client_archived',
+                  'client',
+                  id,
+                  formatAuditDescription('client_archived', clientToArchive?.name)
+                );
+                
                 // Delete all jobs for this client that are scheduled for today or in the future and not completed
                 const jobsRef = collection(db, 'jobs');
                 const today = new Date();

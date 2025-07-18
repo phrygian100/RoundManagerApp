@@ -82,12 +82,14 @@ export default function HomeScreen() {
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
+      { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
       { label: 'Settings', path: '/settings', permKey: null },
       { label: 'Quotes', path: '/quotes', permKey: null },
     ];
 
     const allowed = baseButtons.filter((btn) => {
       if (!btn.permKey) return true; // Settings always available
+      if (btn.permKey === 'isOwner') return isOwner; // Owner-only features
       if (isOwner) return true; // Owner sees all
       return !!perms[btn.permKey];
     });
@@ -149,11 +151,16 @@ export default function HomeScreen() {
           { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
+          { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
           { label: 'Settings', path: '/settings', permKey: null },
           { label: 'Quotes', path: '/quotes', permKey: null },
         ];
 
-        const allowed = buttonDefs.filter(b => !b.permKey || isOwner || !!perms[b.permKey]);
+        const allowed = buttonDefs.filter(b => {
+          if (!b.permKey) return true;
+          if (b.permKey === 'isOwner') return isOwner;
+          return isOwner || !!perms[b.permKey];
+        });
         setButtons(
           allowed.map(b => ({ label: b.label, onPress: () => handleNavigation(b.path as any) }))
         );
