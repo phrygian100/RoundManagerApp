@@ -80,12 +80,13 @@ export default function HomeScreen() {
       }
 
       // Use real OpenWeatherMap API
-      if (OPENWEATHER_API_KEY) {
+      const API_KEY = OPENWEATHER_API_KEY || '6b74e8db380dbcdf9778b678b1a5f9fd'; // Temporary fallback
+      if (API_KEY && API_KEY !== '') {
         try {
           const location = address.postcode || address.town;
           console.log(`Fetching weather for: ${location}`);
           const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
+            `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${API_KEY}&units=metric`
           );
           
           if (response.ok) {
