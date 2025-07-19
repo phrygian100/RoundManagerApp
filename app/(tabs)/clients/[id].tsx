@@ -210,9 +210,13 @@ export default function ClientDetailScreen() {
   const performArchive = async () => {
     if (typeof id === 'string') {
       try {
+        console.log('🗂️ Starting archive process for client:', id);
+        
         // First, verify the user has proper permissions
+        console.log('🗂️ Getting user session...');
         const session = await getUserSession();
         if (!session) {
+          console.log('🗂️ No session found');
           if (Platform.OS === 'web') {
             window.alert('Could not verify your permissions. Please log out and log back in.');
           } else {
@@ -221,7 +225,7 @@ export default function ClientDetailScreen() {
           return;
         }
         
-        console.log('Archive attempt by user:', {
+        console.log('🗂️ Archive attempt by user:', {
           uid: session.uid,
           accountId: session.accountId,
           isOwner: session.isOwner,
@@ -230,6 +234,7 @@ export default function ClientDetailScreen() {
         
         // Check if member has viewClients permission
         if (!session.isOwner && !session.perms.viewClients) {
+          console.log('🗂️ Permission denied - user lacks viewClients permission');
           if (Platform.OS === 'web') {
             window.alert('You do not have permission to archive clients.');
           } else {
@@ -238,11 +243,15 @@ export default function ClientDetailScreen() {
           return;
         }
         
+        console.log('🗂️ Permissions verified, proceeding with archive...');
+        
         // Get the round order number of the client being archived
         const clientToArchive = client;
         const archivedPosition = clientToArchive?.roundOrderNumber;
+        console.log('🗂️ Client to archive:', { name: clientToArchive?.name, roundOrderNumber: archivedPosition });
         
         // Use a batch for atomic updates
+        console.log('🗂️ Creating batch for client archive...');
         const archiveBatch = writeBatch(db);
         
         // Archive the client
@@ -251,16 +260,22 @@ export default function ClientDetailScreen() {
           status: 'ex-client',
           roundOrderNumber: null
         });
+        console.log('🗂️ Added client update to batch');
         
         // Only decrement clients with round order numbers greater than the archived client
         if (archivedPosition) {
+          console.log('🗂️ Getting owner ID for round order updates...');
           const ownerId = await getDataOwnerId();
+          console.log('🗂️ Owner ID:', ownerId);
+          
           const clientsQuery = query(
             collection(db, 'clients'),
             where('ownerId', '==', ownerId),
             where('roundOrderNumber', '>', archivedPosition)
           );
+          console.log('🗂️ Querying clients with round order > ', archivedPosition);
           const clientsSnapshot = await getDocs(clientsQuery);
+          console.log('🗂️ Found', clientsSnapshot.size, 'clients to update round order');
           
           clientsSnapshot.docs.forEach(docSnap => {
             const clientData = docSnap.data();
@@ -271,19 +286,25 @@ export default function ClientDetailScreen() {
               });
             }
           });
+          console.log('🗂️ Added round order updates to batch');
         }
         
+        console.log('🗂️ Committing client archive batch...');
         await archiveBatch.commit();
+        console.log('🗂️ Client archive batch committed successfully');
         
         // Log the client archiving action
+        console.log('🗂️ Logging archive action...');
         await logAction(
           'client_archived',
           'client',
           id,
           formatAuditDescription('client_archived', clientToArchive?.name)
         );
+        console.log('🗂️ Archive action logged successfully');
         
         // Delete all jobs for this client that are scheduled for today or in the future and not completed
+        console.log('🗂️ Deleting future jobs for client...');
         const jobsRef = collection(db, 'jobs');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -293,21 +314,35 @@ export default function ClientDetailScreen() {
           where('status', '!=', 'completed')
         );
         const jobsSnapshot = await getDocs(jobsQuery);
+        console.log('🗂️ Found', jobsSnapshot.size, 'uncompleted jobs to potentially delete');
+        
         const batch = writeBatch(db);
+        let jobsToDelete = 0;
         jobsSnapshot.forEach(jobDoc => {
           const jobData = jobDoc.data();
           if (jobData.scheduledTime) {
             const jobDate = new Date(jobData.scheduledTime);
             jobDate.setHours(0, 0, 0, 0);
             if (jobDate >= today) {
-          batch.delete(jobDoc.ref);
+              batch.delete(jobDoc.ref);
+              jobsToDelete++;
             }
           }
         });
+        console.log('🗂️ Deleting', jobsToDelete, 'future jobs');
         await batch.commit();
+        console.log('🗂️ Job deletion batch committed successfully');
+        
+        console.log('🗂️ Archive process completed, navigating to clients list');
         router.replace('/clients');
       } catch (error: any) {
         console.error('Error archiving client:', error);
+        console.error('Error details:', {
+          code: error?.code,
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name
+        });
         
         // Provide more specific error messages with platform-specific alerts
         if (error?.code === 'permission-denied') {
@@ -325,10 +360,12 @@ export default function ClientDetailScreen() {
             Alert.alert('Permission Error', message);
           }
         } else {
+          // For debugging: show the actual error message temporarily
+          const debugMessage = `Failed to archive client: ${error?.message || error?.code || 'Unknown error'}. Check console for details.`;
           if (Platform.OS === 'web') {
-            window.alert('Failed to archive client. Please try again.');
+            window.alert(debugMessage);
           } else {
-            Alert.alert('Error', 'Failed to archive client. Please try again.');
+            Alert.alert('Error', debugMessage);
           }
         }
       }
