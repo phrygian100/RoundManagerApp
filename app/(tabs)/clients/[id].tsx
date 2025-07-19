@@ -207,129 +207,155 @@ export default function ClientDetailScreen() {
     }, [fetchClient])
   );
 
-  const handleDelete = () => {
-    Alert.alert(
-      'Archive Client',
-      'This will mark the client as an ex-client and they will be moved to the ex-client list. Are you sure?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          style: 'destructive',
-          onPress: async () => {
-            if (typeof id === 'string') {
-              try {
-                // First, verify the user has proper permissions
-                const session = await getUserSession();
-                if (!session) {
-                  Alert.alert('Error', 'Could not verify your permissions. Please log out and log back in.');
-                  return;
-                }
-                
-                console.log('Archive attempt by user:', {
-                  uid: session.uid,
-                  accountId: session.accountId,
-                  isOwner: session.isOwner,
-                  perms: session.perms
-                });
-                
-                // Check if member has viewClients permission
-                if (!session.isOwner && !session.perms.viewClients) {
-                  Alert.alert('Error', 'You do not have permission to archive clients.');
-                  return;
-                }
-                
-                // Get the round order number of the client being archived
-                const clientToArchive = client;
-                const archivedPosition = clientToArchive?.roundOrderNumber;
-                
-                // Use a batch for atomic updates
-                const archiveBatch = writeBatch(db);
-                
-                // Archive the client
-                const clientRef = doc(db, 'clients', id);
-                archiveBatch.update(clientRef, {
-                  status: 'ex-client',
-                  roundOrderNumber: null
-                });
-                
-                // Only decrement clients with round order numbers greater than the archived client
-                if (archivedPosition) {
-                  const ownerId = await getDataOwnerId();
-                  const clientsQuery = query(
-                    collection(db, 'clients'),
-                    where('ownerId', '==', ownerId),
-                    where('roundOrderNumber', '>', archivedPosition)
-                  );
-                  const clientsSnapshot = await getDocs(clientsQuery);
-                  
-                  clientsSnapshot.docs.forEach(docSnap => {
-                    const clientData = docSnap.data();
-                    if (clientData.status !== 'ex-client') {
-                      const clientUpdateRef = doc(db, 'clients', docSnap.id);
-                      archiveBatch.update(clientUpdateRef, { 
-                        roundOrderNumber: clientData.roundOrderNumber - 1 
-                      });
-                    }
-                  });
-                }
-                
-                await archiveBatch.commit();
-                
-                // Log the client archiving action
-                await logAction(
-                  'client_archived',
-                  'client',
-                  id,
-                  formatAuditDescription('client_archived', clientToArchive?.name)
-                );
-                
-                // Delete all jobs for this client that are scheduled for today or in the future and not completed
-                const jobsRef = collection(db, 'jobs');
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const jobsQuery = query(
-                  jobsRef, 
-                  where('clientId', '==', id),
-                  where('status', '!=', 'completed')
-                );
-                const jobsSnapshot = await getDocs(jobsQuery);
-                const batch = writeBatch(db);
-                jobsSnapshot.forEach(jobDoc => {
-                  const jobData = jobDoc.data();
-                  if (jobData.scheduledTime) {
-                    const jobDate = new Date(jobData.scheduledTime);
-                    jobDate.setHours(0, 0, 0, 0);
-                    if (jobDate >= today) {
-                  batch.delete(jobDoc.ref);
-                    }
-                  }
-                });
-                await batch.commit();
-                router.replace('/clients');
-              } catch (error: any) {
-                console.error('Error archiving client:', error);
-                
-                // Provide more specific error messages
-                if (error?.code === 'permission-denied') {
-                  Alert.alert(
-                    'Permission Denied', 
-                    'You do not have permission to archive this client. Please ensure you are properly logged in and have the necessary permissions. Try logging out and back in.'
-                  );
-                } else if (error?.message?.includes('Missing or insufficient permissions')) {
-                  Alert.alert(
-                    'Permission Error', 
-                    'Your account permissions may need to be refreshed. Please go to Settings and tap "Refresh Account", or log out and log back in.'
-                  );
-                } else {
-                  Alert.alert('Error', 'Failed to archive client. Please try again.');
-                }
-              }
+  const performArchive = async () => {
+    if (typeof id === 'string') {
+      try {
+        // First, verify the user has proper permissions
+        const session = await getUserSession();
+        if (!session) {
+          if (Platform.OS === 'web') {
+            window.alert('Could not verify your permissions. Please log out and log back in.');
+          } else {
+            Alert.alert('Error', 'Could not verify your permissions. Please log out and log back in.');
+          }
+          return;
+        }
+        
+        console.log('Archive attempt by user:', {
+          uid: session.uid,
+          accountId: session.accountId,
+          isOwner: session.isOwner,
+          perms: session.perms
+        });
+        
+        // Check if member has viewClients permission
+        if (!session.isOwner && !session.perms.viewClients) {
+          if (Platform.OS === 'web') {
+            window.alert('You do not have permission to archive clients.');
+          } else {
+            Alert.alert('Error', 'You do not have permission to archive clients.');
+          }
+          return;
+        }
+        
+        // Get the round order number of the client being archived
+        const clientToArchive = client;
+        const archivedPosition = clientToArchive?.roundOrderNumber;
+        
+        // Use a batch for atomic updates
+        const archiveBatch = writeBatch(db);
+        
+        // Archive the client
+        const clientRef = doc(db, 'clients', id);
+        archiveBatch.update(clientRef, {
+          status: 'ex-client',
+          roundOrderNumber: null
+        });
+        
+        // Only decrement clients with round order numbers greater than the archived client
+        if (archivedPosition) {
+          const ownerId = await getDataOwnerId();
+          const clientsQuery = query(
+            collection(db, 'clients'),
+            where('ownerId', '==', ownerId),
+            where('roundOrderNumber', '>', archivedPosition)
+          );
+          const clientsSnapshot = await getDocs(clientsQuery);
+          
+          clientsSnapshot.docs.forEach(docSnap => {
+            const clientData = docSnap.data();
+            if (clientData.status !== 'ex-client') {
+              const clientUpdateRef = doc(db, 'clients', docSnap.id);
+              archiveBatch.update(clientUpdateRef, { 
+                roundOrderNumber: clientData.roundOrderNumber - 1 
+              });
             }
+          });
+        }
+        
+        await archiveBatch.commit();
+        
+        // Log the client archiving action
+        await logAction(
+          'client_archived',
+          'client',
+          id,
+          formatAuditDescription('client_archived', clientToArchive?.name)
+        );
+        
+        // Delete all jobs for this client that are scheduled for today or in the future and not completed
+        const jobsRef = collection(db, 'jobs');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const jobsQuery = query(
+          jobsRef, 
+          where('clientId', '==', id),
+          where('status', '!=', 'completed')
+        );
+        const jobsSnapshot = await getDocs(jobsQuery);
+        const batch = writeBatch(db);
+        jobsSnapshot.forEach(jobDoc => {
+          const jobData = jobDoc.data();
+          if (jobData.scheduledTime) {
+            const jobDate = new Date(jobData.scheduledTime);
+            jobDate.setHours(0, 0, 0, 0);
+            if (jobDate >= today) {
+          batch.delete(jobDoc.ref);
+            }
+          }
+        });
+        await batch.commit();
+        router.replace('/clients');
+      } catch (error: any) {
+        console.error('Error archiving client:', error);
+        
+        // Provide more specific error messages with platform-specific alerts
+        if (error?.code === 'permission-denied') {
+          const message = 'You do not have permission to archive this client. Please ensure you are properly logged in and have the necessary permissions. Try logging out and back in.';
+          if (Platform.OS === 'web') {
+            window.alert(message);
+          } else {
+            Alert.alert('Permission Denied', message);
+          }
+        } else if (error?.message?.includes('Missing or insufficient permissions')) {
+          const message = 'Your account permissions may need to be refreshed. Please go to Settings and tap "Refresh Account", or log out and log back in.';
+          if (Platform.OS === 'web') {
+            window.alert(message);
+          } else {
+            Alert.alert('Permission Error', message);
+          }
+        } else {
+          if (Platform.OS === 'web') {
+            window.alert('Failed to archive client. Please try again.');
+          } else {
+            Alert.alert('Error', 'Failed to archive client. Please try again.');
+          }
+        }
+      }
+    }
+  };
+
+  const handleDelete = () => {
+    const confirmationMessage = 'This will mark the client as an ex-client and they will be moved to the ex-client list. Are you sure?';
+    
+    if (Platform.OS === 'web') {
+      if (window.confirm(confirmationMessage)) {
+        performArchive();
+      }
+    } else {
+      Alert.alert(
+        'Archive Client',
+        confirmationMessage,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Archive',
+            style: 'destructive',
+            onPress: performArchive,
           },
-        },
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleEditDetails = () => {
