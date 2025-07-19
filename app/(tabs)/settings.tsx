@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -15,6 +15,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments } from '../../services/paymentService';
+import { getUserProfile, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -85,8 +86,85 @@ export default function SettingsScreen() {
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
 
+  // Profile edit modal state
+  const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: '',
+    address1: '',
+    town: '',
+    postcode: '',
+    contactNumber: ''
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
+
+  // Load user profile data for editing
+  const loadUserProfile = async () => {
+    try {
+      const session = await getUserSession();
+      if (session?.uid) {
+        const userProfile = await getUserProfile(session.uid);
+        if (userProfile) {
+          setProfileForm({
+            name: userProfile.name || '',
+            address1: userProfile.address1 || '',
+            town: userProfile.town || '',
+            postcode: userProfile.postcode || '',
+            contactNumber: userProfile.phone || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
+
+  // Save profile changes
+  const handleSaveProfile = async () => {
+    if (!profileForm.name.trim()) {
+      Alert.alert('Error', 'Name is required.');
+      return;
+    }
+
+    setSavingProfile(true);
+    try {
+      const session = await getUserSession();
+      if (!session?.uid) {
+        Alert.alert('Error', 'User session not found.');
+        return;
+      }
+
+      const updateData: any = {
+        name: profileForm.name.trim(),
+        phone: profileForm.contactNumber.trim(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Add address fields if provided
+      if (profileForm.address1.trim()) updateData.address1 = profileForm.address1.trim();
+      if (profileForm.town.trim()) updateData.town = profileForm.town.trim();
+      if (profileForm.postcode.trim()) updateData.postcode = profileForm.postcode.trim();
+
+      // Create combined address for backward compatibility
+      if (profileForm.address1.trim() || profileForm.town.trim() || profileForm.postcode.trim()) {
+        updateData.address = [profileForm.address1.trim(), profileForm.town.trim(), profileForm.postcode.trim()]
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      await updateUserProfile(session.uid, updateData);
+      
+      Alert.alert('Success', 'Profile updated successfully!');
+      setProfileModalVisible(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   // Determine if current user is owner and if they're a member of another account
   useEffect(() => {
@@ -1610,8 +1688,6 @@ export default function SettingsScreen() {
     }
   };
 
-
-
   // Refresh capacity for current week
   const handleRefreshCapacityForCurrentWeek = async () => {
     setIsRefreshingCapacity(true);
@@ -1697,6 +1773,16 @@ export default function SettingsScreen() {
         />
       </View>
 
+      <View style={styles.buttonContainer}>
+        <StyledButton 
+          title="Edit Profile" 
+          onPress={() => {
+            loadUserProfile();
+            setProfileModalVisible(true);
+          }} 
+        />
+      </View>
+
       {/* Only show Team Members button for owners (not members of other accounts) */}
       {isOwner && !isMemberOfAnotherAccount && (
         <View style={styles.buttonContainer}>
@@ -1724,6 +1810,62 @@ export default function SettingsScreen() {
           <StyledButton title="Leave Team" color="red" onPress={handleLeaveTeam} />
         </View>
       )}
+
+      {/* Profile Edit Modal */}
+      <Modal
+        visible={profileModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setProfileModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <ThemedText type="title" style={styles.modalTitle}>Edit Profile</ThemedText>
+            <TextInput
+              style={styles.input}
+              placeholder="Name"
+              value={profileForm.name}
+              onChangeText={(text) => setProfileForm({ ...profileForm, name: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Address Line 1"
+              value={profileForm.address1}
+              onChangeText={(text) => setProfileForm({ ...profileForm, address1: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Town"
+              value={profileForm.town}
+              onChangeText={(text) => setProfileForm({ ...profileForm, town: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Postcode"
+              value={profileForm.postcode}
+              onChangeText={(text) => setProfileForm({ ...profileForm, postcode: text })}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Contact Number"
+              value={profileForm.contactNumber}
+              onChangeText={(text) => setProfileForm({ ...profileForm, contactNumber: text })}
+            />
+            <View style={styles.modalButtons}>
+              <StyledButton
+                title={savingProfile ? 'Saving...' : 'Save Changes'}
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+              />
+              <StyledButton
+                title="Cancel"
+                onPress={() => setProfileModalVisible(false)}
+                color="red"
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -1758,5 +1900,38 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  input: {
+    width: '100%',
+    height: 50,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    marginBottom: 15,
+    fontSize: 16,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginTop: 20,
   },
 }); 

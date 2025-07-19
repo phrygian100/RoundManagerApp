@@ -5,6 +5,45 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - User Profile Edit Modal in Settings ✅
+
+### Summary
+Added a comprehensive user profile edit modal in the settings screen allowing users to update their personal information including name, address details, and contact number.
+
+### Changes Made:
+
+**1. Profile Edit Modal UI**:
+- Added modal with form fields for name, address1, town, postcode, and contact number
+- Implemented consistent modal styling following existing codebase patterns
+- Added proper form validation requiring name field
+
+**2. State Management Enhancement**:
+- Added `profileModalVisible` state for modal visibility control
+- Added `profileForm` state object to manage form data
+- Added `savingProfile` state for loading state management during save operations
+
+**3. Data Loading & Saving**:
+- Created `loadUserProfile()` function to fetch current user data from Firestore
+- Implemented `handleSaveProfile()` function with proper validation and error handling
+- Added automatic address field cleanup and legacy address generation for backward compatibility
+- Integrated with existing `updateUserProfile()` service function
+
+**4. User Experience Improvements**:
+- Added "Edit Profile" button prominently placed in settings screen
+- Profile data is automatically loaded when modal opens
+- Success/error alerts provide clear feedback to users
+- Modal can be canceled without saving changes
+
+### Technical Details:
+- **Cross-platform compatible**: Works on both mobile and web platforms
+- **Data consistency**: Maintains structured address fields while providing legacy combined address
+- **Non-destructive**: Only updates fields that have values, preserves existing user data
+- **Security**: Uses existing userService validation and Firestore security rules
+
+**Files modified**: `app/(tabs)/settings.tsx`
+
+---
+
 ## 2025-01-31 - Optional Address Fields in User Registration ✅
 
 ### Summary
