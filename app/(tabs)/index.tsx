@@ -83,25 +83,53 @@ export default function HomeScreen() {
       const API_KEY = OPENWEATHER_API_KEY || '6b74e8db380dbcdf9778b678b1a5f9fd'; // Temporary fallback
       if (API_KEY && API_KEY !== '') {
         try {
-          const location = address.postcode || address.town;
-          console.log(`Fetching weather for: ${location}`);
-          const response = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${API_KEY}&units=metric`
-          );
+          // Try multiple location formats for better results
+          const locations = [];
+          if (address.town) {
+            locations.push(address.town + ',UK');
+            locations.push(address.town);
+          }
+          if (address.postcode) {
+            locations.push(address.postcode + ',UK');
+            locations.push(address.postcode);
+          }
           
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Weather data received from API');
+          let weatherData = null;
+          let lastError = null;
+          
+          // Try each location format until one works
+          for (const location of locations) {
+            try {
+              console.log(`Trying weather for: ${location}`);
+              const response = await fetch(
+                `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`
+              );
+              
+              if (response.ok) {
+                weatherData = await response.json();
+                console.log(`Weather data received for: ${location}`);
+                break;
+              } else {
+                console.log(`Failed for ${location}: ${response.status}`);
+                lastError = `${response.status} ${response.statusText}`;
+              }
+            } catch (err) {
+              console.log(`Error for ${location}:`, err);
+              lastError = err;
+            }
+          }
+          
+          if (weatherData) {
             setWeather({
-              temp: Math.round(data.main.temp),
-              condition: data.weather[0].main,
-              icon: getWeatherEmoji(data.weather[0].main),
+              temp: Math.round(weatherData.main.temp),
+              condition: weatherData.weather[0].main,
+              icon: getWeatherEmoji(weatherData.weather[0].main),
               lastFetched: Date.now()
             });
             setWeatherLoading(false);
             return;
           } else {
-            console.warn('OpenWeatherMap API error:', response.status, response.statusText);
+            console.warn('All location formats failed. Last error:', lastError);
           }
         } catch (apiError) {
           console.error('OpenWeatherMap API request failed:', apiError);
