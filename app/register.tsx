@@ -14,6 +14,9 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [address1, setAddress1] = useState('');
+  const [town, setTown] = useState('');
+  const [postcode, setPostcode] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
@@ -36,13 +39,27 @@ export default function RegisterScreen() {
       await sendEmailVerification(user);
 
       // Create a user document in Firestore
-      await setDoc(doc(db, 'users', user.uid), {
+      const userData: any = {
         id: user.uid,
         email: user.email,
         name: name.trim(),
         contactNumber: contactNumber.trim(),
         createdAt: new Date().toISOString(),
-      });
+      };
+
+      // Add address fields if provided
+      if (address1.trim()) userData.address1 = address1.trim();
+      if (town.trim()) userData.town = town.trim();
+      if (postcode.trim()) userData.postcode = postcode.trim();
+
+      // Create combined address for backward compatibility
+      if (address1.trim() || town.trim() || postcode.trim()) {
+        userData.address = [address1.trim(), town.trim(), postcode.trim()]
+          .filter(Boolean)
+          .join(', ');
+      }
+
+      await setDoc(doc(db, 'users', user.uid), userData);
 
       // Immediately sign the user out so they cannot access the app until
       // their email is verified. This prevents unverified accounts from
@@ -89,6 +106,30 @@ export default function RegisterScreen() {
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
+        placeholderTextColor="#999"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Address Line 1 (Optional)"
+        value={address1}
+        onChangeText={setAddress1}
+        autoCapitalize="words"
+        placeholderTextColor="#999"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Town (Optional)"
+        value={town}
+        onChangeText={setTown}
+        autoCapitalize="words"
+        placeholderTextColor="#999"
+      />
+      <TextInput
+        style={styles.input}
+        placeholder="Postcode (Optional)"
+        value={postcode}
+        onChangeText={setPostcode}
+        autoCapitalize="characters"
         placeholderTextColor="#999"
       />
       <TextInput

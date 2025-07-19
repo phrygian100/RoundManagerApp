@@ -4,7 +4,10 @@ export type User = {
   email: string;
   phone: string;
   role: 'client' | 'provider';
-  address?: string; // for clients
+  address?: string; // legacy field for backward compatibility
+  address1?: string; // street address
+  town?: string;
+  postcode?: string;
   servicesOffered?: string[]; // for providers
   availability?: string[]; // for providers, e.g., ["Mon AM", "Tue PM"]
   rating?: number; // average rating for providers

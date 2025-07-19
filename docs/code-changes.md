@@ -5,6 +5,40 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Optional Address Fields in User Registration ✅
+
+### Summary
+Added optional address collection during user registration to gather structured address information (address1, town, postcode) following the same pattern used for client addresses.
+
+### Changes Made:
+
+**1. User Type Enhancement**:
+- Updated `types/models.ts` User type to include optional structured address fields
+- Added `address1?`, `town?`, `postcode?` fields
+- Maintained legacy `address?` field for backward compatibility
+
+**2. Registration Form Updates**:
+- Added three optional address input fields to `app/register.tsx`
+- Fields appear between email and password for logical flow
+- Clear "(Optional)" labels to indicate non-required status
+- Proper keyboard types and capitalization settings
+
+**3. Data Storage Enhancement**:
+- Updated Firestore user document creation to conditionally include address fields
+- Only stores fields that have values to keep data clean
+- Automatically creates combined address string for backward compatibility
+- No breaking changes to existing user documents
+
+### Technical Details:
+- **Non-disruptive**: Existing users and flows completely unaffected
+- **Platform compatible**: Works on both mobile and web using standard React Native components
+- **Validation**: No validation required since fields are optional
+- **Data consistency**: Follows established client address pattern for UI/UX consistency
+
+**Files modified**: `types/models.ts`, `app/register.tsx`
+
+---
+
 ## 2025-01-29 - Enhanced Message ETA Feature with Service-Specific Templates
 
 ### Summary
