@@ -5,6 +5,49 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Dashboard Modernization with Weather Widget and Job Statistics ✅
+
+### Summary
+Transformed the main dashboard from a simple button grid to an informative dashboard with real-time widgets. Added settings gear icon to header, weather information using user address data, and today's job completion tracking with visual progress indicators.
+
+### Changes Made:
+
+**1. Settings Button UI Improvement**:
+- Moved settings from main button grid to gear icon in top-left header
+- Improved navigation UX following standard dashboard patterns
+- Added dedicated header section with clean styling
+
+**2. Weather Widget Implementation**:
+- Created weather widget using user's registered address (postcode/town)
+- Added support for OpenWeatherMap API integration (with mock data for demo)
+- Displays temperature, weather condition, and emoji icons
+- Eliminates need for location permissions by using existing user data
+- Graceful fallback when address data unavailable
+
+**3. Job Statistics Dashboard**:
+- Added real-time today's job count and completion rate tracking
+- Visual progress bar showing completion percentage
+- Queries Firestore for current day's scheduled jobs
+- Distinguishes between completed and pending jobs
+- Updates automatically when screen gains focus
+
+**4. Layout & Design Enhancements**:
+- Restructured dashboard with header, stats section, and button grid
+- Added consistent styling with rounded containers and proper spacing
+- Improved visual hierarchy and information density
+- Maintains cross-platform compatibility (mobile/web)
+
+### Technical Details:
+- **Data Sources**: User address from Firestore users collection, jobs from jobs collection
+- **Weather API**: Configured for OpenWeatherMap (requires API key for production)
+- **Real-time Updates**: Job stats refresh on screen focus for live data
+- **Performance**: Efficient queries with proper filtering and caching
+- **Error Handling**: Graceful degradation when data unavailable
+
+**Files modified**: `app/(tabs)/index.tsx`
+
+---
+
 ## 2025-01-31 - User Profile Edit Modal in Settings ✅
 
 ### Summary

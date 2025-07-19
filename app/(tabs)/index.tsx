@@ -1,12 +1,12 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import { auth, db } from '../../core/firebase';
-import { getUserSession } from '../../core/session';
+import { getDataOwnerId, getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -20,6 +20,152 @@ export default function HomeScreen() {
   const [navigationInProgress, setNavigationInProgress] = useState(false);
   const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(false);
   const [checkingFirstTime, setCheckingFirstTime] = useState(true);
+  
+  // Weather widget state
+  const [weather, setWeather] = useState<{
+    temp: number;
+    condition: string;
+    icon: string;
+  } | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+  
+  // Job stats state
+  const [jobStats, setJobStats] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  const [jobStatsLoading, setJobStatsLoading] = useState(true);
+
+  // Fetch user address for weather
+  const fetchUserAddress = async () => {
+    try {
+      const session = await getUserSession();
+      if (session?.uid) {
+        const userDoc = await getDoc(doc(db, 'users', session.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          return {
+            postcode: userData.postcode,
+            town: userData.town,
+            address1: userData.address1
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user address:', error);
+    }
+    return null;
+  };
+
+  // Fetch weather data using OpenWeatherMap API
+  const fetchWeather = async () => {
+    try {
+      setWeatherLoading(true);
+      const address = await fetchUserAddress();
+      
+      if (!address || (!address.postcode && !address.town)) {
+        setWeather(null);
+        setWeatherLoading(false);
+        return;
+      }
+
+      // TODO: Add real OpenWeatherMap API key to config
+      // For demo purposes, using mock weather data
+      const mockWeatherData = {
+        temp: Math.floor(Math.random() * 15) + 10, // 10-25°C
+        condition: ['Clear', 'Clouds', 'Rain'][Math.floor(Math.random() * 3)]
+      };
+
+      setWeather({
+        temp: mockWeatherData.temp,
+        condition: mockWeatherData.condition,
+        icon: getWeatherEmoji(mockWeatherData.condition)
+      });
+
+      /* Real API implementation (requires API key):
+      const location = address.postcode || address.town;
+      const API_KEY = 'YOUR_OPENWEATHER_API_KEY'; // Add to config
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${API_KEY}&units=metric`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setWeather({
+          temp: Math.round(data.main.temp),
+          condition: data.weather[0].main,
+          icon: getWeatherEmoji(data.weather[0].main)
+        });
+      } else {
+        setWeather(null);
+      }
+      */
+    } catch (error) {
+      console.error('Error fetching weather:', error);
+      setWeather(null);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
+  // Simple weather icon mapping
+  const getWeatherEmoji = (condition: string) => {
+    switch (condition.toLowerCase()) {
+      case 'clear': return '☀️';
+      case 'clouds': return '☁️';
+      case 'rain': return '🌧️';
+      case 'drizzle': return '🌦️';
+      case 'thunderstorm': return '⛈️';
+      case 'snow': return '❄️';
+      case 'mist':
+      case 'fog': return '🌫️';
+      default: return '🌤️';
+    }
+  };
+
+  // Fetch today's job statistics
+  const fetchJobStats = async () => {
+    try {
+      setJobStatsLoading(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        setJobStats(null);
+        setJobStatsLoading(false);
+        return;
+      }
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayStr = today.toISOString().split('T')[0];
+
+      const jobsQuery = query(
+        collection(db, 'jobs'),
+        where('ownerId', '==', ownerId)
+      );
+      
+      const querySnapshot = await getDocs(jobsQuery);
+      
+      const todayJobs = querySnapshot.docs
+        .map(doc => doc.data())
+        .filter(job => {
+          if (!job.scheduledTime) return false;
+          const jobDate = job.scheduledTime.split('T')[0];
+          return jobDate === todayStr;
+        });
+
+      const completedJobs = todayJobs.filter(job => job.status === 'completed');
+      
+      setJobStats({
+        completed: completedJobs.length,
+        total: todayJobs.length
+      });
+    } catch (error) {
+      console.error('Error fetching job stats:', error);
+      setJobStats(null);
+    } finally {
+      setJobStatsLoading(false);
+    }
+  };
 
   const handleNavigation = (path: string) => {
     if (navigationInProgress) return;
@@ -83,12 +229,11 @@ export default function HomeScreen() {
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
       { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
-      { label: 'Settings', path: '/settings', permKey: null },
       { label: 'Quotes', path: '/quotes', permKey: null },
     ];
 
     const allowed = baseButtons.filter((btn) => {
-      if (!btn.permKey) return true; // Settings always available
+      if (!btn.permKey) return true; // Always available
       if (btn.permKey === 'isOwner') return isOwner; // Owner-only features
       if (isOwner) return true; // Owner sees all
       return !!perms[btn.permKey];
@@ -101,6 +246,11 @@ export default function HomeScreen() {
         disabled: false,
       }))
     );
+    
+    // Fetch dashboard data
+    fetchWeather();
+    fetchJobStats();
+    
     setLoading(false);
   };
 
@@ -164,6 +314,11 @@ export default function HomeScreen() {
         setButtons(
           allowed.map(b => ({ label: b.label, onPress: () => handleNavigation(b.path as any) }))
         );
+        
+        // Fetch dashboard data when screen gains focus
+        fetchWeather();
+        fetchJobStats();
+        
         setLoading(false);
       })();
     }, [router])
@@ -192,20 +347,74 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {rows.map((row, rowIndex) => (
-        <View key={rowIndex} style={styles.row}>
-          {row.map((btn, idx) => (
-            <Pressable
-              key={idx}
-              style={[styles.button, btn.disabled && styles.buttonDisabled]}
-              onPress={btn.onPress}
-              disabled={btn.disabled}
-            >
-              <Text style={styles.buttonText}>{btn.label}</Text>
-            </Pressable>
-          ))}
+      {/* Header with settings gear icon */}
+      <View style={styles.header}>
+        <Pressable style={styles.settingsButton} onPress={() => handleNavigation('/settings')}>
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </Pressable>
+        <View style={styles.headerContent}>
+          {/* Weather widget */}
+          {weatherLoading ? (
+            <Text style={styles.weatherPlaceholder}>Weather loading...</Text>
+          ) : weather ? (
+            <View style={styles.weatherWidget}>
+              <Text style={styles.weatherIcon}>{weather.icon}</Text>
+              <Text style={styles.weatherText}>{weather.temp}°C {weather.condition}</Text>
+            </View>
+          ) : (
+            <Text style={styles.weatherPlaceholder}>Weather unavailable</Text>
+          )}
         </View>
-      ))}
+      </View>
+
+      {/* Dashboard stats section */}
+      <View style={styles.statsSection}>
+        {jobStatsLoading ? (
+          <Text style={styles.statsPlaceholder}>Job stats loading...</Text>
+        ) : jobStats ? (
+          <View style={styles.jobStatsWidget}>
+            <Text style={styles.jobStatsText}>
+              Today's Progress: {jobStats.completed}/{jobStats.total} jobs completed
+            </Text>
+            {jobStats.total > 0 && (
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill, 
+                    { width: `${Math.round((jobStats.completed / jobStats.total) * 100)}%` }
+                  ]} 
+                />
+              </View>
+            )}
+            {jobStats.total > 0 && (
+              <Text style={styles.progressPercentage}>
+                {Math.round((jobStats.completed / jobStats.total) * 100)}% complete
+              </Text>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.statsPlaceholder}>No jobs scheduled for today</Text>
+        )}
+      </View>
+
+      {/* Main buttons grid */}
+      <View style={styles.buttonsContainer}>
+        {rows.map((row, rowIndex) => (
+          <View key={rowIndex} style={styles.row}>
+            {row.map((btn, idx) => (
+              <Pressable
+                key={idx}
+                style={[styles.button, btn.disabled && styles.buttonDisabled]}
+                onPress={btn.onPress}
+                disabled={btn.disabled}
+              >
+                <Text style={styles.buttonText}>{btn.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ))}
+      </View>
+
       {email && (
         <Text style={styles.email}>Logged in as {email}</Text>
       )}
@@ -222,10 +431,99 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+    paddingTop: 60,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  settingsButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  settingsIcon: {
+    fontSize: 20,
+  },
+  headerContent: {
+    flex: 1,
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+  weatherPlaceholder: {
+    fontSize: 14,
+    color: '#666',
+  },
+  weatherWidget: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    padding: 10,
+    width: '100%',
+    maxWidth: 250,
+  },
+  weatherIcon: {
+    fontSize: 24,
+    marginRight: 8,
+  },
+  weatherText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  statsSection: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  statsPlaceholder: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  jobStatsWidget: {
+    backgroundColor: '#f0f0f0',
+    borderRadius: 10,
+    padding: 15,
+    width: '100%',
+    maxWidth: 300,
+  },
+  jobStatsText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+  progressBar: {
+    height: 10,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 5,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#007AFF',
+    borderRadius: 5,
+  },
+  progressPercentage: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  buttonsContainer: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#fff',
   },
   row: {
     flexDirection: 'row',
