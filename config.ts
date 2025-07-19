@@ -1,5 +1,8 @@
 export const GOOGLE_MAPS_API_KEY = 'AIzaSyCGS7NmaEIBqfmNwzHB0YkfLguSDL4NZy0'; 
 
+// OpenWeatherMap API configuration
+export const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY ?? '';
+
 // Centralised Firebase configuration – values come from `EXPO_PUBLIC_` env-vars that are injected at build time by Expo/Vercel.
 // Keeping the config alongside other top-level constants avoids importing `expo-constants` (smaller bundle).
 // NOTE: All keys intentionally default to an empty string so Firebase throws a clear error if a var is missing.

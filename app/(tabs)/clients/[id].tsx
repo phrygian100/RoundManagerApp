@@ -23,6 +23,15 @@ type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment'
 // Extend Client type to include optional startingBalance
 type ClientWithStartingBalance = Client & { startingBalance?: number };
 
+// Mobile browser detection for better touch targets
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768);
+};
+
 export default function ClientDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -651,33 +660,57 @@ export default function ClientDetailScreen() {
                 )}
                 
                 {/* Vertical Action Buttons */}
-                <View style={styles.verticalButtons}>
-                  <Pressable style={styles.verticalButton} onPress={handleEditDetails}>
-                    <ThemedText style={styles.verticalButtonIcon}>✏️</ThemedText>
+                <View style={[styles.verticalButtons, isMobileBrowser() && styles.mobileVerticalButtons]}>
+                  <Pressable 
+                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
+                    onPress={handleEditDetails}
+                  >
+                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>✏️</ThemedText>
                   </Pressable>
-                  <Pressable style={styles.verticalButton} onPress={() => setModalVisible(true)}>
-                    <ThemedText style={styles.verticalButtonIcon}>➕</ThemedText>
+                  <Pressable 
+                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
+                    onPress={() => setModalVisible(true)}
+                  >
+                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>➕</ThemedText>
                   </Pressable>
-                  <Pressable style={styles.verticalButton} onPress={handleMakePayment}>
-                    <ThemedText style={styles.verticalButtonIcon}>💳</ThemedText>
+                  <Pressable 
+                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
+                    onPress={handleMakePayment}
+                  >
+                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💳</ThemedText>
                   </Pressable>
                   {balance !== null ? (
                     <Pressable 
-                      style={[styles.verticalButton, balance < 0 ? styles.negativeBalance : styles.positiveBalance]} 
+                      style={[
+                        styles.verticalButton, 
+                        balance < 0 ? styles.negativeBalance : styles.positiveBalance,
+                        isMobileBrowser() && styles.mobileVerticalButton
+                      ]} 
                       onPress={() => router.push({
                         pathname: '/client-balance',
                         params: { clientId: id, clientName: client.name }
                       } as never)}
                     >
-                      <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                      <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💰</ThemedText>
                     </Pressable>
                   ) : (
-                    <View style={[styles.verticalButton, styles.disabledButton]}>
-                      <ThemedText style={styles.verticalButtonIcon}>💰</ThemedText>
+                    <View style={[
+                      styles.verticalButton, 
+                      styles.disabledButton,
+                      isMobileBrowser() && styles.mobileVerticalButton
+                    ]}>
+                      <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💰</ThemedText>
                     </View>
                   )}
-                  <Pressable style={[styles.verticalButton, styles.dangerButton]} onPress={handleDelete}>
-                    <ThemedText style={styles.verticalButtonIcon}>🗂️</ThemedText>
+                  <Pressable 
+                    style={[
+                      styles.verticalButton, 
+                      styles.dangerButton,
+                      isMobileBrowser() && styles.mobileVerticalButton
+                    ]} 
+                    onPress={handleDelete}
+                  >
+                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>🗂️</ThemedText>
                   </Pressable>
                 </View>
               </View>
@@ -1508,6 +1541,9 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     gap: 8,
   },
+  mobileVerticalButtons: {
+    gap: 12,
+  },
   verticalButton: {
     width: 40,
     height: 40,
@@ -1519,8 +1555,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#f8f9fa',
   },
+  mobileVerticalButton: {
+    width: 56,
+    height: 56,
+    padding: 12,
+  },
   verticalButtonIcon: {
     fontSize: 16,
+  },
+  mobileVerticalButtonIcon: {
+    fontSize: 20,
   },
   negativeBalance: {
     backgroundColor: '#ffe6e6',

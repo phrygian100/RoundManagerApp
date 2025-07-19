@@ -48,6 +48,61 @@ Transformed the main dashboard from a simple button grid to an informative dashb
 
 ---
 
+## 2025-01-30 - Fixed Client Archive Button Not Working on Android Chrome 📱
+
+### Problem Fixed
+Users on Android running the app in Chrome browser were unable to archive clients. Tapping on the red folder icon (🗂️) in the client account screen wasn't responding.
+
+### Root Cause
+The archive button and other vertical action buttons had very small touch targets (40x40 pixels) which are below the recommended minimum for mobile touch interaction (44-48px minimum, ideally 56px+). This caused touch events to be unreliable on mobile browsers.
+
+### Solution Implemented (`app/(tabs)/clients/[id].tsx`):
+
+**Mobile Browser Detection**:
+- Added `isMobileBrowser()` utility function to detect mobile browsers
+- Uses user agent string and screen width to identify mobile devices
+
+**Enhanced Touch Targets for Mobile**:
+- Increased button size from 40x40px to 56x56px for mobile browsers
+- Increased padding from 8px to 12px for better touch accessibility  
+- Increased icon font size from 16px to 20px for better visibility
+- Increased gap between buttons from 8px to 12px for mobile
+
+**Responsive Design**:
+- All vertical action buttons (Edit, Add Job, Payment, Balance, Archive) now use mobile-optimized sizing
+- Desktop browsers continue to use compact 40x40px buttons
+- Mobile browsers get the larger, more touch-friendly 56x56px buttons
+
+### User Experience:
+- ✅ Archive button now works reliably on Android Chrome
+- ✅ All action buttons are more accessible on mobile browsers
+- ✅ Better visual feedback with larger icons on mobile
+- ✅ Maintains compact design on desktop while optimizing for mobile touch
+
+### Technical Implementation:
+```javascript
+// Mobile browser detection
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768);
+};
+
+// Responsive button styling
+<Pressable 
+  style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
+  onPress={handleDelete}
+>
+  <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>🗂️</ThemedText>
+</Pressable>
+```
+
+**Files modified**: `app/(tabs)/clients/[id].tsx`, `docs/code-changes.md`
+
+---
+
 ## 2025-01-31 - User Profile Edit Modal in Settings ✅
 
 ### Summary

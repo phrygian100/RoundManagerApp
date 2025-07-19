@@ -5,6 +5,7 @@ import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firesto
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
+import { OPENWEATHER_API_KEY } from '../../config';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 
@@ -26,6 +27,7 @@ export default function HomeScreen() {
     temp: number;
     condition: string;
     icon: string;
+    lastFetched?: number;
   } | null>(null);
   const [weatherLoading, setWeatherLoading] = useState(true);
   
@@ -61,6 +63,14 @@ export default function HomeScreen() {
   const fetchWeather = async () => {
     try {
       setWeatherLoading(true);
+      
+      // Check if we have recent weather data (less than 30 minutes old)
+      if (weather?.lastFetched && Date.now() - weather.lastFetched < 30 * 60 * 1000) {
+        console.log('Using cached weather data');
+        setWeatherLoading(false);
+        return;
+      }
+
       const address = await fetchUserAddress();
       
       if (!address || (!address.postcode && !address.town)) {
@@ -69,8 +79,38 @@ export default function HomeScreen() {
         return;
       }
 
-      // TODO: Add real OpenWeatherMap API key to config
-      // For demo purposes, using mock weather data
+      // Use real OpenWeatherMap API
+      if (OPENWEATHER_API_KEY) {
+        try {
+          const location = address.postcode || address.town;
+          console.log(`Fetching weather for: ${location}`);
+          const response = await fetch(
+            `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${OPENWEATHER_API_KEY}&units=metric`
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('Weather data received from API');
+            setWeather({
+              temp: Math.round(data.main.temp),
+              condition: data.weather[0].main,
+              icon: getWeatherEmoji(data.weather[0].main),
+              lastFetched: Date.now()
+            });
+            setWeatherLoading(false);
+            return;
+          } else {
+            console.warn('OpenWeatherMap API error:', response.status, response.statusText);
+          }
+        } catch (apiError) {
+          console.error('OpenWeatherMap API request failed:', apiError);
+        }
+      } else {
+        console.log('No OpenWeatherMap API key configured');
+      }
+
+      // Fallback to mock data for development/demo
+      console.log('Using mock weather data (API key not configured or API failed)');
       const mockWeatherData = {
         temp: Math.floor(Math.random() * 15) + 10, // 10-25°C
         condition: ['Clear', 'Clouds', 'Rain'][Math.floor(Math.random() * 3)]
@@ -79,27 +119,10 @@ export default function HomeScreen() {
       setWeather({
         temp: mockWeatherData.temp,
         condition: mockWeatherData.condition,
-        icon: getWeatherEmoji(mockWeatherData.condition)
+        icon: getWeatherEmoji(mockWeatherData.condition),
+        lastFetched: Date.now()
       });
 
-      /* Real API implementation (requires API key):
-      const location = address.postcode || address.town;
-      const API_KEY = 'YOUR_OPENWEATHER_API_KEY'; // Add to config
-      const response = await fetch(
-        `https://api.openweathermap.org/data/2.5/weather?q=${location}&appid=${API_KEY}&units=metric`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        setWeather({
-          temp: Math.round(data.main.temp),
-          condition: data.weather[0].main,
-          icon: getWeatherEmoji(data.weather[0].main)
-        });
-      } else {
-        setWeather(null);
-      }
-      */
     } catch (error) {
       console.error('Error fetching weather:', error);
       setWeather(null);
