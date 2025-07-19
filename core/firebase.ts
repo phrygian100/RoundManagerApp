@@ -1,4 +1,11 @@
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '../config';
+
+let app;
+let auth;
+let db;
 
 const firebaseConfig = {
   apiKey:             process.env.EXPO_PUBLIC_FIREBASE_API_KEY          || FIREBASE_CONFIG.apiKey,
@@ -27,13 +34,16 @@ if (missingKeys.length) {
   );
 }
 
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+// Initialize Firebase app
+if (!getApps().length) {
+  app = initializeApp(firebaseConfig);
+} else {
+  app = getApp();
+}
 
-const app  = getApps().length ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+// Initialize Firebase services
+auth = getAuth(app);
+db = getFirestore(app);
 
 export { app, auth, db };
 

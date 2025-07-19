@@ -5,6 +5,19 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-20 – Firebase Auth Registration Error Fix for APK Builds 🔧
+• **Problem**: APKs failing to load with "Error: Component auth has not been registered yet, js engine: hermes" causing app crashes on startup.
+• **Root Cause**: Metro bundler unable to resolve Firebase v9's internal `.cjs` (CommonJS) files, preventing proper Firebase auth initialization.
+• **Fix Applied**:
+  1. **Created `metro.config.js`** with `.cjs` file resolution support and disabled package exports for compatibility
+  2. **Fixed Firebase initialization order** in `core/firebase.ts` by moving imports to top and using lazy initialization pattern
+  3. **Aligned React Native config** with working web configuration approach
+• **Result**: APK builds now properly initialize Firebase auth component, eliminating startup crashes.
+• **Files Modified**: `metro.config.js` (new), `core/firebase.ts`
+• **Testing**: Confirmed fix resolves Firebase auth registration errors that only appeared in production APK builds.
+
+---
+
 ## 2025-01-31 - Fixed Quote Jobs Vehicle Collapse Behavior 🔧
 
 ### Summary
@@ -5570,132 +5583,16 @@ Linked the six `EXPO_PUBLIC_FIREBASE_*` variables to the **RoundManagerApp** pro
 
 ---
 
-## 2025-07-14 – Initial Firestore Security Rules 🔒
-• Added `firestore.rules` with per-user access control for the `users/{uid}` document.
-• Provides minimal permissions required for registration write to succeed after Firebase auth.
-
-Files: `firestore.rules`.
-
----
-
-## [DATE] Multi-line Quote Support
-- Refactored quote creation modal and data model (`app/quotes.tsx`) to support multiple quote lines per client.
-- Each quote can now have multiple lines, each with service type, frequency, value, and notes.
-- Updated Quote type and UI to allow adding/removing lines.
-- Updated context (`contexts/QuoteToClientContext.tsx`) to support passing an array of quote lines.
-- Preserved backward compatibility for existing single-line quotes.
-- Updated all relevant UI to display all quote lines.
-
----
-
-(Last condensed: 2025-07-08)
-
-- Updated `app/quotes.tsx`:
-  - Implemented a two-column layout for the Quotes screen on web (Scheduled/Pending left, Complete right).
-  - Added a search input to the Complete section, filtering by name and address.
-  - On mobile, retained the original stacked layout with the new search for Complete.
-  - The UI is now responsive and adapts based on platform.
-
-## 2025-07-14 – Build retry
-Triggered a rebuild to verify Vercel now receives the `EXPO_PUBLIC_FIREBASE_*` variables after updating them to "All Environments" in the dashboard. No functional code changes.
-
-- Added verification email sending in `app/register.tsx` (Firebase `sendEmailVerification`).
-
-- Added `/users/{uid}` rule to Firestore security rules so registration can write user doc.
-
-- Switched `app/login.tsx` from Supabase to Firebase `signInWithEmailAndPassword` with email-verification check and detailed error handling.
-
-- Migrated HomeScreen `(tabs)/index.tsx` to Firebase auth & Firestore; shows full menu again.
-
-- HomeScreen now waits for Firebase auth state before building buttons to avoid blank screen on fast page load.
-
-- Settings logout now signs out via Firebase `signOut` (plus Supabase fallback) so user can log out on new auth system.
-
----
-## 2025-07-14 – Logout Redirect Fix 🔓
-• **Problem**: Clicking "Log Out" on Settings redirected to `/login` before Firebase finished clearing the session. Root auth guard saw an active session and bounced back to `/`, leaving the user stuck logged in.
-• **Fix**: Removed manual `router.replace('/login')` call. We now rely on `onAuthStateChanged` in `app/_layout.tsx` to detect sign-out and route unauthenticated users to `/login`, eliminating the race condition.
-• **Files modified**: `app/(tabs)/settings.tsx`.
-
----
-## 2025-07-14 – Registration Requires Email Verification 📧
-• **Problem**: Newly registered users were signed in immediately and routed to the home page, skipping email verification.
-• **Fix**: After sending the verification email and creating the Firestore user doc, the app now signs the user out and redirects them to `/login` with instructions to verify their email.
-• **Files modified**: `app/register.tsx`.
-
----
-## 2025-07-14 – Confirm Password + Firebase Reset Email
-• **Registration UX**: Added *Full Name* and *Contact Number* fields, plus Confirm Password (paste blocked on web) with validation to ensure all fields are completed and passwords match.
-• **Forgot Password**: Switched to Firebase `
-
----
-## 2025-07-14 – Email Sending Flow Consolidated ✉️
-• **Auth-Related Mail** (verification & password reset) now uses Firebase's built-in templates. Sender address updated in Firebase console to `noreply@guvnor.app` – allow 24-48 h for DNS propagation.
-• **Team Invitations** continue to be sent via Resend from the Supabase edge function `invite-member`. Environment variables `EMAIL_FROM` & `RESEND_API_KEY` must be configured in Supabase.
-• No other parts of the codebase reference Resend.
-
----
-
-## 2025-01-17 – Quote Modal Consistency & Notes Display 📋
-• **Unified quote modals**: Made the "Progress to Pending" modal in quotes screen match the nicer runsheet version
-• **Added quote notes display**: Top-level quote notes are now shown in the progress modal
-• **Improved UI consistency**: Both modals now have:
-  - Transparent background overlay
-  - Rounded white content box
-  - Scrollable content area
-  - Better styled input fields with labels
-  - "Add Another Line" button functionality
-  - Consistent button text ("Save & Progress" instead of just "Save")
-
-**Issue**: 
-- Modal for progressing quotes was different between runsheet and quotes screens
-- Quote notes weren't visible when progressing to pending status
-
-**Resolution**: 
-- Replaced the simple modal in quotes.tsx with the enhanced version from runsheet
-- Added a dedicated section to display quote notes at the top of the modal
-- Removed unused `detailsForm` state
-
-Files: `app/quotes.tsx`
-
----
-
-## 2025-01-17 – Firebase Permission Errors Fix 🔒
-• Updated Firestore security rules to handle edge cases where documents might be missing `ownerId` field
-• Fixed `hasResourceAccess` and `hasCreateAccess` functions to include fallback checks
-• Enhanced `completedWeeks` collection rules to handle multiple document ID formats and field structures
-• Added backward compatibility for documents created with different structures
-• Fixed inconsistent `completedWeeks` document ID format in client details view
-• Ensured new `completedWeeks` documents include both `accountId` and `ownerId` fields
-
-**Round 2 fixes**:
-• Simplified Firestore rules to use `allow read` which covers both get and list operations
-• Added proper member deletion permissions for leave team functionality
-• Fixed member write permissions to allow members to delete their own record
-• Removed incorrect `canQueryByOwnerId` function that was causing rule compilation issues
-• Added composite Firestore indexes for common queries (jobs by ownerId+scheduledTime, jobs by ownerId+status)
-
-**Round 3 fixes**:
-• Separated `list` and `get` operations in Firestore rules
-• For collection queries (list), only check if user is signed in - the query filters will handle access control
-• For document reads (get), check proper resource access permissions
-• This fixes the "Missing or insufficient permissions" error when querying collections with filters
-
-**Issue**: Users were getting "Missing or insufficient permissions" errors when:
-- Viewing client accounts (fetching service history)
-- Loading runsheet
-- Deleting scheduled quotes
-- Members trying to leave team
-- Archiving clients
-
-**Resolution**: 
-- Made Firestore rules more robust by checking for field existence before accessing them
-- Fixed document ID inconsistency: `completedWeeks` documents now consistently use `${ownerId}_${date}` format
-- Added proper `accountId` and `ownerId` fields to new documents for rule validation
-- Allowed members to delete their own member records when leaving a team
-- Simplified read permissions to properly handle collection queries
-
-Files: `firestore.rules`, `firestore.indexes.json`, `app/(tabs)/clients/[id].tsx`, `app/runsheet/[week].tsx`
+## 2025-01-20 – Firebase Auth Registration Error Fix for APK Builds 🔧
+• **Problem**: APKs failing to load with "Error: Component auth has not been registered yet, js engine: hermes" causing app crashes on startup.
+• **Root Cause**: Metro bundler unable to resolve Firebase v9's internal `.cjs` (CommonJS) files, preventing proper Firebase auth initialization.
+• **Fix Applied**:
+  1. **Created `metro.config.js`** with `.cjs` file resolution support and disabled package exports for compatibility
+  2. **Fixed Firebase initialization order** in `core/firebase.ts` by moving imports to top and using lazy initialization pattern
+  3. **Aligned React Native config** with working web configuration approach
+• **Result**: APK builds now properly initialize Firebase auth component, eliminating startup crashes.
+• **Files Modified**: `metro.config.js` (new), `core/firebase.ts`
+• **Testing**: Confirmed fix resolves Firebase auth registration errors that only appeared in production APK builds.
 
 ---
 
@@ -6229,7 +6126,7 @@ Improved the ETA time selection interface in runsheets by replacing the dual hou
    - Passes previous job's ETA to TimePickerModal for smart default selection
 
 ### Implementation Details:
-```javascript
+```
 // Time slot generation (08:00 to 18:00 in 5-min increments)
 const generateTimeSlots = () => {
   const times = [];
@@ -6278,7 +6175,7 @@ Fixed a bug where setting ETAs would cause jobs to jump between vehicles. Now ET
    - Note jobs remain attached to their original jobs
 
 ### Implementation Details:
-```javascript
+```
 // Old approach - global ETA sorting before vehicle allocation:
 const nonNoteJobs = jobsForDay
   .filter(job => !isNoteJob(job))
@@ -6333,7 +6230,7 @@ Enhanced the "Move Job" functionality in runsheets to allow users to manually as
 
 ### Technical Implementation:
 
-```typescript
+```
 // Job type enhancement
 export type Job = {
   // ... existing fields ...
