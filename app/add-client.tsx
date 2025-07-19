@@ -299,11 +299,12 @@ export default function AddClientScreen() {
       console.log('Client created with ID:', clientRef.id);
 
       // Log the client creation action
+      const clientAddress = `${address1}, ${town}, ${postcode}`;
       await logAction(
         'client_created',
         'client',
         clientRef.id,
-        formatAuditDescription('client_created', name)
+        formatAuditDescription('client_created', clientAddress)
       );
 
       // Create jobs for the new client (only for recurring clients, not one-off)

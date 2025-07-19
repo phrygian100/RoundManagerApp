@@ -173,4 +173,23 @@ export function formatAuditDescription(
     default:
       return `Performed ${actionType}${entityDisplay}`;
   }
+}
+
+/**
+ * Helper function to extract address from client object
+ * Handles both legacy address format and new address1/town/postcode format
+ */
+export function getClientAddress(client: { address?: string; address1?: string; town?: string; postcode?: string }): string {
+  // Use new format if available
+  if (client.address1 && client.town && client.postcode) {
+    return `${client.address1}, ${client.town}, ${client.postcode}`;
+  }
+  
+  // Fall back to legacy address field
+  if (client.address) {
+    return client.address;
+  }
+  
+  // Fallback if no address available
+  return 'Address not available';
 } 

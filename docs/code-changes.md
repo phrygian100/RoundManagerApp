@@ -5,6 +5,92 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Fixed Quote Jobs Vehicle Collapse Behavior 🔧
+
+### Summary
+Fixed an issue where quote jobs on runsheets were not respecting vehicle collapse states. Previously, when users collapsed vehicles on runsheets, quote jobs would still display while regular jobs would properly hide. Quote jobs now behave consistently with all other job types.
+
+### Changes Made:
+**1. Updated Vehicle Collapse Logic**:
+- Removed the `!isQuoteJob(item)` exclusion condition from the vehicle collapse check in `app/runsheet/[week].tsx`
+- Quote jobs now use the same collapse logic as regular jobs and note jobs
+- Changed condition from `!(item as any).__type && !isQuoteJob(item)` to `!(item as any).__type`
+
+### Bug Details:
+- **Issue**: Quote jobs ignored vehicle collapse state and remained visible when their assigned vehicle was collapsed
+- **Root Cause**: Quote jobs were explicitly excluded from the vehicle collapse check logic
+- **Solution**: Removed the quote job exclusion so they follow the same display rules as other job types
+
+### User Experience:
+- ✅ Quote jobs now hide when their assigned vehicle is collapsed
+- ✅ Quote jobs show when their assigned vehicle is expanded  
+- ✅ All quote job functionality remains unchanged (actions, ETA, moving, etc.)
+- ✅ Day-level collapse behavior was already working correctly
+- ✅ Consistent behavior across all job types (regular, quote, note)
+
+**Files modified**: `app/runsheet/[week].tsx`
+
+---
+
+## 2025-01-31 - Fixed Activity Log to Use Customer Addresses Instead of Names 🔧
+
+### Summary
+Updated the audit logging system to display customer addresses instead of names in activity log entries for better privacy and clarity. Activity log entries for client actions now show the customer's address rather than their name.
+
+### Changes Made:
+
+**1. Created Helper Function**:
+- Added `getClientAddress()` function in `services/auditService.ts`
+- Handles both legacy `address` field and new `address1/town/postcode` format
+- Provides fallback for cases where address data is unavailable
+
+**2. Updated Client Action Logging**:
+- `app/add-client.tsx`: Client creation now logs address instead of name
+- `app/(tabs)/clients/[id]/edit-customer.tsx`: Client editing now logs address instead of name
+- `app/(tabs)/clients/[id].tsx`: Client archiving now logs address instead of name
+
+**3. Activity Log Entries Format (Updated)**:
+```
+23/01/2025 14:32  [john@company.com]  Changed client details for "123 Main St, London, SW1A 1AA"
+23/01/2025 14:28  [sarah@company.com] Created client for "456 Oak Ave, Manchester, M1 1AA"  
+23/01/2025 09:15  [mike@company.com]  Archived client for "789 High St, Birmingham, B1 1AA"
+```
+
+### Technical Details:
+
+**New Helper Function**:
+```typescript
+export function getClientAddress(client: { 
+  address?: string; 
+  address1?: string; 
+  town?: string; 
+  postcode?: string 
+}): string {
+  // Use new format if available
+  if (client.address1 && client.town && client.postcode) {
+    return `${client.address1}, ${client.town}, ${client.postcode}`;
+  }
+  
+  // Fall back to legacy address field
+  if (client.address) {
+    return client.address;
+  }
+  
+  // Fallback if no address available
+  return 'Address not available';
+}
+```
+
+**Files Modified**:
+- `services/auditService.ts` - Added getClientAddress helper function
+- `app/add-client.tsx` - Updated to use address in audit logging
+- `app/(tabs)/clients/[id]/edit-customer.tsx` - Updated to use address in audit logging
+- `app/(tabs)/clients/[id].tsx` - Updated to use address in audit logging
+
+**Note**: Quote-related audit entries already used the correct format (`name - address`) and were not changed.
+
+---
+
 ## 2025-01-31 - Dashboard Modernization with Weather Widget and Job Statistics ✅
 
 ### Summary
@@ -2415,9 +2501,9 @@ await resetWeekToRoundOrder(weekStartDate);
 
 ### Activity Log Entries Format:
 ```
-23/01/2025 14:32  [john@company.com]  Changed client details for "Smith, J - 123 Main St"
-23/01/2025 14:28  [sarah@company.com] Created quote for "Jones Property - 456 Oak Ave"  
-23/01/2025 09:15  [mike@company.com]  Progressed quote to pending for "Wilson House"
+23/01/2025 14:32  [john@company.com]  Changed client details for "123 Main St, London, SW1A 1AA"
+23/01/2025 14:28  [sarah@company.com] Created client for "456 Oak Ave, Manchester, M1 1AA"  
+23/01/2025 09:15  [mike@company.com]  Archived client for "789 High St, Birmingham, B1 1AA"
 ```
 
 ### Technical Implementation:
@@ -3646,117 +3732,3 @@ if (newClientData && !activeClient.id) {
 - `app/round-order-manager.tsx`: Fixed Alert.alert calls + optimized logic for new clients
 - `app/add-client.tsx`: Fixed account number generation + consistent RWC formatting
 ```
-
----
-
-## 2025-01-28 - Added Round Order Validation to Prevent Saving Clients Without Position
-
-### Problem Fixed
-Users were able to create and save new clients without specifying a round order number, which could lead to clients without proper positioning in the round order sequence.
-
-### Root Cause
-The add-client validation logic checked for required fields like name, address, mobile number, etc., but did not validate that a round order number was set before allowing the client to be saved.
-
-### Solution Implemented (`app/add-client.tsx`):
-
-**Added Round Order Validation**:
-- Added validation check for `roundOrderNumber` in the `handleSave` function
-- Prevents saving if round order is null or undefined
-- Shows clear error message directing user to set round order position
-
-**Code Changes**:
-```javascript
-// Validate round order number is set
-if (roundOrderNumber === null || roundOrderNumber === undefined) {
-  console.log('Validation failed: missing round order number');
-  Alert.alert('Error', 'Please set a round order position for this client.');
-  return;
-}
-```
-
-### Impact:
-- ✅ Users must now set a round order position before saving any client
-- ✅ Clear error message guides users to the round order manager
-- ✅ Maintains data integrity by ensuring all clients have proper round order positions
-- ✅ Prevents gaps or missing positions in the round order sequence
-
-**Files Modified**:
-- `app/add-client.tsx`: Added round order validation to handleSave function
-
-**Result**: Users can no longer accidentally save clients without proper round order positioning, ensuring consistent route organization.
-
----
-
-## 2025-01-30 - Added Reset to Round Order Functionality 🔄
-
-### New Feature: Reset ETAs and Vehicle Assignments
-Added refresh/reset buttons to allow users to quickly revert jobs back to their original round order by removing manual scheduling changes.
-
-### Implementation Details:
-
-**1. Day-Level Reset Buttons (Runsheet)**:
-- Small refresh icon (↻) button next to each day header on runsheet
-- Only visible for future days and non-completed days
-- Resets all jobs for that specific day back to round order
-- Removes all manual ETAs and vehicle assignments
-- Jobs automatically reorganize by round order using existing allocation system
-
-**2. Week-Level Reset Buttons (Workload Forecast)**:
-- Refresh icon (↻) button next to each week in workload forecast
-- Only visible for future weeks (not current week)
-- Resets all jobs for the entire week back to round order
-- Only affects future days within the week (protects current operations)
-- Provides detailed feedback on number of jobs and days reset
-
-**3. Reset Service (`services/resetService.ts`)**:
-- `resetDayToRoundOrder()`: Resets specific day with batch Firestore updates
-- `resetWeekToRoundOrder()`: Resets entire week with smart date filtering
-- Only affects jobs with status 'pending' or 'scheduled'
-- Sets `eta: null` and `vehicleId: null` to clear manual overrides
-- Comprehensive error handling and result reporting
-
-**4. User Experience**:
-- **Confirmation dialogs**: All reset operations require confirmation
-- **Loading states**: Visual feedback during reset operations (↻...)
-- **Platform-specific UI**: Uses web buttons on web, Pressable on mobile
-- **Smart restrictions**: Cannot reset past days, completed days, or current week from forecast
-- **Immediate feedback**: Success/error messages with job counts
-
-**5. Data Safety**:
-- Only removes manual overrides, doesn't delete job data
-- Existing allocation system handles reorganization automatically
-- Batch updates ensure data consistency
-- No risk to completed or historical data
-
-### Technical Implementation:
-```typescript
-// Day reset: removes ETAs and vehicle assignments for single day
-await resetDayToRoundOrder(dayDate);
-
-// Week reset: removes ETAs and vehicle assignments for future days in week
-await resetWeekToRoundOrder(weekStartDate);
-
-// Jobs automatically reorganize by round order via existing systems
-```
-
-### User Interface:
-- **Orange refresh icons** (↻) for easy identification
-- **Disabled state** during operations to prevent double-clicks
-- **Platform-optimized** styling (web buttons vs React Native components)
-- **Non-intrusive** design that doesn't clutter existing UI
-
-### Business Impact:
-- **Quick recovery** from scheduling mistakes or changes
-- **Maintains data integrity** while providing flexibility
-- **Preserves round order** logic for efficient route planning
-- **Reduces manual work** when reorganizing schedules
-
-**Files Created**: `services/resetService.ts`
-
-**Files Modified**: 
-- `app/runsheet/[week].tsx` - Added day reset buttons and functionality
-- `app/workload-forecast.tsx` - Added week reset buttons and functionality
-
----
-
-## 2025-07-14  

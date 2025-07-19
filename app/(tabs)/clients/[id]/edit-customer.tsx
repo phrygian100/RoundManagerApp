@@ -202,11 +202,12 @@ export default function EditCustomerScreen() {
         await updateDoc(doc(db, 'clients', id), updateData);
         
         // Log the client edit action
+        const clientAddress = `${address1}, ${town}, ${postcode}`;
         await logAction(
           'client_edited',
           'client',
           id,
-          formatAuditDescription('client_edited', name)
+          formatAuditDescription('client_edited', clientAddress)
         );
         
         // Regenerate jobs if service routine was updated

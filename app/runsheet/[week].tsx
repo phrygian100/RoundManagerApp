@@ -1370,7 +1370,7 @@ www.tgmwindowcleaning.co.uk`;
               if (collapsedDays.includes(section.title)) return null;
               
               // Don't render jobs that belong to collapsed vehicles
-              if (!(item as any).__type && !isQuoteJob(item)) {
+              if (!(item as any).__type) {
                 // Find the vehicle this job belongs to by looking backwards for the most recent vehicle block
                 let vehicleId = null;
                 for (let i = index - 1; i >= 0; i--) {

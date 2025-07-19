@@ -12,7 +12,7 @@ import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../../core/session';
-import { formatAuditDescription, logAction } from '../../../services/auditService';
+import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
@@ -295,11 +295,12 @@ export default function ClientDetailScreen() {
         
         // Log the client archiving action
         console.log('🗂️ Logging archive action...');
+        const clientAddress = clientToArchive ? getClientAddress(clientToArchive) : 'Unknown address';
         await logAction(
           'client_archived',
           'client',
           id,
-          formatAuditDescription('client_archived', clientToArchive?.name)
+          formatAuditDescription('client_archived', clientAddress)
         );
         console.log('🗂️ Archive action logged successfully');
         
