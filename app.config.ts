@@ -1,6 +1,9 @@
-export default ({ config }) => ({
+export default ({ config }: { config: any }) => ({
   ...config,
   extra: {
+    eas: {
+      projectId: "fb9540c5-f865-437c-af65-3f7b33779b5a"
+    },
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,

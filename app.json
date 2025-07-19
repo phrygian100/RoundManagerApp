@@ -16,7 +16,8 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.guvnor.roundmanagerapp"
     },
     "web": {
       "bundler": "metro",
@@ -25,7 +26,9 @@
       "publicPath": "/",
       "build": {
         "babel": {
-          "include": ["@expo/vector-icons"]
+          "include": [
+            "@expo/vector-icons"
+          ]
         }
       }
     },
@@ -46,6 +49,13 @@
     },
     "assetBundlePatterns": [
       "**/*"
-    ]
+    ],
+    "extra": {
+      "firebase": {},
+      "router": {},
+      "eas": {
+        "projectId": "fb9540c5-f865-437c-af65-3f7b33779b5a"
+      }
+    }
   }
 }
