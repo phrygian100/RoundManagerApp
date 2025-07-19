@@ -354,7 +354,6 @@ export default function HomeScreen() {
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
           { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
-          { label: 'Settings', path: '/settings', permKey: null },
           { label: 'Quotes', path: '/quotes', permKey: null },
         ];
 
@@ -468,7 +467,9 @@ export default function HomeScreen() {
       </View>
 
       {email && (
-        <Text style={styles.email}>Logged in as {email}</Text>
+        <View style={styles.emailContainer}>
+          <Text style={styles.email}>Logged in as {email}</Text>
+        </View>
       )}
       {showFirstTimeSetup && (
         <FirstTimeSetupModal 
@@ -604,6 +605,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  email: { marginTop: 16, fontSize: 12, color: '#666' },
+  email: { 
+    fontSize: 12, 
+    color: '#666',
+    textAlign: 'center',
+  },
+  emailContainer: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
 });
 
