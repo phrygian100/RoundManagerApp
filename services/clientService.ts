@@ -8,7 +8,10 @@ import { getDataOwnerId } from '../core/session';
 export async function getClientCount(): Promise<number> {
   try {
     const ownerId = await getDataOwnerId();
-    if (!ownerId) return 0;
+    if (!ownerId) {
+      console.error('getClientCount: No owner ID found - authentication issue');
+      return 0;
+    }
 
     const clientsQuery = query(
       collection(db, 'clients'),
@@ -30,8 +33,15 @@ export async function getClientCount(): Promise<number> {
  */
 export async function deleteAllClients(): Promise<{ deleted: number; error?: string }> {
   try {
+    console.log('deleteAllClients: Starting deletion process...');
+    
     const ownerId = await getDataOwnerId();
-    if (!ownerId) throw new Error('Not authenticated');
+    if (!ownerId) {
+      console.error('deleteAllClients: No owner ID found - authentication issue');
+      throw new Error('Not authenticated - unable to determine account owner');
+    }
+
+    console.log('deleteAllClients: Owner ID confirmed:', ownerId);
 
     // Query ALL clients for this owner
     const clientsQuery = query(
@@ -40,6 +50,8 @@ export async function deleteAllClients(): Promise<{ deleted: number; error?: str
     );
     
     const snapshot = await getDocs(clientsQuery);
+    console.log('deleteAllClients: Found', snapshot.size, 'clients to delete');
+    
     if (snapshot.empty) {
       return { deleted: 0 };
     }
@@ -58,8 +70,10 @@ export async function deleteAllClients(): Promise<{ deleted: number; error?: str
       
       await batch.commit();
       deleted += batchDocs.length;
+      console.log('deleteAllClients: Deleted batch', Math.floor(i / batchSize) + 1, 'of', Math.ceil(snapshot.docs.length / batchSize));
     }
 
+    console.log('deleteAllClients: Successfully deleted', deleted, 'clients');
     return { deleted };
   } catch (error) {
     console.error('Error deleting all clients:', error);

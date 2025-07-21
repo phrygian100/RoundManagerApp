@@ -5,6 +5,60 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Fixed Delete Buttons Regression Caused by Authentication Changes 🔧
+
+### Issue Discovered
+The delete buttons (Delete All Clients, Delete All Jobs, Delete All Payments) in the settings screen stopped working after the recent security fix that addressed cross-user data leakage. The debug session screen showed "Raw Auth User: null" indicating authentication instability.
+
+### Root Cause
+The recent security fix was clearing cache and context data on **every** auth state change, not just when users actually changed. This caused:
+1. **Authentication Instability**: Firebase auth state was being cleared too frequently
+2. **getDataOwnerId() Failures**: The function was returning null due to auth state issues
+3. **Delete Function Failures**: All delete operations failed because they couldn't determine the account owner
+
+### Technical Fix
+**1. Stabilized Authentication Flow** (`app/_layout.tsx`):
+- Only clear quote context when user actually changes (login/logout)
+- Added user tracking with `useRef` to detect real user changes
+- Prevented excessive clearing that was causing auth instability
+
+**2. Improved Cache Management** (`hooks/useFirestoreCache.ts`):
+- Only clear Firestore cache when user actually changes
+- Added proper user ID tracking to prevent unnecessary cache clears
+- Maintained security while preventing authentication issues
+
+**3. Enhanced Error Handling** (All delete services):
+- Added comprehensive logging to track delete operation flow
+- Better error messages for authentication failures
+- Detailed debugging information for troubleshooting
+
+### Changes Made
+**Files Modified**:
+- `app/_layout.tsx` - Stabilized auth flow, reduced excessive clearing
+- `hooks/useFirestoreCache.ts` - Improved cache management
+- `services/clientService.ts` - Added debugging and better error handling
+- `services/jobService.ts` - Added debugging and better error handling  
+- `services/paymentService.ts` - Added debugging and better error handling
+
+### Impact
+- ✅ Delete buttons now work correctly again
+- ✅ Authentication state is stable and reliable
+- ✅ Security is maintained (data still cleared on user changes)
+- ✅ Better debugging capabilities for future issues
+- ✅ No more "Raw Auth User: null" issues
+
+### Testing Verification
+1. ✅ Debug session shows proper authentication state
+2. ✅ Delete All Clients button works correctly
+3. ✅ Delete All Jobs button works correctly
+4. ✅ Delete All Payments button works correctly
+5. ✅ Two-step confirmation process functions properly
+6. ✅ No authentication instability during operations
+
+**Priority**: HIGH - Restored critical functionality while maintaining security
+
+---
+
 ## 2025-01-21 - Fixed Delete Buttons on Web Platform ✅
 
 ### Summary

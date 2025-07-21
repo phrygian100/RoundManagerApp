@@ -1,6 +1,6 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
@@ -12,17 +12,25 @@ function AppContent() {
   const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { clearQuoteData } = useQuoteToClient();
+  const previousUserRef = useRef<User | null>(null);
   
   // Set up auth listener only once
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth as Auth, (user: User | null) => {
-      console.log('🔑 Firebase auth change:', { hasUser: !!user });
+      console.log('🔑 Firebase auth change:', { 
+        hasUser: !!user, 
+        previousUser: !!previousUserRef.current,
+        userId: user?.uid 
+      });
       
-      // SECURITY FIX: Clear quote context data on any auth state change
-      // This prevents data from one user account leaking into another
-      console.log('🔒 Clearing quote context data for security');
-      clearQuoteData();
+      // Only clear quote context data when user actually changes (login/logout)
+      // Not on every auth state change to prevent instability
+      if (previousUserRef.current?.uid !== user?.uid) {
+        console.log('🔒 Clearing quote context data for security (user change)');
+        clearQuoteData();
+      }
       
+      previousUserRef.current = user;
       setCurrentUser(user);
       setAuthReady(true);
     });

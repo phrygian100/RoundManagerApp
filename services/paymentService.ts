@@ -79,7 +79,10 @@ export async function getPaymentsByDateRange(startDate: string, endDate: string)
 export async function getPaymentCount(): Promise<number> {
   try {
     const ownerId = await getDataOwnerId();
-    if (!ownerId) return 0;
+    if (!ownerId) {
+      console.error('getPaymentCount: No owner ID found - authentication issue');
+      return 0;
+    }
 
     const paymentsQuery = query(
       collection(db, PAYMENTS_COLLECTION),
@@ -95,17 +98,37 @@ export async function getPaymentCount(): Promise<number> {
 }
 
 export async function deleteAllPayments(): Promise<void> {
-  const ownerId = await getDataOwnerId();
-  if (!ownerId) return;
-  const paymentsRef = collection(db, PAYMENTS_COLLECTION);
-  const q = query(paymentsRef, where('ownerId', '==', ownerId));
-  const querySnapshot = await getDocs(q);
-  if (querySnapshot.empty) {
-    return;
+  try {
+    console.log('deleteAllPayments: Starting deletion process...');
+    
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      console.error('deleteAllPayments: No owner ID found - authentication issue');
+      throw new Error('Not authenticated - unable to determine account owner');
+    }
+
+    console.log('deleteAllPayments: Owner ID confirmed:', ownerId);
+    
+    const paymentsRef = collection(db, PAYMENTS_COLLECTION);
+    const q = query(paymentsRef, where('ownerId', '==', ownerId));
+    const querySnapshot = await getDocs(q);
+    
+    console.log('deleteAllPayments: Found', querySnapshot.size, 'payments to delete');
+    
+    if (querySnapshot.empty) {
+      console.log('deleteAllPayments: No payments to delete');
+      return;
+    }
+    
+    const batch = writeBatch(db);
+    querySnapshot.forEach((docSnap) => {
+      batch.delete(docSnap.ref);
+    });
+    await batch.commit();
+    
+    console.log('deleteAllPayments: Successfully deleted', querySnapshot.size, 'payments');
+  } catch (error) {
+    console.error('Error deleting all payments:', error);
+    throw error;
   }
-  const batch = writeBatch(db);
-  querySnapshot.forEach((docSnap) => {
-    batch.delete(docSnap.ref);
-  });
-  await batch.commit();
 } 

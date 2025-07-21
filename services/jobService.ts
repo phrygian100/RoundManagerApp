@@ -483,16 +483,15 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
 }
 
 /**
- * Deletes all jobs for the current owner
- * WARNING: This is a destructive operation that cannot be undone
- */
-/**
  * Gets the count of all jobs for the current owner
  */
 export async function getJobCount(): Promise<number> {
   try {
     const ownerId = await getDataOwnerId();
-    if (!ownerId) return 0;
+    if (!ownerId) {
+      console.error('getJobCount: No owner ID found - authentication issue');
+      return 0;
+    }
 
     const jobsQuery = query(
       collection(db, JOBS_COLLECTION),
@@ -513,8 +512,15 @@ export async function getJobCount(): Promise<number> {
  */
 export async function deleteAllJobs(): Promise<{ deleted: number; error?: string }> {
   try {
+    console.log('deleteAllJobs: Starting deletion process...');
+    
     const ownerId = await getDataOwnerId();
-    if (!ownerId) throw new Error('Not authenticated');
+    if (!ownerId) {
+      console.error('deleteAllJobs: No owner ID found - authentication issue');
+      throw new Error('Not authenticated - unable to determine account owner');
+    }
+
+    console.log('deleteAllJobs: Owner ID confirmed:', ownerId);
 
     // Query ALL jobs for this owner (no status filter - delete everything)
     const jobsQuery = query(
@@ -523,6 +529,8 @@ export async function deleteAllJobs(): Promise<{ deleted: number; error?: string
     );
     
     const snapshot = await getDocs(jobsQuery);
+    console.log('deleteAllJobs: Found', snapshot.size, 'jobs to delete');
+    
     if (snapshot.empty) {
       return { deleted: 0 };
     }
@@ -541,8 +549,10 @@ export async function deleteAllJobs(): Promise<{ deleted: number; error?: string
       
       await batch.commit();
       deleted += batchDocs.length;
+      console.log('deleteAllJobs: Deleted batch', Math.floor(i / batchSize) + 1, 'of', Math.ceil(snapshot.docs.length / batchSize));
     }
 
+    console.log('deleteAllJobs: Successfully deleted', deleted, 'jobs');
     return { deleted };
   } catch (error) {
     console.error('Error deleting all jobs:', error);

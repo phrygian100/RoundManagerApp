@@ -63,16 +63,29 @@ class FirestoreCache {
 
 const globalCache = new FirestoreCache();
 
-// SECURITY FIX: Clear cache on auth state changes to prevent cross-user data leaks
-let authStateCleared = false;
+// SECURITY FIX: Clear cache only when user actually changes, not on every auth state change
+let previousUserId: string | null = null;
+let authStateInitialized = false;
+
 onAuthStateChanged(auth, (user) => {
-  if (!authStateCleared) {
-    authStateCleared = true;
+  if (!authStateInitialized) {
+    authStateInitialized = true;
+    previousUserId = user?.uid || null;
     return; // Skip first call to avoid clearing on initial load
   }
   
-  console.log('🔒 Clearing Firestore cache for security (auth state change)');
-  globalCache.clear();
+  const currentUserId = user?.uid || null;
+  
+  // Only clear cache when user actually changes (login/logout)
+  if (previousUserId !== currentUserId) {
+    console.log('🔒 Clearing Firestore cache for security (user change)', {
+      previousUserId,
+      currentUserId
+    });
+    globalCache.clear();
+  }
+  
+  previousUserId = currentUserId;
 });
 
 export function useFirestoreCache<T>(
