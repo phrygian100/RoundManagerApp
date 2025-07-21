@@ -2890,3 +2890,60 @@ if (confirmed) {
 **Priority**: HIGH - Restored critical authentication functionality
 
 ---
+
+## 2025-01-31 - Client Limit Enforcement Bug Fix 🐛
+
+### Issue Discovered
+During testing of the subscription tier system, a critical bug was identified where users on the free plan (20-client limit) could add 21 clients instead of being properly limited to 20. This happened because multiple client creation entry points bypassed the subscription limit checking.
+
+### Root Cause Analysis
+The subscription system was correctly implemented with proper limits, but **only the manual client creation in `app/add-client.tsx` properly enforced limits**. Other entry points completely bypassed the `checkClientLimit()` function:
+
+1. **Quote-to-Client Conversion** (`app/runsheet/[week].tsx`): **NO limit checking** - critical bypass
+2. **CSV Import Functions** (3 instances in `app/(tabs)/settings.tsx`): Had limit checking but with a logic flaw
+
+### The Real Issue
+The CSV import functions had limit checking implemented, but there was a subtle logic issue:
+- Limit check happened **before** the import loop
+- Client creation happened **inside** the loop without re-checking limits for each client
+- This meant: User has 19 clients → imports 2 clients → limit check passes (19 < 20, can add 2) → both clients created (19 + 2 = 21) → user can manually add 1 more (21 + 1 = 22, should be blocked but wasn't)
+
+### Fixes Implemented
+
+**1. Quote-to-Client Conversion Fix**:
+- Added `checkClientLimit()` import to `app/runsheet/[week].tsx`
+- Added limit checking before client creation in quote completion modal
+- Consistent error messaging with manual client creation
+
+**2. CSV Import Incremental Limit Checking**:
+- Added incremental limit checking inside all 3 CSV import loops
+- Each client creation now checks limits before proceeding
+- When limit is reached, remaining clients are skipped with clear messaging
+- Proper error handling for subscription verification failures
+
+**3. Enhanced User Experience**:
+- Clear upgrade prompts when limits are reached during batch operations
+- Informative messages showing how many clients were skipped due to limits
+- Consistent error messaging across all entry points
+
+### Technical Implementation
+
+**Files Modified**:
+- `app/runsheet/[week].tsx`: Added limit checking to quote-to-client conversion
+- `app/(tabs)/settings.tsx`: Added incremental limit checking to all 3 CSV import functions
+
+**New Behavior**:
+- **Free tier users**: Cannot exceed 20 clients through any entry point
+- **Premium tier users**: Unlimited clients (no changes)
+- **Exempt tier users**: Unlimited clients (no changes)
+- **Batch operations**: Gracefully handle limit enforcement with clear feedback
+
+### Impact
+- **Security**: Complete subscription limit enforcement across all client creation methods
+- **User Experience**: Clear feedback when limits are reached during batch operations
+- **Business Logic**: Proper monetization enforcement for the subscription tier system
+- **Data Integrity**: Prevents accidental client limit violations
+
+**Status**: ✅ **FIXED** - All client creation entry points now properly enforce subscription limits.
+
+---

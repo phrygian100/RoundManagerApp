@@ -13,6 +13,7 @@ import { listMembers, MemberRecord } from '../../services/accountService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
+import { checkClientLimit } from '../../services/subscriptionService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
 import type { Job } from '../../types/models';
@@ -1802,6 +1803,23 @@ www.tgmwindowcleaning.co.uk`;
               <TextInput placeholder="Cost (£)" value={quoteForm.cost} onChangeText={v => setQuoteForm(f => ({ ...f, cost: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
               <TextInput placeholder="Round Order" value={quoteForm.roundOrder} onChangeText={v => setQuoteForm(f => ({ ...f, roundOrder: v }))} style={{ borderWidth: 1, marginBottom: 8, padding: 8 }} keyboardType="numeric" />
               <Button title="Create Client" onPress={async () => {
+                // Check subscription limits before creating client
+                try {
+                  const clientLimitCheck = await checkClientLimit();
+                  if (!clientLimitCheck.canAdd) {
+                    const message = clientLimitCheck.limit 
+                      ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients and team member creation.`
+                      : 'Unable to add more clients at this time.';
+                    
+                    Alert.alert('Client Limit Reached', message);
+                    return;
+                  }
+                } catch (error) {
+                  console.error('Error checking client limit:', error);
+                  Alert.alert('Error', 'Unable to verify subscription status. Please try again.');
+                  return;
+                }
+
                 // Create client
                 const { job } = quoteCompleteModal;
                 const ownerId = await getDataOwnerId();

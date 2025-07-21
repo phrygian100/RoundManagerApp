@@ -421,6 +421,39 @@ export default function SettingsScreen() {
               }
 
               if (clientData.name && clientData.address1 && clientData.nextVisit) {
+                // Check limit before each client creation to prevent exceeding limits during batch import
+                if (!limitReached) {
+                  try {
+                    const currentLimitCheck = await checkClientLimit();
+                    if (!currentLimitCheck.canAdd) {
+                      limitReached = true;
+                      const message = currentLimitCheck.limit 
+                        ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\nUpgrade to Premium for unlimited clients.`
+                        : 'Unable to add more clients at this time.';
+                    
+                      showAlert('Client Limit Reached', message);
+                      // Skip remaining clients due to limit
+                      for (let j = i; j < validRows.length; j++) {
+                        skipped.push(validRows[j]);
+                      }
+                      break;
+                    }
+                  } catch (error) {
+                    console.error('Error checking client limit during import:', error);
+                    showAlert('Error', 'Unable to verify subscription status. Skipping remaining clients.');
+                    // Skip remaining clients due to error
+                    for (let j = i; j < validRows.length; j++) {
+                      skipped.push(validRows[j]);
+                    }
+                    break;
+                  }
+                }
+
+                if (limitReached) {
+                  skipped.push(row);
+                  continue;
+                }
+
                 const ownerId = await getDataOwnerId();
                 if (!ownerId) {
                   showAlert('Error', 'Could not determine account owner. Please log in again.');
@@ -623,6 +656,39 @@ export default function SettingsScreen() {
           }
 
           if (clientData.name && clientData.address1 && clientData.nextVisit) {
+            // Check limit before each client creation to prevent exceeding limits during batch import
+            if (!limitReached) {
+              try {
+                const currentLimitCheck = await checkClientLimit();
+                if (!currentLimitCheck.canAdd) {
+                  limitReached = true;
+                  const message = currentLimitCheck.limit 
+                    ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\nUpgrade to Premium for unlimited clients.`
+                    : 'Unable to add more clients at this time.';
+                
+                  showAlert('Client Limit Reached', message);
+                  // Skip remaining clients due to limit
+                  for (let j = i; j < validRows.length; j++) {
+                    skipped.push(validRows[j]);
+                  }
+                  break;
+                }
+              } catch (error) {
+                console.error('Error checking client limit during import:', error);
+                showAlert('Error', 'Unable to verify subscription status. Skipping remaining clients.');
+                // Skip remaining clients due to error
+                for (let j = i; j < validRows.length; j++) {
+                  skipped.push(validRows[j]);
+                }
+                break;
+              }
+            }
+
+            if (limitReached) {
+              skipped.push(row);
+              continue;
+            }
+
             const ownerId = await getDataOwnerId();
             if (!ownerId) {
               showAlert('Error', 'Could not determine account owner. Please log in again.');
@@ -808,6 +874,39 @@ export default function SettingsScreen() {
           }
 
           if (clientData.name && clientData.address1 && clientData.nextVisit) {
+            // Check limit before each client creation to prevent exceeding limits during batch import
+            if (!limitReached) {
+              try {
+                const currentLimitCheck = await checkClientLimit();
+                if (!currentLimitCheck.canAdd) {
+                  limitReached = true;
+                  const message = currentLimitCheck.limit 
+                    ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\nUpgrade to Premium for unlimited clients.`
+                    : 'Unable to add more clients at this time.';
+                
+                  showAlert('Client Limit Reached', message);
+                  // Skip remaining clients due to limit
+                  for (let j = i; j < validRows.length; j++) {
+                    skipped.push(validRows[j]);
+                  }
+                  break;
+                }
+              } catch (error) {
+                console.error('Error checking client limit during import:', error);
+                showAlert('Error', 'Unable to verify subscription status. Skipping remaining clients.');
+                // Skip remaining clients due to error
+                for (let j = i; j < validRows.length; j++) {
+                  skipped.push(validRows[j]);
+                }
+                break;
+              }
+            }
+
+            if (limitReached) {
+              skipped.push(row);
+              continue;
+            }
+
             const ownerId = await getDataOwnerId();
             if (!ownerId) {
               showAlert('Error', 'Could not determine account owner. Please log in again.');
