@@ -220,18 +220,32 @@ export default function AddClientScreen() {
 
     // Check subscription limits before proceeding
     try {
+      console.log('🔍 Checking client limit before save...');
       const clientLimitCheck = await checkClientLimit();
+      console.log('🔍 Client limit check result:', clientLimitCheck);
+      
       if (!clientLimitCheck.canAdd) {
+        console.log('🚫 Client limit reached - showing upgrade alert');
         const message = clientLimitCheck.limit 
-          ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients and team member creation.`
+          ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\nOnly £18/month`
           : 'Unable to add more clients at this time.';
         
-        Alert.alert('Client Limit Reached', message);
+        if (Platform.OS === 'web') {
+          window.alert('🚫 Client Limit Reached\n\n' + message);
+        } else {
+          Alert.alert('🚫 Client Limit Reached', message);
+        }
         return;
       }
+      console.log('✅ Client limit check passed - can add client');
     } catch (error) {
-      console.error('Error checking client limit:', error);
-      Alert.alert('Error', 'Unable to verify subscription status. Please try again.');
+      console.error('❌ Error checking client limit:', error);
+      const errorMessage = 'Unable to verify subscription status. Please try again.';
+      if (Platform.OS === 'web') {
+        window.alert('Error\n\n' + errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
       return;
     }
 

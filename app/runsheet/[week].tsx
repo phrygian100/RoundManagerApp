@@ -1808,10 +1808,10 @@ www.tgmwindowcleaning.co.uk`;
                   const clientLimitCheck = await checkClientLimit();
                   if (!clientLimitCheck.canAdd) {
                     const message = clientLimitCheck.limit 
-                      ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients and team member creation.`
+                      ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\nOnly £18/month`
                       : 'Unable to add more clients at this time.';
                     
-                    Alert.alert('Client Limit Reached', message);
+                    Alert.alert('🚫 Client Limit Reached', message);
                     return;
                   }
                 } catch (error) {

@@ -2970,3 +2970,69 @@ This caused the function to either return 0 clients or throw errors, making it t
 **Status**: ✅ **FIXED** - All client creation entry points now properly enforce subscription limits with accurate client counting.
 
 ---
+
+## 2025-01-31 - Enhanced Client Limit User Experience 🎯
+
+### Issue Identified
+While the client limit enforcement was working correctly (blocking users at 20 clients), the user experience was poor. Users would click "Save Client" and get no response, with only a console log showing the limit check was performed.
+
+### Improvements Made
+
+**1. Enhanced Console Logging**:
+- Added detailed console logs to track limit checking process
+- Clear indicators when limits are reached vs passed
+- Better debugging information for troubleshooting
+
+**2. Platform-Specific Alert Handling**:
+- Web platform: Uses `window.alert()` for consistent experience
+- Mobile platform: Uses React Native `Alert.alert()` 
+- Ensures alerts display properly on all platforms
+
+**3. Compelling Upgrade Messaging**:
+- Enhanced upgrade message with clear value proposition
+- Added emojis and bullet points for better readability
+- Included pricing information (£18/month)
+- Added call-to-action for free trial
+
+**New Upgrade Message**:
+```
+🚫 Client Limit Reached
+
+You've reached the limit of 20 clients on your current plan. You currently have 20 clients.
+
+🚀 Upgrade to Premium for:
+• Unlimited clients
+• Team member creation
+• Priority support
+
+Only £18/month
+```
+
+**4. Consistent Messaging Across All Entry Points**:
+- Manual client creation (`app/add-client.tsx`)
+- Quote-to-client conversion (`app/runsheet/[week].tsx`)
+- CSV import functions (`app/(tabs)/settings.tsx`)
+
+### Technical Implementation
+
+**Files Modified**:
+- `app/add-client.tsx`: Enhanced limit checking with better UX
+- `app/runsheet/[week].tsx`: Improved upgrade messaging
+- `app/(tabs)/settings.tsx`: Updated CSV import limit messages
+
+**New Features**:
+- ✅ Clear user feedback when limits are reached
+- ✅ Compelling upgrade call-to-action
+- ✅ Platform-specific alert handling
+- ✅ Detailed console logging for debugging
+- ✅ Consistent messaging across all entry points
+
+### Impact
+- **User Experience**: Users now get clear feedback instead of silent failures
+- **Conversion**: Compelling upgrade messaging with clear value proposition
+- **Debugging**: Enhanced logging makes troubleshooting easier
+- **Consistency**: Same upgrade experience across all client creation methods
+
+**Status**: ✅ **COMPLETED** - Users now receive clear, compelling upgrade prompts when reaching client limits.
+
+---
