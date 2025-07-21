@@ -1,21 +1,18 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { startOfWeek } from 'date-fns';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { signOut } from 'firebase/auth';
-import { addDoc, collection, deleteDoc, doc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
-import { auth, db } from '../../core/firebase';
+import { db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
-import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
-import { createPayment, deleteAllPayments } from '../../services/paymentService';
-import { EffectiveSubscription, getEffectiveSubscription, getSubscriptionDisplayInfo, migrateUsersToSubscriptions } from '../../services/subscriptionService';
+import { createPayment } from '../../services/paymentService';
+import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
@@ -104,6 +101,39 @@ export default function SettingsScreen() {
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
+
+  // Check client limit based on subscription
+  const checkClientLimit = async () => {
+    try {
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        return { canAdd: false, limit: null, currentCount: 0 };
+      }
+
+      // Get current client count
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const clientsSnapshot = await getDocs(clientsQuery);
+      const currentCount = clientsSnapshot.size;
+
+      // Get subscription info
+      const currentSubscription = subscription || await getEffectiveSubscription();
+      
+      if (!currentSubscription) {
+        return { canAdd: false, limit: null, currentCount };
+      }
+
+      // Check limits based on subscription tier
+      if (currentSubscription.tier === 'premium' || currentSubscription.tier === 'exempt') {
+        return { canAdd: true, limit: null, currentCount }; // Unlimited
+      } else {
+        const limit = currentSubscription.clientLimit || 20; // Use subscription limit or default to 20
+        return { canAdd: currentCount < limit, limit, currentCount };
+      }
+    } catch (error) {
+      console.error('Error checking client limit:', error);
+      return { canAdd: false, limit: null, currentCount: 0 };
+    }
+  };
 
   // Load subscription information
   const loadSubscription = async () => {
@@ -487,7 +517,6 @@ export default function SettingsScreen() {
               : 'Unable to add more clients at this time.';
             
             showAlert('Client Limit Reached', message);
-            resolve();
             return;
           }
 
@@ -505,13 +534,11 @@ export default function SettingsScreen() {
           // Confirm import
           const proceed = await showConfirm('Confirm Import', confirmMessage);
           if (!proceed) {
-            resolve();
             return;
           }
         } catch (error) {
           console.error('Error checking client limit:', error);
           showAlert('Error', 'Unable to verify subscription status. Please try again.');
-          resolve();
           return;
         }
 
@@ -675,7 +702,6 @@ export default function SettingsScreen() {
               : 'Unable to add more clients at this time.';
             
             showAlert('Client Limit Reached', message);
-            resolve();
             return;
           }
 
@@ -1485,4 +1511,192 @@ export default function SettingsScreen() {
                 }
               });
               if (skipped.length > 5) {
-                message += `
+                message += `\n• ... and ${skipped.length - 5} more`;
+              }
+              console.log('Skipped rows:', skipped);
+            }
+            showAlert('Import Result', message);
+
+          } catch (e) {
+            console.error('Import process error:', e);
+            Alert.alert('Import Error', 'Failed to import CSV.');
+          } finally {
+            resolve();
+          }
+        };
+        input.click();
+      });
+      return;
+    }
+
+    // Non-web platform implementation (React Native)
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
+      if (result.canceled || !result.assets || !result.assets[0]) return;
+      const file = result.assets[0];
+      console.log('Selected file:', file.name);
+      
+      if (file.name.endsWith('.csv')) {
+        const response = await fetch(file.uri);
+        const csvText = await response.text();
+        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+        if (parsed.errors.length) {
+          console.error('CSV Parsing Errors:', parsed.errors);
+          Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
+          return;
+        }
+        let rows: any[] = parsed.data as any[];
+
+        // Get all clients to create account number -> clientId mapping
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          showAlert('Error', 'Could not determine account owner. Please log in again.');
+          return;
+        }
+
+        const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+        const clientsSnapshot = await getDocs(clientsQuery);
+        const accountToClientMap = new Map<string, { id: string; address: string }>();
+        
+        clientsSnapshot.docs.forEach(doc => {
+          const data = doc.data();
+          if (data.accountNumber) {
+            accountToClientMap.set(data.accountNumber.toUpperCase(), {
+              id: doc.id,
+              address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`
+            });
+          }
+        });
+
+        // Validate rows
+        const validRows: any[] = [];
+        const skipped: any[] = [];
+        const requiredJobFields = ['Account Number', 'Date', 'Amount (£)'];
+        
+        rows.forEach((r, index) => {
+          const missing = requiredJobFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
+          if (missing.length) {
+            const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
+            skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
+          } else {
+            let accountNumber = (r as any)['Account Number']?.toString().trim();
+            if (!accountNumber.toUpperCase().startsWith('RWC')) {
+              accountNumber = 'RWC' + accountNumber;
+            }
+            if (!accountToClientMap.has(accountNumber.toUpperCase())) {
+              const rowIdentifier = accountNumber || `Row ${index + 2}`;
+              skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
+            } else {
+              validRows.push(r);
+            }
+          }
+        });
+
+        // Confirm import
+        const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} completed jobs (skipping ${skipped.length}). Continue?`);
+        if (!proceed) return;
+
+        let imported = 0;
+        
+        for (let i = 0; i < validRows.length; i++) {
+          const row = validRows[i];
+          
+          let accountNumber = (row as any)['Account Number']?.toString().trim();
+          if (!accountNumber.toUpperCase().startsWith('RWC')) {
+            accountNumber = 'RWC' + accountNumber;
+          }
+          const clientInfo = accountToClientMap.get(accountNumber.toUpperCase());
+          
+          if (!clientInfo) continue;
+          
+          const amountString = (row as any)['Amount (£)']?.toString().trim();
+          const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
+          const amount = parseFloat(sanitizedAmount) || 0;
+          
+          let jobDate = '';
+          const dateString = (row as any)['Date']?.toString().trim();
+          if (dateString) {
+            const parts = dateString.split('/');
+            if (parts.length === 3) {
+              const [day, month, year] = parts;
+              if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                jobDate = `${year}-${month}-${day}`;
+              }
+            } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              jobDate = dateString;
+            }
+          }
+          
+          if (!jobDate) {
+            skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
+            continue;
+          }
+          
+          try {
+            await addDoc(collection(db, 'jobs'), {
+              ownerId,
+              clientId: clientInfo.id,
+              providerId: 'test-provider-1',
+              serviceId: 'Historic Completed Service',
+              propertyDetails: clientInfo.address,
+              scheduledTime: jobDate + 'T09:00:00',
+              status: 'completed',
+              price: amount,
+              paymentStatus: 'unpaid'
+            });
+            imported++;
+          } catch (e) {
+            console.error('Error creating job:', e, 'for row:', row);
+            skipped.push({ row, reason: 'Database error', identifier: accountNumber });
+          }
+        }
+
+        let message = `Import Complete!\n\nSuccessfully imported: ${imported} completed jobs.`;
+        if (skipped.length > 0) {
+          message += `\n\nSkipped ${skipped.length} rows:`;
+          skipped.forEach((s, idx) => {
+            if (idx < 5) {
+              message += `\n• ${s.identifier}: ${s.reason}`;
+            }
+          });
+          if (skipped.length > 5) {
+            message += `\n• ... and ${skipped.length - 5} more`;
+          }
+        }
+        showAlert('Import Result', message);
+      } else {
+        Alert.alert('Unsupported file', 'Please select a CSV file.');
+      }
+      
+    } catch (e) {
+      console.error('Import process error:', e);
+      Alert.alert('Import Error', 'Failed to import CSV.');
+    }
+  };
+
+  // Return placeholder UI - actual settings UI implementation would go here
+  return (
+    <ThemedView style={styles.container}>
+      <ThemedText>Settings Screen - Functions implemented but UI needs to be added</ThemedText>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  btnBase: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    marginVertical: 4,
+    alignItems: 'center',
+  },
+  btnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
