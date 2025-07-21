@@ -1,5 +1,5 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,7 +14,7 @@ export default function RootLayout() {
   
   // Set up auth listener only once
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user: User | null) => {
+    const unsubscribe = onAuthStateChanged(auth as Auth, (user: User | null) => {
       console.log('🔑 Firebase auth change:', { hasUser: !!user });
       setCurrentUser(user);
       setAuthReady(true);
@@ -27,7 +27,7 @@ export default function RootLayout() {
     if (!authReady) return; // Wait for auth to be ready
     
     const isPasswordResetFlow = typeof window !== 'undefined' && 
-      window.location.href.includes('type=recovery');
+      window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
     const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
     const redirectIfLoggedIn = ['/login', '/register'];
