@@ -10,8 +10,9 @@ import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
-import { generateRecurringJobs } from '../../services/jobService';
-import { createPayment } from '../../services/paymentService';
+import { deleteAllClients, getClientCount } from '../../services/clientService';
+import { deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
+import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 
@@ -1832,7 +1833,6 @@ export default function SettingsScreen() {
               onPress={async () => {
                 try {
                   setLoading(true);
-                  const { getClientCount } = await import('../../services/clientService');
                   const count = await getClientCount();
                   setLoading(false);
                   
@@ -1863,7 +1863,6 @@ export default function SettingsScreen() {
                                 onPress: async () => {
                                   try {
                                     setLoading(true);
-                                    const { deleteAllClients } = await import('../../services/clientService');
                                     const result = await deleteAllClients();
                                     
                                     if (result.error) {
@@ -1900,7 +1899,6 @@ export default function SettingsScreen() {
               onPress={async () => {
                 try {
                   setLoading(true);
-                  const { getJobCount } = await import('../../services/jobService');
                   const count = await getJobCount();
                   setLoading(false);
                   
@@ -1931,7 +1929,6 @@ export default function SettingsScreen() {
                                 onPress: async () => {
                                   try {
                                     setLoading(true);
-                                    const { deleteAllJobs } = await import('../../services/jobService');
                                     const result = await deleteAllJobs();
                                     
                                     if (result.error) {
@@ -1968,7 +1965,6 @@ export default function SettingsScreen() {
               onPress={async () => {
                 try {
                   setLoading(true);
-                  const { getPaymentCount } = await import('../../services/paymentService');
                   const count = await getPaymentCount();
                   setLoading(false);
                   
@@ -1999,7 +1995,6 @@ export default function SettingsScreen() {
                                 onPress: async () => {
                                   try {
                                     setLoading(true);
-                                    const { deleteAllPayments } = await import('../../services/paymentService');
                                     await deleteAllPayments();
                                     Alert.alert('Success', `${count} payments have been permanently deleted.`);
                                   } catch (error) {
