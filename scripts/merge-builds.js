@@ -10,7 +10,7 @@ const marketingDistDir = path.join(distDir, '_marketing');
 
 // Ensure dist directory exists
 if (!fs.existsSync(distDir)) {
-  console.error('❌ Main app build not found. Run expo export:web first.');
+  console.error('❌ Main app build not found. Run expo export first.');
   process.exit(1);
 }
 
@@ -35,16 +35,17 @@ try {
     console.log('📦 Copied Next.js assets to _next directory');
   }
 
-  // Verify marketing pages exist
+  // Verify marketing pages exist (Next.js App Router creates /route/index.html)
   const routes = ['home', 'pricing', 'about', 'contact'];
   
   for (const route of routes) {
-    const htmlFile = path.join(marketingDistDir, `${route}.html`);
+    const routeDir = path.join(marketingDistDir, route);
+    const htmlFile = path.join(routeDir, 'index.html');
     
     if (fs.existsSync(htmlFile)) {
-      console.log(`✅ Found ${route}.html`);
+      console.log(`✅ Found ${route}/index.html`);
     } else {
-      console.log(`⚠️  Missing ${route}.html - check Next.js build`);
+      console.log(`⚠️  Missing ${route}/index.html - check Next.js build`);
     }
   }
   

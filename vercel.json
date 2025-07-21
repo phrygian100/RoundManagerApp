@@ -4,19 +4,19 @@
   "rewrites": [
     {
       "source": "/home",
-      "destination": "/_marketing/home.html"
+      "destination": "/_marketing/home/index.html"
     },
     {
       "source": "/pricing", 
-      "destination": "/_marketing/pricing.html"
+      "destination": "/_marketing/pricing/index.html"
     },
     {
       "source": "/about",
-      "destination": "/_marketing/about.html"
+      "destination": "/_marketing/about/index.html"
     },
     {
       "source": "/contact",
-      "destination": "/_marketing/contact.html"
+      "destination": "/_marketing/contact/index.html"
     },
     {
       "source": "/_next/static/(.*)",

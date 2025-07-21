@@ -1370,7 +1370,7 @@ renderItem={({ item, index, section }) => {
   - Members only see appropriate buttons and screens
   - Leave team properly resets user to their own account
 
-**Files modified**:
+**Files modified**: 
 - app/(tabs)/settings.tsx
 - app/enter-invite-code.tsx
 - app/set-password.tsx
