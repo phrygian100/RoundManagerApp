@@ -1177,15 +1177,39 @@ www.tgmwindowcleaning.co.uk`;
     const isCompleted = item.status === 'completed';
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
-    // Find the first incomplete job in this section (excluding note jobs)
-    const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
+    
+    // Find which vehicle this job belongs to by looking backwards for the most recent vehicle header
+    let vehicleStartIndex = 0;
+    for (let i = index - 1; i >= 0; i--) {
+      const prevItem = section.data[i];
+      if (prevItem && (prevItem as any).__type === 'vehicle') {
+        vehicleStartIndex = i + 1; // Jobs start after the vehicle header
+        break;
+      }
+    }
+    
+    // Find the next vehicle header (or end of section) to determine vehicle end
+    let vehicleEndIndex = section.data.length;
+    for (let i = index + 1; i < section.data.length; i++) {
+      const nextItem = section.data[i];
+      if (nextItem && (nextItem as any).__type === 'vehicle') {
+        vehicleEndIndex = i;
+        break;
+      }
+    }
+    
+    // Find the first incomplete job within this vehicle's section only
+    const firstIncompleteIndexInVehicle = section.data.slice(vehicleStartIndex, vehicleEndIndex)
+      .findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
+    const firstIncompleteIndex = firstIncompleteIndexInVehicle >= 0 ? vehicleStartIndex + firstIncompleteIndexInVehicle : -1;
+    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
     // Determine if this job is for today
     const isToday = jobDate && jobDate.toDateString() === today.toDateString();
     const isFutureDay = jobDate && jobDate > today;
-    // Only show complete button for the first incomplete job on today, if today is not marked complete
+    // Only show complete button for the first incomplete job within this vehicle on today, if today is not marked complete
     const showCompleteButton = isCurrentWeek && isToday && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
     const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);

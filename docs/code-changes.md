@@ -69,6 +69,80 @@ Updated the audit logging system to display customer addresses instead of names 
 23/01/2025 09:15  [mike@company.com]  Archived client for "789 High St, Birmingham, B1 1AA"
 ```
 
+---
+
+## 2025-01-30 - Fixed Complete Job Button for Multiple Vehicles
+
+### Problem
+When multiple vehicles were operating on the same day, users could only mark the first job at the top of the entire list as complete. The complete button logic was treating all jobs as one combined list rather than separate lists per vehicle.
+
+### Root Cause
+The `firstIncompleteIndex` calculation in `app/runsheet/[week].tsx` was finding the first incomplete job across the entire day's jobs, rather than within each vehicle's section. With multiple vehicles, the data structure looks like:
+
+```
+[
+  { __type: 'vehicle', name: 'Vehicle 1' }, // index 0
+  { job 1 for vehicle 1 },                 // index 1 (only this could be completed)
+  { job 2 for vehicle 1 },                 // index 2
+  { __type: 'vehicle', name: 'Vehicle 2' }, // index 3  
+  { job 1 for vehicle 2 },                 // index 4 (couldn't be completed)
+  { job 2 for vehicle 2 },                 // index 5
+]
+```
+
+### Solution
+Enhanced the complete button logic to:
+
+1. **Find Vehicle Boundaries**: Look backwards from current job to find the vehicle header it belongs to
+2. **Calculate Vehicle-Specific Index**: Find the first incomplete job within that specific vehicle's section only
+3. **Enable Per-Vehicle Completion**: Each vehicle now has its own "first incomplete job" that can be completed
+
+### Technical Implementation
+
+**Enhanced Job Completion Logic** (`app/runsheet/[week].tsx`):
+```typescript
+// Find which vehicle this job belongs to by looking backwards for the most recent vehicle header
+let vehicleStartIndex = 0;
+for (let i = index - 1; i >= 0; i--) {
+  const prevItem = section.data[i];
+  if (prevItem && (prevItem as any).__type === 'vehicle') {
+    vehicleStartIndex = i + 1; // Jobs start after the vehicle header
+    break;
+  }
+}
+
+// Find the next vehicle header (or end of section) to determine vehicle end
+let vehicleEndIndex = section.data.length;
+for (let i = index + 1; i < section.data.length; i++) {
+  const nextItem = section.data[i];
+  if (nextItem && (nextItem as any).__type === 'vehicle') {
+    vehicleEndIndex = i;
+    break;
+  }
+}
+
+// Find the first incomplete job within this vehicle's section only
+const firstIncompleteIndexInVehicle = section.data.slice(vehicleStartIndex, vehicleEndIndex)
+  .findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
+const firstIncompleteIndex = firstIncompleteIndexInVehicle >= 0 ? vehicleStartIndex + firstIncompleteIndexInVehicle : -1;
+```
+
+### User Experience Improvements
+- ✅ Each vehicle's first incomplete job now shows the "Complete?" button
+- ✅ Users can work through jobs sequentially within each vehicle
+- ✅ Maintains existing vehicle collapse/expand functionality  
+- ✅ Preserves all other job management features (ETA, Move, etc.)
+- ✅ Works correctly with single vehicle setups (no behavior change)
+
+### Edge Cases Handled
+- Jobs without vehicle assignments (fallback to original logic)
+- Note jobs and quote jobs (excluded from completion logic)  
+- Collapsed vehicles (completion still works when expanded)
+- Day-level completion (still marks entire day complete)
+
+### Files Modified:
+- `app/runsheet/[week].tsx`: Enhanced complete button logic for multi-vehicle support
+
 ### Technical Details:
 
 **New Helper Function**:
