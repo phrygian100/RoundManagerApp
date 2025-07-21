@@ -1,11 +1,11 @@
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
+import { Auth, getAuth } from 'firebase/auth';
+import { Firestore, getFirestore } from 'firebase/firestore';
 import { FIREBASE_CONFIG } from '../config';
 
-let app;
-let auth;
-let db;
+let app: FirebaseApp;
+let auth: Auth;
+let db: Firestore;
 
 const firebaseConfig = {
   apiKey:             process.env.EXPO_PUBLIC_FIREBASE_API_KEY          || FIREBASE_CONFIG.apiKey,

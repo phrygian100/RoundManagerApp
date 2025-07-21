@@ -9,6 +9,16 @@ export type UserSession = {
   perms: Record<string, boolean>;
 };
 
+type UserData = {
+  accountId?: string;
+  perms?: Record<string, boolean>;
+};
+
+type MemberData = {
+  role: string;
+  perms?: Record<string, boolean>;
+};
+
 /**
  * Returns the current session enriched with custom claims (accountId, isOwner, perms).
  * If the user is not authenticated it resolves to null.
@@ -23,7 +33,7 @@ export async function getUserSession(): Promise<UserSession | null> {
   if (!userDoc.exists()) {
     return null;
   }
-  const userData: any = userDoc.data();
+  const userData = userDoc.data() as UserData;
 
   // If user is a member of a team, look up their member record
   let isOwner = true;
@@ -35,7 +45,7 @@ export async function getUserSession(): Promise<UserSession | null> {
     accountId = userData.accountId;
     const memberDoc = await getDoc(doc(db, `accounts/${accountId}/members/${user.uid}`));
     if (memberDoc.exists()) {
-      const memberData: any = memberDoc.data();
+      const memberData = memberDoc.data() as MemberData;
       isOwner = memberData.role === 'owner';
       perms = memberData.perms || {};
     } else {

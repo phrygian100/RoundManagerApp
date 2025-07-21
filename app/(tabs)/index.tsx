@@ -1,4 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
+import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
@@ -188,7 +189,7 @@ export default function HomeScreen() {
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      const todayStr = today.toISOString().split('T')[0];
+      const todayStr = format(today, 'yyyy-MM-dd');
 
       const jobsQuery = query(
         collection(db, 'jobs'),
