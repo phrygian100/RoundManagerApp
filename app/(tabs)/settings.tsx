@@ -1,10 +1,10 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -1674,10 +1674,385 @@ export default function SettingsScreen() {
     }
   };
 
-  // Return placeholder UI - actual settings UI implementation would go here
+  // Return complete settings UI
   return (
     <ThemedView style={styles.container}>
-      <ThemedText>Settings Screen - Functions implemented but UI needs to be added</ThemedText>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        
+        {/* Profile Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Profile</ThemedText>
+          <StyledButton
+            title="Edit Profile"
+            onPress={() => {
+              loadUserProfile();
+              setProfileModalVisible(true);
+            }}
+          />
+        </View>
+
+        {/* Subscription Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Subscription</ThemedText>
+          {loadingSubscription ? (
+            <ThemedText style={styles.loadingText}>Loading subscription...</ThemedText>
+          ) : subscription ? (
+            <View style={styles.subscriptionCard}>
+              <View style={styles.subscriptionHeader}>
+                <ThemedText style={styles.subscriptionTier}>
+                  {subscription.tier === 'free' ? 'Free Plan' : 
+                   subscription.tier === 'premium' ? 'Premium Plan' : 'Developer Account'}
+                </ThemedText>
+                <View style={[styles.subscriptionBadge, { 
+                  backgroundColor: subscription.tier === 'free' ? '#6b7280' : 
+                                   subscription.tier === 'premium' ? '#4f46e5' : '#059669' 
+                }]}>
+                  <ThemedText style={styles.subscriptionBadgeText}>
+                    {subscription.tier.toUpperCase()}
+                  </ThemedText>
+                </View>
+              </View>
+              <ThemedText style={styles.subscriptionDescription}>
+                {subscription.tier === 'free' ? 'Up to 20 clients' :
+                 subscription.tier === 'premium' ? 'Unlimited clients + team members' :
+                 'Unlimited access'}
+              </ThemedText>
+              {subscription.clientLimit && (
+                <ThemedText style={styles.subscriptionLimit}>
+                  Client limit: {subscription.clientLimit}
+                </ThemedText>
+              )}
+            </View>
+          ) : (
+            <ThemedText style={styles.errorText}>Unable to load subscription information</ThemedText>
+          )}
+          
+          {/* Migration button for owners only */}
+          {isOwner && (
+            <StyledButton
+              title="Initialize Subscription Tiers"
+              onPress={async () => {
+                Alert.alert(
+                  'Initialize Subscription System',
+                  'This will set up subscription tiers for all users. This should only be done once. Continue?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Initialize', 
+                      onPress: async () => {
+                        try {
+                          setLoading(true);
+                          const { migrateUsersToSubscriptions } = await import('../../services/subscriptionService');
+                          const result = await migrateUsersToSubscriptions();
+                          Alert.alert(
+                            'Migration Complete',
+                            `Updated ${result.updated} users to free tier, ${result.exempt} exempt accounts created, ${result.errors} errors occurred.`
+                          );
+                          await loadSubscription(); // Refresh subscription data
+                        } catch (error) {
+                          console.error('Migration error:', error);
+                          Alert.alert('Error', 'Failed to initialize subscription tiers.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            />
+          )}
+        </View>
+
+        {/* Import Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Import Data</ThemedText>
+          <ThemedText style={styles.sectionDescription}>
+            Import clients, payments, or completed jobs from CSV or Excel files
+          </ThemedText>
+          
+          <StyledButton
+            title="Import Clients"
+            onPress={handleImport}
+            disabled={loading}
+          />
+          
+          <StyledButton
+            title="Import Payments"
+            onPress={handleImportPayments}
+            disabled={loading}
+          />
+          
+          <StyledButton
+            title="Import Completed Jobs"
+            onPress={handleImportCompletedJobs}
+            disabled={loading}
+          />
+        </View>
+
+        {/* Capacity Management */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Capacity Management</ThemedText>
+          <StyledButton
+            title={isRefreshingCapacity ? "Refreshing..." : "Refresh Capacity for Current Week"}
+            onPress={async () => {
+              setIsRefreshingCapacity(true);
+              try {
+                const { startOfWeek } = await import('date-fns');
+                const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
+                
+                const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+                const result = await manualRefreshWeekCapacity(currentWeekStart);
+                
+                let message = `Capacity refresh complete!\n\nJobs redistributed: ${result.redistributedJobs}`;
+                if (result.warnings.length > 0) {
+                  message += `\n\nWarnings:\n${result.warnings.join('\n')}`;
+                }
+                
+                Alert.alert('Capacity Refreshed', message);
+              } catch (error) {
+                console.error('Error refreshing capacity:', error);
+                Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
+              } finally {
+                setIsRefreshingCapacity(false);
+              }
+            }}
+            disabled={isRefreshingCapacity}
+          />
+        </View>
+
+        {/* Admin Section - Owner Only */}
+        {isOwner && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Admin Tools</ThemedText>
+            <ThemedText style={styles.warningText}>
+              ⚠️ Dangerous operations - use with caution
+            </ThemedText>
+            
+            <StyledButton
+              title="Delete All Clients"
+              onPress={async () => {
+                Alert.alert(
+                  'Delete All Clients',
+                  'This will permanently delete ALL clients. This cannot be undone. Are you absolutely sure?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'DELETE ALL', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          setLoading(true);
+                          // Delete all clients for current owner
+                          const ownerId = await getDataOwnerId();
+                          if (!ownerId) throw new Error('No owner ID found');
+                          
+                          const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+                          const clientsSnapshot = await getDocs(clientsQuery);
+                          
+                          if (clientsSnapshot.size > 0) {
+                            const batch = writeBatch(db);
+                            clientsSnapshot.forEach((docSnap) => {
+                              batch.delete(docSnap.ref);
+                            });
+                            await batch.commit();
+                          }
+                          
+                          Alert.alert('Success', `${clientsSnapshot.size} clients have been deleted.`);
+                        } catch (error) {
+                          console.error('Error deleting clients:', error);
+                          Alert.alert('Error', 'Failed to delete clients.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              color="red"
+              disabled={loading}
+            />
+            
+            <StyledButton
+              title="Delete All Jobs"
+              onPress={async () => {
+                Alert.alert(
+                  'Delete All Jobs',
+                  'This will permanently delete ALL jobs. This cannot be undone. Are you absolutely sure?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'DELETE ALL', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          setLoading(true);
+                          // Delete all jobs for current owner
+                          const ownerId = await getDataOwnerId();
+                          if (!ownerId) throw new Error('No owner ID found');
+                          
+                          const jobsQuery = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
+                          const jobsSnapshot = await getDocs(jobsQuery);
+                          
+                          if (jobsSnapshot.size > 0) {
+                            const batch = writeBatch(db);
+                            jobsSnapshot.forEach((docSnap) => {
+                              batch.delete(docSnap.ref);
+                            });
+                            await batch.commit();
+                          }
+                          
+                          Alert.alert('Success', `${jobsSnapshot.size} jobs have been deleted.`);
+                        } catch (error) {
+                          console.error('Error deleting jobs:', error);
+                          Alert.alert('Error', 'Failed to delete jobs.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              color="red"
+              disabled={loading}
+            />
+            
+            <StyledButton
+              title="Delete All Payments"
+              onPress={async () => {
+                Alert.alert(
+                  'Delete All Payments',
+                  'This will permanently delete ALL payments. This cannot be undone. Are you absolutely sure?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'DELETE ALL', 
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          setLoading(true);
+                          const { deleteAllPayments } = await import('../../services/paymentService');
+                          await deleteAllPayments();
+                          Alert.alert('Success', 'All payments have been deleted.');
+                        } catch (error) {
+                          console.error('Error deleting payments:', error);
+                          Alert.alert('Error', 'Failed to delete payments.');
+                        } finally {
+                          setLoading(false);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+              color="red"
+              disabled={loading}
+            />
+          </View>
+        )}
+
+        {/* Account Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Account</ThemedText>
+          <StyledButton
+            title="Sign Out"
+            onPress={() => {
+              Alert.alert(
+                'Sign Out',
+                'Are you sure you want to sign out?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { 
+                    text: 'Sign Out', 
+                    onPress: async () => {
+                      try {
+                        const { signOut } = await import('firebase/auth');
+                        const { auth } = await import('../../core/firebase');
+                        await signOut(auth);
+                        router.replace('/login');
+                      } catch (error) {
+                        console.error('Error signing out:', error);
+                        Alert.alert('Error', 'Failed to sign out.');
+                      }
+                    }
+                  }
+                ]
+              );
+            }}
+          />
+        </View>
+      </ScrollView>
+
+      {/* Profile Edit Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={profileModalVisible}
+        onRequestClose={() => setProfileModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText style={styles.modalTitle}>Edit Profile</ThemedText>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Name *"
+              value={profileForm.name}
+              onChangeText={(text) => setProfileForm(prev => ({ ...prev, name: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Address Line 1"
+              value={profileForm.address1}
+              onChangeText={(text) => setProfileForm(prev => ({ ...prev, address1: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Town"
+              value={profileForm.town}
+              onChangeText={(text) => setProfileForm(prev => ({ ...prev, town: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Postcode"
+              value={profileForm.postcode}
+              onChangeText={(text) => setProfileForm(prev => ({ ...prev, postcode: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Contact Number"
+              value={profileForm.contactNumber}
+              keyboardType="phone-pad"
+              onChangeText={(text) => setProfileForm(prev => ({ ...prev, contactNumber: text }))}
+            />
+            
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setProfileModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveProfile}
+                disabled={savingProfile}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingProfile ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -1686,6 +2061,82 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  section: {
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#1a1a1a',
+  },
+  sectionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    padding: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#dc3545',
+    textAlign: 'center',
+    padding: 8,
+  },
+  warningText: {
+    fontSize: 14,
+    color: '#f56500',
+    marginBottom: 12,
+    fontWeight: '500',
+  },
+  subscriptionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 12,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  subscriptionTier: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1a1a1a',
+  },
+  subscriptionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  subscriptionBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  subscriptionDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  subscriptionLimit: {
+    fontSize: 12,
+    color: '#999',
   },
   btnBase: {
     backgroundColor: '#007AFF',
@@ -1696,6 +2147,74 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 35,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '90%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalInput: {
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  modalButtonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#6c757d',
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  saveButtonText: {
+    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
