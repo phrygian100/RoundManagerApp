@@ -12,7 +12,7 @@
     "lint": "expo lint",
     "build": "npm run build:marketing && npm run build:app",
     "build:marketing": "cd web && npm install && npm run build",
-    "build:app": "expo export:web",
+    "build:app": "expo export --platform web --output-dir dist",
     "postbuild": "node scripts/merge-builds.js"
   },
   "dependencies": {

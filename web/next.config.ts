@@ -7,15 +7,7 @@ const nextConfig: NextConfig = {
     unoptimized: true
   },
   basePath: '',
-  assetPrefix: '',
-  generateStaticParams: async () => {
-    return [
-      { params: { slug: 'home' } },
-      { params: { slug: 'pricing' } },
-      { params: { slug: 'about' } },
-      { params: { slug: 'contact' } }
-    ];
-  }
+  assetPrefix: ''
 };
 
 export default nextConfig;
