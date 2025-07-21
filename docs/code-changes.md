@@ -2901,12 +2901,27 @@ The subscription system was correctly implemented with proper limits, but **only
 
 1. **Quote-to-Client Conversion** (`app/runsheet/[week].tsx`): **NO limit checking** - critical bypass
 2. **CSV Import Functions** (3 instances in `app/(tabs)/settings.tsx`): Had limit checking but with a logic flaw
+3. **Critical Field Name Error**: The `checkClientLimit` function was using wrong field name in Firestore query
 
-### The Real Issue
+### The Real Issues
+
+**Issue 1: Missing Limit Checking**
 The CSV import functions had limit checking implemented, but there was a subtle logic issue:
 - Limit check happened **before** the import loop
 - Client creation happened **inside** the loop without re-checking limits for each client
 - This meant: User has 19 clients → imports 2 clients → limit check passes (19 < 20, can add 2) → both clients created (19 + 2 = 21) → user can manually add 1 more (21 + 1 = 22, should be blocked but wasn't)
+
+**Issue 2: Critical Field Name Error**
+The `checkClientLimit` function in `services/subscriptionService.ts` was using an incorrect Firestore query:
+```typescript
+// ❌ WRONG - field doesn't exist
+where('isArchived', '!=', true)
+
+// ✅ CORRECT - proper field name
+where('status', '!=', 'ex-client')
+```
+
+This caused the function to either return 0 clients or throw errors, making it think users had fewer clients than they actually did.
 
 ### Fixes Implemented
 
@@ -2921,7 +2936,12 @@ The CSV import functions had limit checking implemented, but there was a subtle 
 - When limit is reached, remaining clients are skipped with clear messaging
 - Proper error handling for subscription verification failures
 
-**3. Enhanced User Experience**:
+**3. Critical Field Name Fix**:
+- Fixed `checkClientLimit` function to use correct field name: `status` instead of `isArchived`
+- Updated query to properly filter out archived clients: `where('status', '!=', 'ex-client')`
+- This ensures accurate client counting for limit enforcement
+
+**4. Enhanced User Experience**:
 - Clear upgrade prompts when limits are reached during batch operations
 - Informative messages showing how many clients were skipped due to limits
 - Consistent error messaging across all entry points
@@ -2931,19 +2951,22 @@ The CSV import functions had limit checking implemented, but there was a subtle 
 **Files Modified**:
 - `app/runsheet/[week].tsx`: Added limit checking to quote-to-client conversion
 - `app/(tabs)/settings.tsx`: Added incremental limit checking to all 3 CSV import functions
+- `services/subscriptionService.ts`: Fixed critical field name error in client query
 
 **New Behavior**:
 - **Free tier users**: Cannot exceed 20 clients through any entry point
 - **Premium tier users**: Unlimited clients (no changes)
 - **Exempt tier users**: Unlimited clients (no changes)
 - **Batch operations**: Gracefully handle limit enforcement with clear feedback
+- **Accurate counting**: Properly filters out archived/ex-client records
 
 ### Impact
 - **Security**: Complete subscription limit enforcement across all client creation methods
 - **User Experience**: Clear feedback when limits are reached during batch operations
 - **Business Logic**: Proper monetization enforcement for the subscription tier system
 - **Data Integrity**: Prevents accidental client limit violations
+- **Accuracy**: Correct client counting ensures proper limit enforcement
 
-**Status**: ✅ **FIXED** - All client creation entry points now properly enforce subscription limits.
+**Status**: ✅ **FIXED** - All client creation entry points now properly enforce subscription limits with accurate client counting.
 
 ---

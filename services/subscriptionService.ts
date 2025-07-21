@@ -110,7 +110,7 @@ export async function checkClientLimit(): Promise<{ canAdd: boolean; currentCoun
     const clientsQuery = query(
       collection(db, 'clients'),
       where('ownerId', '==', ownerId),
-      where('isArchived', '!=', true)
+      where('status', '!=', 'ex-client')
     );
     const clientsSnapshot = await getDocs(clientsQuery);
     const currentCount = clientsSnapshot.size;
