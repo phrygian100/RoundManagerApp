@@ -57,13 +57,15 @@
     "dotenv": "^16.0.3"
   },
   "devDependencies": {
-    "@babel/core": "^7.24.0",
-    "@eslint/eslintrc": "^3.1.0",
-    "@types/papaparse": "^5.3.14",
-    "@types/react": "~19.0.11",
-    "eslint": "^9.12.0",
-    "eslint-config-expo": "^8.0.2",
-    "typescript": "~5.3.3"
+    "@babel/core": "^7.25.2",
+    "@react-native-community/cli": "^18.0.0",
+    "@types/papaparse": "^5.3.16",
+    "@types/react": "~19.0.10",
+    "babel-plugin-module-resolver": "^5.0.2",
+    "eslint": "^9.25.0",
+    "eslint-config-expo": "~9.2.0",
+    "typescript": "~5.8.3",
+    "typescript-transform-paths": "^3.5.5"
   },
   "private": true
 }
