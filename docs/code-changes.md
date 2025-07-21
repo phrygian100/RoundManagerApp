@@ -5,6 +5,114 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Subscription Tier System Implementation 💳
+
+### Summary
+Implemented a comprehensive subscription tier system with free, premium, and exempt tiers, including client limits enforcement, member creation restrictions, and developer exemptions. This sets the foundation for Stripe integration and subscription billing.
+
+### Changes Made:
+
+**1. Data Model & Types**:
+- Added subscription fields to User type: `subscriptionTier`, `subscriptionStatus`, `subscriptionExpiresAt`, `clientLimit`, `isExempt`
+- Added Stripe integration fields for future use: `stripeCustomerId`, `stripeSubscriptionId`
+- Created comprehensive subscription service with helper types and interfaces
+
+**2. Subscription Tiers**:
+- **Free Tier**: Up to 20 clients, no team member creation
+- **Premium Tier**: Unlimited clients + team member creation (£18/month)
+- **Exempt Tier**: Developer account with unlimited access (your account: `X4TtaVGKUtQSCtPLF8wsHsVZ0oW2`)
+
+**3. Enforcement Points**:
+- **Client Creation**: Add-client screen now checks limits before allowing new clients
+- **Team Member Creation**: Team invitation requires Premium subscription
+- **Member Inheritance**: Team members inherit account owner's subscription tier
+- **CSV Import**: Client imports will respect subscription limits (ready for implementation)
+
+**4. Subscription Service Functions**:
+- `getEffectiveSubscription()`: Gets subscription with member inheritance logic
+- `checkClientLimit()`: Validates against current client count and tier limits
+- `checkMemberCreationPermission()`: Validates team member creation rights
+- `migrateUsersToSubscriptions()`: One-time migration to set up existing users
+- `getSubscriptionDisplayInfo()`: UI helper for badge colors and text
+
+**5. Settings Screen Integration**:
+- Added subscription tier display card with badge and current plan information
+- Shows client limits and restrictions based on current tier
+- Added "Initialize Subscription Tiers" button for one-time migration
+- Real-time subscription status loading and display
+
+**6. Security & Access Control**:
+- Developer exemption hardcoded with your Firebase UID
+- Your team members automatically inherit exempt status
+- Members cannot create teams (Premium-only feature)
+- Proper error handling and user-friendly upgrade prompts
+
+### Technical Implementation:
+
+**New Service**: `services/subscriptionService.ts`
+- Complete subscription management system
+- Member inheritance logic for team accounts
+- Secure exemption handling for developer accounts
+- Migration utilities for existing user base
+
+**Updated Components**:
+- `app/add-client.tsx`: Client limit checking with upgrade prompts
+- `app/(tabs)/team.tsx`: Member creation permission checking
+- `app/(tabs)/settings.tsx`: Subscription display and migration tools
+- `types/models.ts`: Extended User type with subscription fields
+
+**Error Handling & UX**:
+- Clear upgrade prompts when limits are reached
+- Graceful fallbacks for subscription checking failures
+- Platform-specific alert handling (web vs mobile)
+- Loading states and proper error messages
+
+### Migration Process:
+
+**To Initialize the System**:
+1. Go to Settings screen
+2. Click "Initialize Subscription Tiers" (owner-only button)
+3. Confirms migration with user count summary
+4. Sets all existing users to 'free' tier
+5. Sets your account (`X4TtaVGKUtQSCtPLF8wsHsVZ0oW2`) to 'exempt' tier
+
+**Post-Migration Behavior**:
+- Existing users with >20 clients can continue operating (no grace period - they're warned)
+- New client creation enforced immediately after migration
+- Team member creation immediately restricted to Premium+ accounts
+- Your account and team members have unlimited access
+
+### Business Logic:
+
+**Client Limits**:
+- Free: 20 clients maximum
+- Premium: Unlimited clients
+- Exempt: Unlimited clients
+
+**Team Features**:
+- Free: Cannot create team members
+- Premium: Can invite unlimited team members
+- Exempt: Can invite unlimited team members
+
+**Member Inheritance**:
+- Team members inherit the account owner's subscription tier
+- Members check owner's subscription for limits and permissions
+- Seamless experience regardless of individual vs team accounts
+
+### Files Created:
+- `services/subscriptionService.ts` - Complete subscription management system
+
+### Files Modified:
+- `types/models.ts` - Added subscription fields to User type
+- `app/add-client.tsx` - Client limit enforcement
+- `app/(tabs)/team.tsx` - Member creation permission checking  
+- `app/(tabs)/settings.tsx` - Subscription display and migration tools
+- `docs/code-changes.md` - Documentation update
+
+**Impact**: Ready for Stripe integration with complete subscription infrastructure, proper limit enforcement, and exemption system for your business operations.
+
+---
+
 ## 2025-01-31 - Login Screen Professional Redesign ✨
 
 ### Summary

@@ -12,6 +12,7 @@ import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
 import { createJobsForClient } from '../services/jobService';
+import { checkClientLimit } from '../services/subscriptionService';
 
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -214,6 +215,23 @@ export default function AddClientScreen() {
     console.log('handleSave: Save Client button pressed');
     if (isSaving) {
       console.log('Already saving, preventing duplicate submission');
+      return;
+    }
+
+    // Check subscription limits before proceeding
+    try {
+      const clientLimitCheck = await checkClientLimit();
+      if (!clientLimitCheck.canAdd) {
+        const message = clientLimitCheck.limit 
+          ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients and team member creation.`
+          : 'Unable to add more clients at this time.';
+        
+        Alert.alert('Client Limit Reached', message);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking client limit:', error);
+      Alert.alert('Error', 'Unable to verify subscription status. Please try again.');
       return;
     }
 

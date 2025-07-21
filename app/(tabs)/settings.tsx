@@ -15,6 +15,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { leaveTeamSelf } from '../../services/accountService';
 import { generateRecurringJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments } from '../../services/paymentService';
+import { EffectiveSubscription, getEffectiveSubscription, getSubscriptionDisplayInfo, migrateUsersToSubscriptions } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
@@ -86,6 +87,10 @@ export default function SettingsScreen() {
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
 
+  // Subscription state
+  const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+
   // Profile edit modal state
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -99,6 +104,19 @@ export default function SettingsScreen() {
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
+
+  // Load subscription information
+  const loadSubscription = async () => {
+    try {
+      setLoadingSubscription(true);
+      const subscriptionData = await getEffectiveSubscription();
+      setSubscription(subscriptionData);
+    } catch (error) {
+      console.error('Error loading subscription:', error);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
 
   // Load user profile data for editing
   const loadUserProfile = async () => {
@@ -178,6 +196,9 @@ export default function SettingsScreen() {
         setIsOwner(true);
         setIsMemberOfAnotherAccount(false);
       }
+      
+      // Load subscription information
+      await loadSubscription();
     })();
   }, []);
 
@@ -1722,6 +1743,55 @@ export default function SettingsScreen() {
     }
   };
 
+  // Initialize subscription tiers (one-time migration)
+  const handleInitializeSubscriptions = async () => {
+    if (!isOwner) {
+      Alert.alert('Error', 'Only account owners can initialize subscriptions.');
+      return;
+    }
+
+    const confirmed = Platform.OS === 'web' 
+      ? window.confirm('This will set up subscription tiers for all users. This should only be run once. Continue?')
+      : await new Promise((resolve) => {
+          Alert.alert(
+            'Initialize Subscriptions',
+            'This will set up subscription tiers for all users. This should only be run once. Continue?',
+            [
+              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
+              { text: 'Continue', onPress: () => resolve(true) },
+            ]
+          );
+        });
+
+    if (!confirmed) return;
+
+    setLoading(true);
+    try {
+      const result = await migrateUsersToSubscriptions();
+      const message = `Migration completed!\n\n• ${result.updated} users set to free tier\n• ${result.exempt} exempt accounts\n• ${result.errors} errors`;
+      
+      if (Platform.OS === 'web') {
+        window.alert(message);
+      } else {
+        Alert.alert('Migration Complete', message);
+      }
+      
+      // Reload subscription data
+      await loadSubscription();
+    } catch (error) {
+      console.error('Error initializing subscriptions:', error);
+      const errorMessage = 'Failed to initialize subscriptions. Please try again.';
+      
+      if (Platform.OS === 'web') {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
@@ -1731,6 +1801,36 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
       
+      {/* Subscription Display */}
+      {!loadingSubscription && subscription && (
+        <View style={styles.subscriptionContainer}>
+          <View style={styles.subscriptionCard}>
+            <View style={styles.subscriptionHeader}>
+              <ThemedText style={styles.subscriptionTitle}>Current Plan</ThemedText>
+              <View style={[styles.subscriptionBadge, { backgroundColor: getSubscriptionDisplayInfo(subscription).color }]}>
+                <Text style={styles.subscriptionBadgeText}>{getSubscriptionDisplayInfo(subscription).badge}</Text>
+              </View>
+            </View>
+            <ThemedText style={styles.subscriptionName}>
+              {getSubscriptionDisplayInfo(subscription).name}
+            </ThemedText>
+            <ThemedText style={styles.subscriptionDescription}>
+              {getSubscriptionDisplayInfo(subscription).description}
+            </ThemedText>
+            {subscription.clientLimit && (
+              <ThemedText style={styles.subscriptionLimits}>
+                {subscription.clientLimit} client limit
+              </ThemedText>
+            )}
+            {!subscription.canCreateMembers && (
+              <ThemedText style={styles.subscriptionLimits}>
+                Team member creation requires Premium
+              </ThemedText>
+            )}
+          </View>
+        </View>
+      )}
+
       <View style={styles.buttonContainer}>
         <StyledButton title="Import Clients from CSV" onPress={handleImport} />
       </View>
@@ -1746,6 +1846,14 @@ export default function SettingsScreen() {
       {/* Only show delete buttons for owners (not members) */}
       {isOwner && (
         <>
+          <View style={styles.buttonContainer}>
+            <StyledButton
+              title="Initialize Subscription Tiers"
+              onPress={handleInitializeSubscriptions}
+              disabled={loading}
+            />
+          </View>
+
           <View style={styles.buttonContainer}>
             <StyledButton
               title={loading ? 'Loading...' : 'Delete All Payments'}
@@ -1933,5 +2041,49 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     width: '100%',
     marginTop: 20,
+  },
+  subscriptionContainer: {
+    marginBottom: 24,
+  },
+  subscriptionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  subscriptionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  subscriptionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  subscriptionBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  subscriptionBadgeText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  subscriptionName: {
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  subscriptionDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  subscriptionLimits: {
+    fontSize: 12,
+    color: '#999',
   },
 }); 

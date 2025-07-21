@@ -11,6 +11,15 @@ export type User = {
   servicesOffered?: string[]; // for providers
   availability?: string[]; // for providers, e.g., ["Mon AM", "Tue PM"]
   rating?: number; // average rating for providers
+  
+  // Subscription fields
+  subscriptionTier?: 'free' | 'premium' | 'exempt';
+  subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'exempt';
+  subscriptionExpiresAt?: any; // Firestore Timestamp
+  clientLimit?: number | null; // null/undefined for unlimited
+  isExempt?: boolean; // Extra security flag for developer accounts
+  stripeCustomerId?: string; // For future Stripe integration
+  stripeSubscriptionId?: string; // For future Stripe integration
 };
 
 export type Service = {

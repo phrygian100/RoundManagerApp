@@ -1,11 +1,12 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberDailyRate, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
+import { checkMemberCreationPermission } from '../../services/subscriptionService';
 import { addVehicle, deleteVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
 
 const PERM_KEYS = [
@@ -61,6 +62,29 @@ export default function TeamScreen() {
     if (!email.trim()) return;
     if (loading) return; // Prevent double-tap
     
+    // Check member creation permissions before proceeding
+    try {
+      const permissionCheck = await checkMemberCreationPermission();
+      if (!permissionCheck.canCreate) {
+        const errorMessage = permissionCheck.reason || 'Unable to create team members';
+        if (typeof window !== 'undefined' && window.alert) {
+          window.alert(errorMessage);
+        } else {
+          Alert.alert('Permission Required', errorMessage);
+        }
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking member creation permission:', error);
+      const errorMessage = 'Unable to verify subscription status. Please try again.';
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+      return;
+    }
+    
     setLoading(true);
     try {
       console.log('Starting invitation for:', email.trim());
@@ -68,10 +92,19 @@ export default function TeamScreen() {
       setEmail('');
       console.log('Invitation successful, refreshing member list...');
       await loadMembers(); // Wait for reload
-      window.alert('Invite sent successfully');
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert('Invite sent successfully');
+      } else {
+        Alert.alert('Success', 'Invite sent successfully');
+      }
     } catch (err: any) {
       console.error('Invitation failed:', err);
-      window.alert(`Error: Could not invite member - ${err.message || 'Unknown error'} ${err.code ? `(${err.code})` : ''}`);
+      const errorMessage = `Error: Could not invite member - ${err.message || 'Unknown error'} ${err.code ? `(${err.code})` : ''}`;
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(errorMessage);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
     } finally {
       setLoading(false);
     }
