@@ -5,6 +5,73 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Delete All Functions Restoration ✅
+
+### Summary
+Restored the missing `deleteAllClients` and `deleteAllJobs` functions that were accidentally removed, and enhanced all three delete operations with proper user domain isolation, count warnings, and two-step confirmation.
+
+### Changes Made
+
+**1. Service Layer Functions Added**:
+- **`services/clientService.ts`** (new file):
+  - `getClientCount()` - Returns count of user's clients
+  - `deleteAllClients()` - Deletes all clients for current owner with batch processing
+- **`services/jobService.ts`** (updated):
+  - `getJobCount()` - Returns count of user's jobs
+  - `deleteAllJobs()` - Deletes all jobs for current owner with batch processing
+- **`services/paymentService.ts`** (updated):
+  - `getPaymentCount()` - Returns count of user's payments
+  - `deleteAllPayments()` - Already existed, now consistent with others
+
+**2. Security & Domain Isolation**:
+- All functions use `getDataOwnerId()` to ensure users can only delete their own data
+- Firestore queries explicitly filter by `ownerId` field
+- No cross-contamination between different user accounts possible
+
+**3. Enhanced User Experience**:
+- **Two-step confirmation** for all delete operations:
+  1. First dialog shows exact count and detailed warnings
+  2. Second dialog provides final warning with count reminder
+- **Count display** before deletion (e.g., "Delete 47 clients")
+- **Zero-count handling** - friendly message if nothing to delete
+- **Specific warnings** for each type:
+  - Clients: "Will NOT delete associated jobs"
+  - Jobs: "Includes completed jobs and history"
+  - Payments: "Will affect client balances"
+
+**4. Technical Implementation**:
+- Batch processing respects Firestore's 500 operations per batch limit
+- Proper error handling with descriptive messages
+- Loading states during count retrieval and deletion
+- Return values include deleted count and error details
+
+### User Safety Features
+
+**Double Confirmation**:
+1. First: "Warning: Delete All [Type]" with count and consequences
+2. Second: "⚠️ FINAL WARNING ⚠️" with last chance to cancel
+
+**Clear Warnings**:
+- Visual indicators (⚠️ emojis)
+- Bullet points explaining consequences
+- Emphasis on irreversibility
+
+**Domain Isolation**:
+- Users can only see and delete their own data
+- `ownerId` filtering at database query level
+- No ability to affect other users' data
+
+### Files Modified:
+- `services/clientService.ts` - New file with client operations
+- `services/jobService.ts` - Added count and delete functions
+- `services/paymentService.ts` - Added count function
+- `app/(tabs)/settings.tsx` - Enhanced delete buttons with two-step confirmation
+- `docs/code-changes.md` - Documentation update
+
+**Impact**: Delete operations now work correctly with proper safety measures, user warnings, and complete domain isolation.
+
+---
+
 ## 2025-01-21 - Settings Screen UI Restoration ✅
 
 ### Summary

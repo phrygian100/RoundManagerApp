@@ -482,6 +482,74 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
   }
 }
 
+/**
+ * Deletes all jobs for the current owner
+ * WARNING: This is a destructive operation that cannot be undone
+ */
+/**
+ * Gets the count of all jobs for the current owner
+ */
+export async function getJobCount(): Promise<number> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) return 0;
+
+    const jobsQuery = query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId)
+    );
+    
+    const snapshot = await getDocs(jobsQuery);
+    return snapshot.size;
+  } catch (error) {
+    console.error('Error getting job count:', error);
+    return 0;
+  }
+}
+
+/**
+ * Deletes all jobs for the current owner
+ * WARNING: This is a destructive operation that cannot be undone
+ */
+export async function deleteAllJobs(): Promise<{ deleted: number; error?: string }> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) throw new Error('Not authenticated');
+
+    // Query ALL jobs for this owner (no status filter - delete everything)
+    const jobsQuery = query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId)
+    );
+    
+    const snapshot = await getDocs(jobsQuery);
+    if (snapshot.empty) {
+      return { deleted: 0 };
+    }
+
+    // Delete in batches (Firestore limit is 500 operations per batch)
+    const batchSize = 500;
+    let deleted = 0;
+    
+    for (let i = 0; i < snapshot.docs.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const batchDocs = snapshot.docs.slice(i, i + batchSize);
+      
+      batchDocs.forEach(doc => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      deleted += batchDocs.length;
+    }
+
+    return { deleted };
+  } catch (error) {
+    console.error('Error deleting all jobs:', error);
+    return { deleted: 0, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
 // Utility to check if today is marked as complete in completedWeeks
 export async function isTodayMarkedComplete(): Promise<boolean> {
   const today = new Date();

@@ -73,6 +73,27 @@ export async function getPaymentsByDateRange(startDate: string, endDate: string)
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 }
 
+/**
+ * Gets the count of all payments for the current owner
+ */
+export async function getPaymentCount(): Promise<number> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) return 0;
+
+    const paymentsQuery = query(
+      collection(db, PAYMENTS_COLLECTION),
+      where('ownerId', '==', ownerId)
+    );
+    
+    const snapshot = await getDocs(paymentsQuery);
+    return snapshot.size;
+  } catch (error) {
+    console.error('Error getting payment count:', error);
+    return 0;
+  }
+}
+
 export async function deleteAllPayments(): Promise<void> {
   const ownerId = await getDataOwnerId();
   if (!ownerId) return;
