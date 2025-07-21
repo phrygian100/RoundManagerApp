@@ -426,7 +426,7 @@ export default function HomeScreen() {
         ) : jobStats ? (
           <View style={styles.jobStatsWidget}>
             <Text style={styles.jobStatsText}>
-              Today's Progress: {jobStats.completed}/{jobStats.total} jobs completed
+              📋 Today's Progress: {jobStats.completed}/{jobStats.total} jobs completed
             </Text>
             {jobStats.total > 0 && (
               <View style={styles.progressBar}>
@@ -440,12 +440,12 @@ export default function HomeScreen() {
             )}
             {jobStats.total > 0 && (
               <Text style={styles.progressPercentage}>
-                {Math.round((jobStats.completed / jobStats.total) * 100)}% complete
+                {jobStats.completed === jobStats.total ? '✅ ' : '🔄 '}{Math.round((jobStats.completed / jobStats.total) * 100)}% complete
               </Text>
             )}
           </View>
         ) : (
-          <Text style={styles.statsPlaceholder}>No jobs scheduled for today</Text>
+          <Text style={styles.statsPlaceholder}>📋 No jobs scheduled for today</Text>
         )}
       </View>
 
@@ -544,34 +544,60 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   jobStatsWidget: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    padding: 15,
+    borderRadius: 16,
+    padding: 20,
+    margin: 8,
     width: '100%',
-    maxWidth: 300,
+    maxWidth: 320,
+    alignSelf: 'center',
+    // iOS shadow
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    // Android shadow
+    elevation: 8,
+    // Border for definition
+    borderWidth: 1,
+    borderColor: '#e8e8e8',
+    // Platform-specific styling
+    ...Platform.select({
+      web: {
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+        backgroundColor: '#ffffff',
+      },
+      default: {
+        backgroundColor: '#ffffff',
+      },
+    }),
   },
   jobStatsText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 16,
     textAlign: 'center',
+    color: '#2c3e50',
   },
   progressBar: {
-    height: 10,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 5,
+    height: 8,
+    backgroundColor: '#f0f2f5',
+    borderRadius: 4,
     overflow: 'hidden',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 5,
+    backgroundColor: '#34c759',
+    borderRadius: 4,
   },
   progressPercentage: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 16,
+    color: '#34c759',
     textAlign: 'center',
+    fontWeight: '600',
   },
   buttonsContainer: {
     flex: 1,
