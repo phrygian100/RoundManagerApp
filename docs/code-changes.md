@@ -5,6 +5,72 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Fixed Delete Buttons on Web Platform ✅
+
+### Summary
+Fixed the delete buttons (Delete All Clients, Delete All Jobs, Delete All Payments) that were not working on web platforms due to `Alert.alert` compatibility issues.
+
+### Issue Identified
+- Delete buttons would turn grey briefly but not perform deletion
+- Network tab showed failed requests (HTTP 400 Bad Request)
+- `Alert.alert` doesn't work properly on web platforms, causing confirmation dialogs to fail silently
+- This prevented the two-step confirmation process from completing
+
+### Root Cause
+The settings screen was using `Alert.alert` for confirmation dialogs, which is a React Native API that doesn't function correctly in web browsers. This caused the confirmation dialogs to fail silently, preventing the delete operations from proceeding.
+
+### Technical Fix
+**Platform-Specific Alert Implementation**:
+- **Web Platform**: Uses `window.confirm()` and `window.alert()` for native browser dialogs
+- **Mobile Platforms**: Uses React Native's `Alert.alert()` for native mobile dialogs
+- **Cross-Platform Helpers**: Created `showAlert()` and `showConfirm()` functions that handle platform differences
+
+**Implementation Details**:
+```javascript
+// Before: Alert.alert (broken on web)
+Alert.alert('Warning', 'Are you sure?', [
+  { text: 'Cancel', style: 'cancel' },
+  { text: 'OK', onPress: () => performDelete() }
+]);
+
+// After: Platform-specific implementation
+const confirmed = await showConfirm('Warning', 'Are you sure?');
+if (confirmed) {
+  performDelete();
+}
+```
+
+### Changes Made
+**1. Enhanced Cross-Platform Alert Functions**:
+- `showAlert()` - Displays alerts on both web and mobile
+- `showConfirm()` - Returns boolean promise for confirmations on both platforms
+
+**2. Updated All Delete Button Handlers**:
+- **Delete All Clients**: Now uses `showConfirm()` for both confirmation steps
+- **Delete All Jobs**: Now uses `showConfirm()` for both confirmation steps  
+- **Delete All Payments**: Now uses `showConfirm()` for both confirmation steps
+
+**3. Improved Error Handling**:
+- All error messages now use `showAlert()` for consistent cross-platform display
+- Success messages use `showAlert()` for consistent user feedback
+
+### Impact
+- ✅ Delete buttons now work correctly on web platforms
+- ✅ Two-step confirmation process functions properly
+- ✅ Consistent user experience across web and mobile
+- ✅ No more failed network requests from broken confirmation dialogs
+- ✅ Proper error and success message display on all platforms
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Updated delete button handlers to use platform-specific alerts
+- `docs/code-changes.md` - Documentation update
+
+**Testing**: Delete operations now work correctly in Windows web environment and should work on mobile platforms as well.
+
+---
+
+---
+
 ## 2025-01-21 - Delete All Functions Restoration ✅
 
 ### Summary

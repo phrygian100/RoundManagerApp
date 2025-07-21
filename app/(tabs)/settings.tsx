@@ -1837,56 +1837,44 @@ export default function SettingsScreen() {
                   setLoading(false);
                   
                   if (count === 0) {
-                    Alert.alert('No Clients', 'You have no clients to delete.');
+                    showAlert('No Clients', 'You have no clients to delete.');
                     return;
                   }
                   
                   // First confirmation - show count and warning
-                  Alert.alert(
+                  const firstConfirm = await showConfirm(
                     'Warning: Delete All Clients',
-                    `You are about to delete ${count} client${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL your clients\n• Cannot be undone\n• Will NOT delete associated jobs\n\nAre you sure you want to proceed?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Continue', 
-                        style: 'destructive',
-                        onPress: () => {
-                          // Second confirmation - final check
-                          Alert.alert(
-                            '⚠️ FINAL WARNING ⚠️',
-                            `This is your last chance to cancel.\n\nDELETE ALL ${count} CLIENTS PERMANENTLY?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'DELETE ALL', 
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    setLoading(true);
-                                    const result = await deleteAllClients();
-                                    
-                                    if (result.error) {
-                                      Alert.alert('Error', `Failed to delete clients: ${result.error}`);
-                                    } else {
-                                      Alert.alert('Success', `${result.deleted} clients have been permanently deleted.`);
-                                    }
-                                  } catch (error) {
-                                    console.error('Error deleting clients:', error);
-                                    Alert.alert('Error', 'Failed to delete clients.');
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }
-                              }
-                            ]
-                          );
-                        }
-                      }
-                    ]
+                    `You are about to delete ${count} client${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL your clients\n• Cannot be undone\n• Will NOT delete associated jobs\n\nAre you sure you want to proceed?`
                   );
+                  
+                  if (!firstConfirm) return;
+                  
+                  // Second confirmation - final check
+                  const finalConfirm = await showConfirm(
+                    '⚠️ FINAL WARNING ⚠️',
+                    `This is your last chance to cancel.\n\nDELETE ALL ${count} CLIENTS PERMANENTLY?`
+                  );
+                  
+                  if (!finalConfirm) return;
+                  
+                  try {
+                    setLoading(true);
+                    const result = await deleteAllClients();
+                    
+                    if (result.error) {
+                      showAlert('Error', `Failed to delete clients: ${result.error}`);
+                    } else {
+                      showAlert('Success', `${result.deleted} clients have been permanently deleted.`);
+                    }
+                  } catch (error) {
+                    console.error('Error deleting clients:', error);
+                    showAlert('Error', 'Failed to delete clients.');
+                  } finally {
+                    setLoading(false);
+                  }
                 } catch (error) {
                   console.error('Error getting client count:', error);
-                  Alert.alert('Error', 'Failed to get client count.');
+                  showAlert('Error', 'Failed to get client count.');
                   setLoading(false);
                 }
               }}
@@ -1903,56 +1891,44 @@ export default function SettingsScreen() {
                   setLoading(false);
                   
                   if (count === 0) {
-                    Alert.alert('No Jobs', 'You have no jobs to delete.');
+                    showAlert('No Jobs', 'You have no jobs to delete.');
                     return;
                   }
                   
                   // First confirmation - show count and warning
-                  Alert.alert(
+                  const firstConfirm = await showConfirm(
                     'Warning: Delete All Jobs',
-                    `You are about to delete ${count} job${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL your jobs (past and future)\n• Cannot be undone\n• Includes completed jobs and history\n\nAre you sure you want to proceed?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Continue', 
-                        style: 'destructive',
-                        onPress: () => {
-                          // Second confirmation - final check
-                          Alert.alert(
-                            '⚠️ FINAL WARNING ⚠️',
-                            `This is your last chance to cancel.\n\nDELETE ALL ${count} JOBS PERMANENTLY?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'DELETE ALL', 
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    setLoading(true);
-                                    const result = await deleteAllJobs();
-                                    
-                                    if (result.error) {
-                                      Alert.alert('Error', `Failed to delete jobs: ${result.error}`);
-                                    } else {
-                                      Alert.alert('Success', `${result.deleted} jobs have been permanently deleted.`);
-                                    }
-                                  } catch (error) {
-                                    console.error('Error deleting jobs:', error);
-                                    Alert.alert('Error', 'Failed to delete jobs.');
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }
-                              }
-                            ]
-                          );
-                        }
-                      }
-                    ]
+                    `You are about to delete ${count} job${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL your jobs (past and future)\n• Cannot be undone\n• Includes completed jobs and history\n\nAre you sure you want to proceed?`
                   );
+                  
+                  if (!firstConfirm) return;
+                  
+                  // Second confirmation - final check
+                  const finalConfirm = await showConfirm(
+                    '⚠️ FINAL WARNING ⚠️',
+                    `This is your last chance to cancel.\n\nDELETE ALL ${count} JOBS PERMANENTLY?`
+                  );
+                  
+                  if (!finalConfirm) return;
+                  
+                  try {
+                    setLoading(true);
+                    const result = await deleteAllJobs();
+                    
+                    if (result.error) {
+                      showAlert('Error', `Failed to delete jobs: ${result.error}`);
+                    } else {
+                      showAlert('Success', `${result.deleted} jobs have been permanently deleted.`);
+                    }
+                  } catch (error) {
+                    console.error('Error deleting jobs:', error);
+                    showAlert('Error', 'Failed to delete jobs.');
+                  } finally {
+                    setLoading(false);
+                  }
                 } catch (error) {
                   console.error('Error getting job count:', error);
-                  Alert.alert('Error', 'Failed to get job count.');
+                  showAlert('Error', 'Failed to get job count.');
                   setLoading(false);
                 }
               }}
@@ -1969,51 +1945,39 @@ export default function SettingsScreen() {
                   setLoading(false);
                   
                   if (count === 0) {
-                    Alert.alert('No Payments', 'You have no payments to delete.');
+                    showAlert('No Payments', 'You have no payments to delete.');
                     return;
                   }
                   
                   // First confirmation - show count and warning
-                  Alert.alert(
+                  const firstConfirm = await showConfirm(
                     'Warning: Delete All Payments',
-                    `You are about to delete ${count} payment${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL payment records\n• Cannot be undone\n• Will affect client balances\n\nAre you sure you want to proceed?`,
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Continue', 
-                        style: 'destructive',
-                        onPress: () => {
-                          // Second confirmation - final check
-                          Alert.alert(
-                            '⚠️ FINAL WARNING ⚠️',
-                            `This is your last chance to cancel.\n\nDELETE ALL ${count} PAYMENTS PERMANENTLY?`,
-                            [
-                              { text: 'Cancel', style: 'cancel' },
-                              { 
-                                text: 'DELETE ALL', 
-                                style: 'destructive',
-                                onPress: async () => {
-                                  try {
-                                    setLoading(true);
-                                    await deleteAllPayments();
-                                    Alert.alert('Success', `${count} payments have been permanently deleted.`);
-                                  } catch (error) {
-                                    console.error('Error deleting payments:', error);
-                                    Alert.alert('Error', 'Failed to delete payments.');
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }
-                              }
-                            ]
-                          );
-                        }
-                      }
-                    ]
+                    `You are about to delete ${count} payment${count > 1 ? 's' : ''}.\n\n⚠️ This action:\n• Will permanently delete ALL payment records\n• Cannot be undone\n• Will affect client balances\n\nAre you sure you want to proceed?`
                   );
+                  
+                  if (!firstConfirm) return;
+                  
+                  // Second confirmation - final check
+                  const finalConfirm = await showConfirm(
+                    '⚠️ FINAL WARNING ⚠️',
+                    `This is your last chance to cancel.\n\nDELETE ALL ${count} PAYMENTS PERMANENTLY?`
+                  );
+                  
+                  if (!finalConfirm) return;
+                  
+                  try {
+                    setLoading(true);
+                    await deleteAllPayments();
+                    showAlert('Success', `${count} payments have been permanently deleted.`);
+                  } catch (error) {
+                    console.error('Error deleting payments:', error);
+                    showAlert('Error', 'Failed to delete payments.');
+                  } finally {
+                    setLoading(false);
+                  }
                 } catch (error) {
                   console.error('Error getting payment count:', error);
-                  Alert.alert('Error', 'Failed to get payment count.');
+                  showAlert('Error', 'Failed to get payment count.');
                   setLoading(false);
                 }
               }}
