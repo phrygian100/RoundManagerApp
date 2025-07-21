@@ -4,17 +4,12 @@ import { Auth, getAuth } from 'firebase/auth';
 // Import the shared Firebase config from the main app
 import { FIREBASE_CONFIG } from '../../../config';
 
-let app: FirebaseApp;
-let auth: Auth;
-
 // Initialize Firebase only if it hasn't been initialized yet
-if (!getApps().length) {
-  app = initializeApp(FIREBASE_CONFIG);
-} else {
-  app = getApp();
-}
+const app: FirebaseApp = !getApps().length 
+  ? initializeApp(FIREBASE_CONFIG)
+  : getApp();
 
 // Initialize Auth service
-auth = getAuth(app);
+const auth: Auth = getAuth(app);
 
 export { auth };
