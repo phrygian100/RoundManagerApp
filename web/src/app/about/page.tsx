@@ -49,7 +49,7 @@ export default function AboutPage() {
             About Guvnor
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            We're on a mission to help cleaning professionals run better businesses 
+            We&apos;re on a mission to help cleaning professionals run better businesses 
             through intelligent technology and simple solutions.
           </p>
         </div>
@@ -76,7 +76,7 @@ export default function AboutPage() {
             </p>
             
             <p className="text-lg leading-relaxed mb-6">
-              That's why we built Guvnor - to give cleaning professionals the tools they need 
+              That&apos;s why we built Guvnor - to give cleaning professionals the tools they need 
               to focus on what they do best: providing exceptional service to their clients. 
               Our platform handles the complexity of business management so you can concentrate 
               on growing your business.
@@ -84,7 +84,7 @@ export default function AboutPage() {
             
             <p className="text-lg leading-relaxed">
               Today, thousands of cleaning professionals trust Guvnor to manage their rounds, 
-              track their payments, and streamline their operations. We're proud to be part 
+              track their payments, and streamline their operations. We&apos;re proud to be part 
               of their success stories.
             </p>
           </div>
@@ -129,7 +129,7 @@ export default function AboutPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-900 mb-3">Support</h3>
               <p className="text-gray-600">
-                We're here to help you succeed. Our support team understands 
+                We&apos;re here to help you succeed. Our support team understands 
                 cleaning businesses and is ready to assist when you need it.
               </p>
             </div>
@@ -209,7 +209,7 @@ export default function AboutPage() {
               <div className="ml-4">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Continuous Innovation</h3>
                 <p className="text-gray-600">
-                  We're constantly improving Guvnor based on feedback from real cleaning professionals. 
+                  We&apos;re constantly improving Guvnor based on feedback from real cleaning professionals. 
                   Your success drives our product development.
                 </p>
               </div>

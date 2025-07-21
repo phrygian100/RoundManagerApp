@@ -50,7 +50,7 @@ export default function ContactPage() {
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Have questions about Guvnor? Want to request a demo? 
-            We'd love to hear from you and help you streamline your cleaning business.
+            We&apos;d love to hear from you and help you streamline your cleaning business.
           </p>
         </div>
       </div>
@@ -168,7 +168,7 @@ export default function ContactPage() {
                 </button>
                 
                 <p className="text-sm text-gray-500">
-                  We'll get back to you within 24 hours during business days.
+                  We&apos;ll get back to you within 24 hours during business days.
                 </p>
               </form>
             </div>
@@ -260,7 +260,7 @@ export default function ContactPage() {
             Ready to get started?
           </h2>
           <p className="text-xl text-indigo-200 mb-8">
-            Don't wait - start managing your cleaning business more efficiently today
+            Don&apos;t wait - start managing your cleaning business more efficiently today
           </p>
           <Link 
             href="/"

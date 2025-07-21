@@ -77,12 +77,12 @@ export default function HomePage() {
       <div className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
-              Everything You Need to Run Your Business
-            </h2>
-            <p className="text-xl text-gray-600">
-              From scheduling to payments, we've got you covered
-            </p>
+                          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+                Everything You Need to Run Your Business
+              </h2>
+              <p className="text-xl text-gray-600">
+                From scheduling to payments, we&apos;ve got you covered
+              </p>
           </div>
           
           <div className="grid md:grid-cols-3 gap-8">

@@ -20,9 +20,10 @@ export default function ForgotPassword() {
       await sendPasswordResetEmail(auth, email.trim());
       
       setSent(true);
-    } catch (err: any) {
+    } catch (err) {
       console.error('Reset password error', err);
-      alert(err.message || 'Unable to send reset email.');
+      const errorMessage = err instanceof Error ? err.message : 'Unable to send reset email.';
+      alert(errorMessage);
     } finally {
       setLoading(false);
     }

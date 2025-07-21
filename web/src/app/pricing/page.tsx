@@ -49,7 +49,7 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Start your cleaning business management journey for free. Upgrade when you're ready to scale beyond 20 clients.
+            Start your cleaning business management journey for free. Upgrade when you&apos;re ready to scale beyond 20 clients.
           </p>
           <div className="flex justify-center items-center space-x-4">
             <span className="text-gray-500">Monthly billing</span>
@@ -220,8 +220,8 @@ export default function PricingPage() {
                 What happens when I reach 20 clients on the free plan?
               </h3>
               <p className="text-gray-600">
-                When you reach 20 clients, you'll be prompted to upgrade to the unlimited plan for £18/month. 
-                You won't lose any data, and all your existing features will continue to work. You'll just unlock the ability to add unlimited clients.
+                When you reach 20 clients, you&apos;ll be prompted to upgrade to the unlimited plan for £18/month. 
+                You won&apos;t lose any data, and all your existing features will continue to work. You&apos;ll just unlock the ability to add unlimited clients.
               </p>
             </div>
             
@@ -231,7 +231,7 @@ export default function PricingPage() {
               </h3>
               <p className="text-gray-600">
                 Yes, you can cancel your subscription anytime. If you have more than 20 clients when you downgrade, 
-                you'll need to remove clients to get back under the 20-client limit, but all your data will be preserved.
+                you&apos;ll need to remove clients to get back under the 20-client limit, but all your data will be preserved.
               </p>
             </div>
             
@@ -250,8 +250,8 @@ export default function PricingPage() {
                 How do I upgrade to the unlimited plan?
               </h3>
               <p className="text-gray-600">
-                You can upgrade directly from your dashboard when you're ready. The process takes less than 2 minutes, 
-                and you'll have immediate access to unlimited clients. You'll be billed monthly from your upgrade date.
+                You can upgrade directly from your dashboard when you&apos;re ready. The process takes less than 2 minutes, 
+                and you&apos;ll have immediate access to unlimited clients. You&apos;ll be billed monthly from your upgrade date.
               </p>
             </div>
             
