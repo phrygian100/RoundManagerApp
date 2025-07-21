@@ -1,5 +1,27 @@
 {
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "rewrites": [
+    {
+      "source": "/home",
+      "destination": "/_marketing/home.html"
+    },
+    {
+      "source": "/pricing", 
+      "destination": "/_marketing/pricing.html"
+    },
+    {
+      "source": "/about",
+      "destination": "/_marketing/about.html"
+    },
+    {
+      "source": "/contact",
+      "destination": "/_marketing/contact.html"
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "destination": "/_next/static/$1"
+    },
     {
       "source": "/set-password",
       "destination": "/index.html"
@@ -17,7 +39,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api|_next/static|_next/image|favicon.ico).*)",
+      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png).*)",
       "destination": "/index.html"
     }
   ],
