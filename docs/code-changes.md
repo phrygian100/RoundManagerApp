@@ -2841,3 +2841,52 @@ onAuthStateChanged(auth, (user) => {
 **Priority**: CRITICAL - Deploy immediately to production
 
 ---
+
+## 2025-01-31 - Fixed Sign Out Button Regression 🔧
+
+### Issue Discovered
+The sign out button in the settings screen stopped working after the recent authentication changes. The button would not respond to clicks, similar to how the delete buttons were affected.
+
+### Root Cause
+The sign out button was using `Alert.alert()` for the confirmation dialog, which doesn't work properly on web platforms. This is the same issue that affected the delete buttons before they were fixed.
+
+### Technical Fix
+**Updated Sign Out Button** (`app/(tabs)/settings.tsx`):
+- Replaced `Alert.alert()` with `showConfirm()` for cross-platform compatibility
+- Added proper async/await handling for the confirmation flow
+- Added console logging for better debugging
+- Used `showAlert()` for error messages instead of `Alert.alert()`
+
+### Changes Made
+**Before**:
+```javascript
+Alert.alert('Sign Out', 'Are you sure?', [
+  { text: 'Cancel', style: 'cancel' },
+  { text: 'Sign Out', onPress: async () => { /* sign out logic */ } }
+]);
+```
+
+**After**:
+```javascript
+const confirmed = await showConfirm('Sign Out', 'Are you sure?');
+if (confirmed) {
+  // sign out logic
+}
+```
+
+### Impact
+- ✅ Sign out button now works correctly on all platforms
+- ✅ Confirmation dialog functions properly on web and mobile
+- ✅ Consistent user experience with other buttons in the app
+- ✅ Better error handling and debugging capabilities
+
+### Testing Verification
+1. ✅ Sign out button responds to clicks on web platform
+2. ✅ Confirmation dialog appears and functions correctly
+3. ✅ Sign out process completes successfully
+4. ✅ User is redirected to login screen after sign out
+5. ✅ Error handling works properly if sign out fails
+
+**Priority**: HIGH - Restored critical authentication functionality
+
+---

@@ -1992,28 +1992,25 @@ export default function SettingsScreen() {
           <ThemedText style={styles.sectionTitle}>Account</ThemedText>
           <StyledButton
             title="Sign Out"
-            onPress={() => {
-              Alert.alert(
+            onPress={async () => {
+              const confirmed = await showConfirm(
                 'Sign Out',
-                'Are you sure you want to sign out?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { 
-                    text: 'Sign Out', 
-                    onPress: async () => {
-                      try {
-                        const { signOut } = await import('firebase/auth');
-                        const { auth } = await import('../../core/firebase');
-                        await signOut(auth);
-                        router.replace('/login');
-                      } catch (error) {
-                        console.error('Error signing out:', error);
-                        Alert.alert('Error', 'Failed to sign out.');
-                      }
-                    }
-                  }
-                ]
+                'Are you sure you want to sign out?'
               );
+              
+              if (confirmed) {
+                try {
+                  console.log('🔑 Signing out user...');
+                  const { signOut } = await import('firebase/auth');
+                  const { auth } = await import('../../core/firebase');
+                  await signOut(auth);
+                  console.log('🔑 Sign out successful, redirecting to login');
+                  router.replace('/login');
+                } catch (error) {
+                  console.error('Error signing out:', error);
+                  showAlert('Error', 'Failed to sign out.');
+                }
+              }
             }}
           />
         </View>
