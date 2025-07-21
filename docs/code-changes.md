@@ -2501,3 +2501,62 @@ The fix requires modifying three CSV import sections in settings.tsx:
 Each section needs the same limit checking pattern used in `app/add-client.tsx`.
 
 ---
+
+## 2025-01-31 - CRITICAL Security Fix: Cross-User Data Leakage 🚨
+
+### Issue Discovered
+**SEVERE SECURITY VULNERABILITY**: Quote context data was persisting across different user sessions, causing data from one user account to leak into another user's Add Client form.
+
+**Reproduction Steps:**
+1. User A creates/deletes a quote in their account
+2. User A logs out
+3. User B logs in 
+4. User B opens Add Client screen → sees User A's quote data pre-populated
+
+### Root Cause
+- `QuoteToClientProvider` at root level in `app/_layout.tsx` persists across entire app session
+- React `useState` in quote context never gets cleared on auth state changes
+- No cleanup logic when users logout/login, allowing cross-contamination
+
+### Security Impact
+- **Data Privacy Breach**: Personal information (names, addresses, phone numbers) exposed
+- **GDPR/Privacy Violation**: User data accessible to unauthorized accounts
+- **Business Risk**: Competitors could see each other's client information
+
+### Fix Implementation
+Modified `app/_layout.tsx` to:
+1. **Extract auth logic** into `AppContent` component inside `QuoteToClientProvider`
+2. **Clear quote data** on every auth state change via `clearQuoteData()`
+3. **Prevent cross-user contamination** by resetting context when users switch
+
+Modified `hooks/useFirestoreCache.ts` to:
+1. **Clear global cache** on auth state changes via `globalCache.clear()`
+2. **Prevent cached data leaks** between user sessions
+3. **Skip initial auth state** to avoid clearing on app load
+
+### Code Changes
+```typescript
+// BEFORE: No cleanup, data persists across users
+onAuthStateChanged(auth, (user) => {
+  setCurrentUser(user);
+  setAuthReady(true);
+});
+
+// AFTER: Clear sensitive data on auth change
+onAuthStateChanged(auth, (user) => {
+  console.log('🔒 Clearing quote context data for security');
+  clearQuoteData(); // CRITICAL: Clear data to prevent leaks
+  setCurrentUser(user);
+  setAuthReady(true);
+});
+```
+
+### Testing Verification
+1. ✅ Quote data cleared on logout
+2. ✅ Fresh context for each user login  
+3. ✅ No cross-contamination between accounts
+4. ✅ Add Client form starts clean for new users
+
+**Priority**: CRITICAL - Deploy immediately to production
+
+---

@@ -1,6 +1,7 @@
+import { onAuthStateChanged } from 'firebase/auth';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { db } from '../core/firebase';
+import { auth, db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
@@ -61,6 +62,18 @@ class FirestoreCache {
 }
 
 const globalCache = new FirestoreCache();
+
+// SECURITY FIX: Clear cache on auth state changes to prevent cross-user data leaks
+let authStateCleared = false;
+onAuthStateChanged(auth, (user) => {
+  if (!authStateCleared) {
+    authStateCleared = true;
+    return; // Skip first call to avoid clearing on initial load
+  }
+  
+  console.log('🔒 Clearing Firestore cache for security (auth state change)');
+  globalCache.clear();
+});
 
 export function useFirestoreCache<T>(
   key: string,

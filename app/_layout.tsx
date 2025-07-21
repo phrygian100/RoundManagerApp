@@ -3,24 +3,31 @@ import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { QuoteToClientProvider } from '../contexts/QuoteToClientContext';
+import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 
-export default function RootLayout() {
+function AppContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { clearQuoteData } = useQuoteToClient();
   
   // Set up auth listener only once
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth as Auth, (user: User | null) => {
       console.log('🔑 Firebase auth change:', { hasUser: !!user });
+      
+      // SECURITY FIX: Clear quote context data on any auth state change
+      // This prevents data from one user account leaking into another
+      console.log('🔒 Clearing quote context data for security');
+      clearQuoteData();
+      
       setCurrentUser(user);
       setAuthReady(true);
     });
     return () => unsubscribe();
-  }, []); // No dependencies - run only once
+  }, [clearQuoteData]);
   
   // Handle redirects based on auth state and pathname
   useEffect(() => {
@@ -58,11 +65,18 @@ export default function RootLayout() {
       </View>
     );
   }
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Slot />
+    </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
   return (
     <QuoteToClientProvider>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <Slot />
-      </GestureHandlerRootView>
+      <AppContent />
     </QuoteToClientProvider>
   );
 }
