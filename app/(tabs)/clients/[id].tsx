@@ -492,6 +492,18 @@ export default function ClientDetailScreen() {
 
     try {
       await addDoc(collection(db, 'jobs'), jobData);
+      
+      // Log the job creation action - include client address
+      if (client) {
+        const clientAddress = getClientAddress(client);
+        await logAction(
+          'job_created',
+          'job',
+          jobData.clientId,
+          formatAuditDescription('job_created', `${clientAddress} (${finalJobType} on ${format(jobDate, 'do MMM yyyy')})`)
+        );
+      }
+      
       Alert.alert('Success', 'Job added successfully.');
       setModalVisible(false);
       setJobNotes('');
@@ -559,6 +571,17 @@ export default function ClientDetailScreen() {
       await updateDoc(doc(db, 'clients', id as string), {
         additionalServices: updatedAdditionalServices
       });
+
+      // Log the recurring service addition action - include client address  
+      if (client) {
+        const clientAddress = getClientAddress(client);
+        await logAction(
+          'recurring_service_added',
+          'client',
+          id as string,
+          formatAuditDescription('recurring_service_added', `${clientAddress} (${finalServiceType}, ${recurringFrequency} weekly)`)
+        );
+      }
 
       // Update local state
       setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);

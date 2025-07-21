@@ -5,16 +5,58 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
-## 2025-01-20 – Firebase Auth Registration Error Fix for APK Builds 🔧
-• **Problem**: APKs failing to load with "Error: Component auth has not been registered yet, js engine: hermes" causing app crashes on startup.
-• **Root Cause**: Metro bundler unable to resolve Firebase v9's internal `.cjs` (CommonJS) files, preventing proper Firebase auth initialization.
-• **Fix Applied**:
-  1. **Created `metro.config.js`** with `.cjs` file resolution support and disabled package exports for compatibility
-  2. **Fixed Firebase initialization order** in `core/firebase.ts` by moving imports to top and using lazy initialization pattern
-  3. **Aligned React Native config** with working web configuration approach
-• **Result**: APK builds now properly initialize Firebase auth component, eliminating startup crashes.
-• **Files Modified**: `metro.config.js` (new), `core/firebase.ts`
-• **Testing**: Confirmed fix resolves Firebase auth registration errors that only appeared in production APK builds.
+## 2025-01-31 - Added Activity Log Entries for Job Creation via Client Modal 📝
+
+### Summary
+Enhanced the activity log system to capture when users create one-off jobs or add additional recurring work through the "Add a New Job modal" in client screens. Previously, these job creation actions were not being logged to the activity system, creating gaps in audit trails.
+
+### Changes Made:
+
+**1. Extended Audit Types**:
+- Added `job_created` action type for one-time job additions
+- Added `recurring_service_added` action type for additional recurring work
+- Extended `AuditEntityType` to include `'job'` entity type
+
+**2. Updated Audit Service**:
+- Added formatting cases in `formatAuditDescription()` for new action types:
+  - `job_created`: "Added one-time job for [details]"
+  - `recurring_service_added`: "Added recurring service for [details]"
+
+**3. Added Job Creation Audit Logging**:
+- **One-time Jobs**: Added audit logging to `handleAddJob()` function in client detail screen
+- **Additional Recurring Work**: Added audit logging to `handleAddRecurringService()` function
+- Both functions now capture client address, job/service type, and scheduling details
+
+### Activity Log Entries Format:
+```
+31/01/2025 14:30  [john@company.com]  Added one-time job for "123 Main St, London, SW1A 1AA (Gutter cleaning on 5th Feb 2025)"
+31/01/2025 14:25  [sarah@company.com] Added recurring service for "456 Oak Ave, Manchester, M1 1AA (Solar panel cleaning, 12 weekly)"
+```
+
+### Technical Implementation:
+
+**Audit Integration Points**:
+- `app/(tabs)/clients/[id].tsx` - `handleAddJob()`: One-time job creation logging
+- `app/(tabs)/clients/[id].tsx` - `handleAddRecurringService()`: Recurring service addition logging
+- Uses existing `getClientAddress()` helper for consistent address formatting
+- Includes detailed context: job type, dates, frequency information
+
+**Data Captured**:
+- **One-time Jobs**: Client address, service type, scheduled date
+- **Recurring Services**: Client address, service type, frequency in weeks
+- **Actor Information**: User email and timestamp for accountability
+- **Entity References**: Client ID for one-time jobs, client ID for recurring services
+
+### Business Impact:
+- **Complete Audit Trail**: Now captures all job creation activities from client screens
+- **Accountability**: Clear visibility into who adds what jobs and when
+- **Consistency**: Matches existing activity log format with client addresses
+- **Troubleshooting**: Historical context for job additions and scheduling changes
+
+**Files Modified**:
+- `types/audit.ts` - Added new audit action types and entity type
+- `services/auditService.ts` - Extended formatAuditDescription function
+- `app/(tabs)/clients/[id].tsx` - Added audit logging to both job creation functions
 
 ---
 
@@ -744,7 +786,7 @@ Fixed a critical issue where the delete job button in the runsheet modal wasn't 
 - **Maintained functionality**: All button actions (Navigate, Message ETA, Edit Price, Delete Job, etc.) now work correctly
 
 ### Implementation Details:
-```javascript
+```
 // Before: Problematic Pressable overlay
 <Pressable style={styles.androidSheetOverlay} onPress={() => setActionSheetJob(null)}>
   <View style={styles.androidSheet} pointerEvents="box-none">
@@ -881,7 +923,7 @@ Added the ability to insert text-based note jobs below any job in the runsheet. 
   - All job processing that affects workflow
 
 ### Technical Implementation:
-```typescript
+```
 // Note job detection
 const isNoteJob = (job: any) => job && job.serviceId === 'note';
 
@@ -959,7 +1001,7 @@ Moved the "Refresh Capacity" functionality from the runsheet header to the setti
 - Provides same detailed feedback on redistribution results
 
 ### Technical Implementation:
-```typescript
+```
 // Settings screen function
 const handleRefreshCapacityForCurrentWeek = async () => {
   setIsRefreshingCapacity(true);
@@ -1015,7 +1057,7 @@ Added vehicle-based collapse/expand functionality to the runsheet screen to bett
 - Maintains existing ETA, completion, and job management functionality
 
 ### Technical Implementation:
-```typescript
+```
 // Vehicle collapse state
 const [collapsedVehicles, setCollapsedVehicles] = useState<string[]>([]);
 
@@ -3869,10 +3911,6 @@ await resetWeekToRoundOrder(weekStartDate);
 **Files Modified**: 
 - `app/runsheet/[week].tsx` - Added day reset buttons and functionality
 - `app/workload-forecast.tsx` - Added week reset buttons and functionality
-
----
-
-## 2025-07-14  
 
 ---
 

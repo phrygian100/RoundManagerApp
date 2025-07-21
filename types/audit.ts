@@ -25,6 +25,8 @@ export type AuditActionType =
   | 'payment_edited'
   | 'payment_deleted'
   | 'member_permissions_changed'
-  | 'member_daily_rate_changed';
+  | 'member_daily_rate_changed'
+  | 'job_created'
+  | 'recurring_service_added';
 
-export type AuditEntityType = 'client' | 'quote' | 'rota' | 'payment' | 'member'; 
+export type AuditEntityType = 'client' | 'quote' | 'rota' | 'payment' | 'member' | 'job'; 

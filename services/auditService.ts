@@ -170,6 +170,10 @@ export function formatAuditDescription(
       return `Changed member permissions${entityDisplay}`;
     case 'member_daily_rate_changed':
       return `Changed member daily rate${entityDisplay}`;
+    case 'job_created':
+      return `Added one-time job${entityDisplay}`;
+    case 'recurring_service_added':
+      return `Added recurring service${entityDisplay}`;
     default:
       return `Performed ${actionType}${entityDisplay}`;
   }
