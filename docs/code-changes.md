@@ -2466,3 +2466,38 @@ const todayStr = format(today, 'yyyy-MM-dd');
 - **Cross-Platform**: Optimized styling for both web and mobile platforms
 
 **Files modified**: `app/(tabs)/index.tsx`, `docs/code-changes.md`
+
+---
+
+## 2025-01-31 - Client Limit Enforcement Bug Fix 🐛
+
+### Issue Discovered
+During testing of the subscription tier system, a critical bug was identified where CSV import functionality completely bypasses client limit enforcement. A free tier user (20-client limit) was able to:
+- Import 19 clients via CSV (bypassed all limits)
+- Manually add 1 more client (19+1=20, within limit, allowed)
+- Manually add another client (20+1=21, should have been blocked)
+
+### Root Cause
+The CSV import functions in `app/(tabs)/settings.tsx` directly call `addDoc(collection(db, 'clients'), ...)` without any `checkClientLimit()` calls, while manual client creation in `app/add-client.tsx` properly enforces limits.
+
+### Required Fix
+Need to add client limit checking to all CSV import functions:
+1. **Pre-import validation**: Check if user can add any clients before starting import
+2. **Dynamic limit calculation**: Show how many clients can actually be imported vs requested  
+3. **Incremental checking**: Verify limits before each client creation during import loop
+4. **Consistent error messaging**: Match the upgrade prompts used in manual client creation
+
+### Impact
+- **High Priority**: Subscription billing model depends on accurate limit enforcement
+- **User Experience**: Clear messaging about limits and upgrade options
+- **Data Integrity**: Prevents unlimited client creation on free tier
+
+### Implementation Notes
+The fix requires modifying three CSV import sections in settings.tsx:
+- Web CSV import (line ~275)
+- Mobile CSV import (line ~450) 
+- Web Excel import (line ~600)
+
+Each section needs the same limit checking pattern used in `app/add-client.tsx`.
+
+---

@@ -273,11 +273,45 @@ export default function SettingsScreen() {
               }
             });
 
-            // Confirm import
-            const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
-            if (!proceed) return;
+            // Check subscription limits before confirming import
+            try {
+              const clientLimitCheck = await checkClientLimit();
+              if (!clientLimitCheck.canAdd) {
+                const message = clientLimitCheck.limit 
+                  ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients.`
+                  : 'Unable to add more clients at this time.';
+                
+                showAlert('Client Limit Reached', message);
+                resolve();
+                return;
+              }
+
+              // Calculate how many clients can actually be imported
+              const availableSlots = clientLimitCheck.limit ? Math.max(0, clientLimitCheck.limit - clientLimitCheck.currentCount) : validRows.length;
+              const canImportCount = Math.min(validRows.length, availableSlots);
+              const willSkipDueToLimit = validRows.length - canImportCount;
+
+              let confirmMessage = `This will create ${canImportCount} clients (skipping ${skipped.length} invalid rows)`;
+              if (willSkipDueToLimit > 0) {
+                confirmMessage += ` and ${willSkipDueToLimit} additional clients due to your subscription limit`;
+              }
+              confirmMessage += '. Continue?';
+
+              // Confirm import
+              const proceed = await showConfirm('Confirm Import', confirmMessage);
+              if (!proceed) {
+                resolve();
+                return;
+              }
+            } catch (error) {
+              console.error('Error checking client limit:', error);
+              showAlert('Error', 'Unable to verify subscription status. Please try again.');
+              resolve();
+              return;
+            }
 
             let imported = 0;
+            let limitReached = false;
             
             for (let i = 0; i < validRows.length; i++) {
               const row = validRows[i];
@@ -444,11 +478,45 @@ export default function SettingsScreen() {
           }
         });
 
-        // Confirm import
-        const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
-        if (!proceed) return;
+        // Check subscription limits before confirming import
+        try {
+          const clientLimitCheck = await checkClientLimit();
+          if (!clientLimitCheck.canAdd) {
+            const message = clientLimitCheck.limit 
+              ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients.`
+              : 'Unable to add more clients at this time.';
+            
+            showAlert('Client Limit Reached', message);
+            resolve();
+            return;
+          }
+
+          // Calculate how many clients can actually be imported
+          const availableSlots = clientLimitCheck.limit ? Math.max(0, clientLimitCheck.limit - clientLimitCheck.currentCount) : validRows.length;
+          const canImportCount = Math.min(validRows.length, availableSlots);
+          const willSkipDueToLimit = validRows.length - canImportCount;
+
+          let confirmMessage = `This will create ${canImportCount} clients (skipping ${skipped.length} invalid rows)`;
+          if (willSkipDueToLimit > 0) {
+            confirmMessage += ` and ${willSkipDueToLimit} additional clients due to your subscription limit`;
+          }
+          confirmMessage += '. Continue?';
+
+          // Confirm import
+          const proceed = await showConfirm('Confirm Import', confirmMessage);
+          if (!proceed) {
+            resolve();
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking client limit:', error);
+          showAlert('Error', 'Unable to verify subscription status. Please try again.');
+          resolve();
+          return;
+        }
 
         let imported = 0;
+        let limitReached = false;
         
         for (let i = 0; i < validRows.length; i++) {
           const row = validRows[i];
@@ -598,11 +666,45 @@ export default function SettingsScreen() {
           }
         });
 
-        // Confirm import
-        const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} clients (skipping ${skipped.length}). Continue?`);
-        if (!proceed) return;
+        // Check subscription limits before confirming import
+        try {
+          const clientLimitCheck = await checkClientLimit();
+          if (!clientLimitCheck.canAdd) {
+            const message = clientLimitCheck.limit 
+              ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients.`
+              : 'Unable to add more clients at this time.';
+            
+            showAlert('Client Limit Reached', message);
+            resolve();
+            return;
+          }
+
+          // Calculate how many clients can actually be imported
+          const availableSlots = clientLimitCheck.limit ? Math.max(0, clientLimitCheck.limit - clientLimitCheck.currentCount) : validRows.length;
+          const canImportCount = Math.min(validRows.length, availableSlots);
+          const willSkipDueToLimit = validRows.length - canImportCount;
+
+          let confirmMessage = `This will create ${canImportCount} clients (skipping ${skipped.length} invalid rows)`;
+          if (willSkipDueToLimit > 0) {
+            confirmMessage += ` and ${willSkipDueToLimit} additional clients due to your subscription limit`;
+          }
+          confirmMessage += '. Continue?';
+
+          // Confirm import
+          const proceed = await showConfirm('Confirm Import', confirmMessage);
+          if (!proceed) {
+            resolve();
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking client limit:', error);
+          showAlert('Error', 'Unable to verify subscription status. Please try again.');
+          resolve();
+          return;
+        }
 
         let imported = 0;
+        let limitReached = false;
         
         for (let i = 0; i < validRows.length; i++) {
           const row = validRows[i];
@@ -1383,707 +1485,4 @@ export default function SettingsScreen() {
                 }
               });
               if (skipped.length > 5) {
-                message += `\n• ... and ${skipped.length - 5} more`;
-              }
-            }
-            showAlert('Import Result', message);
-
-          } catch (err) {
-            console.error('Job import error', err);
-            showAlert('Error', 'Import failed');
-          } finally {
-            resolve();
-          }
-        };
-        input.click();
-      });
-      return;
-    }
-
-    // Mobile implementation (similar structure)
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
-      if (result.canceled || !result.assets || !result.assets[0]) return;
-      const file = result.assets[0];
-      
-      let rows: any[] = [];
-      
-      if (file.name.endsWith('.csv')) {
-        const response = await fetch(file.uri);
-        const csvText = await response.text();
-        const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-        if (parsed.errors.length) {
-          console.error('CSV Parsing Errors:', parsed.errors);
-          Alert.alert('Import Error', 'There was a problem parsing the CSV file.');
-          return;
-        }
-        rows = parsed.data as any[];
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const response = await fetch(file.uri);
-        const ab = await response.arrayBuffer();
-        const workbook = XLSX.read(ab, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-      } else {
-        Alert.alert('Unsupported file', 'Please select a CSV or Excel file.');
-        return;
-      }
-
-      // Same processing logic as web version
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        showAlert('Error', 'Could not determine account owner. Please log in again.');
-        return;
-      }
-
-      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
-      const clientsSnapshot = await getDocs(clientsQuery);
-      const accountToClientMap = new Map<string, { id: string; address: string }>();
-      
-      clientsSnapshot.docs.forEach(doc => {
-        const data = doc.data();
-        if (data.accountNumber) {
-          const address = `${data.address1 || data.address || ''}, ${data.town || ''}, ${data.postcode || ''}`;
-          accountToClientMap.set(data.accountNumber.toUpperCase(), { id: doc.id, address });
-        }
-      });
-
-      const validRows: any[] = [];
-      const skipped: any[] = [];
-      const requiredJobFields = ['Account Number', 'Date', 'Amount (£)'];
-      
-      rows.forEach((r, index) => {
-        const missing = requiredJobFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim() === '');
-        if (missing.length) {
-          const rowIdentifier = (r as any)['Account Number'] || `Row ${index + 2}`;
-          skipped.push({ row: r, reason: 'Missing ' + missing.join(', '), identifier: rowIdentifier });
-        } else {
-          let accountNumber = (r as any)['Account Number']?.toString().trim();
-          if (!accountNumber.toUpperCase().startsWith('RWC')) {
-            accountNumber = 'RWC' + accountNumber;
-          }
-          if (!accountToClientMap.has(accountNumber.toUpperCase())) {
-            const rowIdentifier = accountNumber || `Row ${index + 2}`;
-            skipped.push({ row: r, reason: 'Account not found', identifier: rowIdentifier });
-          } else {
-            validRows.push(r);
-          }
-        }
-      });
-
-      const proceed = await showConfirm('Confirm Import', `This will create ${validRows.length} completed jobs (skipping ${skipped.length}). Continue?`);
-      if (!proceed) return;
-
-      let imported = 0;
-      
-      for (let i = 0; i < validRows.length; i++) {
-        const row = validRows[i];
-        
-        let accountNumber = (row as any)['Account Number']?.toString().trim();
-        if (!accountNumber.toUpperCase().startsWith('RWC')) {
-          accountNumber = 'RWC' + accountNumber;
-        }
-        const clientInfo = accountToClientMap.get(accountNumber.toUpperCase());
-        
-        if (!clientInfo) continue;
-        
-        const amountString = (row as any)['Amount (£)']?.toString().trim();
-        const sanitizedAmount = amountString.replace(/[^0-9.-]+/g, '');
-        const amount = parseFloat(sanitizedAmount) || 0;
-        
-        let jobDate = '';
-        const dateString = (row as any)['Date']?.toString().trim();
-        if (dateString) {
-          const parts = dateString.split('/');
-          if (parts.length === 3) {
-            const [day, month, year] = parts;
-            if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
-              jobDate = `${year}-${month}-${day}`;
-            }
-          } else if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-            jobDate = dateString;
-          }
-        }
-        
-        if (!jobDate) {
-          skipped.push({ row, reason: 'Invalid date format', identifier: accountNumber });
-          continue;
-        }
-        
-        try {
-          await addDoc(collection(db, 'jobs'), {
-            ownerId,
-            clientId: clientInfo.id,
-            providerId: 'test-provider-1',
-            serviceId: 'Historic Completed Service',
-            propertyDetails: clientInfo.address,
-            scheduledTime: jobDate + 'T09:00:00',
-            status: 'completed',
-            price: amount,
-            paymentStatus: 'unpaid'
-          });
-          imported++;
-        } catch (e) {
-          console.error('Error creating job:', e, 'for row:', row);
-          skipped.push({ row, reason: 'Database error', identifier: accountNumber });
-        }
-      }
-
-      let message = `Import Complete!\n\nSuccessfully imported: ${imported} completed jobs.`;
-      if (skipped.length > 0) {
-        message += `\n\nSkipped ${skipped.length} rows:`;
-        skipped.forEach((s, idx) => {
-          if (idx < 5) {
-            message += `\n• ${s.identifier}: ${s.reason}`;
-          }
-        });
-        if (skipped.length > 5) {
-          message += `\n• ... and ${skipped.length - 5} more`;
-        }
-      }
-      showAlert('Import Result', message);
-      
-    } catch (e) {
-      console.error('Import process error:', e);
-      Alert.alert('Import Error', 'Failed to import CSV.');
-    }
-  };
-
-  const handleDeleteAllClients = async () => {
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('Are you sure you want to delete ALL client records? This action cannot be undone.')
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Delete All Clients',
-            'Are you sure you want to delete ALL client records? This action cannot be undone.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-    if (!confirmed) return;
-
-    try {
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        showAlert('Error', 'Could not determine account owner. Please log in again.');
-        return;
-      }
-      const q = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
-      const querySnapshot = await getDocs(q);
-      const deletePromises = querySnapshot.docs.map((d) => deleteDoc(doc(db, 'clients', d.id)));
-      await Promise.all(deletePromises);
-      Alert.alert('Success', 'All clients have been deleted.');
-    } catch (error) {
-      console.error('Error deleting clients:', error);
-      Alert.alert('Error', 'Could not delete all clients.');
-    }
-  };
-
-  const handleDeleteAllJobs = async () => {
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('Are you sure you want to delete ALL jobs? This action cannot be undone.')
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Delete All Jobs',
-            'Are you sure you want to delete ALL jobs? This action cannot be undone.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-    if (!confirmed) return;
-
-    try {
-      setLoading(true);
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        showAlert('Error', 'Could not determine account owner. Please log in again.');
-        setLoading(false);
-        return;
-      }
-      const qJobs = query(collection(db, 'jobs'), where('ownerId', '==', ownerId));
-      const jobsSnapshot = await getDocs(qJobs);
-      const deletePromises = jobsSnapshot.docs.map((d) => deleteDoc(d.ref));
-      await Promise.all(deletePromises);
-      Alert.alert('Success', 'All jobs have been deleted.');
-    } catch (error) {
-      console.error('Error deleting jobs:', error);
-      Alert.alert('Error', 'Could not delete all jobs.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDeleteAllPayments = async () => {
-    const confirmed = Platform.OS === 'web'
-      ? window.confirm('This will permanently delete all payment records. This action cannot be undone.')
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Delete All Payments',
-            'This will permanently delete all payment records. This action cannot be undone.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Delete All', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-    if (!confirmed) return;
-
-    try {
-      setLoading(true);
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        showAlert('Error', 'Could not determine account owner. Please log in again.');
-        setLoading(false);
-        return;
-      }
-      await deleteAllPayments();
-      Alert.alert('Success', 'All payments have been deleted.');
-    } catch (error) {
-      console.error('Error deleting payments:', error);
-      Alert.alert('Error', 'Could not delete payments.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  const handleLogout = async () => {
-    try {
-      // Sign out from Firebase
-      await signOut(auth);
-
-      // Supabase sign out removed (legacy)
-
-      // Do NOT navigate manually; RootLayout will detect the auth state change
-      // and redirect unauthenticated users to /login automatically.
-      // This avoids the race condition where we redirect too early and then
-      // immediately bounce back to the home screen because the user session
-      // hasn't fully cleared yet.
-    } catch (error) {
-      console.error('Logout error', error);
-      Alert.alert('Error', 'Failed to log out.');
-    }
-  };
-
-  const handleLeaveTeam = async () => {
-    const confirm = Platform.OS === 'web'
-      ? window.confirm('Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.')
-      : await new Promise<boolean>((resolve) => {
-          Alert.alert(
-            'Leave Team',
-            'Are you sure you want to leave this team? You will lose access to all owner data and create your own personal account.',
-            [
-              { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Leave', style: 'destructive', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-    if (!confirm) return;
-
-    try {
-      console.log('== LEAVE TEAM CONFIRMED ==');
-      await leaveTeamSelf();
-      if (Platform.OS === 'web') {
-        window.alert('You have left the team. Please reload the page.');
-      } else {
-        Alert.alert('Left Team', 'Your account has been reset.');
-      }
-      // Supabase refreshSession removed (legacy)
-      router.replace('/');
-    } catch (err) {
-      console.error('Error leaving team:', err);
-      if (Platform.OS === 'web') {
-        window.alert('Error: Could not leave team. See console for details.');
-      } else {
-        Alert.alert('Error', 'Could not leave team.');
-      }
-    }
-  };
-
-  // Refresh capacity for current week
-  const handleRefreshCapacityForCurrentWeek = async () => {
-    setIsRefreshingCapacity(true);
-    try {
-      const currentWeek = startOfWeek(new Date(), { weekStartsOn: 1 });
-      const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
-      const result = await manualRefreshWeekCapacity(currentWeek);
-      
-      let alertMessage = `Capacity refresh completed for current week!\n\n`;
-      
-      if (result.redistributedJobs > 0) {
-        alertMessage += `• ${result.redistributedJobs} jobs redistributed\n`;
-        alertMessage += `• Modified days: ${result.daysModified.join(', ')}\n`;
-        
-        if (result.warnings.length > 0) {
-          alertMessage += `\nWarnings:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
-        }
-      } else {
-        alertMessage += `No jobs needed redistribution - all days are within capacity limits.`;
-        
-        if (result.warnings.length > 0) {
-          alertMessage += `\n\nNotes:\n${result.warnings.map((w: string) => `• ${w}`).join('\n')}`;
-        }
-      }
-      
-      Alert.alert('Capacity Refresh Complete', alertMessage);
-    } catch (error) {
-      console.error('Error refreshing capacity:', error);
-      Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
-    } finally {
-      setIsRefreshingCapacity(false);
-    }
-  };
-
-  // Initialize subscription tiers (one-time migration)
-  const handleInitializeSubscriptions = async () => {
-    if (!isOwner) {
-      Alert.alert('Error', 'Only account owners can initialize subscriptions.');
-      return;
-    }
-
-    const confirmed = Platform.OS === 'web' 
-      ? window.confirm('This will set up subscription tiers for all users. This should only be run once. Continue?')
-      : await new Promise((resolve) => {
-          Alert.alert(
-            'Initialize Subscriptions',
-            'This will set up subscription tiers for all users. This should only be run once. Continue?',
-            [
-              { text: 'Cancel', onPress: () => resolve(false), style: 'cancel' },
-              { text: 'Continue', onPress: () => resolve(true) },
-            ]
-          );
-        });
-
-    if (!confirmed) return;
-
-    setLoading(true);
-    try {
-      const result = await migrateUsersToSubscriptions();
-      const message = `Migration completed!\n\n• ${result.updated} users set to free tier\n• ${result.exempt} exempt accounts\n• ${result.errors} errors`;
-      
-      if (Platform.OS === 'web') {
-        window.alert(message);
-      } else {
-        Alert.alert('Migration Complete', message);
-      }
-      
-      // Reload subscription data
-      await loadSubscription();
-    } catch (error) {
-      console.error('Error initializing subscriptions:', error);
-      const errorMessage = 'Failed to initialize subscriptions. Please try again.';
-      
-      if (Platform.OS === 'web') {
-        window.alert(errorMessage);
-      } else {
-        Alert.alert('Error', errorMessage);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <ThemedView style={styles.container}>
-      <View style={styles.titleRow}>
-        <ThemedText type="title">Settings</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-        </Pressable>
-      </View>
-      
-      {/* Subscription Display */}
-      {!loadingSubscription && subscription && (
-        <View style={styles.subscriptionContainer}>
-          <View style={styles.subscriptionCard}>
-            <View style={styles.subscriptionHeader}>
-              <ThemedText style={styles.subscriptionTitle}>Current Plan</ThemedText>
-              <View style={[styles.subscriptionBadge, { backgroundColor: getSubscriptionDisplayInfo(subscription).color }]}>
-                <Text style={styles.subscriptionBadgeText}>{getSubscriptionDisplayInfo(subscription).badge}</Text>
-              </View>
-            </View>
-            <ThemedText style={styles.subscriptionName}>
-              {getSubscriptionDisplayInfo(subscription).name}
-            </ThemedText>
-            <ThemedText style={styles.subscriptionDescription}>
-              {getSubscriptionDisplayInfo(subscription).description}
-            </ThemedText>
-            {subscription.clientLimit && (
-              <ThemedText style={styles.subscriptionLimits}>
-                {subscription.clientLimit} client limit
-              </ThemedText>
-            )}
-            {!subscription.canCreateMembers && (
-              <ThemedText style={styles.subscriptionLimits}>
-                Team member creation requires Premium
-              </ThemedText>
-            )}
-          </View>
-        </View>
-      )}
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Import Clients from CSV" onPress={handleImport} />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Import Payments from CSV" onPress={handleImportPayments} />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Import Completed Jobs from CSV" onPress={handleImportCompletedJobs} />
-      </View>
-
-      {/* Only show delete buttons for owners (not members) */}
-      {isOwner && (
-        <>
-          <View style={styles.buttonContainer}>
-            <StyledButton
-              title="Initialize Subscription Tiers"
-              onPress={handleInitializeSubscriptions}
-              disabled={loading}
-            />
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <StyledButton
-              title={loading ? 'Loading...' : 'Delete All Payments'}
-              onPress={handleDeleteAllPayments}
-              disabled={loading}
-              color="red"
-            />
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <StyledButton title="Delete All Jobs" color="red" onPress={handleDeleteAllJobs} />
-          </View>
-
-          <View style={styles.buttonContainer}>
-            <StyledButton title="Delete All Clients" color="red" onPress={handleDeleteAllClients} />
-          </View>
-        </>
-      )}
-
-      <View style={styles.buttonContainer}>
-        <StyledButton
-          title={isRefreshingCapacity ? 'Refreshing...' : 'Refresh Capacity for Current Week'}
-          onPress={handleRefreshCapacityForCurrentWeek}
-          disabled={isRefreshingCapacity || loading}
-        />
-      </View>
-
-      <View style={styles.buttonContainer}>
-        <StyledButton 
-          title="Edit Profile" 
-          onPress={() => {
-            loadUserProfile();
-            setProfileModalVisible(true);
-          }} 
-        />
-      </View>
-
-      {/* Only show Team Members button for owners (not members of other accounts) */}
-      {isOwner && !isMemberOfAnotherAccount && (
-        <View style={styles.buttonContainer}>
-          <StyledButton title="Team Members" onPress={() => router.push('/team')} />
-        </View>
-      )}
-
-      <View style={styles.buttonContainer}>
-        <StyledButton title="Log Out" onPress={handleLogout} />
-      </View>
-
-      {/* Only show Join owner account button if not already a member of another account */}
-      {!isMemberOfAnotherAccount && (
-        <View style={styles.buttonContainer}>
-          <StyledButton
-            title="Join owner account"
-            onPress={() => router.push('/enter-invite-code' as any)}
-          />
-        </View>
-      )}
-
-      {/* Show Leave Team button for members of other accounts */}
-      {isMemberOfAnotherAccount && (
-        <View style={{ marginTop: 24 }}>
-          <StyledButton title="Leave Team" color="red" onPress={handleLeaveTeam} />
-        </View>
-      )}
-
-      {/* Profile Edit Modal */}
-      <Modal
-        visible={profileModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setProfileModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ThemedText type="title" style={styles.modalTitle}>Edit Profile</ThemedText>
-            <TextInput
-              style={styles.input}
-              placeholder="Name"
-              value={profileForm.name}
-              onChangeText={(text) => setProfileForm({ ...profileForm, name: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Address Line 1"
-              value={profileForm.address1}
-              onChangeText={(text) => setProfileForm({ ...profileForm, address1: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Town"
-              value={profileForm.town}
-              onChangeText={(text) => setProfileForm({ ...profileForm, town: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Postcode"
-              value={profileForm.postcode}
-              onChangeText={(text) => setProfileForm({ ...profileForm, postcode: text })}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Contact Number"
-              value={profileForm.contactNumber}
-              onChangeText={(text) => setProfileForm({ ...profileForm, contactNumber: text })}
-            />
-            <View style={styles.modalButtons}>
-              <StyledButton
-                title={savingProfile ? 'Saving...' : 'Save Changes'}
-                onPress={handleSaveProfile}
-                disabled={savingProfile}
-              />
-              <StyledButton
-                title="Cancel"
-                onPress={() => setProfileModalVisible(false)}
-                color="red"
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </ThemedView>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, paddingTop: 60 },
-  buttonContainer: { marginVertical: 8 },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  homeButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  homeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  btnBase: {
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  btnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-  },
-  modalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-    width: '80%',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    width: '100%',
-    height: 50,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    marginBottom: 15,
-    fontSize: 16,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginTop: 20,
-  },
-  subscriptionContainer: {
-    marginBottom: 24,
-  },
-  subscriptionCard: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  subscriptionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  subscriptionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  subscriptionBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  subscriptionBadgeText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  subscriptionName: {
-    fontSize: 16,
-    marginBottom: 8,
-  },
-  subscriptionDescription: {
-    fontSize: 14,
-    color: '#666',
-  },
-  subscriptionLimits: {
-    fontSize: 12,
-    color: '#999',
-  },
-}); 
+                message += `
