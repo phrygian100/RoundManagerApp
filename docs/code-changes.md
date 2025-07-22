@@ -5,6 +5,65 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-21 - Added Account Number Display to Client Cards 📱💻
+
+### Summary
+Enhanced the client cards on the main clients screen to display account numbers, providing better client identification and consistency with other parts of the application.
+
+### Changes Made
+**1. Added Account Number Display**:
+- Client cards now show account numbers (e.g., "Account: RWC123") after the client name
+- Uses existing `displayAccountNumber` utility function for consistent formatting
+- Only displays when account number is available (conditional rendering)
+- Styled with subtle gray color to not compete with primary information
+
+**2. Consistent Implementation**:
+- Follows the same pattern used in client detail screen and runsheet
+- Uses established `displayAccountNumber` utility for proper RWC prefix handling
+- Maintains existing card layout and styling patterns
+
+### Technical Implementation
+**1. Import Addition**:
+```javascript
+import { displayAccountNumber } from '../utils/account';
+```
+
+**2. Display Logic**:
+```javascript
+{item.accountNumber && (
+  <ThemedText style={styles.accountNumberText}>Account: {displayAccountNumber(item.accountNumber)}</ThemedText>
+)}
+```
+
+**3. Styling**:
+```javascript
+accountNumberText: {
+  fontSize: 12,
+  color: '#666',
+  marginTop: 4,
+}
+```
+
+### Impact
+- ✅ **Better Client Identification**: Users can now see account numbers at a glance
+- ✅ **Consistency**: Matches display pattern used in other parts of the app
+- ✅ **Sorting Support**: Complements existing account number sorting functionality
+- ✅ **No Regression Risk**: Display-only change with no data modification
+- ✅ **Conditional Display**: Only shows when account number exists
+
+### Files Modified
+- `app/clients.tsx` - Added account number display to client cards
+
+### User Experience
+- **Desktop Web**: Account numbers visible in client list for quick reference
+- **Mobile Apps**: Consistent display across iOS and Android
+- **Mobile Browser**: Responsive design maintained
+- **Sorting Integration**: Works seamlessly with existing account number sorting
+
+**Priority**: LOW - UI enhancement for better user experience
+
+---
+
 ## 2025-07-21 - Added Search Functionality to Payments and Completed Jobs 📱💻
 
 ### Summary

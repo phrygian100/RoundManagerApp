@@ -12,6 +12,7 @@ import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
+import { displayAccountNumber } from '../utils/account';
 
 type Client = BaseClient & { startingBalance?: number };
 type SortOption = 'address' | 'nextVisit' | 'roundOrder' | 'none' | 'balance' | 'accountNumber';
@@ -308,6 +309,9 @@ export default function ClientsScreen() {
           )}
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
           <ThemedText>{item.name || 'No name'}</ThemedText>
+          {item.accountNumber && (
+            <ThemedText style={styles.accountNumberText}>Account: {displayAccountNumber(item.accountNumber)}</ThemedText>
+          )}
           {item.quote && typeof item.quote === 'number' && (
             <ThemedText>£{item.quote.toFixed(2)}</ThemedText>
           )}
@@ -496,5 +500,10 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  accountNumberText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 });
