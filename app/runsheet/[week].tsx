@@ -10,6 +10,7 @@ import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
+import { formatAuditDescription, logAction } from '../../services/auditService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
@@ -1998,6 +1999,16 @@ www.tgmwindowcleaning.co.uk`;
                       notes: quoteDetails.notes,
                       status: 'pending',
                     });
+                  }
+
+                  // Log the quote progression action
+                  if (quoteData) {
+                    await logAction(
+                      'quote_progressed',
+                      'quote',
+                      quoteDetails.quoteId,
+                      formatAuditDescription('quote_progressed', `${quoteData.name} - ${quoteData.address}`)
+                    );
                   }
 
                   // Remove the corresponding quote job from the runsheet

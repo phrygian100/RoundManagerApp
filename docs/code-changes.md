@@ -5,6 +5,90 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Fixed Missing Audit Logging for Quote Progression from Runsheet 🔧
+
+### Summary
+Fixed critical issue where quote progression from the runsheet was not creating activity log entries, while quote progression from the quotes screen was working correctly. This created inconsistent audit trails and prevented owners from seeing when members progressed quotes from runsheets.
+
+### Root Cause
+The runsheet quote progression functionality was missing audit logging calls, while the quotes screen had proper audit logging implemented. This inconsistency meant that:
+- Quote progression from quotes screen → Activity log entry created ✅
+- Quote progression from runsheet → No activity log entry ❌
+
+### Solution Implemented
+Added audit logging to the runsheet quote progression workflow:
+
+**Before**:
+```typescript
+// Update quote status to pending
+await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+  lines: quoteLines,
+  notes: quoteDetails.notes,
+  status: 'pending',
+});
+
+// Remove quote job from runsheet
+const quoteJob = jobs.find(job => job.serviceId === 'quote' && (job as any).quoteId === quoteDetails.quoteId);
+if (quoteJob) {
+  await deleteDoc(doc(db, 'jobs', quoteJob.id));
+  setJobs(prev => prev.filter(job => job.id !== quoteJob.id));
+}
+```
+
+**After**:
+```typescript
+// Update quote status to pending
+await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+  lines: quoteLines,
+  notes: quoteDetails.notes,
+  status: 'pending',
+});
+
+// Log the quote progression action
+if (quoteData) {
+  await logAction(
+    'quote_progressed',
+    'quote',
+    quoteDetails.quoteId,
+    formatAuditDescription('quote_progressed', `${quoteData.name} - ${quoteData.address}`)
+  );
+}
+
+// Remove quote job from runsheet
+const quoteJob = jobs.find(job => job.serviceId === 'quote' && (job as any).quoteId === quoteDetails.quoteId);
+if (quoteJob) {
+  await deleteDoc(doc(db, 'jobs', quoteJob.id));
+  setJobs(prev => prev.filter(job => job.id !== quoteJob.id));
+}
+```
+
+### Technical Implementation
+
+**Added Imports**:
+- Imported `logAction` and `formatAuditDescription` from `auditService`
+- Ensures proper audit logging functionality is available
+
+**Audit Logging Integration**:
+- Added audit logging call after quote status update
+- Uses existing `quoteData` state to get quote name and address
+- Consistent with quotes screen audit logging format
+- Proper error handling to prevent audit logging failures from breaking the main operation
+
+### Impact
+- ✅ **Consistent Audit Trail**: All quote progression actions now create activity log entries
+- ✅ **Owner Visibility**: Owners can now see when members progress quotes from runsheets
+- ✅ **Complete Accountability**: Full tracking of quote progression regardless of entry point
+- ✅ **No Regression**: Existing functionality remains unchanged
+- ✅ **Error Resilience**: Audit logging failures don't break quote progression
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Added audit logging imports and implementation
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical audit trail gap affecting owner visibility and accountability
+
+---
+
 ## 2025-01-17 - Fixed Runsheet Complete Day Feature by Removing Quote Jobs After Progress to Pending 🔧
 
 ### Summary
