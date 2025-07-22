@@ -88,7 +88,13 @@ export default function UnknownPaymentActionModal({
   };
 
   const handleDelete = async () => {
-    if (!payment) return;
+    console.log('handleDelete called');
+    console.log('Current payment:', payment);
+    
+    if (!payment) {
+      console.error('No payment selected for deletion');
+      return;
+    }
 
     Alert.alert(
       'Confirm Delete',
@@ -99,9 +105,11 @@ export default function UnknownPaymentActionModal({
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            console.log('Delete confirmed, starting deletion...');
             setLoading(true);
             try {
               await deleteUnknownPayment(payment.id);
+              console.log('Payment deleted successfully');
               Alert.alert('Success', 'Payment deleted successfully');
               handleClose();
               onSuccess();
@@ -118,11 +126,20 @@ export default function UnknownPaymentActionModal({
   };
 
   const handleLinkWithClient = async (clientId: string) => {
-    if (!payment) return;
+    console.log('handleLinkWithClient called with clientId:', clientId);
+    console.log('Current payment:', payment);
+    
+    if (!payment) {
+      console.error('No payment selected');
+      return;
+    }
 
     setLoading(true);
     try {
+      console.log('Calling linkUnknownPaymentToClient...');
       await linkUnknownPaymentToClient(payment.id, clientId);
+      console.log('linkUnknownPaymentToClient completed successfully');
+      
       const client = clients.find(c => c.id === clientId);
       Alert.alert('Success', `Payment linked to ${client?.name || 'client'} successfully`);
       handleClose();
@@ -145,7 +162,10 @@ export default function UnknownPaymentActionModal({
   const renderClientItem = ({ item }: { item: Client }) => (
     <Pressable 
       style={styles.clientItem} 
-      onPress={() => handleLinkWithClient(item.id)}
+      onPress={() => {
+        console.log('Client item pressed:', item.name, item.id);
+        handleLinkWithClient(item.id);
+      }}
       android_ripple={{ color: '#e0e0e0' }}
       android_disableSound={false}
     >
@@ -182,7 +202,10 @@ export default function UnknownPaymentActionModal({
 
       <Pressable 
         style={[styles.menuButton, styles.linkButton]} 
-        onPress={() => setAction('link')}
+        onPress={() => {
+          console.log('Link button pressed');
+          setAction('link');
+        }}
         android_ripple={{ color: '#0056b3' }}
         android_disableSound={false}
       >
@@ -191,7 +214,10 @@ export default function UnknownPaymentActionModal({
 
       <Pressable 
         style={[styles.menuButton, styles.deleteButton]} 
-        onPress={handleDelete}
+        onPress={() => {
+          console.log('Delete button pressed');
+          handleDelete();
+        }}
         android_ripple={{ color: '#cc0000' }}
         android_disableSound={false}
       >
@@ -200,7 +226,10 @@ export default function UnknownPaymentActionModal({
 
       <Pressable 
         style={[styles.menuButton, styles.cancelButton]} 
-        onPress={handleClose}
+        onPress={() => {
+          console.log('Cancel button pressed');
+          handleClose();
+        }}
         android_ripple={{ color: '#d0d0d0' }}
         android_disableSound={false}
       >
