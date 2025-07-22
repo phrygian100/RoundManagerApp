@@ -149,6 +149,16 @@ export default function ChasePaymentScreen() {
     router.back();
   };
 
+  const handleSendEmail = () => {
+    // TODO: Implement email functionality
+    console.log('Send email functionality to be implemented');
+  };
+
+  const handleDownload = () => {
+    // TODO: Implement download functionality
+    console.log('Download functionality to be implemented');
+  };
+
   if (loading) {
     return (
       <ThemedView style={styles.container}>
@@ -177,7 +187,7 @@ export default function ChasePaymentScreen() {
         <Pressable style={styles.backButton} onPress={handleBack}>
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </Pressable>
-        <ThemedText style={styles.headerTitle}>Payment Chase</ThemedText>
+        <ThemedText style={styles.headerTitle}>Chase Payment</ThemedText>
         <Pressable style={styles.homeButton} onPress={() => router.push('/')}>
           <Ionicons name="home" size={24} color="#1976d2" />
         </Pressable>
@@ -281,7 +291,18 @@ export default function ChasePaymentScreen() {
           </ThemedText>
         </View>
 
-
+        {/* Action Buttons */}
+        <View style={styles.actionButtons}>
+          <Pressable style={styles.primaryButton} onPress={handleSendEmail}>
+            <Ionicons name="mail-outline" size={20} color="#fff" />
+            <ThemedText style={styles.primaryButtonText}>Send Via Email</ThemedText>
+          </Pressable>
+          
+          <Pressable style={styles.secondaryButton} onPress={handleDownload}>
+            <Ionicons name="download-outline" size={20} color="#1976d2" />
+            <ThemedText style={styles.secondaryButtonText}>Download</ThemedText>
+          </Pressable>
+        </View>
       </ScrollView>
     </ThemedView>
   );
@@ -511,6 +532,43 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 8,
     lineHeight: 20,
+  },
+  actionButtons: {
+    gap: 12,
+    marginBottom: 40,
+    paddingHorizontal: 20,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1976d2',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1976d2',
+    backgroundColor: '#fff',
+  },
+  secondaryButtonText: {
+    color: '#1976d2',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 
 }); 

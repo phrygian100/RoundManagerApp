@@ -1983,22 +1983,45 @@ www.tgmwindowcleaning.co.uk`;
                 </View>
               </ScrollView>
               <Button title="Save & Progress" onPress={async () => {
-                if (quoteLines.length > 0) {
-                  await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
-                    lines: quoteLines,
-                    notes: quoteDetails.notes,
-                    status: 'pending',
-                  });
-                } else {
-                  await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
-                    frequency: quoteDetails.frequency,
-                    value: quoteDetails.value,
-                    notes: quoteDetails.notes,
-                    status: 'pending',
-                  });
+                try {
+                  // Update quote status to pending
+                  if (quoteLines.length > 0) {
+                    await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+                      lines: quoteLines,
+                      notes: quoteDetails.notes,
+                      status: 'pending',
+                    });
+                  } else {
+                    await updateDoc(doc(db, 'quotes', quoteDetails.quoteId), {
+                      frequency: quoteDetails.frequency,
+                      value: quoteDetails.value,
+                      notes: quoteDetails.notes,
+                      status: 'pending',
+                    });
+                  }
+
+                  // Remove the corresponding quote job from the runsheet
+                  const quoteJob = jobs.find(job => job.serviceId === 'quote' && (job as any).quoteId === quoteDetails.quoteId);
+                  if (quoteJob) {
+                    await deleteDoc(doc(db, 'jobs', quoteJob.id));
+                    setJobs(prev => prev.filter(job => job.id !== quoteJob.id));
+                  }
+
+                  setShowQuoteDetailsModal(false);
+                  
+                  if (Platform.OS === 'web') {
+                    window.alert('Quote progressed to pending and removed from runsheet!');
+                  } else {
+                    Alert.alert('Success', 'Quote progressed to pending and removed from runsheet!');
+                  }
+                } catch (error) {
+                  console.error('Error progressing quote to pending:', error);
+                  if (Platform.OS === 'web') {
+                    window.alert('Error progressing quote. Please try again.');
+                  } else {
+                    Alert.alert('Error', 'Failed to progress quote. Please try again.');
+                  }
                 }
-                setShowQuoteDetailsModal(false);
-                if (Platform.OS === 'web') window.location.reload();
               }} />
               <Button title="Cancel" onPress={() => setShowQuoteDetailsModal(false)} color="red" />
             </View>
