@@ -2,33 +2,23 @@ import { useRouter } from 'expo-router';
 import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import CreateUnknownPaymentModal from '../components/CreateUnknownPaymentModal';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
+import UnknownPaymentActionModal from '../components/UnknownPaymentActionModal';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
-
-type UnknownPayment = {
-  id: string;
-  ownerId?: string;
-  amount: number;
-  date: string;
-  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other';
-  notes?: string;
-  // Import metadata
-  importDate: string;
-  importFilename: string;
-  csvRowNumber: number;
-  originalAccountIdentifier: string;
-  createdAt: string;
-  updatedAt: string;
-};
+import { type UnknownPayment } from '../services/unknownPaymentService';
 
 export default function UnknownPaymentsScreen() {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<UnknownPayment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<UnknownPayment[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState<UnknownPayment | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -79,12 +69,28 @@ export default function UnknownPaymentsScreen() {
     }
   }, [searchQuery, payments]);
 
+  const handlePaymentPress = (payment: UnknownPayment) => {
+    setSelectedPayment(payment);
+    setShowActionModal(true);
+  };
+
+  const handleCreateSuccess = () => {
+    setShowCreateModal(false);
+    // The payments will be refreshed automatically by the onSnapshot listener
+  };
+
+  const handleActionSuccess = () => {
+    setShowActionModal(false);
+    setSelectedPayment(null);
+    // The payments will be refreshed automatically by the onSnapshot listener
+  };
+
   const renderPayment = ({ item }: { item: UnknownPayment }) => {
     const formattedDate = new Date(item.date).toLocaleDateString('en-GB');
     const importedDate = new Date(item.importDate).toLocaleDateString('en-GB');
     
     return (
-      <View style={styles.paymentItem}>
+      <Pressable style={styles.paymentItem} onPress={() => handlePaymentPress(item)}>
         <View style={styles.paymentHeader}>
           <ThemedText style={styles.accountIdentifier}>{item.originalAccountIdentifier}</ThemedText>
           <ThemedText style={styles.amount}>£{item.amount.toFixed(2)}</ThemedText>
@@ -97,7 +103,7 @@ export default function UnknownPaymentsScreen() {
             Imported from {item.importFilename} (row {item.csvRowNumber}) on {importedDate}
           </ThemedText>
         </View>
-      </View>
+      </Pressable>
     );
   };
 
@@ -115,9 +121,14 @@ export default function UnknownPaymentsScreen() {
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <ThemedText type="title" style={styles.title}>Unknown Payments</ThemedText>
-            <Pressable style={styles.backButton} onPress={() => router.back()}>
-              <ThemedText style={styles.backButtonText}>Back</ThemedText>
-            </Pressable>
+            <View style={styles.headerButtons}>
+              <Pressable style={styles.createButton} onPress={() => setShowCreateModal(true)}>
+                <ThemedText style={styles.createButtonText}>Create</ThemedText>
+              </Pressable>
+              <Pressable style={styles.backButton} onPress={() => router.back()}>
+                <ThemedText style={styles.backButtonText}>Back</ThemedText>
+              </Pressable>
+            </View>
           </View>
           <ThemedText style={styles.subtitle}>
             Payments that couldn't be matched to existing accounts during import
@@ -145,6 +156,19 @@ export default function UnknownPaymentsScreen() {
             contentContainerStyle={styles.listContent}
           />
         )}
+
+        <CreateUnknownPaymentModal
+          visible={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={handleCreateSuccess}
+        />
+
+        <UnknownPaymentActionModal
+          visible={showActionModal}
+          payment={selectedPayment}
+          onClose={() => setShowActionModal(false)}
+          onSuccess={handleActionSuccess}
+        />
       </ThemedView>
     </PermissionGate>
   );
@@ -165,6 +189,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -173,6 +201,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
   },
+  createButton: {
+    padding: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
   backButton: {
     padding: 8,
     paddingHorizontal: 16,
@@ -180,6 +214,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderWidth: 1,
     borderColor: '#e0e0e0',
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
   },
   backButtonText: {
     fontSize: 16,

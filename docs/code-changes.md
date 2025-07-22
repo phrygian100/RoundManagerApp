@@ -5,6 +5,91 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-21 - Enhanced Unknown Payments Functionality 🚀
+
+### Summary
+Added comprehensive functionality to the unknown payments screen, transforming it from a read-only list into a full reconciliation tool with create, delete, and client association capabilities.
+
+### New Features Implemented
+
+**1. Create Unknown Payments**:
+- Added "Create" button in header for manual unknown payment creation
+- Created `CreateUnknownPaymentModal` component with form validation
+- Supports optional account identifier for payments without account numbers
+- Includes all payment fields: amount, date, method, notes, account identifier
+
+**2. Payment Action Modal**:
+- Tapping any unknown payment card opens action modal
+- Three options: "Link with a client account", "Delete Payment", "Cancel"
+- Client selection interface with search functionality
+- Confirmation dialogs for destructive actions
+
+**3. Client Association**:
+- Convert unknown payments to regular payments under existing clients
+- Atomic batch operations ensure data integrity
+- Preserves original import metadata in payment reference
+- Creates audit log entries for all association actions
+
+**4. Service Layer**:
+- Created `unknownPaymentService.ts` with full CRUD operations
+- `createUnknownPayment()` - Manual creation with optional account identifier
+- `deleteUnknownPayment()` - Safe deletion with owner validation
+- `linkUnknownPaymentToClient()` - Atomic conversion with audit logging
+- `getUnknownPayments()` - Fetch with owner filtering
+
+### Technical Implementation
+
+**Data Flow**:
+1. Unknown payment exists in `unknownPayments` collection
+2. User selects "Link with a client account"
+3. System creates new payment in `payments` collection with clientId
+4. Original unknown payment is deleted via batch operation
+5. Audit log entry created for tracking
+
+**Security & Validation**:
+- All operations validate user authentication and ownership
+- Firestore batch operations ensure atomic transactions
+- Permission gates maintained for payment operations
+- Input validation on all forms
+
+**UI/UX Improvements**:
+- Tappable payment cards with visual feedback
+- Searchable client selection interface
+- Loading states and error handling
+- Success confirmations and user feedback
+
+### Code Changes
+```typescript
+// New service functions
+export async function createUnknownPayment(data: CreateUnknownPaymentData): Promise<string>
+export async function deleteUnknownPayment(unknownPaymentId: string): Promise<void>
+export async function linkUnknownPaymentToClient(unknownPaymentId: string, clientId: string): Promise<void>
+
+// New modal components
+<CreateUnknownPaymentModal visible={showCreateModal} onClose={handleClose} onSuccess={handleSuccess} />
+<UnknownPaymentActionModal visible={showActionModal} payment={selectedPayment} onClose={handleClose} onSuccess={handleSuccess} />
+```
+
+### Impact
+- ✅ **Reconciliation Tool**: Unknown payments can now be properly categorized
+- ✅ **Data Integrity**: Atomic operations prevent data corruption
+- ✅ **Audit Trail**: Complete tracking of payment association decisions
+- ✅ **User Experience**: Intuitive interface for payment management
+- ✅ **Flexibility**: Support for payments with or without account identifiers
+
+### Files Modified
+- `services/unknownPaymentService.ts` - New service layer (created)
+- `components/CreateUnknownPaymentModal.tsx` - Create payment modal (created)
+- `components/UnknownPaymentActionModal.tsx` - Action selection modal (created)
+- `app/unknown-payments.tsx` - Enhanced with new functionality
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Transforms unknown payments from dead-end to reconciliation tool
+
+---
+
+---
+
 ## 2025-01-21 - Fixed Accounts Screen Scrolling Issue 🔧
 
 ### Summary
