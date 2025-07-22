@@ -50,11 +50,23 @@ export async function createUnknownPayment(data: CreateUnknownPaymentData): Prom
 }
 
 export async function deleteUnknownPayment(unknownPaymentId: string): Promise<void> {
-  const ownerId = await getDataOwnerId();
-  if (!ownerId) throw new Error('User not authenticated');
-  
-  const unknownPaymentRef = doc(db, UNKNOWN_PAYMENTS_COLLECTION, unknownPaymentId);
-  await deleteDoc(unknownPaymentRef);
+  try {
+    console.log('deleteUnknownPayment called with ID:', unknownPaymentId);
+    
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) throw new Error('User not authenticated');
+    
+    console.log('Owner ID for deletion:', ownerId);
+    
+    const unknownPaymentRef = doc(db, UNKNOWN_PAYMENTS_COLLECTION, unknownPaymentId);
+    console.log('Document reference created:', unknownPaymentRef);
+    
+    await deleteDoc(unknownPaymentRef);
+    console.log('Document deleted successfully');
+  } catch (error) {
+    console.error('Error in deleteUnknownPayment:', error);
+    throw error;
+  }
 }
 
 export async function linkUnknownPaymentToClient(

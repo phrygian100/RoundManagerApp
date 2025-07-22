@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { deleteUnknownPayment, linkUnknownPaymentToClient, type UnknownPayment } from '../services/unknownPaymentService';
@@ -96,33 +96,60 @@ export default function UnknownPaymentActionModal({
       return;
     }
 
-    Alert.alert(
-      'Confirm Delete',
-      `Are you sure you want to delete this payment of £${payment.amount.toFixed(2)}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('Delete confirmed, starting deletion...');
-            setLoading(true);
-            try {
-              await deleteUnknownPayment(payment.id);
-              console.log('Payment deleted successfully');
-              Alert.alert('Success', 'Payment deleted successfully');
-              handleClose();
-              onSuccess();
-            } catch (error) {
-              console.error('Error deleting payment:', error);
-              Alert.alert('Error', 'Failed to delete payment');
-            } finally {
-              setLoading(false);
+    console.log('About to show Alert.alert...');
+    
+    // For web platforms, Alert.alert might not work properly
+    if (Platform.OS === 'web') {
+      console.log('Running on web platform, using confirm instead of Alert.alert');
+      const confirmed = window.confirm(`Are you sure you want to delete this payment of £${payment.amount.toFixed(2)}?`);
+      if (confirmed) {
+        console.log('Delete confirmed via window.confirm, starting deletion...');
+        setLoading(true);
+        try {
+          await deleteUnknownPayment(payment.id);
+          console.log('Payment deleted successfully');
+          alert('Payment deleted successfully');
+          handleClose();
+          onSuccess();
+        } catch (error) {
+          console.error('Error deleting payment:', error);
+          alert('Failed to delete payment');
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        console.log('Delete cancelled via window.confirm');
+      }
+    } else {
+      // Mobile platforms
+      Alert.alert(
+        'Confirm Delete',
+        `Are you sure you want to delete this payment of £${payment.amount.toFixed(2)}?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('Delete confirmed, starting deletion...');
+              setLoading(true);
+              try {
+                await deleteUnknownPayment(payment.id);
+                console.log('Payment deleted successfully');
+                Alert.alert('Success', 'Payment deleted successfully');
+                handleClose();
+                onSuccess();
+              } catch (error) {
+                console.error('Error deleting payment:', error);
+                Alert.alert('Error', 'Failed to delete payment');
+              } finally {
+                setLoading(false);
+              }
             }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleLinkWithClient = async (clientId: string) => {
@@ -238,35 +265,41 @@ export default function UnknownPaymentActionModal({
     </View>
   );
 
-  const renderLinkClient = () => (
-    <View style={styles.linkContainer}>
-      <ThemedText type="title" style={styles.linkTitle}>Select Client</ThemedText>
-      
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search clients by name, account, or address..."
-        value={searchQuery}
-        onChangeText={setSearchQuery}
-      />
+  const renderLinkClient = () => {
+    console.log('Rendering link client view with', filteredClients.length, 'clients');
+    return (
+      <View style={styles.linkContainer}>
+        <ThemedText type="title" style={styles.linkTitle}>Select Client</ThemedText>
+        
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search clients by name, account, or address..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
 
-      <FlatList
-        data={filteredClients}
-        renderItem={renderClientItem}
-        keyExtractor={item => item.id}
-        style={styles.clientList}
-        contentContainerStyle={styles.clientListContent}
-      />
+        <FlatList
+          data={filteredClients}
+          renderItem={renderClientItem}
+          keyExtractor={item => item.id}
+          style={styles.clientList}
+          contentContainerStyle={styles.clientListContent}
+        />
 
-      <Pressable 
-        style={[styles.menuButton, styles.backButton]} 
-        onPress={() => setAction('menu')}
-        android_ripple={{ color: '#d0d0d0' }}
-        android_disableSound={false}
-      >
-        <ThemedText style={styles.backButtonText}>Back</ThemedText>
-      </Pressable>
-    </View>
-  );
+        <Pressable 
+          style={[styles.menuButton, styles.backButton]} 
+          onPress={() => {
+            console.log('Back button pressed');
+            setAction('menu');
+          }}
+          android_ripple={{ color: '#d0d0d0' }}
+          android_disableSound={false}
+        >
+          <ThemedText style={styles.backButtonText}>Back</ThemedText>
+        </Pressable>
+      </View>
+    );
+  };
 
   return (
     <Modal
