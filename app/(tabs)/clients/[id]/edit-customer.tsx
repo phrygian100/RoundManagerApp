@@ -362,27 +362,56 @@ export default function EditCustomerScreen() {
             />
 
             <ThemedText style={styles.label}>Date</ThemedText>
-            <Pressable
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <ThemedText>
-                {nextVisit ? nextVisit : 'Select date'}
-              </ThemedText>
-            </Pressable>
-            {showDatePicker && (
-              <DateTimePicker
-                value={nextVisit ? parseISO(nextVisit) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
-                  }
-                }}
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                value={nextVisit}
+                onChange={e => setNextVisit(e.target.value)}
+                style={{ ...styles.input, height: 50, padding: 10, fontSize: 16 }}
               />
+            ) : (
+              <>
+                <Pressable
+                  style={styles.input}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <ThemedText>
+                    {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+                  </ThemedText>
+                </Pressable>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={nextVisit ? parseISO(nextVisit) : new Date()}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(event, selectedDate) => {
+                      console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
+                      
+                      // On Android, the picker closes automatically when a date is selected
+                      // On iOS, we need to handle the spinner mode differently
+                      if (Platform.OS === 'android') {
+                        setShowDatePicker(false);
+                        if (selectedDate) {
+                          const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                          console.log('Android: Setting nextVisit to:', formattedDate);
+                          setNextVisit(formattedDate);
+                        }
+                      } else {
+                        // iOS spinner mode - only update when user confirms
+                        if (event.type === 'set' && selectedDate) {
+                          const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                          console.log('iOS: Setting nextVisit to:', formattedDate);
+                          setNextVisit(formattedDate);
+                        }
+                        if (event.type === 'dismissed') {
+                          setShowDatePicker(false);
+                        }
+                      }
+                    }}
+                  />
+                )}
+              </>
             )}
           </View>
         )}

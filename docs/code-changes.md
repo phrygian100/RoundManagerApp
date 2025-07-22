@@ -5,6 +5,108 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-21 - Fixed Edit Customer Date Picker on Android Chrome 🔧
+
+### Summary
+Fixed critical date picker functionality in the edit customer screen that was completely unresponsive on Android Chrome and other web platforms.
+
+### Root Cause
+The edit customer screen (`app/(tabs)/clients/[id]/edit-customer.tsx`) was missing platform-specific logic for date picker handling. Unlike other screens in the app, it tried to use the native `DateTimePicker` component on all platforms, including web browsers where it doesn't work properly.
+
+### Issues Fixed
+
+**1. Missing Web Platform Support**:
+- **Problem**: No `Platform.OS === 'web'` check for date picker implementation
+- **Solution**: Added platform-specific rendering with HTML `<input type="date">` for web
+- **Impact**: Date picker now works on Android Chrome, desktop browsers, and mobile web
+
+**2. Inconsistent Date Formatting**:
+- **Problem**: Raw date string display instead of formatted date like other screens
+- **Solution**: Added `format(parseISO(nextVisit), 'do MMMM yyyy')` for consistent display
+- **Impact**: Better user experience with readable date format
+
+**3. Platform-Specific Event Handling**:
+- **Problem**: No differentiation between Android and iOS DateTimePicker behavior
+- **Solution**: Added platform-specific event handling with proper logging
+- **Impact**: More reliable date selection across native platforms
+
+### Technical Implementation
+
+**Before (Broken)**:
+```typescript
+<Pressable onPress={() => setShowDatePicker(true)}>
+  <ThemedText>{nextVisit ? nextVisit : 'Select date'}</ThemedText>
+</Pressable>
+{showDatePicker && (
+  <DateTimePicker
+    onChange={(event, selectedDate) => {
+      setShowDatePicker(false);
+      if (selectedDate) {
+        setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+      }
+    }}
+  />
+)}
+```
+
+**After (Fixed)**:
+```typescript
+{Platform.OS === 'web' ? (
+  <input
+    type="date"
+    value={nextVisit}
+    onChange={e => setNextVisit(e.target.value)}
+    style={{ ...styles.input, height: 50, padding: 10, fontSize: 16 }}
+  />
+) : (
+  <>
+    <Pressable onPress={() => setShowDatePicker(true)}>
+      <ThemedText>
+        {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+      </ThemedText>
+    </Pressable>
+    {showDatePicker && (
+      <DateTimePicker
+        onChange={(event, selectedDate) => {
+          // Platform-specific handling for Android vs iOS
+          if (Platform.OS === 'android') {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+            }
+          } else {
+            // iOS spinner mode handling
+            if (event.type === 'set' && selectedDate) {
+              setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+            }
+            if (event.type === 'dismissed') {
+              setShowDatePicker(false);
+            }
+          }
+        }}
+      />
+    )}
+  </>
+)}
+```
+
+### Impact
+- ✅ **Android Chrome**: Date picker now works properly
+- ✅ **Mobile Web**: Consistent behavior across all mobile browsers
+- ✅ **Desktop Web**: Native HTML date input for better UX
+- ✅ **Native Apps**: Enhanced event handling for iOS/Android
+- ✅ **User Experience**: Consistent date formatting across all screens
+
+### Files Modified
+- `app/(tabs)/clients/[id]/edit-customer.tsx` - Fixed date picker implementation
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical functionality was completely broken on web platforms
+
+---
+
+---
+
 ## 2025-07-21 - Enhanced Unknown Payments Functionality 🚀
 
 ### Summary
