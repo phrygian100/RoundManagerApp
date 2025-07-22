@@ -143,24 +143,7 @@ export default function ChasePaymentScreen() {
     }
   };
 
-  const handleAddPayment = () => {
-    if (!client) return;
-    
-    const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
-    const displayAddress = addressParts.length > 0
-      ? addressParts.join(', ')
-      : client.address || '';
-    
-    router.push({
-      pathname: '/add-payment',
-      params: {
-        clientId: client.id,
-        clientName: client.name,
-        address: displayAddress,
-        accountNumber: client.accountNumber,
-      },
-    });
-  };
+
 
   const handleBack = () => {
     router.back();
@@ -195,8 +178,8 @@ export default function ChasePaymentScreen() {
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </Pressable>
         <ThemedText style={styles.headerTitle}>Payment Chase</ThemedText>
-        <Pressable style={styles.addPaymentButton} onPress={handleAddPayment}>
-          <Ionicons name="add-circle-outline" size={24} color="#1976d2" />
+        <Pressable style={styles.homeButton} onPress={() => router.push('/')}>
+          <Ionicons name="home" size={24} color="#1976d2" />
         </Pressable>
       </View>
 
@@ -211,7 +194,7 @@ export default function ChasePaymentScreen() {
               {userProfile?.address ? userProfile.address : 'Your Company Address'}
             </ThemedText>
             <ThemedText style={styles.companyContact}>
-              Phone: {userProfile?.phone || 'Your Phone'} | Email: {userProfile?.email || 'your@email.com'}
+              Phone: {userProfile?.phone || 'Your Phone'}
             </ThemedText>
           </View>
           
@@ -281,32 +264,24 @@ export default function ChasePaymentScreen() {
         <View style={styles.paymentInstructions}>
           <ThemedText style={styles.sectionTitle}>Payment Instructions</ThemedText>
           <ThemedText style={styles.instructionText}>
-            Please settle your outstanding balance of £{Math.abs(client.balance).toFixed(2)} as soon as possible.
-          </ThemedText>
-          <ThemedText style={styles.instructionText}>
-            Payment methods: Cash, Card, Bank Transfer, or Cheque
+            Please settle your balance of £{Math.abs(client.balance).toFixed(2)}
           </ThemedText>
           {userProfile?.bankSortCode && userProfile?.bankAccountNumber && (
-            <ThemedText style={styles.instructionText}>
-              Bank Transfer: Sort Code: {userProfile.bankSortCode} | Account: {userProfile.bankAccountNumber}
-            </ThemedText>
+            <>
+              <ThemedText style={styles.instructionText}>
+                Sort Code: {userProfile.bankSortCode}
+              </ThemedText>
+              <ThemedText style={styles.instructionText}>
+                Account Number: {userProfile.bankAccountNumber}
+              </ThemedText>
+            </>
           )}
           <ThemedText style={styles.instructionText}>
             Reference: {client.accountNumber || 'Your Account Number'}
           </ThemedText>
         </View>
 
-        {/* Action Buttons */}
-        <View style={styles.actionButtons}>
-          <Pressable style={styles.primaryButton} onPress={handleAddPayment}>
-            <Ionicons name="add-circle-outline" size={20} color="#fff" />
-            <ThemedText style={styles.primaryButtonText}>Record Payment</ThemedText>
-          </Pressable>
-          
-          <Pressable style={styles.secondaryButton} onPress={handleBack}>
-            <ThemedText style={styles.secondaryButtonText}>Back to Accounts</ThemedText>
-          </Pressable>
-        </View>
+
       </ScrollView>
     </ThemedView>
   );
@@ -335,7 +310,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#333',
   },
-  addPaymentButton: {
+  homeButton: {
     padding: 8,
   },
   content: {
@@ -537,37 +512,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     lineHeight: 20,
   },
-  actionButtons: {
-    gap: 12,
-    marginBottom: 40,
-  },
-  primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1976d2',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-  },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#1976d2',
-    backgroundColor: '#fff',
-  },
-  secondaryButtonText: {
-    color: '#1976d2',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+
 }); 

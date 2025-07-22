@@ -518,7 +518,7 @@ export default function RunsheetWeekScreen() {
     today.setHours(0, 0, 0, 0);
     const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
     if (todaySection) {
-      const allCompleted = todaySection.data.filter(j => !(j as any).__type).every(job =>
+      const allCompleted = todaySection.data.filter(j => !(j as any).__type && !isQuoteJob(j) && !isNoteJob(j)).every(job =>
         job.id === jobId ? !isCompleted : job.status === 'completed'
       );
       if (allCompleted) {
@@ -1158,7 +1158,7 @@ www.tgmwindowcleaning.co.uk`;
       const isToday = jobDate && jobDate.toDateString() === today.toDateString();
       const isFutureDay = jobDate && jobDate > today;
       const sectionIndex = sections.findIndex(s => s.title === section.title);
-      const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
+      const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && !isQuoteJob(job) && job.status !== 'completed');
       const isDayCompleted = completedDays.includes(section.title);
       return (
         <View style={[styles.clientRow, { backgroundColor: '#e3f2fd' }]}> {/* blue highlight for quote */}
@@ -1258,7 +1258,7 @@ www.tgmwindowcleaning.co.uk`;
     
     // Find the first incomplete job within this vehicle's section only
     const firstIncompleteIndexInVehicle = section.data.slice(vehicleStartIndex, vehicleEndIndex)
-      .findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && job.status !== 'completed');
+      .findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && !isQuoteJob(job) && job.status !== 'completed');
     const firstIncompleteIndex = firstIncompleteIndexInVehicle >= 0 ? vehicleStartIndex + firstIncompleteIndexInVehicle : -1;
     
     const today = new Date();

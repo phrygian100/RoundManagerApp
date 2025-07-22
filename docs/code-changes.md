@@ -5,6 +5,58 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-17 - Fixed Runsheet Complete Day Feature Blocked by Quote and Note Jobs 🔧
+
+### Summary
+Fixed critical issue where users were unable to access the "complete day" feature in runsheets when quote and note jobs were present, even after all regular work jobs were completed.
+
+### Root Cause
+The completion logic in `app/runsheet/[week].tsx` was treating quote jobs (`serviceId === 'quote'`) and note jobs (`serviceId === 'note'`) as regular work jobs that needed to be marked as "completed" before allowing day completion. However, these are administrative/informational items that serve different purposes:
+
+- **Quote Jobs**: Don't have traditional completion status - they're either converted to clients, deleted, or progressed to pending
+- **Note Jobs**: Are informational and shouldn't block day completion
+
+### Solution Implemented
+Modified the completion check logic to exclude both quote and note jobs from the "all jobs completed" verification:
+
+**Before**:
+```typescript
+const allCompleted = todaySection.data.filter(j => !(j as any).__type).every(job =>
+  job.id === jobId ? !isCompleted : job.status === 'completed'
+);
+```
+
+**After**:
+```typescript
+const allCompleted = todaySection.data.filter(j => !(j as any).__type && !isQuoteJob(j) && !isNoteJob(j)).every(job =>
+  job.id === jobId ? !isCompleted : job.status === 'completed'
+);
+```
+
+### Additional Consistency Fixes
+Also updated the `firstIncompleteIndex` logic in two locations to exclude quote jobs, maintaining consistency with how note jobs were already handled:
+
+```typescript
+// Updated both instances to exclude quote jobs
+.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && !isQuoteJob(job) && job.status !== 'completed');
+```
+
+### Impact
+- ✅ **Day Completion**: Users can now mark their day as complete when all regular work jobs are done
+- ✅ **Workflow Continuity**: Quote and note jobs no longer block the completion workflow
+- ✅ **Consistency**: All completion-related logic now consistently excludes quote and note jobs
+- ✅ **User Experience**: Restored expected behavior for day completion feature
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Updated completion logic to exclude quote and note jobs
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical workflow blocker affecting daily operations
+
+---
+
+---
+
 ## 2025-01-17 - Added Business & Bank Information Collection for Owner Accounts ✅
 
 ### Summary
@@ -4126,5 +4178,98 @@ Enhanced the chase payment screen to display actual business information from th
 - `docs/code-changes.md` - Updated documentation
 
 **Priority**: MEDIUM - Enhanced user experience and payment collection effectiveness
+
+---
+
+## 2025-07-22 - Refined Chase Payment Screen UI 🎨
+
+### Summary
+Streamlined the chase payment screen UI to focus on payment collection with cleaner, more focused design and improved navigation.
+
+### Changes Made
+
+**1. Simplified Contact Information**:
+- **Removed Email**: Removed email address from company contact information
+- **Cleaner Display**: Now shows only phone number for contact
+
+**2. Streamlined Payment Instructions**:
+- **Simplified Text**: Changed from "Please settle your outstanding balance of £{x} as soon as possible" to "Please settle your balance of £{x}"
+- **Separated Bank Details**: Split sort code and account number into separate lines for better readability
+- **Removed Payment Methods**: Removed generic "Payment methods: Cash, Card, Bank Transfer, or Cheque" text
+- **Cleaner Format**: 
+  - Sort Code: {xx-xx-xx}
+  - Account Number: {xxxxxxxx}
+  - Reference: {RWCxxx}
+
+**3. Updated Header Navigation**:
+- **Replaced Add Button**: Removed "+" button for adding payments
+- **Added Home Button**: Replaced with home icon button for consistent navigation
+- **Visual Consistency**: Matches navigation pattern used in other screens
+
+**4. Removed Action Buttons**:
+- **Removed Record Payment Button**: Eliminated the large "Record Payment" button at bottom
+- **Removed Back to Accounts Button**: Eliminated the secondary button
+- **Cleaner Layout**: Focus on invoice display without action buttons
+
+**5. Code Cleanup**:
+- **Removed Unused Functions**: Eliminated `handleAddPayment` function
+- **Removed Unused Styles**: Cleaned up action button styles
+- **Simplified State**: Removed unnecessary state management
+
+### Technical Implementation
+
+**Updated Payment Instructions**:
+```typescript
+<ThemedText style={styles.instructionText}>
+  Please settle your balance of £{Math.abs(client.balance).toFixed(2)}
+</ThemedText>
+{userProfile?.bankSortCode && userProfile?.bankAccountNumber && (
+  <>
+    <ThemedText style={styles.instructionText}>
+      Sort Code: {userProfile.bankSortCode}
+    </ThemedText>
+    <ThemedText style={styles.instructionText}>
+      Account Number: {userProfile.bankAccountNumber}
+    </ThemedText>
+  </>
+)}
+```
+
+**Updated Header**:
+```typescript
+<Pressable style={styles.homeButton} onPress={() => router.push('/')}>
+  <Ionicons name="home" size={24} color="#1976d2" />
+</Pressable>
+```
+
+### User Experience Improvements
+
+**Focused Purpose**:
+- Screen now focuses purely on payment collection
+- Removed distractions from payment recording functionality
+- Cleaner, more professional invoice presentation
+
+**Better Navigation**:
+- Home button provides consistent navigation pattern
+- Removed redundant back button at bottom
+- Simplified user flow
+
+**Improved Readability**:
+- Separated bank details for easier reading
+- Simplified payment instructions
+- Cleaner overall layout
+
+### Impact
+- ✅ **Focused Functionality**: Screen now serves single purpose of payment collection
+- ✅ **Professional Appearance**: Cleaner, more professional invoice layout
+- ✅ **Better UX**: Simplified navigation and reduced cognitive load
+- ✅ **Consistent Design**: Matches navigation patterns used throughout app
+- ✅ **Improved Readability**: Bank details and instructions are easier to read
+
+### Files Modified
+- `app/chase-payment.tsx` - Streamlined UI, updated navigation, removed action buttons
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - UI/UX improvements for better user experience
 
 ---
