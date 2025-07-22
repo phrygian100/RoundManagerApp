@@ -23,6 +23,7 @@ export type Client = {
   status?: 'active' | 'ex-client';
   dateAdded?: string;
   source?: string;
+  startingBalance?: number; // Starting balance for the client account
   // Notes
   runsheetNotes?: string; // Notes that appear when clicking ! icon in runsheet
   accountNotes?: AccountNote[]; // Running list of notes with timestamp and author

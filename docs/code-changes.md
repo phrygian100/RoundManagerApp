@@ -3278,3 +3278,102 @@ parentJobs.forEach(job => {
 - `app/runsheet/[week].tsx` - Note creation and vehicle allocation logic
 
 ---
+
+## 2025-01-21 - Enhanced Accounts Screen Implementation
+
+### Overview
+Implemented a comprehensive enhancement to the accounts screen to provide better visual consistency with the quotes screen and add outstanding accounts management functionality.
+
+### Changes Made
+
+#### 1. Enhanced Accounts Screen (`app/accounts.tsx`)
+- **Visual Consistency**: Updated to use SectionCard pattern from quotes screen
+- **Responsive Layout**: Added desktop (two-column) and mobile (stacked) layouts
+- **Summary Cards**: Redesigned financial summary cards with icons and better styling
+- **Outstanding Accounts**: Added new section showing clients with negative balances
+- **Account Details Modal**: Created modal for viewing client account details
+- **Navigation Integration**: Connected to chase payment and add payment flows
+
+#### 2. New Chase Payment Screen (`app/chase-payment.tsx`)
+- **Invoice Format**: Professional invoice layout for payment chasing
+- **Account History**: Complete list of all services and payments
+- **Running Balance**: Shows balance calculation throughout history
+- **Payment Instructions**: Clear instructions for settling outstanding amounts
+- **Action Buttons**: Direct links to record payments or return to accounts
+
+#### 3. Updated Client Type (`types/client.ts`)
+- **Added startingBalance**: Added optional startingBalance property to Client type
+- **Backward Compatibility**: Maintains compatibility with existing code
+
+### Technical Implementation
+
+#### Visual Design
+- **SectionCard Pattern**: Consistent with quotes screen styling
+- **Color Scheme**: Uses semantic colors (#1976d2, #ff9800, #43a047, #f44336)
+- **Typography**: Consistent font weights and sizes
+- **Spacing**: Proper padding and margins throughout
+- **Shadows**: Subtle shadows for depth and professionalism
+
+#### Data Management
+- **Balance Calculation**: Reuses proven logic from clients screen
+- **Real-time Updates**: Uses onSnapshot for live data updates
+- **Error Handling**: Comprehensive error handling and loading states
+- **Type Safety**: Full TypeScript implementation with proper types
+
+#### Navigation Flow
+1. Accounts Screen → Outstanding Client → Account Details Modal
+2. Account Details Modal → Chase Payment → Chase Payment Screen
+3. Chase Payment Screen → Add Payment → Payment Recording
+4. All screens maintain proper back navigation
+
+#### Responsive Design
+- **Desktop**: Two-column layout with summary and outstanding sections
+- **Mobile**: Single-column stacked layout
+- **Platform Detection**: Uses Platform.OS and useWindowDimensions
+- **Touch Targets**: Proper sizing for mobile interaction
+
+### Features Added
+
+#### Outstanding Accounts Management
+- **Automatic Detection**: Shows all clients with negative balances
+- **Balance Badges**: Visual indicators of outstanding amounts
+- **Sorting**: Sorted by most negative balance first
+- **Empty States**: Proper messaging when no outstanding accounts
+
+#### Account Details Modal
+- **Client Information**: Name, address, account number
+- **Balance Summary**: Current balance with color coding
+- **Account Summary**: Total billed, paid, jobs, payments
+- **Action Buttons**: Chase payment and add payment options
+
+#### Chase Payment Screen
+- **Professional Invoice**: Company header, client details, invoice number
+- **Complete History**: All services and payments in chronological order
+- **Running Balance**: Shows balance after each transaction
+- **Payment Instructions**: Clear guidance for settling outstanding amounts
+
+### Testing Considerations
+- **No Regression**: All existing functionality preserved
+- **Incremental Implementation**: Each phase tested independently
+- **Component Isolation**: New features are separate components
+- **Backward Compatibility**: Existing data structures unchanged
+
+### Future Enhancements
+- **Email Integration**: Send chase payment emails directly
+- **PDF Generation**: Export invoice as PDF
+- **Payment Reminders**: Automated reminder system
+- **Custom Company Details**: Editable company information in invoice
+
+### Files Modified
+- `app/accounts.tsx` - Enhanced accounts screen
+- `app/chase-payment.tsx` - New chase payment screen
+- `types/client.ts` - Added startingBalance property
+
+### Files Created
+- `app/chase-payment.tsx` - New chase payment screen with invoice formatting
+
+### Impact
+- **User Experience**: Much more professional and consistent interface
+- **Functionality**: Complete outstanding accounts management workflow
+- **Maintainability**: Clean, modular code structure
+- **Scalability**: Easy to extend with additional features
