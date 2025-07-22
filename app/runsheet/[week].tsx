@@ -283,11 +283,41 @@ export default function RunsheetWeekScreen() {
     });
     if (activeBlocks.length === 0) return jobsForDay; // fallback
 
-    // Separate manually assigned jobs from auto-allocated jobs
-    const manuallyAssignedJobs: (Job & { client: Client | null })[] = [];
-    const autoAllocateJobs: (Job & { client: Client | null })[] = [];
+    // ✅ NEW: Group notes with their parent jobs before allocation
+    const parentJobs: (Job & { client: Client | null; attachedNotes?: any[] })[] = [];
+    const standaloneNotes: (Job & { client: Client | null })[] = [];
     
     jobsForDay.forEach(job => {
+      if (isNoteJob(job)) {
+        // Check if this note has a parent job in the same day
+        const parentJob = jobsForDay.find(parent => 
+          !isNoteJob(parent) && parent.id === (job as any).originalJobId
+        );
+        if (parentJob) {
+          // Find or create parent job entry with attached notes
+          let parentEntry = parentJobs.find(p => p.id === parentJob.id);
+          if (!parentEntry) {
+            parentEntry = { ...parentJob, attachedNotes: [] };
+            parentJobs.push(parentEntry);
+          }
+          parentEntry.attachedNotes!.push(job);
+        } else {
+          // Orphaned note - handle separately
+          standaloneNotes.push(job);
+        }
+      } else {
+        // Regular job - add if not already added with notes
+        if (!parentJobs.find(p => p.id === job.id)) {
+          parentJobs.push({ ...job, attachedNotes: [] });
+        }
+      }
+    });
+
+    // Separate manually assigned jobs from auto-allocated jobs
+    const manuallyAssignedJobs: (Job & { client: Client | null; attachedNotes?: any[] })[] = [];
+    const autoAllocateJobs: (Job & { client: Client | null; attachedNotes?: any[] })[] = [];
+    
+    parentJobs.forEach(job => {
       if (job.vehicleId) {
         // Job has manual vehicle assignment
         manuallyAssignedJobs.push(job);
@@ -301,8 +331,14 @@ export default function RunsheetWeekScreen() {
     manuallyAssignedJobs.forEach(job => {
       const targetBlock = activeBlocks.find(block => block.vehicle.id === job.vehicleId);
       if (targetBlock) {
+        // Add the parent job
         targetBlock.jobs.push(job);
         targetBlock.remaining -= (job.price || 0);
+        
+        // ✅ Add attached notes immediately after the parent job
+        if (job.attachedNotes && job.attachedNotes.length > 0) {
+          targetBlock.jobs.push(...job.attachedNotes);
+        }
       } else {
         // Vehicle not found or not active - add to auto-allocate list
         console.warn(`Vehicle ${job.vehicleId} not found or not active for job ${job.id}, using auto-allocation`);
@@ -315,18 +351,37 @@ export default function RunsheetWeekScreen() {
     autoAllocateJobs.forEach(job => {
       if (blockIndex >= activeBlocks.length) {
         // overflow append to last block
-        activeBlocks[activeBlocks.length - 1].jobs.push(job);
+        const lastBlock = activeBlocks[activeBlocks.length - 1];
+        lastBlock.jobs.push(job);
+        lastBlock.remaining -= (job.price || 0);
+        
+        // ✅ Add attached notes immediately after the parent job
+        if (job.attachedNotes && job.attachedNotes.length > 0) {
+          lastBlock.jobs.push(...job.attachedNotes);
+        }
         return;
       }
       const block = activeBlocks[blockIndex];
       block.jobs.push(job);
       block.remaining -= (job.price || 0);
+      
+      // ✅ Add attached notes immediately after the parent job
+      if (job.attachedNotes && job.attachedNotes.length > 0) {
+        block.jobs.push(...job.attachedNotes);
+      }
+      
       if (block.remaining <= 0 && blockIndex < activeBlocks.length - 1) {
         blockIndex += 1;
       }
     });
 
-    // Sort jobs within each vehicle block by ETA
+    // ✅ Add any standalone notes to the last active block
+    if (standaloneNotes.length > 0 && activeBlocks.length > 0) {
+      const lastBlock = activeBlocks[activeBlocks.length - 1];
+      lastBlock.jobs.push(...standaloneNotes);
+    }
+
+    // Sort jobs within each vehicle block by ETA (but preserve note positions)
     activeBlocks.forEach(block => {
       // Separate note jobs and non-note jobs
       const noteJobs: any[] = [];
@@ -357,7 +412,7 @@ export default function RunsheetWeekScreen() {
         return 0;
       });
       
-      // Rebuild the jobs list with notes in correct positions
+      // ✅ Rebuild the jobs list with notes in correct positions
       const sortedJobs: any[] = [];
       nonNoteJobs.forEach(job => {
         sortedJobs.push(job);
@@ -853,12 +908,14 @@ www.tgmwindowcleaning.co.uk`;
         createdAt: Date.now(), // Timestamp for sorting
       };
 
-      await addDoc(collection(db, 'jobs'), noteJobData);
+      // Create the note in Firestore and capture the real ID
+      const docRef = await addDoc(collection(db, 'jobs'), noteJobData);
+      const realJobId = docRef.id; // ✅ Capture real Firestore ID
       
-      // Add the note job to the current jobs list immediately
+      // Add the note job to the current jobs list immediately with real ID
       const noteJobWithClient = {
         ...noteJobData,
-        id: 'temp-' + Date.now(), // Temporary ID until we get the real one from Firestore
+        id: realJobId, // ✅ Use real ID instead of temporary ID
         client: null
       };
       

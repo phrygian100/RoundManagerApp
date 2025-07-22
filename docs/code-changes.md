@@ -3183,3 +3183,98 @@ Only £18/month
 **Status**: ✅ **COMPLETED** - Users now receive clear, compelling upgrade prompts when reaching client limits.
 
 ---
+
+## 2025-01-31 - Comprehensive Note System Fix 🔧
+
+### Issues Fixed
+1. **Note Deletion Issue**: Notes created on the same device couldn't be deleted due to temporary ID usage
+2. **Note Positioning Issue**: Notes were appearing in wrong positions relative to their parent jobs
+
+### Root Cause Analysis
+
+**Deletion Issue**:
+- Notes were created with temporary IDs (`'temp-' + Date.now()`) for optimistic UI updates
+- When trying to delete, the temporary ID didn't exist in Firestore
+- Cross-device deletion worked because fresh fetches had real IDs
+
+**Positioning Issue**:
+- Vehicle allocation logic treated notes as separate jobs
+- Notes could end up in different vehicles than their parent jobs
+- The `originalJobId` relationship was lost during vehicle distribution
+
+### Technical Fixes Implemented
+
+**1. Fixed Note Creation (`app/runsheet/[week].tsx`)**:
+- Capture real Firestore document ID: `const realJobId = docRef.id`
+- Use real ID in local state instead of temporary ID
+- Maintains optimistic UI updates while ensuring deletion works
+
+**2. Enhanced Vehicle Allocation Logic**:
+- **Pre-allocation Grouping**: Group notes with their parent jobs before vehicle allocation
+- **Preserve Relationships**: Keep notes attached to parent jobs throughout allocation process
+- **Handle Orphaned Notes**: Place standalone notes in appropriate vehicle blocks
+
+**3. Improved Sorting Logic**:
+- Maintain note positions relative to parent jobs during ETA sorting
+- Preserve parent-child relationships in final job lists
+
+### Implementation Details
+
+```typescript
+// Before: Temporary ID causing deletion issues
+const noteJobWithClient = {
+  ...noteJobData,
+  id: 'temp-' + Date.now(), // ❌ Temporary ID
+  client: null
+};
+
+// After: Real Firestore ID
+const docRef = await addDoc(collection(db, 'jobs'), noteJobData);
+const realJobId = docRef.id; // ✅ Real ID
+const noteJobWithClient = {
+  ...noteJobData,
+  id: realJobId, // ✅ Real ID
+  client: null
+};
+```
+
+```typescript
+// Before: Notes treated as separate jobs during allocation
+autoAllocateJobs.forEach(job => {
+  block.jobs.push(job); // ❌ Notes could end up in different vehicles
+});
+
+// After: Notes grouped with parent jobs
+parentJobs.forEach(job => {
+  block.jobs.push(job);
+  if (job.attachedNotes && job.attachedNotes.length > 0) {
+    block.jobs.push(...job.attachedNotes); // ✅ Notes stay with parent
+  }
+});
+```
+
+### Testing Results
+- ✅ Notes can be deleted on same device they were created
+- ✅ Notes can be deleted on different devices
+- ✅ Notes appear directly below their parent jobs
+- ✅ Notes stay with parent jobs across vehicle boundaries
+- ✅ Multiple notes for same job work correctly
+- ✅ No impact on regular job creation/deletion
+- ✅ No impact on quote job functionality
+- ✅ Optimistic UI updates maintained
+
+### Impact Assessment
+**Low Risk**: 
+- Isolated to note functionality only
+- No changes to authentication, Firestore rules, or other job operations
+- Maintains existing user experience patterns
+
+**High Impact**:
+- Fixes critical deletion functionality
+- Improves note positioning accuracy
+- Enhances overall user experience
+
+**Files Modified**:
+- `app/runsheet/[week].tsx` - Note creation and vehicle allocation logic
+
+---
