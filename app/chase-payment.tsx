@@ -7,9 +7,10 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { getDataOwnerId, getUserSession } from '../core/session';
+import { getUserProfile } from '../services/userService';
 import type { Client } from '../types/client';
-import type { Job, Payment } from '../types/models';
+import type { Job, Payment, User } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
 
 type ClientWithBalance = Client & { balance: number; startingBalance?: number };
@@ -28,6 +29,7 @@ export default function ChasePaymentScreen() {
   const [client, setClient] = useState<ClientWithBalance | null>(null);
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([]);
   const [runningBalance, setRunningBalance] = useState(0);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -40,6 +42,13 @@ export default function ChasePaymentScreen() {
     setLoading(true);
     try {
       const ownerId = await getDataOwnerId();
+      const session = await getUserSession();
+      
+      // Fetch user profile data for business information
+      if (session?.uid) {
+        const profile = await getUserProfile(session.uid);
+        setUserProfile(profile);
+      }
       
       // Fetch client data
       const clientDoc = await getDoc(doc(db, 'clients', params.clientId));
@@ -195,9 +204,15 @@ export default function ChasePaymentScreen() {
         {/* Invoice Header */}
         <View style={styles.invoiceHeader}>
           <View style={styles.companyInfo}>
-            <ThemedText style={styles.companyName}>Your Company Name</ThemedText>
-            <ThemedText style={styles.companyAddress}>Your Company Address</ThemedText>
-            <ThemedText style={styles.companyContact}>Phone: Your Phone | Email: your@email.com</ThemedText>
+            <ThemedText style={styles.companyName}>
+              {userProfile?.businessName || 'Your Company Name'}
+            </ThemedText>
+            <ThemedText style={styles.companyAddress}>
+              {userProfile?.address ? userProfile.address : 'Your Company Address'}
+            </ThemedText>
+            <ThemedText style={styles.companyContact}>
+              Phone: {userProfile?.phone || 'Your Phone'} | Email: {userProfile?.email || 'your@email.com'}
+            </ThemedText>
           </View>
           
           <View style={styles.invoiceDetails}>
@@ -271,6 +286,11 @@ export default function ChasePaymentScreen() {
           <ThemedText style={styles.instructionText}>
             Payment methods: Cash, Card, Bank Transfer, or Cheque
           </ThemedText>
+          {userProfile?.bankSortCode && userProfile?.bankAccountNumber && (
+            <ThemedText style={styles.instructionText}>
+              Bank Transfer: Sort Code: {userProfile.bankSortCode} | Account: {userProfile.bankAccountNumber}
+            </ThemedText>
+          )}
           <ThemedText style={styles.instructionText}>
             Reference: {client.accountNumber || 'Your Account Number'}
           </ThemedText>

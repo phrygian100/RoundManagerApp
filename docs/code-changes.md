@@ -4034,3 +4034,97 @@ const clientData = { id: clientDoc.id, ...clientDoc.data() } as ClientWithBalanc
 **Priority**: HIGH - Fixed critical feature that was completely broken
 
 ---
+
+## 2025-07-22 - Enhanced Chase Payment Screen with Business Information 🏢
+
+### Summary
+Enhanced the chase payment screen to display actual business information from the user profile instead of placeholder text, making the invoice more professional and useful for payment collection.
+
+### Issue Identified and Fixed
+
+**1. Placeholder Business Information**:
+- **Problem**: Chase payment screen was showing generic placeholder text like "Your Company Name" and "Your Company Address"
+- **Root Cause**: No integration with user profile data containing business and bank information
+- **Solution**: Added user profile fetching and integration with business information fields
+- **Impact**: Professional invoice with real business details for better payment collection
+
+### Technical Implementation
+
+**1. User Profile Integration**:
+- Added `getUserSession()` and `getUserProfile()` imports
+- Added `userProfile` state to store business information
+- Enhanced `fetchClientData()` to fetch user profile data
+
+**2. Dynamic Business Information Display**:
+- **Company Name**: Uses `userProfile.businessName` or falls back to "Your Company Name"
+- **Company Address**: Uses `userProfile.address` or falls back to "Your Company Address"  
+- **Contact Information**: Uses `userProfile.phone` and `userProfile.email` with fallbacks
+- **Bank Details**: Conditionally displays sort code and account number if available
+
+**3. Enhanced Payment Instructions**:
+- Added bank transfer details when available
+- Shows sort code and account number for direct bank transfers
+- Maintains existing payment methods and reference information
+
+### Code Changes
+
+**Before (Placeholder)**:
+```typescript
+<ThemedText style={styles.companyName}>Your Company Name</ThemedText>
+<ThemedText style={styles.companyAddress}>Your Company Address</ThemedText>
+<ThemedText style={styles.companyContact}>Phone: Your Phone | Email: your@email.com</ThemedText>
+```
+
+**After (Dynamic)**:
+```typescript
+<ThemedText style={styles.companyName}>
+  {userProfile?.businessName || 'Your Company Name'}
+</ThemedText>
+<ThemedText style={styles.companyAddress}>
+  {userProfile?.address ? userProfile.address : 'Your Company Address'}
+</ThemedText>
+<ThemedText style={styles.companyContact}>
+  Phone: {userProfile?.phone || 'Your Phone'} | Email: {userProfile?.email || 'your@email.com'}
+</ThemedText>
+```
+
+**New Bank Transfer Instructions**:
+```typescript
+{userProfile?.bankSortCode && userProfile?.bankAccountNumber && (
+  <ThemedText style={styles.instructionText}>
+    Bank Transfer: Sort Code: {userProfile.bankSortCode} | Account: {userProfile.bankAccountNumber}
+  </ThemedText>
+)}
+```
+
+### User Experience Improvements
+
+**Professional Appearance**:
+- Real business name and contact information
+- Proper company address display
+- Professional invoice presentation
+
+**Enhanced Payment Collection**:
+- Direct bank transfer instructions when available
+- Complete payment method information
+- Clear reference numbers for tracking
+
+**Fallback Handling**:
+- Graceful degradation when business info is missing
+- Maintains functionality even without complete profile data
+- Clear placeholder text for missing information
+
+### Impact
+- ✅ **Professional Branding**: Real business information creates professional invoices
+- ✅ **Payment Efficiency**: Bank transfer details enable direct payments
+- ✅ **User Experience**: Personalized invoices with actual business details
+- ✅ **Payment Collection**: More complete payment instructions improve collection rates
+- ✅ **Data Integration**: Leverages existing business information collection system
+
+### Files Modified
+- `app/chase-payment.tsx` - Added user profile integration and dynamic business information display
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - Enhanced user experience and payment collection effectiveness
+
+---
