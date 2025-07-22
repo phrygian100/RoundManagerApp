@@ -13,6 +13,71 @@ Fixed critical date picker functionality in the edit customer screen that was co
 ### Root Cause
 The edit customer screen (`app/(tabs)/clients/[id]/edit-customer.tsx`) was missing platform-specific logic for date picker handling. Unlike other screens in the app, it tried to use the native `DateTimePicker` component on all platforms, including web browsers where it doesn't work properly.
 
+---
+
+## 2025-07-21 - Fixed Client Job Generation Issue After Service Routine Updates 🔧
+
+### Summary
+Fixed critical issue where editing client service routine details (frequency and next visit date) was not generating jobs properly, causing clients to show "Next Scheduled Visit: N/A" and missing from runsheets.
+
+### Root Cause
+The `regenerateJobsForClient` function in the edit customer screen had two critical issues:
+
+1. **Missing `ownerId` Field**: Jobs were created without the required `ownerId` field, making them "orphaned" and invisible to the rest of the application
+2. **Custom Implementation**: Used a custom job creation logic instead of the centralized `createJobsForClient` function from `jobService.ts`
+
+### Issues Fixed
+
+**1. Missing Owner ID Association**:
+- **Problem**: Jobs created without `ownerId` field were not associated with the correct data owner
+- **Solution**: Added proper `ownerId` retrieval and inclusion in job queries and creation
+- **Impact**: Jobs now appear correctly in runsheets and client detail screens
+
+**2. Inconsistent Job Creation Logic**:
+- **Problem**: Custom job creation logic that didn't match the rest of the application
+- **Solution**: Replaced with centralized `createJobsForClient` function from `jobService.ts`
+- **Impact**: Consistent job creation behavior across all parts of the application
+
+**3. Improved Job Deletion Logic**:
+- **Problem**: Job deletion query didn't include `ownerId` filter and used incorrect status values
+- **Solution**: Added `ownerId` filter and corrected status values to `['pending', 'scheduled', 'in_progress']`
+- **Impact**: More accurate deletion of existing jobs before regeneration
+
+### Technical Implementation
+
+**Before (Broken)**:
+```typescript
+const jobData = {
+  clientId: id,
+  providerId: 'test-provider-1',
+  serviceId: 'window-cleaning',
+  // ❌ Missing ownerId field
+  scheduledTime: weekStr + 'T09:00:00',
+  status: 'pending',
+  price: typeof clientData.quote === 'number' ? clientData.quote : 25,
+  paymentStatus: 'unpaid',
+};
+```
+
+**After (Fixed)**:
+```typescript
+// Use centralized job creation function
+const jobsCreated = await createJobsForClient(id, 8, false);
+```
+
+### Impact
+- ✅ **Job Generation**: Service routine updates now properly generate jobs
+- ✅ **Runsheet Display**: Jobs appear correctly in runsheets
+- ✅ **Next Scheduled Visit**: Client detail screens show correct next visit dates
+- ✅ **Data Consistency**: All job creation uses the same centralized logic
+- ✅ **Owner Association**: Jobs are properly associated with the correct data owner
+
+### Files Modified
+- `app/(tabs)/clients/[id]/edit-customer.tsx` - Fixed job generation logic and added proper imports
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical functionality was broken for all clients with service routine updates
+
 ### Issues Fixed
 
 **1. Missing Web Platform Support**:

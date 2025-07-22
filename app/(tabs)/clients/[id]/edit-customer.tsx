@@ -7,7 +7,9 @@ import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, 
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
+import { getDataOwnerId } from '../../../../core/session';
 import { formatAuditDescription, logAction } from '../../../../services/auditService';
+import { createJobsForClient } from '../../../../services/jobService';
 
 export default function EditCustomerScreen() {
   const { id } = useLocalSearchParams();
@@ -83,11 +85,18 @@ export default function EditCustomerScreen() {
       console.log('Starting job regeneration for client:', id);
       
       // 1. Delete existing future jobs for this client
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        console.error('Could not determine owner ID');
+        throw new Error('Could not determine owner ID');
+      }
+      
       const jobsRef = collection(db, 'jobs');
       const futureJobsQuery = query(
         jobsRef, 
         where('clientId', '==', id),
-        where('status', 'in', ['pending', 'in-progress'])
+        where('ownerId', '==', ownerId),
+        where('status', 'in', ['pending', 'scheduled', 'in_progress'])
       );
       
       const futureJobsSnapshot = await getDocs(futureJobsQuery);
@@ -102,63 +111,11 @@ export default function EditCustomerScreen() {
       await batch.commit();
       console.log('Deleted existing future jobs');
 
-      // 2. Get the updated client data
-      const clientDoc = await getDoc(doc(db, 'clients', id));
-      if (!clientDoc.exists()) {
-        console.log('Client not found after update');
-        return;
-      }
+      // 2. Use the centralized job creation function
+      const jobsCreated = await createJobsForClient(id, 8, false);
+      console.log('Successfully created', jobsCreated, 'new jobs');
       
-      const clientData = clientDoc.data();
-      console.log('Client data:', clientData);
-      
-      // 3. Generate new jobs for this client
-      let jobsToCreate: any[] = [];
-      if (clientData.nextVisit && clientData.frequency && clientData.frequency !== 'one-off') {
-        let visitDate = parseISO(clientData.nextVisit);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Reset time to start of day
-        
-        console.log('Starting date:', visitDate);
-        console.log('Today:', today);
-        console.log('Frequency:', clientData.frequency);
-        
-        for (let i = 0; i < 8; i++) { // Generate for 8 weeks
-          // Always create jobs starting from the nextVisit date, regardless of whether it's in the past
-          const weekStr = format(visitDate, 'yyyy-MM-dd');
-          const jobData = {
-            clientId: id,
-            providerId: 'test-provider-1',
-            serviceId: 'window-cleaning',
-            propertyDetails: `${clientData.address1 || clientData.address || ''}, ${clientData.town || ''}, ${clientData.postcode || ''}`,
-            scheduledTime: weekStr + 'T09:00:00',
-            status: 'pending',
-            price: typeof clientData.quote === 'number' ? clientData.quote : 25,
-            paymentStatus: 'unpaid',
-          };
-          jobsToCreate.push(jobData);
-          console.log('Adding job for week:', weekStr);
-          
-          visitDate = addWeeks(visitDate, Number(clientData.frequency));
-        }
-        
-        console.log('Creating', jobsToCreate.length, 'new jobs');
-        
-        // Add new jobs
-        if (jobsToCreate.length > 0) {
-          const addBatch = writeBatch(db);
-          jobsToCreate.forEach(job => {
-            const newJobRef = doc(collection(db, 'jobs'));
-            addBatch.set(newJobRef, job);
-          });
-          await addBatch.commit();
-          console.log('Successfully created new jobs');
-        }
-      } else {
-        console.log('Client has no nextVisit, frequency, or is one-off');
-      }
-      
-      return jobsToCreate.length;
+      return jobsCreated;
     } catch (error) {
       console.error('Error regenerating jobs:', error);
       throw error;
