@@ -1,7 +1,8 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import type { Payment } from '../types/models';
+import { GoCardlessService } from './gocardlessService';
 
 const PAYMENTS_COLLECTION = 'payments';
 
@@ -129,6 +130,75 @@ export async function deleteAllPayments(): Promise<void> {
     console.log('deleteAllPayments: Successfully deleted', querySnapshot.size, 'payments');
   } catch (error) {
     console.error('Error deleting all payments:', error);
+    throw error;
+  }
+} 
+
+/**
+ * Create a GoCardless Direct Debit payment
+ */
+export async function createGoCardlessPayment(payment: Omit<Payment, 'id' | 'createdAt' | 'updatedAt'> & {
+  mandateId: string;
+  chargeDate?: string;
+}): Promise<string> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) throw new Error('User not authenticated');
+  
+  try {
+    // Create payment in GoCardless
+    const gocardlessPayment = await GoCardlessService.createPayment({
+      mandateId: payment.mandateId,
+      amount: payment.amount,
+      currency: 'GBP',
+      chargeDate: payment.chargeDate,
+      description: `Payment for ${payment.clientId}`,
+      reference: payment.reference || `RWC-${Date.now()}`
+    });
+    
+    // Create payment record in our database
+    const paymentsRef = collection(db, PAYMENTS_COLLECTION);
+    const now = new Date().toISOString();
+    const paymentData = {
+      ...payment,
+      method: 'gocardless_direct_debit' as const,
+      gocardlessPaymentId: gocardlessPayment.id,
+      gocardlessMandateId: payment.mandateId,
+      gocardlessStatus: gocardlessPayment.status,
+      ownerId,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const docRef = await addDoc(paymentsRef, paymentData);
+    return docRef.id;
+  } catch (error: any) {
+    console.error('Error creating GoCardless payment:', error);
+    throw new Error(`Failed to create GoCardless payment: ${error.message || 'Unknown error'}`);
+  }
+}
+
+/**
+ * Get GoCardless payment status
+ */
+export async function getGoCardlessPaymentStatus(paymentId: string): Promise<string | null> {
+  try {
+    const paymentRef = doc(db, PAYMENTS_COLLECTION, paymentId);
+    const paymentDoc = await getDoc(paymentRef);
+    
+    if (!paymentDoc.exists()) {
+      throw new Error('Payment not found');
+    }
+    
+    const paymentData = paymentDoc.data() as Payment;
+    
+    if (paymentData.gocardlessPaymentId) {
+      const gocardlessPayment = await GoCardlessService.getPayment(paymentData.gocardlessPaymentId);
+      return gocardlessPayment.status;
+    }
+    
+    return null;
+  } catch (error: any) {
+    console.error('Error getting GoCardless payment status:', error);
     throw error;
   }
 } 

@@ -30,6 +30,10 @@ export type Client = {
   notes?: string; // Legacy field for backward compatibility
   // Additional recurring services
   additionalServices?: AdditionalService[];
+  // GoCardless specific fields
+  gocardlessMandateId?: string; // Link to GoCardless mandate
+  gocardlessCustomerId?: string; // Link to GoCardless customer
+  gocardlessBankAccountId?: string; // Link to GoCardless bank account
 };
 
 export type AdditionalService = {

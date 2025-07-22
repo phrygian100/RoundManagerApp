@@ -358,3 +358,150 @@ exports.removeMember = onCall(async (request) => {
   
   return { success: true };
 });
+
+// GoCardless webhook handler
+exports.gocardlessWebhook = onRequest(async (req, res) => {
+  try {
+    console.log('GoCardless webhook received:', req.body);
+    
+    // Verify webhook signature (you'll need to implement this)
+    const webhookSecret = process.env.GOCARDLESS_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error('GOCARDLESS_WEBHOOK_SECRET not configured');
+      res.status(500).send('Webhook secret not configured');
+      return;
+    }
+    
+    // For now, we'll accept all webhooks (implement proper verification later)
+    const events = req.body.events || [];
+    
+    for (const event of events) {
+      await handleGoCardlessEvent(event);
+    }
+    
+    res.status(200).send('Webhook processed successfully');
+  } catch (error) {
+    console.error('Error processing GoCardless webhook:', error);
+    res.status(500).send('Webhook processing failed');
+  }
+});
+
+async function handleGoCardlessEvent(event) {
+  const db = admin.firestore();
+  
+  console.log('Processing GoCardless event:', event.resource_type, event.action, event.id);
+  
+  switch (event.resource_type) {
+    case 'payments':
+      await handlePaymentEvent(event);
+      break;
+    case 'mandates':
+      await handleMandateEvent(event);
+      break;
+    case 'customer_bank_accounts':
+      await handleBankAccountEvent(event);
+      break;
+    default:
+      console.log('Unhandled event type:', event.resource_type);
+  }
+}
+
+async function handlePaymentEvent(event) {
+  const db = admin.firestore();
+  const paymentId = event.links.payment;
+  
+  try {
+    // Find payment in our database by GoCardless payment ID
+    const paymentsQuery = db.collection('payments').where('gocardlessPaymentId', '==', paymentId);
+    const paymentSnapshot = await paymentsQuery.get();
+    
+    if (!paymentSnapshot.empty) {
+      const paymentDoc = paymentSnapshot.docs[0];
+      const paymentData = paymentDoc.data();
+      
+      // Update payment status based on event
+      let newStatus = paymentData.gocardlessStatus;
+      
+      switch (event.action) {
+        case 'confirmed':
+          newStatus = 'confirmed';
+          break;
+        case 'paid_out':
+          newStatus = 'paid_out';
+          break;
+        case 'failed':
+          newStatus = 'failed';
+          break;
+        case 'cancelled':
+          newStatus = 'cancelled';
+          break;
+        case 'charged_back':
+          newStatus = 'charged_back';
+          break;
+      }
+      
+      // Update the payment record
+      await paymentDoc.ref.update({
+        gocardlessStatus: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      
+      console.log(`Updated payment ${paymentDoc.id} status to ${newStatus}`);
+    } else {
+      console.log(`Payment with GoCardless ID ${paymentId} not found in database`);
+    }
+  } catch (error) {
+    console.error('Error handling payment event:', error);
+  }
+}
+
+async function handleMandateEvent(event) {
+  const db = admin.firestore();
+  const mandateId = event.links.mandate;
+  
+  try {
+    // Find client in our database by GoCardless mandate ID
+    const clientsQuery = db.collection('clients').where('gocardlessMandateId', '==', mandateId);
+    const clientSnapshot = await clientsQuery.get();
+    
+    if (!clientSnapshot.empty) {
+      const clientDoc = clientSnapshot.docs[0];
+      const clientData = clientDoc.data();
+      
+      // Update client mandate status based on event
+      let mandateStatus = clientData.gocardlessMandateStatus;
+      
+      switch (event.action) {
+        case 'active':
+          mandateStatus = 'active';
+          break;
+        case 'cancelled':
+          mandateStatus = 'cancelled';
+          break;
+        case 'expired':
+          mandateStatus = 'expired';
+          break;
+        case 'failed':
+          mandateStatus = 'failed';
+          break;
+      }
+      
+      // Update the client record
+      await clientDoc.ref.update({
+        gocardlessMandateStatus: mandateStatus,
+        updatedAt: new Date().toISOString()
+      });
+      
+      console.log(`Updated client ${clientDoc.id} mandate status to ${mandateStatus}`);
+    } else {
+      console.log(`Client with mandate ID ${mandateId} not found in database`);
+    }
+  } catch (error) {
+    console.error('Error handling mandate event:', error);
+  }
+}
+
+async function handleBankAccountEvent(event) {
+  // Handle bank account events (e.g., verification, failure)
+  console.log('Bank account event:', event.action, event.links.customer_bank_account);
+}
