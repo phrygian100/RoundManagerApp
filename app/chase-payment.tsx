@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
@@ -42,14 +42,13 @@ export default function ChasePaymentScreen() {
       const ownerId = await getDataOwnerId();
       
       // Fetch client data
-      const clientQuery = query(collection(db, 'clients'), where('id', '==', params.clientId));
-      const clientSnapshot = await getDocs(clientQuery);
-      if (clientSnapshot.empty) {
+      const clientDoc = await getDoc(doc(db, 'clients', params.clientId));
+      if (!clientDoc.exists()) {
         console.error('Client not found');
         return;
       }
       
-      const clientData = { id: clientSnapshot.docs[0].id, ...clientSnapshot.docs[0].data() } as ClientWithBalance;
+      const clientData = { id: clientDoc.id, ...clientDoc.data() } as ClientWithBalance;
       
       // Fetch completed jobs
       const jobsQuery = query(
