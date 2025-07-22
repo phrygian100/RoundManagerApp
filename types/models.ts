@@ -59,13 +59,9 @@ export type Payment = {
   jobId?: string; // Link to the job if payment is for a specific job
   amount: number;
   date: string; // ISO date string
-  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'auto_balance' | 'gocardless_direct_debit';
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'auto_balance';
   reference?: string; // payment reference or cheque number
   notes?: string;
-  // GoCardless specific fields
-  gocardlessMandateId?: string; // Link to GoCardless mandate
-  gocardlessPaymentId?: string; // Link to GoCardless payment
-  gocardlessStatus?: 'pending_customer_approval' | 'pending_submission' | 'submitted' | 'confirmed' | 'paid_out' | 'cancelled' | 'customer_approval_denied' | 'failed' | 'charged_back';
   createdAt: string; // ISO date string
   updatedAt: string; // ISO date string
 }; 
