@@ -5,6 +5,84 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-21 - Fixed Add Client Form Flickering Issue 🔧
+
+### Summary
+Fixed a critical UI issue where the add-client form was flickering when users interacted with the "One-off" checkbox and frequency input field. The flickering was caused by React's development mode behavior and inefficient state management.
+
+### Root Cause Analysis
+1. **Multiple Rapid State Updates**: The frequency handlers were triggering 2-3 state updates in quick succession
+2. **Conditional Rendering**: The `{!isOneOff && (...)}` conditional was causing DOM unmounting/remounting
+3. **React Strict Mode**: Development mode was calling handlers twice, exacerbating the issue
+4. **Inefficient useEffect**: Multiple state updates in useEffect hooks were causing unnecessary re-renders
+
+### Technical Fixes Implemented
+
+**1. Memoized Event Handlers**:
+- Added `useCallback` to `handleOneOffToggle`, `handleFrequencyTextChange`, and `handleSourceChange`
+- Prevents unnecessary re-renders by stabilizing function references
+- Dependencies properly managed to avoid stale closures
+
+**2. Fixed Conditional Rendering**:
+- Replaced `{!isOneOff && (...)}` with `display: isOneOff ? 'none' : 'flex'`
+- Added `key="frequency-input-container"` to prevent DOM unmounting
+- Maintains component state while hiding/showing the input
+
+**3. Batched State Updates**:
+- Grouped related state updates in useEffect hooks
+- Used array of update functions to batch changes
+- Reduced number of re-renders during initialization
+
+**4. Optimized useEffect Dependencies**:
+- Restructured useEffect hooks to minimize unnecessary executions
+- Added proper dependency arrays to prevent infinite loops
+- Improved performance by reducing effect triggers
+
+### Code Changes
+```javascript
+// Before: Multiple inline handlers causing re-renders
+onPress={() => {
+  setIsOneOff(!isOneOff);
+  if (!isOneOff) {
+    setFrequency('one-off');
+    setFrequencyText('');
+  } else {
+    setFrequency(Number(frequencyText) || 4);
+  }
+}}
+
+// After: Memoized handler with batched updates
+const handleOneOffToggle = useCallback(() => {
+  const newIsOneOff = !isOneOff;
+  setIsOneOff(newIsOneOff);
+  
+  if (newIsOneOff) {
+    setFrequency('one-off');
+    setFrequencyText('');
+  } else {
+    const newFrequency = Number(frequencyText) || 4;
+    setFrequency(newFrequency);
+  }
+}, [isOneOff, frequencyText]);
+```
+
+### Impact
+- ✅ **Eliminated Flickering**: Form no longer flickers when toggling one-off checkbox
+- ✅ **Smooth Input Interaction**: Frequency field changes are now smooth without visual glitches
+- ✅ **Better Performance**: Reduced unnecessary re-renders and state updates
+- ✅ **Maintained Functionality**: All existing features work exactly as before
+- ✅ **Cross-Platform**: Fix works on both web and mobile platforms
+
+### Files Modified
+- `app/add-client.tsx` - Added memoized handlers, fixed conditional rendering, optimized useEffect hooks
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Fixed critical UI issue affecting user experience
+
+---
+
+---
+
 ## 2025-07-21 - Added Account Number Display to Client Cards 📱💻
 
 ### Summary

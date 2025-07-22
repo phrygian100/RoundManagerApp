@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -59,6 +59,39 @@ export default function AddClientScreen() {
     'Found on the curb',
     'Other'
   ];
+
+  // Memoized handlers to prevent unnecessary re-renders
+  const handleOneOffToggle = useCallback(() => {
+    const newIsOneOff = !isOneOff;
+    setIsOneOff(newIsOneOff);
+    
+    if (newIsOneOff) {
+      setFrequency('one-off');
+      setFrequencyText('');
+    } else {
+      const newFrequency = Number(frequencyText) || 4;
+      setFrequency(newFrequency);
+    }
+  }, [isOneOff, frequencyText]);
+
+  const handleFrequencyTextChange = useCallback((text: string) => {
+    // Only allow positive numbers
+    if (/^\d*$/.test(text)) {
+      setFrequencyText(text);
+      const num = Number(text);
+      if (num > 0) {
+        setFrequency(num);
+      }
+    }
+  }, []);
+
+  const handleSourceChange = useCallback((itemValue: string) => {
+    setSource(itemValue);
+    setShowCustomSourceInput(itemValue === 'Other');
+    if (itemValue !== 'Other') {
+      setCustomSource('');
+    }
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -158,56 +191,70 @@ export default function AddClientScreen() {
 
   useEffect(() => {
     // If returning from round order manager, update all fields from params if present
-    if (params.roundOrderNumber) setRoundOrderNumber(Number(params.roundOrderNumber));
-    if (params.name) setName(String(params.name));
-    if (params.address1) setAddress1(String(params.address1));
-    if (params.town) setTown(String(params.town));
-    if (params.postcode) setPostcode(String(params.postcode));
+    const updates: (() => void)[] = [];
+    
+    if (params.roundOrderNumber) updates.push(() => setRoundOrderNumber(Number(params.roundOrderNumber)));
+    if (params.name) updates.push(() => setName(String(params.name)));
+    if (params.address1) updates.push(() => setAddress1(String(params.address1)));
+    if (params.town) updates.push(() => setTown(String(params.town)));
+    if (params.postcode) updates.push(() => setPostcode(String(params.postcode)));
+    if (params.nextVisit) updates.push(() => setNextVisit(String(params.nextVisit)));
+    if (params.mobileNumber) updates.push(() => setMobileNumber(String(params.mobileNumber)));
+    if (params.quote) updates.push(() => setQuote(String(params.quote)));
+    if (params.accountNumber) updates.push(() => setAccountNumber(Number(params.accountNumber)));
+    if (params.source) updates.push(() => setSource(String(params.source)));
+    if (params.email) updates.push(() => setEmail(String(params.email)));
+    
+    // Handle frequency updates in a batch
     if (params.frequency) {
       const freq = String(params.frequency);
       if (freq === 'one-off') {
-        setIsOneOff(true);
-        setFrequency('one-off');
-        setFrequencyText('');
+        updates.push(() => {
+          setIsOneOff(true);
+          setFrequency('one-off');
+          setFrequencyText('');
+        });
       } else {
         const numFreq = Number(freq) || 4;
-        setIsOneOff(false);
-        setFrequency(numFreq);
-        setFrequencyText(String(numFreq));
+        updates.push(() => {
+          setIsOneOff(false);
+          setFrequency(numFreq);
+          setFrequencyText(String(numFreq));
+        });
       }
     }
-    if (params.nextVisit) setNextVisit(String(params.nextVisit));
-    if (params.mobileNumber) setMobileNumber(String(params.mobileNumber));
-    if (params.quote) setQuote(String(params.quote));
-    if (params.accountNumber) setAccountNumber(Number(params.accountNumber));
-    if (params.status) {/* ignore, always 'active' for new */}
-    if (params.source) setSource(String(params.source));
-    if (params.email) setEmail(String(params.email));
+    
+    // Batch all updates
+    updates.forEach(update => update());
   }, [params]);
 
   useEffect(() => {
     if (quoteData) {
-      setName(quoteData.name || '');
-      setAddress1(quoteData.address || '');
-      setTown(quoteData.town || '');
-      setMobileNumber(quoteData.number || '');
-      setQuote(quoteData.value || '');
-      // Normalize frequency
-      let freq = quoteData.frequency || '';
-      if (freq === '4 weekly') freq = '4';
-      if (freq === '8 weekly') freq = '8';
-      if (freq === 'one-off' || freq === 'one off') {
-        setIsOneOff(true);
-        setFrequency('one-off');
-        setFrequencyText('');
-      } else {
-        const numFreq = Number(freq) || 4;
-        setIsOneOff(false);
-        setFrequency(numFreq);
-        setFrequencyText(String(numFreq));
-      }
-      // setNotes(quoteData.notes || '');
-      // setNextVisit(quoteData.date || '');
+      // Batch all quote data updates
+      const updates = () => {
+        setName(quoteData.name || '');
+        setAddress1(quoteData.address || '');
+        setTown(quoteData.town || '');
+        setMobileNumber(quoteData.number || '');
+        setQuote(quoteData.value || '');
+        
+        // Normalize frequency
+        let freq = quoteData.frequency || '';
+        if (freq === '4 weekly') freq = '4';
+        if (freq === '8 weekly') freq = '8';
+        if (freq === 'one-off' || freq === 'one off') {
+          setIsOneOff(true);
+          setFrequency('one-off');
+          setFrequencyText('');
+        } else {
+          const numFreq = Number(freq) || 4;
+          setIsOneOff(false);
+          setFrequency(numFreq);
+          setFrequencyText(String(numFreq));
+        }
+      };
+      
+      updates();
     }
   }, [quoteData]);
 
@@ -470,13 +517,7 @@ export default function AddClientScreen() {
         <ThemedText style={styles.label}>Source</ThemedText>
         <Picker
           selectedValue={source}
-          onValueChange={(itemValue) => {
-            setSource(itemValue as string);
-            setShowCustomSourceInput(itemValue === 'Other');
-            if (itemValue !== 'Other') {
-              setCustomSource('');
-            }
-          }}
+          onValueChange={handleSourceChange}
           style={styles.input}
         >
           {sourceOptions.map((option) => (
@@ -523,39 +564,26 @@ export default function AddClientScreen() {
         <View style={styles.frequencyContainer}>
           <Pressable 
             style={[styles.checkboxContainer, isOneOff && styles.checkboxChecked]}
-            onPress={() => {
-              setIsOneOff(!isOneOff);
-              if (!isOneOff) {
-                setFrequency('one-off');
-                setFrequencyText('');
-              } else {
-                setFrequency(Number(frequencyText) || 4);
-              }
-            }}
+            onPress={handleOneOffToggle}
           >
             <ThemedText style={styles.checkboxText}>One-off</ThemedText>
           </Pressable>
-          {!isOneOff && (
-            <View style={styles.frequencyInputContainer}>
-              <TextInput
-                value={frequencyText}
-                onChangeText={(text) => {
-                  // Only allow positive numbers
-                  if (/^\d*$/.test(text)) {
-                    setFrequencyText(text);
-                    const num = Number(text);
-                    if (num > 0) {
-                      setFrequency(num);
-                    }
-                  }
-                }}
-                style={styles.frequencyInput}
-                placeholder="e.g. 4"
-                keyboardType="numeric"
-              />
-              <ThemedText style={styles.frequencyLabel}>weeks</ThemedText>
-            </View>
-          )}
+          <View 
+            style={[
+              styles.frequencyInputContainer, 
+              { display: isOneOff ? 'none' : 'flex' }
+            ]}
+            key="frequency-input-container"
+          >
+            <TextInput
+              value={frequencyText}
+              onChangeText={handleFrequencyTextChange}
+              style={styles.frequencyInput}
+              placeholder="e.g. 4"
+              keyboardType="numeric"
+            />
+            <ThemedText style={styles.frequencyLabel}>weeks</ThemedText>
+          </View>
         </View>
 
         <ThemedText style={styles.label}>Starting Date</ThemedText>
