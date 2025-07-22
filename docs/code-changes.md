@@ -5,6 +5,77 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-21 - Fixed Accounts Screen Scrolling Issue 🔧
+
+### Summary
+Fixed a critical UI issue where the accounts screen was not scrollable, preventing users from viewing all content when the screen height exceeded the viewport.
+
+### Root Cause Analysis
+The accounts screen was missing a `ScrollView` wrapper around the main content, causing the layout to be fixed and non-scrollable when content exceeded the screen height.
+
+### Technical Fixes Implemented
+
+**1. Added ScrollView Container**:
+- Wrapped the main content containers in `ScrollView` to enable scrolling
+- Added proper `contentContainerStyle` for padding and spacing
+- Maintained responsive layout (desktop/mobile) functionality
+
+**2. Preserved Existing Layout**:
+- Kept the desktop two-column layout intact
+- Maintained mobile stacked layout functionality
+- Preserved all existing styling and functionality
+
+**3. Added Proper Styling**:
+- Added `scrollContainer` style with `flex: 1`
+- Added `scrollContentContainer` style with bottom padding
+- Disabled vertical scroll indicator for cleaner appearance
+
+### Code Changes
+```tsx
+// Before: Fixed layout without scrolling
+<ThemedView style={styles.container}>
+  <View style={styles.headerBar}>
+    {/* Header content */}
+  </View>
+  <View style={styles.desktopContainer}>
+    {/* Main content */}
+  </View>
+</ThemedView>
+
+// After: Scrollable layout
+<ThemedView style={styles.container}>
+  <View style={styles.headerBar}>
+    {/* Header content */}
+  </View>
+  <ScrollView 
+    style={styles.scrollContainer} 
+    contentContainerStyle={styles.scrollContentContainer}
+    showsVerticalScrollIndicator={false}
+  >
+    <View style={styles.desktopContainer}>
+      {/* Main content */}
+    </View>
+  </ScrollView>
+</ThemedView>
+```
+
+### Impact
+- ✅ **Enabled Scrolling**: Users can now scroll through all content on the accounts screen
+- ✅ **Maintained Design**: All existing visual design and layout preserved
+- ✅ **Cross-Platform**: Works on both web and mobile platforms
+- ✅ **Responsive**: Desktop and mobile layouts continue to work correctly
+- ✅ **Performance**: No impact on performance or functionality
+
+### Files Modified
+- `app/accounts.tsx` - Added ScrollView wrapper and related styles
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Fixed critical usability issue affecting content accessibility
+
+---
+
+---
+
 ## 2025-07-21 - Fixed Add Client Form Flickering Issue 🔧
 
 ### Summary

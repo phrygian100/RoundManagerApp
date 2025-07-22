@@ -284,7 +284,7 @@ export default function AccountsScreen() {
         clientId: client.id,
         clientName: client.name,
       },
-    });
+    } as any);
   };
 
   const handleAddPayment = (client: ClientWithBalance) => {
@@ -390,15 +390,80 @@ export default function AccountsScreen() {
         </View>
         
         {/* Main Content Container */}
-        {isLargeScreen ? (
-          <View style={styles.desktopContainer}>
-            {/* Left Column: Summary Cards */}
-            <View style={styles.summarySection}>
+        <ScrollView 
+          style={styles.scrollContainer} 
+          contentContainerStyle={styles.scrollContentContainer}
+          showsVerticalScrollIndicator={false}
+        >
+          {isLargeScreen ? (
+            <View style={styles.desktopContainer}>
+              {/* Left Column: Summary Cards */}
+              <View style={styles.summarySection}>
+                <SectionCard 
+                  title="Financial Summary" 
+                  icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
+                >
+                  <View style={styles.summaryGrid}>
+                    <SummaryCard
+                      title="Completed Jobs"
+                      value={`£${completedJobsTotal.toFixed(2)}`}
+                      subtitle={`${completedJobsCount} jobs completed`}
+                      onPress={() => router.push('/completed-jobs')}
+                      icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
+                    />
+                    <SummaryCard
+                      title="All Payments"
+                      value={`£${paymentsTotal.toFixed(2)}`}
+                      subtitle={`${paymentsCount} payments received`}
+                      onPress={() => router.push('/payments-list')}
+                      icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
+                    />
+                    <SummaryCard
+                      title="Unknown Payments"
+                      value="View Details"
+                      subtitle="Payments with unmatched accounts"
+                      onPress={() => router.push('/unknown-payments')}
+                      icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
+                    />
+                  </View>
+                </SectionCard>
+              </View>
+              
+              {/* Right Column: Outstanding Accounts */}
+              <View style={styles.outstandingSection}>
+                <SectionCard 
+                  title="Outstanding Accounts" 
+                  icon={<Ionicons name="alert-circle-outline" size={22} color="#f44336" />}
+                >
+                  {loadingOutstanding ? (
+                    <View style={styles.placeholderContent}>
+                      <ActivityIndicator size="small" />
+                      <ThemedText style={styles.placeholderText}>Loading outstanding accounts...</ThemedText>
+                    </View>
+                  ) : outstandingClients.length === 0 ? (
+                    <View style={styles.placeholderContent}>
+                      <Ionicons name="checkmark-circle-outline" size={32} color="#4CAF50" style={{ marginBottom: 8 }} />
+                      <ThemedText style={styles.placeholderText}>No outstanding accounts!</ThemedText>
+                      <ThemedText style={styles.placeholderSubtext}>All clients are up to date with payments.</ThemedText>
+                    </View>
+                  ) : (
+                    <View style={styles.outstandingList}>
+                      {outstandingClients.map(client => (
+                        <OutstandingClientCard key={client.id} client={client} />
+                      ))}
+                    </View>
+                  )}
+                </SectionCard>
+              </View>
+            </View>
+          ) : (
+            // Mobile/stacked layout
+            <View style={styles.mobileContainer}>
               <SectionCard 
                 title="Financial Summary" 
                 icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
               >
-                <View style={styles.summaryGrid}>
+                <View style={styles.mobileSummaryGrid}>
                   <SummaryCard
                     title="Completed Jobs"
                     value={`£${completedJobsTotal.toFixed(2)}`}
@@ -422,10 +487,7 @@ export default function AccountsScreen() {
                   />
                 </View>
               </SectionCard>
-            </View>
-            
-            {/* Right Column: Outstanding Accounts */}
-            <View style={styles.outstandingSection}>
+              
               <SectionCard 
                 title="Outstanding Accounts" 
                 icon={<Ionicons name="alert-circle-outline" size={22} color="#f44336" />}
@@ -450,64 +512,8 @@ export default function AccountsScreen() {
                 )}
               </SectionCard>
             </View>
-          </View>
-        ) : (
-          // Mobile/stacked layout
-          <View style={styles.mobileContainer}>
-            <SectionCard 
-              title="Financial Summary" 
-              icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
-            >
-              <View style={styles.mobileSummaryGrid}>
-                <SummaryCard
-                  title="Completed Jobs"
-                  value={`£${completedJobsTotal.toFixed(2)}`}
-                  subtitle={`${completedJobsCount} jobs completed`}
-                  onPress={() => router.push('/completed-jobs')}
-                  icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
-                />
-                <SummaryCard
-                  title="All Payments"
-                  value={`£${paymentsTotal.toFixed(2)}`}
-                  subtitle={`${paymentsCount} payments received`}
-                  onPress={() => router.push('/payments-list')}
-                  icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
-                />
-                <SummaryCard
-                  title="Unknown Payments"
-                  value="View Details"
-                  subtitle="Payments with unmatched accounts"
-                  onPress={() => router.push('/unknown-payments')}
-                  icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
-                />
-              </View>
-            </SectionCard>
-            
-            <SectionCard 
-              title="Outstanding Accounts" 
-              icon={<Ionicons name="alert-circle-outline" size={22} color="#f44336" />}
-            >
-              {loadingOutstanding ? (
-                <View style={styles.placeholderContent}>
-                  <ActivityIndicator size="small" />
-                  <ThemedText style={styles.placeholderText}>Loading outstanding accounts...</ThemedText>
-                </View>
-              ) : outstandingClients.length === 0 ? (
-                <View style={styles.placeholderContent}>
-                  <Ionicons name="checkmark-circle-outline" size={32} color="#4CAF50" style={{ marginBottom: 8 }} />
-                  <ThemedText style={styles.placeholderText}>No outstanding accounts!</ThemedText>
-                  <ThemedText style={styles.placeholderSubtext}>All clients are up to date with payments.</ThemedText>
-                </View>
-              ) : (
-                <View style={styles.outstandingList}>
-                  {outstandingClients.map(client => (
-                    <OutstandingClientCard key={client.id} client={client} />
-                  ))}
-                </View>
-              )}
-            </SectionCard>
-          </View>
-        )}
+          )}
+        </ScrollView>
 
         {/* Account Details Modal */}
         <AccountDetailsModal
@@ -811,5 +817,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    paddingBottom: 20,
   },
 }); 
