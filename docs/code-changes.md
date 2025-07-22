@@ -5,6 +5,86 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-17 - Added Business & Bank Information Collection for Owner Accounts ✅
+
+### Summary
+Added comprehensive business and bank information collection system for owner accounts, including first-time setup integration and settings management.
+
+### Key Features Implemented
+
+**1. Data Model Enhancement**:
+- Added `businessName`, `bankSortCode`, `bankAccountNumber` fields to User type
+- Business name is required for owner accounts
+- Bank details are optional with no validation (users can enter any format)
+
+**2. First-Time Setup Integration**:
+- Extended `FirstTimeSetupModal` to include business info step for owners
+- Business info collection happens after "No invite code" choice
+- Step flow: Invite Code → Business Info → Working Days → Vehicle & Limits
+- Business name is required, cannot skip this step for owners
+
+**3. Settings Integration**:
+- Added "Bank & Business Info" button in settings (owner-only visibility)
+- Created dedicated modal for editing business and bank information
+- Consistent UI patterns with existing profile edit modal
+- Proper form validation and error handling
+
+**4. Role-Based Access Control**:
+- Member accounts never see business/bank functionality
+- First-time setup for members only asks about invite codes
+- Settings button only visible when `session.isOwner === true`
+- Complete access denial for member accounts
+
+### Technical Implementation
+
+**Data Model Changes**:
+```typescript
+// types/models.ts
+export type User = {
+  // ... existing fields
+  businessName?: string; // Required for owners
+  bankSortCode?: string;
+  bankAccountNumber?: string;
+  // ... rest of fields
+};
+```
+
+**First-Time Setup Flow**:
+- Step 1: Invite code choice (Yes/No)
+- Step 2: Business info collection (owners only, required)
+- Step 3: Working days selection
+- Step 4: Vehicle & daily limits
+
+**Settings Integration**:
+- Owner-only "Bank & Business Info" button
+- Modal with business name, sort code, and account number fields
+- Form validation requiring business name
+- Success/error feedback
+
+### Security & Privacy
+- Firebase Firestore encryption handles data security
+- No additional encryption required for bank details
+- Role-based access prevents unauthorized access
+
+### Impact
+- ✅ **Owner Onboarding**: Complete business setup during first-time login
+- ✅ **Settings Management**: Easy access to update business/bank info
+- ✅ **Role Security**: Member accounts completely isolated from business data
+- ✅ **Data Collection**: Ready for future invoice generation features
+- ✅ **User Experience**: Seamless integration with existing flows
+
+### Files Modified
+- `types/models.ts` - Added business and bank fields to User type
+- `components/FirstTimeSetupModal.tsx` - Extended with business info step
+- `app/(tabs)/settings.tsx` - Added bank & business info button and modal
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - New feature for future invoice generation capabilities
+
+---
+
+---
+
 ## 2025-07-21 - Fixed Edit Customer Date Picker on Android Chrome 🔧
 
 ### Summary

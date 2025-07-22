@@ -3,16 +3,16 @@ import { addDays, format, startOfWeek } from 'date-fns';
 import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import {
-    Alert,
-    Button,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  Button,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -47,6 +47,12 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
   });
   const [vehicleNameOrReg, setVehicleNameOrReg] = useState('');
   const [dailyTurnoverLimit, setDailyTurnoverLimit] = useState('');
+  
+  // Business info fields
+  const [businessName, setBusinessName] = useState('');
+  const [bankSortCode, setBankSortCode] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  
   const [saving, setSaving] = useState(false);
 
   const toggleDay = (day: string) => {
@@ -65,13 +71,20 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
 
   const handleNext = () => {
     if (step === 2) {
+      // Validate business name is provided
+      if (!businessName.trim()) {
+        Alert.alert('Error', 'Please enter your business name.');
+        return;
+      }
+      setStep(3);
+    } else if (step === 3) {
       // Validate at least one working day is selected
       const hasWorkingDay = Object.values(workingDays).some(v => v);
       if (!hasWorkingDay) {
         Alert.alert('Error', 'Please select at least one working day.');
         return;
       }
-      setStep(3);
+      setStep(4);
     }
   };
 
@@ -114,12 +127,15 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       const session = await getUserSession();
       if (!session) throw new Error('No session found');
 
-      // Update user document with setup completion and preferences
+      // Update user document with setup completion, preferences, and business info
       await updateDoc(doc(db, 'users', session.uid), {
         firstTimeSetupCompleted: true,
         defaultWorkingDays: workingDays,
         vehicleName: vehicleNameOrReg.trim(),
         dailyTurnoverLimit: Number(dailyTurnoverLimit),
+        businessName: businessName.trim(),
+        bankSortCode: bankSortCode.trim(),
+        bankAccountNumber: bankAccountNumber.trim(),
         updatedAt: new Date().toISOString(),
       });
 
@@ -208,6 +224,49 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
 
         {step === 2 && (
           <View style={styles.stepContainer}>
+            <Text style={styles.title}>Business Information</Text>
+            <Text style={styles.subtitle}>Tell us about your business</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Business Name *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter your business name"
+                value={businessName}
+                onChangeText={setBusinessName}
+                editable={!saving}
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bank Sort Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 12-34-56"
+                value={bankSortCode}
+                onChangeText={setBankSortCode}
+                editable={!saving}
+              />
+            </View>
+            
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Bank Account Number</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 12345678"
+                value={bankAccountNumber}
+                onChangeText={setBankAccountNumber}
+                keyboardType="numeric"
+                editable={!saving}
+              />
+            </View>
+            
+            <Button title="Next" onPress={handleNext} />
+          </View>
+        )}
+
+        {step === 3 && (
+          <View style={styles.stepContainer}>
             <Text style={styles.title}>Working Days</Text>
             <Text style={styles.subtitle}>Which days do you typically work?</Text>
             <Text style={styles.hint}>You can change this later in the Rota screen</Text>
@@ -235,11 +294,18 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
               ))}
             </View>
             
-            <Button title="Next" onPress={handleNext} />
+            <View style={styles.buttonContainer}>
+              <Button 
+                title="Back" 
+                onPress={() => setStep(2)} 
+                color="#666"
+              />
+              <Button title="Next" onPress={handleNext} />
+            </View>
           </View>
         )}
 
-        {step === 3 && (
+        {step === 4 && (
           <View style={styles.stepContainer}>
             <Text style={styles.title}>Vehicle & Daily Limit</Text>
             
@@ -272,7 +338,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
             <View style={styles.buttonContainer}>
               <Button 
                 title="Back" 
-                onPress={() => setStep(2)} 
+                onPress={() => setStep(3)} 
                 color="#666"
                 disabled={saving}
               />

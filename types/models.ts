@@ -12,6 +12,11 @@ export type User = {
   availability?: string[]; // for providers, e.g., ["Mon AM", "Tue PM"]
   rating?: number; // average rating for providers
   
+  // Business and bank information (for owner accounts)
+  businessName?: string; // Required for owners
+  bankSortCode?: string;
+  bankAccountNumber?: string;
+  
   // Subscription fields
   subscriptionTier?: 'free' | 'premium' | 'exempt';
   subscriptionStatus?: 'active' | 'canceled' | 'past_due' | 'exempt';

@@ -100,6 +100,15 @@ export default function SettingsScreen() {
   });
   const [savingProfile, setSavingProfile] = useState(false);
 
+  // Bank & Business Info modal state
+  const [bankInfoModalVisible, setBankInfoModalVisible] = useState(false);
+  const [bankInfoForm, setBankInfoForm] = useState({
+    businessName: '',
+    bankSortCode: '',
+    bankAccountNumber: ''
+  });
+  const [savingBankInfo, setSavingBankInfo] = useState(false);
+
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
 
@@ -167,6 +176,56 @@ export default function SettingsScreen() {
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
+    }
+  };
+
+  // Load bank & business info for editing
+  const loadBankInfo = async () => {
+    try {
+      const session = await getUserSession();
+      if (session?.uid) {
+        const userProfile = await getUserProfile(session.uid);
+        if (userProfile) {
+          setBankInfoForm({
+            businessName: userProfile.businessName || '',
+            bankSortCode: userProfile.bankSortCode || '',
+            bankAccountNumber: userProfile.bankAccountNumber || ''
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading bank info:', error);
+    }
+  };
+
+  // Save bank & business info changes
+  const handleSaveBankInfo = async () => {
+    if (!bankInfoForm.businessName.trim()) {
+      Alert.alert('Error', 'Business name is required.');
+      return;
+    }
+
+    setSavingBankInfo(true);
+    try {
+      const session = await getUserSession();
+      if (!session?.uid) {
+        Alert.alert('Error', 'User session not found.');
+        return;
+      }
+
+      await updateUserProfile(session.uid, {
+        businessName: bankInfoForm.businessName.trim(),
+        bankSortCode: bankInfoForm.bankSortCode.trim(),
+        bankAccountNumber: bankInfoForm.bankAccountNumber.trim(),
+      });
+
+      Alert.alert('Success', 'Bank and business information updated successfully.');
+      setBankInfoModalVisible(false);
+    } catch (error) {
+      console.error('Error saving bank info:', error);
+      Alert.alert('Error', 'Failed to save bank and business information.');
+    } finally {
+      setSavingBankInfo(false);
     }
   };
 
@@ -1787,6 +1846,15 @@ export default function SettingsScreen() {
               setProfileModalVisible(true);
             }}
           />
+          {isOwner && (
+            <StyledButton
+              title="Bank & Business Info"
+              onPress={() => {
+                loadBankInfo();
+                setBankInfoModalVisible(true);
+              }}
+            />
+          )}
         </View>
 
         {/* Subscription Section */}
@@ -2177,6 +2245,61 @@ export default function SettingsScreen() {
               >
                 <Text style={styles.saveButtonText}>
                   {savingProfile ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Bank & Business Info Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={bankInfoModalVisible}
+        onRequestClose={() => setBankInfoModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalView}>
+            <ThemedText style={styles.modalTitle}>Bank & Business Info</ThemedText>
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Business Name *"
+              value={bankInfoForm.businessName}
+              onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, businessName: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Bank Sort Code"
+              value={bankInfoForm.bankSortCode}
+              onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, bankSortCode: text }))}
+            />
+            
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Bank Account Number"
+              value={bankInfoForm.bankAccountNumber}
+              onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, bankAccountNumber: text }))}
+              keyboardType="numeric"
+            />
+            
+            <View style={styles.modalButtonRow}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setBankInfoModalVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleSaveBankInfo}
+                disabled={savingBankInfo}
+              >
+                <Text style={styles.saveButtonText}>
+                  {savingBankInfo ? 'Saving...' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </View>
