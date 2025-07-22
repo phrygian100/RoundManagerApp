@@ -31,7 +31,10 @@ export default function AddClientScreen() {
   const [frequency, setFrequency] = useState<number | 'one-off'>(4);
   const [isOneOff, setIsOneOff] = useState(false);
   const [frequencyText, setFrequencyText] = useState('4');
-  const [nextVisit, setNextVisit] = useState('');
+  const [nextVisit, setNextVisit] = useState(() => {
+    const today = new Date();
+    return format(today, 'yyyy-MM-dd');
+  });
   const [mobileNumber, setMobileNumber] = useState('');
   const [quote, setQuote] = useState('');
   const [accountNumber, setAccountNumber] = useState<number | null>(null);
@@ -100,11 +103,6 @@ export default function AddClientScreen() {
   }, []);
 
   useEffect(() => {
-    if (!nextVisit) {
-      const today = new Date();
-      setNextVisit(format(today, 'yyyy-MM-dd'));
-    }
-
     const fetchNextNumbers = async () => {
       try {
         console.log('Fetching next numbers...');
@@ -610,9 +608,27 @@ export default function AddClientScreen() {
                 mode="date"
                 display={Platform.OS === 'ios' ? 'spinner' : 'default'}
                 onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+                  console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
+                  
+                  // On Android, the picker closes automatically when a date is selected
+                  // On iOS, we need to handle the spinner mode differently
+                  if (Platform.OS === 'android') {
+                    setShowDatePicker(false);
+                    if (selectedDate) {
+                      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                      console.log('Android: Setting nextVisit to:', formattedDate);
+                      setNextVisit(formattedDate);
+                    }
+                  } else {
+                    // iOS spinner mode - only update when user confirms
+                    if (event.type === 'set' && selectedDate) {
+                      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                      console.log('iOS: Setting nextVisit to:', formattedDate);
+                      setNextVisit(formattedDate);
+                    }
+                    if (event.type === 'dismissed') {
+                      setShowDatePicker(false);
+                    }
                   }
                 }}
               />

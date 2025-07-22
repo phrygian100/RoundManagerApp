@@ -76,16 +76,23 @@ The accounts screen was missing a `ScrollView` wrapper around the main content, 
 
 ---
 
-## 2025-07-21 - Fixed Add Client Form Flickering Issue 🔧
+## 2025-07-21 - Fixed Add Client Form Flickering and Date Picker Issues 🔧
 
 ### Summary
-Fixed a critical UI issue where the add-client form was flickering when users interacted with the "One-off" checkbox and frequency input field. The flickering was caused by React's development mode behavior and inefficient state management.
+Fixed critical UI issues in the add-client form: flickering when interacting with frequency controls and date picker not updating the field on Android/web platforms.
 
 ### Root Cause Analysis
+
+**Flickering Issue**:
 1. **Multiple Rapid State Updates**: The frequency handlers were triggering 2-3 state updates in quick succession
 2. **Conditional Rendering**: The `{!isOneOff && (...)}` conditional was causing DOM unmounting/remounting
 3. **React Strict Mode**: Development mode was calling handlers twice, exacerbating the issue
 4. **Inefficient useEffect**: Multiple state updates in useEffect hooks were causing unnecessary re-renders
+
+**Date Picker Issue**:
+1. **Platform-Specific Behavior**: Android and iOS handle DateTimePicker events differently
+2. **Event Type Handling**: Not properly handling `event.type` for different platforms
+3. **State Initialization**: Inefficient default date setting in useEffect
 
 ### Technical Fixes Implemented
 
@@ -99,15 +106,21 @@ Fixed a critical UI issue where the add-client form was flickering when users in
 - Added `key="frequency-input-container"` to prevent DOM unmounting
 - Maintains component state while hiding/showing the input
 
-**3. Batched State Updates**:
+**3. Enhanced Date Picker Handling**:
+- Added platform-specific logic for Android vs iOS DateTimePicker behavior
+- Android: Picker closes automatically, update state immediately
+- iOS: Handle spinner mode with proper event type checking (`'set'` vs `'dismissed'`)
+- Added comprehensive logging for debugging
+
+**4. Improved State Initialization**:
+- Moved default date setting to useState initializer function
+- Removed unnecessary useEffect for date initialization
+- Ensures consistent initial state across all platforms
+
+**5. Batched State Updates**:
 - Grouped related state updates in useEffect hooks
 - Used array of update functions to batch changes
 - Reduced number of re-renders during initialization
-
-**4. Optimized useEffect Dependencies**:
-- Restructured useEffect hooks to minimize unnecessary executions
-- Added proper dependency arrays to prevent infinite loops
-- Improved performance by reducing effect triggers
 
 ### Code Changes
 ```javascript
@@ -135,20 +148,47 @@ const handleOneOffToggle = useCallback(() => {
     setFrequency(newFrequency);
   }
 }, [isOneOff, frequencyText]);
+
+// Before: Platform-agnostic date picker
+onChange={(event, selectedDate) => {
+  setShowDatePicker(false);
+  if (selectedDate) {
+    setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+  }
+}}
+
+// After: Platform-specific date picker
+onChange={(event, selectedDate) => {
+  if (Platform.OS === 'android') {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+    }
+  } else {
+    // iOS spinner mode handling
+    if (event.type === 'set' && selectedDate) {
+      setNextVisit(format(selectedDate, 'yyyy-MM-dd'));
+    }
+    if (event.type === 'dismissed') {
+      setShowDatePicker(false);
+    }
+  }
+}}
 ```
 
 ### Impact
 - ✅ **Eliminated Flickering**: Form no longer flickers when toggling one-off checkbox
+- ✅ **Fixed Date Picker**: Date selection now works correctly on Android and web platforms
 - ✅ **Smooth Input Interaction**: Frequency field changes are now smooth without visual glitches
 - ✅ **Better Performance**: Reduced unnecessary re-renders and state updates
-- ✅ **Maintained Functionality**: All existing features work exactly as before
-- ✅ **Cross-Platform**: Fix works on both web and mobile platforms
+- ✅ **Cross-Platform**: Fix works on both web and mobile platforms with proper platform-specific handling
+- ✅ **Enhanced Debugging**: Added comprehensive logging for troubleshooting
 
 ### Files Modified
-- `app/add-client.tsx` - Added memoized handlers, fixed conditional rendering, optimized useEffect hooks
+- `app/add-client.tsx` - Added memoized handlers, fixed conditional rendering, enhanced date picker, optimized useEffect hooks
 - `docs/code-changes.md` - Updated documentation
 
-**Priority**: HIGH - Fixed critical UI issue affecting user experience
+**Priority**: HIGH - Fixed critical UI issues affecting user experience and form functionality
 
 ---
 
