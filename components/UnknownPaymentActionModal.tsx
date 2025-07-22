@@ -146,6 +146,8 @@ export default function UnknownPaymentActionModal({
     <Pressable 
       style={styles.clientItem} 
       onPress={() => handleLinkWithClient(item.id)}
+      android_ripple={{ color: '#e0e0e0' }}
+      android_disableSound={false}
     >
       <ThemedText style={styles.clientName}>{item.name}</ThemedText>
       {item.accountNumber && (
@@ -181,6 +183,8 @@ export default function UnknownPaymentActionModal({
       <Pressable 
         style={[styles.menuButton, styles.linkButton]} 
         onPress={() => setAction('link')}
+        android_ripple={{ color: '#0056b3' }}
+        android_disableSound={false}
       >
         <ThemedText style={styles.linkButtonText}>Link with a client account</ThemedText>
       </Pressable>
@@ -188,6 +192,8 @@ export default function UnknownPaymentActionModal({
       <Pressable 
         style={[styles.menuButton, styles.deleteButton]} 
         onPress={handleDelete}
+        android_ripple={{ color: '#cc0000' }}
+        android_disableSound={false}
       >
         <ThemedText style={styles.deleteButtonText}>Delete Payment</ThemedText>
       </Pressable>
@@ -195,6 +201,8 @@ export default function UnknownPaymentActionModal({
       <Pressable 
         style={[styles.menuButton, styles.cancelButton]} 
         onPress={handleClose}
+        android_ripple={{ color: '#d0d0d0' }}
+        android_disableSound={false}
       >
         <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
       </Pressable>
@@ -223,6 +231,8 @@ export default function UnknownPaymentActionModal({
       <Pressable 
         style={[styles.menuButton, styles.backButton]} 
         onPress={() => setAction('menu')}
+        android_ripple={{ color: '#d0d0d0' }}
+        android_disableSound={false}
       >
         <ThemedText style={styles.backButtonText}>Back</ThemedText>
       </Pressable>

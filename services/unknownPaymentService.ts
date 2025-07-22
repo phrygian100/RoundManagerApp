@@ -1,7 +1,7 @@
-import { addDoc, collection, deleteDoc, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
-import { createAuditLog } from './auditService';
+import { logAction } from './auditService';
 
 const UNKNOWN_PAYMENTS_COLLECTION = 'unknownPayments';
 
@@ -66,7 +66,7 @@ export async function linkUnknownPaymentToClient(
   
   // Get the unknown payment data
   const unknownPaymentRef = doc(db, UNKNOWN_PAYMENTS_COLLECTION, unknownPaymentId);
-  const unknownPaymentDoc = await unknownPaymentRef.get();
+  const unknownPaymentDoc = await getDoc(unknownPaymentRef);
   
   if (!unknownPaymentDoc.exists()) {
     throw new Error('Unknown payment not found');
@@ -100,18 +100,13 @@ export async function linkUnknownPaymentToClient(
   await batch.commit();
   
   // Create audit log entry
-  await createAuditLog({
-    action: 'unknown_payment_linked',
-    details: {
-      unknownPaymentId,
-      clientId,
-      amount: unknownPaymentData.amount,
-      originalAccountIdentifier: unknownPaymentData.originalAccountIdentifier,
-      paymentId: paymentRef.id,
-    },
-    resourceType: 'unknownPayment',
-    resourceId: unknownPaymentId,
-  });
+  await logAction(
+    'payment_created',
+    'payment',
+    paymentRef.id,
+    `Linked unknown payment of £${unknownPaymentData.amount.toFixed(2)} to client ${clientId}`,
+    unknownPaymentData.originalAccountIdentifier
+  );
 }
 
 export async function getUnknownPayments(): Promise<UnknownPayment[]> {

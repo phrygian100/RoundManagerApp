@@ -148,12 +148,14 @@ export default function CreateUnknownPaymentModal({
           </View>
 
           <View style={styles.buttons}>
-            <Pressable style={[styles.button, styles.cancelButton]} onPress={handleClose}>
+            <Pressable style={[styles.button, styles.cancelButton]} onPress={handleClose} android_ripple={{ color: '#d0d0d0' }} android_disableSound={false}>
               <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
             </Pressable>
             <Pressable 
               style={[styles.button, styles.submitButton, loading && styles.disabledButton]} 
               onPress={loading ? undefined : handleSubmit}
+              android_ripple={{ color: '#0056b3' }}
+              android_disableSound={false}
             >
               <ThemedText style={styles.submitButtonText}>
                 {loading ? 'Creating...' : 'Create Payment'}
