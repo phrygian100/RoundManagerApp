@@ -1,6 +1,6 @@
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { deleteUnknownPayment, linkUnknownPaymentToClient, type UnknownPayment } from '../services/unknownPaymentService';
@@ -11,6 +11,9 @@ type Client = {
   id: string;
   name: string;
   accountNumber?: string;
+  address1?: string;
+  town?: string;
+  postcode?: string;
 };
 
 type UnknownPaymentActionModalProps = {
@@ -45,7 +48,10 @@ export default function UnknownPaymentActionModal({
       const query = searchQuery.toLowerCase();
       const filtered = clients.filter(client => 
         client.name.toLowerCase().includes(query) ||
-        (client.accountNumber && client.accountNumber.toLowerCase().includes(query))
+        (client.accountNumber && client.accountNumber.toLowerCase().includes(query)) ||
+        (client.address1 && client.address1.toLowerCase().includes(query)) ||
+        (client.town && client.town.toLowerCase().includes(query)) ||
+        (client.postcode && client.postcode.toLowerCase().includes(query))
       );
       setFilteredClients(filtered);
     }
@@ -67,6 +73,9 @@ export default function UnknownPaymentActionModal({
           id: doc.id,
           name: data.name || 'Unknown Client',
           accountNumber: data.accountNumber,
+          address1: data.address1,
+          town: data.town,
+          postcode: data.postcode,
         });
       });
       
@@ -134,15 +143,20 @@ export default function UnknownPaymentActionModal({
   };
 
   const renderClientItem = ({ item }: { item: Client }) => (
-    <ThemedView 
+    <Pressable 
       style={styles.clientItem} 
-      onTouchEnd={() => handleLinkWithClient(item.id)}
+      onPress={() => handleLinkWithClient(item.id)}
     >
       <ThemedText style={styles.clientName}>{item.name}</ThemedText>
       {item.accountNumber && (
         <ThemedText style={styles.clientAccount}>Account: {item.accountNumber}</ThemedText>
       )}
-    </ThemedView>
+      {(item.address1 || item.town || item.postcode) && (
+        <ThemedText style={styles.clientAddress}>
+          {[item.address1, item.town, item.postcode].filter(Boolean).join(', ')}
+        </ThemedText>
+      )}
+    </Pressable>
   );
 
   const renderMenu = () => (
@@ -164,26 +178,26 @@ export default function UnknownPaymentActionModal({
         </View>
       )}
 
-      <ThemedView 
+      <Pressable 
         style={[styles.menuButton, styles.linkButton]} 
-        onTouchEnd={() => setAction('link')}
+        onPress={() => setAction('link')}
       >
         <ThemedText style={styles.linkButtonText}>Link with a client account</ThemedText>
-      </ThemedView>
+      </Pressable>
 
-      <ThemedView 
+      <Pressable 
         style={[styles.menuButton, styles.deleteButton]} 
-        onTouchEnd={handleDelete}
+        onPress={handleDelete}
       >
         <ThemedText style={styles.deleteButtonText}>Delete Payment</ThemedText>
-      </ThemedView>
+      </Pressable>
 
-      <ThemedView 
+      <Pressable 
         style={[styles.menuButton, styles.cancelButton]} 
-        onTouchEnd={handleClose}
+        onPress={handleClose}
       >
         <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
-      </ThemedView>
+      </Pressable>
     </View>
   );
 
@@ -193,7 +207,7 @@ export default function UnknownPaymentActionModal({
       
       <TextInput
         style={styles.searchInput}
-        placeholder="Search clients..."
+        placeholder="Search clients by name, account, or address..."
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
@@ -206,12 +220,12 @@ export default function UnknownPaymentActionModal({
         contentContainerStyle={styles.clientListContent}
       />
 
-      <ThemedView 
+      <Pressable 
         style={[styles.menuButton, styles.backButton]} 
-        onTouchEnd={() => setAction('menu')}
+        onPress={() => setAction('menu')}
       >
         <ThemedText style={styles.backButtonText}>Back</ThemedText>
-      </ThemedView>
+      </Pressable>
     </View>
   );
 
@@ -370,5 +384,10 @@ const styles = StyleSheet.create({
   clientAccount: {
     fontSize: 14,
     color: '#666',
+  },
+  clientAddress: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
   },
 }); 

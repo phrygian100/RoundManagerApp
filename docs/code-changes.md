@@ -88,6 +88,83 @@ export async function linkUnknownPaymentToClient(unknownPaymentId: string, clien
 
 ---
 
+## 2025-07-21 - Fixed Unknown Payments Modal Functionality 🔧
+
+### Summary
+Fixed critical UI issues in the unknown payments action modal that were preventing proper functionality across different platforms and browsers.
+
+### Issues Identified and Fixed
+
+**1. Touch Event Handling**:
+- **Problem**: Using `onTouchEnd` instead of `onPress` caused inconsistent behavior across platforms
+- **Solution**: Replaced all `onTouchEnd` with `onPress` and used `Pressable` components instead of `ThemedView` for buttons
+- **Impact**: Consistent button responsiveness on web (Chrome, Windows) and mobile platforms
+
+**2. Client Search Functionality**:
+- **Problem**: Search only included name and account number, missing address fields
+- **Solution**: Extended search to include `address1`, `town`, and `postcode` fields
+- **Impact**: Users can now search clients by address information for better identification
+
+**3. Client Data Loading**:
+- **Problem**: Address fields were not being loaded from Firestore
+- **Solution**: Updated client data loading to include address fields in the query results
+- **Impact**: Complete client information available for search and display
+
+**4. Modal State Management**:
+- **Problem**: Cancel button caused modal to disappear and reappear instead of closing properly
+- **Solution**: Fixed state management in modal close handlers
+- **Impact**: Proper modal behavior across all platforms
+
+### Technical Fixes Implemented
+
+**Updated Client Type**:
+```typescript
+type Client = {
+  id: string;
+  name: string;
+  accountNumber?: string;
+  address1?: string;
+  town?: string;
+  postcode?: string;
+};
+```
+
+**Enhanced Search Logic**:
+```typescript
+const filtered = clients.filter(client => 
+  client.name.toLowerCase().includes(query) ||
+  (client.accountNumber && client.accountNumber.toLowerCase().includes(query)) ||
+  (client.address1 && client.address1.toLowerCase().includes(query)) ||
+  (client.town && client.town.toLowerCase().includes(query)) ||
+  (client.postcode && client.postcode.toLowerCase().includes(query))
+);
+```
+
+**Improved Button Components**:
+```typescript
+// Before: ThemedView with onTouchEnd
+<ThemedView style={styles.button} onTouchEnd={handleAction}>
+
+// After: Pressable with onPress
+<Pressable style={styles.button} onPress={handleAction}>
+```
+
+### Impact
+- ✅ **Cross-Platform Compatibility**: Consistent behavior on web and mobile
+- ✅ **Enhanced Search**: Users can find clients by address information
+- ✅ **Reliable Interactions**: All buttons now respond properly
+- ✅ **Better UX**: Modal state management works correctly
+- ✅ **Complete Data**: Full client information available for selection
+
+### Files Modified
+- `components/UnknownPaymentActionModal.tsx` - Fixed touch events, enhanced search, improved client data loading
+- `components/CreateUnknownPaymentModal.tsx` - Updated to use Pressable for consistency
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Fixed critical usability issues affecting core functionality
+
+---
+
 ---
 
 ## 2025-01-21 - Fixed Accounts Screen Scrolling Issue 🔧
@@ -3651,3 +3728,82 @@ Implemented a comprehensive enhancement to the accounts screen to provide better
 - **Functionality**: Complete outstanding accounts management workflow
 - **Maintainability**: Clean, modular code structure
 - **Scalability**: Easy to extend with additional features
+
+---
+
+## 2025-07-21 - Fixed Unknown Payments Modal Functionality 🔧
+
+### Summary
+Fixed critical UI issues in the unknown payments action modal that were preventing proper functionality across different platforms and browsers.
+
+### Issues Identified and Fixed
+
+**1. Touch Event Handling**:
+- **Problem**: Using `onTouchEnd` instead of `onPress` caused inconsistent behavior across platforms
+- **Solution**: Replaced all `onTouchEnd` with `onPress` and used `Pressable` components instead of `ThemedView` for buttons
+- **Impact**: Consistent button responsiveness on web (Chrome, Windows) and mobile platforms
+
+**2. Client Search Functionality**:
+- **Problem**: Search only included name and account number, missing address fields
+- **Solution**: Extended search to include `address1`, `town`, and `postcode` fields
+- **Impact**: Users can now search clients by address information for better identification
+
+**3. Client Data Loading**:
+- **Problem**: Address fields were not being loaded from Firestore
+- **Solution**: Updated client data loading to include address fields in the query results
+- **Impact**: Complete client information available for search and display
+
+**4. Modal State Management**:
+- **Problem**: Cancel button caused modal to disappear and reappear instead of closing properly
+- **Solution**: Fixed state management in modal close handlers
+- **Impact**: Proper modal behavior across all platforms
+
+### Technical Fixes Implemented
+
+**Updated Client Type**:
+```typescript
+type Client = {
+  id: string;
+  name: string;
+  accountNumber?: string;
+  address1?: string;
+  town?: string;
+  postcode?: string;
+};
+```
+
+**Enhanced Search Logic**:
+```typescript
+const filtered = clients.filter(client => 
+  client.name.toLowerCase().includes(query) ||
+  (client.accountNumber && client.accountNumber.toLowerCase().includes(query)) ||
+  (client.address1 && client.address1.toLowerCase().includes(query)) ||
+  (client.town && client.town.toLowerCase().includes(query)) ||
+  (client.postcode && client.postcode.toLowerCase().includes(query))
+);
+```
+
+**Improved Button Components**:
+```typescript
+// Before: ThemedView with onTouchEnd
+<ThemedView style={styles.button} onTouchEnd={handleAction}>
+
+// After: Pressable with onPress
+<Pressable style={styles.button} onPress={handleAction}>
+```
+
+### Impact
+- ✅ **Cross-Platform Compatibility**: Consistent behavior on web and mobile
+- ✅ **Enhanced Search**: Users can find clients by address information
+- ✅ **Reliable Interactions**: All buttons now respond properly
+- ✅ **Better UX**: Modal state management works correctly
+- ✅ **Complete Data**: Full client information available for selection
+
+### Files Modified
+- `components/UnknownPaymentActionModal.tsx` - Fixed touch events, enhanced search, improved client data loading
+- `components/CreateUnknownPaymentModal.tsx` - Updated to use Pressable for consistency
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Fixed critical usability issues affecting core functionality
+
+---

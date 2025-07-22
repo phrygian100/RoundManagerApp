@@ -1,6 +1,6 @@
 import { Picker } from '@react-native-picker/picker';
 import React, { useState } from 'react';
-import { Alert, Modal, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { createUnknownPayment, type CreateUnknownPaymentData } from '../services/unknownPaymentService';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
@@ -148,17 +148,17 @@ export default function CreateUnknownPaymentModal({
           </View>
 
           <View style={styles.buttons}>
-            <ThemedView style={[styles.button, styles.cancelButton]} onTouchEnd={handleClose}>
+            <Pressable style={[styles.button, styles.cancelButton]} onPress={handleClose}>
               <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
-            </ThemedView>
-            <ThemedView 
+            </Pressable>
+            <Pressable 
               style={[styles.button, styles.submitButton, loading && styles.disabledButton]} 
-              onTouchEnd={loading ? undefined : handleSubmit}
+              onPress={loading ? undefined : handleSubmit}
             >
               <ThemedText style={styles.submitButtonText}>
                 {loading ? 'Creating...' : 'Create Payment'}
               </ThemedText>
-            </ThemedView>
+            </Pressable>
           </View>
         </ThemedView>
       </View>
