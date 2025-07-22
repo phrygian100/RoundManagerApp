@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -11,9 +11,20 @@ import { deletePayment, getAllPayments } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Payment } from '../types/models';
 
+// Mobile browser detection for better touch targets
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768);
+};
+
 export default function PaymentsListScreen() {
   const [loading, setLoading] = useState(true);
   const [payments, setPayments] = useState<(Payment & { client: Client | null })[]>([]);
+  const [filteredPayments, setFilteredPayments] = useState<(Payment & { client: Client | null })[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -25,6 +36,7 @@ export default function PaymentsListScreen() {
         
         if (paymentClientIds.length === 0) {
           setPayments([]);
+          setFilteredPayments([]);
           setLoading(false);
           return;
         }
@@ -54,6 +66,7 @@ export default function PaymentsListScreen() {
         paymentsWithClients.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
         setPayments(paymentsWithClients);
+        setFilteredPayments(paymentsWithClients);
       } catch (error) {
         console.error('Error fetching payments:', error);
       } finally {
@@ -63,6 +76,46 @@ export default function PaymentsListScreen() {
     
     fetchPayments();
   }, []);
+
+  // Filter payments based on search query
+  useEffect(() => {
+    if (!payments || payments.length === 0) {
+      setFilteredPayments([]);
+      return;
+    }
+
+    if (searchQuery.trim() === '') {
+      setFilteredPayments(payments);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = payments.filter(payment => {
+      const client = payment.client;
+      
+      // Search by client name
+      if (client?.name?.toLowerCase().includes(query)) return true;
+      
+      // Search by address
+      if (client?.address1?.toLowerCase().includes(query)) return true;
+      if (client?.town?.toLowerCase().includes(query)) return true;
+      if (client?.postcode?.toLowerCase().includes(query)) return true;
+      if (client?.address?.toLowerCase().includes(query)) return true;
+      
+      // Search by full address string
+      const fullAddress = client?.address1 && client?.town && client?.postcode 
+        ? `${client.address1}, ${client.town}, ${client.postcode}`.toLowerCase()
+        : (client?.address?.toLowerCase() || '');
+      if (fullAddress.includes(query)) return true;
+      
+      // Search by date
+      if (payment.date.includes(query)) return true;
+      
+      return false;
+    });
+
+    setFilteredPayments(filtered);
+  }, [searchQuery, payments]);
 
   const renderPayment = ({ item }: { item: Payment & { client: Client | null } }) => {
     const client = item.client;
@@ -192,13 +245,45 @@ export default function PaymentsListScreen() {
         </View>
       </View>
       <ThemedText style={styles.sectionSubtitle}>
-        Total: £{calculatePaymentsTotal().toFixed(2)} ({payments.length} payments)
+        Total: £{calculatePaymentsTotal().toFixed(2)} ({filteredPayments.length} payments)
       </ThemedText>
+      
+      {/* Search Input */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchIcon}>
+            <ThemedText style={styles.searchIconText}>🔍</ThemedText>
+          </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, address, or date..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
+            // Mobile-specific props
+            {...(Platform.OS === 'web' && isMobileBrowser() && {
+              autoComplete: 'off',
+              autoCorrect: false,
+              spellCheck: false,
+            })}
+            // Platform-specific keyboard handling
+            {...(Platform.OS !== 'web' && {
+              returnKeyType: 'search',
+            })}
+          />
+        </View>
+      </View>
+      
       <FlatList
-        data={payments}
+        data={filteredPayments}
         renderItem={renderPayment}
         keyExtractor={item => item.id}
         contentContainerStyle={{ paddingTop: 10 }}
+        ListEmptyComponent={
+          <ThemedText style={styles.emptyText}>
+            {searchQuery ? 'No payments found matching your search.' : 'No payments found.'}
+          </ThemedText>
+        }
       />
     </ThemedView>
   );
@@ -286,5 +371,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  searchRow: {
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 12,
+    // Mobile-specific padding for better touch targets
+    paddingVertical: Platform.OS === 'web' && isMobileBrowser() ? 16 : 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchIconText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: Platform.OS === 'web' && isMobileBrowser() ? 16 : 12,
+    fontSize: Platform.OS === 'web' && isMobileBrowser() ? 18 : 16,
+    color: '#333',
+    // Mobile-specific improvements
+    ...(Platform.OS === 'web' && isMobileBrowser() && {
+      minHeight: 44, // Minimum touch target
+    }),
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 16,
+    marginTop: 40,
   },
 }); 

@@ -2,7 +2,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -12,9 +12,20 @@ import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
 
+// Mobile browser detection for better touch targets
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768);
+};
+
 export default function CompletedJobsScreen() {
   const [loading, setLoading] = useState(true);
   const [completedJobs, setCompletedJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const [filteredJobs, setFilteredJobs] = useState<(Job & { client: Client | null })[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
 
   useEffect(() => {
@@ -32,6 +43,7 @@ export default function CompletedJobsScreen() {
         
         if (clientIds.length === 0) {
           setCompletedJobs([]);
+          setFilteredJobs([]);
           setLoading(false);
           return;
         }
@@ -62,6 +74,7 @@ export default function CompletedJobsScreen() {
         jobsData.sort((a, b) => new Date(b.scheduledTime).getTime() - new Date(a.scheduledTime).getTime());
         
         setCompletedJobs(jobsData);
+        setFilteredJobs(jobsData);
         setLoading(false);
       });
       
@@ -70,6 +83,46 @@ export default function CompletedJobsScreen() {
     
     fetchJobs();
   }, []);
+
+  // Filter jobs based on search query
+  useEffect(() => {
+    if (!completedJobs || completedJobs.length === 0) {
+      setFilteredJobs([]);
+      return;
+    }
+
+    if (searchQuery.trim() === '') {
+      setFilteredJobs(completedJobs);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase();
+    const filtered = completedJobs.filter(job => {
+      const client = job.client;
+      
+      // Search by client name
+      if (client?.name?.toLowerCase().includes(query)) return true;
+      
+      // Search by address
+      if (client?.address1?.toLowerCase().includes(query)) return true;
+      if (client?.town?.toLowerCase().includes(query)) return true;
+      if (client?.postcode?.toLowerCase().includes(query)) return true;
+      if (client?.address?.toLowerCase().includes(query)) return true;
+      
+      // Search by full address string
+      const fullAddress = client?.address1 && client?.town && client?.postcode 
+        ? `${client.address1}, ${client.town}, ${client.postcode}`.toLowerCase()
+        : (client?.address?.toLowerCase() || '');
+      if (fullAddress.includes(query)) return true;
+      
+      // Search by date
+      if (job.scheduledTime.includes(query)) return true;
+      
+      return false;
+    });
+
+    setFilteredJobs(filtered);
+  }, [searchQuery, completedJobs]);
 
   const renderJob = ({ item }: { item: Job & { client: Client | null } }) => {
     const client = item.client;
@@ -197,16 +250,48 @@ export default function CompletedJobsScreen() {
         </Pressable>
       </View>
       <ThemedText style={styles.sectionSubtitle}>
-        Total: £{calculateJobsTotal().toFixed(2)} ({completedJobs.length} jobs)
+        Total: £{calculateJobsTotal().toFixed(2)} ({filteredJobs.length} jobs)
       </ThemedText>
       <ThemedText style={styles.tapInstruction}>
         Tap any job to create a payment
       </ThemedText>
+      
+      {/* Search Input */}
+      <View style={styles.searchRow}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchIcon}>
+            <ThemedText style={styles.searchIconText}>🔍</ThemedText>
+          </View>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, address, or date..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
+            // Mobile-specific props
+            {...(Platform.OS === 'web' && isMobileBrowser() && {
+              autoComplete: 'off',
+              autoCorrect: false,
+              spellCheck: false,
+            })}
+            // Platform-specific keyboard handling
+            {...(Platform.OS !== 'web' && {
+              returnKeyType: 'search',
+            })}
+          />
+        </View>
+      </View>
+      
       <FlatList
-        data={completedJobs}
+        data={filteredJobs}
         renderItem={renderJob}
         keyExtractor={item => item.id}
         contentContainerStyle={{ paddingTop: 10 }}
+        ListEmptyComponent={
+          <ThemedText style={styles.emptyText}>
+            {searchQuery ? 'No jobs found matching your search.' : 'No completed jobs found.'}
+          </ThemedText>
+        }
       />
     </ThemedView>
   );
@@ -305,5 +390,42 @@ const styles = StyleSheet.create({
     color: '#666',
     marginBottom: 16,
     textAlign: 'center',
+  },
+  searchRow: {
+    marginBottom: 16,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    paddingHorizontal: 12,
+    // Mobile-specific padding for better touch targets
+    paddingVertical: Platform.OS === 'web' && isMobileBrowser() ? 16 : 12,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchIconText: {
+    fontSize: 16,
+    color: '#666',
+  },
+  searchInput: {
+    flex: 1,
+    paddingVertical: Platform.OS === 'web' && isMobileBrowser() ? 16 : 12,
+    fontSize: Platform.OS === 'web' && isMobileBrowser() ? 18 : 16,
+    color: '#333',
+    // Mobile-specific improvements
+    ...(Platform.OS === 'web' && isMobileBrowser() && {
+      minHeight: 44, // Minimum touch target
+    }),
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#666',
+    fontSize: 16,
+    marginTop: 40,
   },
 }); 

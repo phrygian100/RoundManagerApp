@@ -5,6 +5,94 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-07-21 - Added Search Functionality to Payments and Completed Jobs 📱💻
+
+### Summary
+Implemented comprehensive search functionality for both payments-list and completed-jobs pages, following established cross-platform patterns from the codebase.
+
+### Features Added
+**1. Search Capabilities**:
+- **Payments List**: Search by client name, address (address1, town, postcode), and payment date
+- **Completed Jobs**: Search by client name, address, and job completion date
+- **Real-time Filtering**: Results update as user types
+- **Cross-field Search**: Single search query searches across multiple fields
+
+**2. Cross-Platform Responsive Design**:
+- **Mobile Browser Detection**: Uses established `isMobileBrowser()` pattern from codebase
+- **Touch-Optimized Inputs**: Larger touch targets (44px minimum) on mobile browsers
+- **Responsive Typography**: Larger font sizes on mobile for better readability
+- **Platform-Specific Behavior**: Different keyboard handling for web vs mobile
+
+**3. Consistent UI/UX**:
+- **Search Icon**: 🔍 icon for visual consistency with other search implementations
+- **Placeholder Text**: Clear, descriptive placeholder text
+- **Empty States**: Contextual empty state messages for search vs no data
+- **Styling Consistency**: Matches existing search patterns from clients.tsx
+
+### Technical Implementation
+**1. Mobile Browser Detection**:
+```javascript
+const isMobileBrowser = () => {
+  if (Platform.OS !== 'web') return false;
+  if (typeof window === 'undefined') return false;
+  const userAgent = window.navigator.userAgent;
+  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
+    (window.innerWidth <= 768);
+};
+```
+
+**2. Responsive Search Input**:
+- **Desktop**: Standard 12px padding, 16px font
+- **Mobile Browser**: 16px padding, 18px font, 44px minimum height
+- **Platform-Specific Props**: Auto-complete disabled on mobile browsers
+- **Keyboard Handling**: Search return key on mobile, standard on web
+
+**3. Search Logic**:
+- **Client Name**: Direct string matching
+- **Address Fields**: Individual field matching (address1, town, postcode, legacy address)
+- **Full Address**: Combined address string matching for partial matches
+- **Date Fields**: Payment date (payments) or scheduled time (jobs)
+
+### Files Modified
+- `app/payments-list.tsx` - Added search functionality with mobile optimization
+- `app/completed-jobs.tsx` - Added search functionality with mobile optimization
+- `docs/code-changes.md` - Updated documentation
+
+### Cross-Platform Considerations
+**1. Regression Prevention**:
+- Followed exact patterns from existing search implementations (clients.tsx)
+- Used established mobile browser detection pattern
+- Maintained consistent styling with existing search inputs
+
+**2. Performance Optimization**:
+- Client-side filtering for immediate response
+- Efficient string matching with proper null checks
+- No additional network requests during search
+
+**3. Accessibility**:
+- Adequate touch targets on mobile browsers
+- Clear visual feedback and placeholder text
+- Proper keyboard handling across platforms
+
+### User Experience
+- ✅ **Desktop Web**: Clean, professional search interface
+- ✅ **Mobile Browser**: Touch-optimized with larger inputs
+- ✅ **Native Mobile**: Standard mobile input behavior
+- ✅ **Real-time Search**: Instant results as user types
+- ✅ **Empty States**: Clear feedback when no results found
+- ✅ **Consistent UX**: Matches existing app search patterns
+
+### Testing Recommendations
+1. **Desktop Browsers**: Chrome, Safari, Firefox
+2. **Mobile Browsers**: Chrome on Android, Safari on iOS
+3. **Native Apps**: iOS and Android apps
+4. **Large Datasets**: Test with 1000+ payments/jobs
+5. **Edge Cases**: Empty searches, special characters, long addresses
+
+**Priority**: MEDIUM - Enhanced user experience with search functionality
+
+---
+
 ## 2025-01-31 - Fixed Delete Buttons Regression Caused by Authentication Changes 🔧
 
 ### Issue Discovered
