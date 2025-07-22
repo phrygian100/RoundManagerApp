@@ -1,6 +1,40 @@
-import { collection, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+
+/**
+ * Updates GoCardless settings for a specific client
+ */
+export async function updateClientGoCardlessSettings(
+  clientId: string,
+  settings: { enabled: boolean; customerId?: string }
+): Promise<void> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      throw new Error('User not authenticated');
+    }
+
+    const clientRef = doc(db, 'clients', clientId);
+    
+    const updateData: any = {
+      gocardlessEnabled: settings.enabled,
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (settings.enabled) {
+      updateData.gocardlessCustomerId = settings.customerId;
+    } else {
+      // Clear the customer ID when disabled
+      updateData.gocardlessCustomerId = null;
+    }
+
+    await updateDoc(clientRef, updateData);
+  } catch (error) {
+    console.error('Error updating GoCardless settings:', error);
+    throw error;
+  }
+}
 
 /**
  * Gets the count of all clients for the current owner

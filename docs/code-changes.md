@@ -4486,3 +4486,87 @@ const handleDownload = () => {
 **Priority**: MEDIUM - UI/UX improvements and foundation for future email/download features
 
 ---
+
+## 2025-01-31 - GoCardless Integration Foundation 🏦
+
+### Summary
+Implemented the foundation for GoCardless Direct Debit integration, adding client tagging and settings management capabilities. This is the first step towards automated payment collection for cleaning businesses.
+
+### New Features Implemented
+
+**1. Client GoCardless Tagging**:
+- Added `gocardlessEnabled` and `gocardlessCustomerId` fields to Client type
+- New yellow "DD" (Direct Debit) button in client detail screen
+- GoCardless status display in client information section
+- Modal interface for enabling/disabling GoCardless per client
+
+**2. GoCardless Settings Modal**:
+- Toggle switch for enabling/disabling GoCardless
+- Customer ID input field (required when enabled)
+- Warning dialog when disabling configured clients
+- Cross-platform input handling (web/native)
+- Simple "Saved" success message
+
+**3. Data Management**:
+- Firebase integration for storing GoCardless settings
+- Service layer for updating client GoCardless configuration
+- Automatic client data refresh after settings changes
+- Graceful error handling and validation
+
+### Technical Implementation
+
+**Data Model Changes**:
+```typescript
+// Added to Client type
+{
+  gocardlessEnabled?: boolean;     // defaults to false
+  gocardlessCustomerId?: string;   // required when enabled
+}
+```
+
+**New Components**:
+- `GoCardlessSettingsModal.tsx` - Settings management interface
+- Updated `clientService.ts` - Added `updateClientGoCardlessSettings()`
+
+**UI Integration**:
+- 6th action button (yellow "DD" icon) in client detail screen
+- GoCardless status display below "Source" field
+- Modal accessible via action button
+
+### User Experience
+
+**Client Management**:
+- Visual indicator of GoCardless status in client view
+- One-click access to GoCardless settings
+- Clear on/off toggle with confirmation for disabling
+- Required field validation for Customer ID
+
+**Settings Flow**:
+1. User clicks yellow "DD" button
+2. Modal opens with current settings
+3. Toggle GoCardless on/off
+4. Enter Customer ID when enabled
+5. Save with success confirmation
+
+### Next Steps
+
+This foundation enables:
+- **Client Tagging**: Mark specific clients for GoCardless integration
+- **Settings Management**: Configure Customer IDs for each client
+- **Data Preparation**: Ready for API integration with GoCardless
+
+**Future Implementation**:
+- GoCardless API integration for mandate creation
+- Automatic payment collection when jobs are completed
+- Webhook handling for payment status updates
+- Payment record creation in accounts section
+
+### Files Modified
+- `types/client.ts` - Added GoCardless fields
+- `components/GoCardlessSettingsModal.tsx` - New modal component (created)
+- `services/clientService.ts` - Added update function
+- `app/(tabs)/clients/[id].tsx` - UI integration and handlers
+
+**Impact**: Foundation complete for GoCardless integration. Users can now tag clients and configure Customer IDs, ready for the next phase of API integration.
+
+---

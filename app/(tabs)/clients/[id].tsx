@@ -7,12 +7,14 @@ import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { db } from '../../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../../core/session';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
+import { updateClientGoCardlessSettings } from '../../../services/clientService';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
@@ -78,6 +80,9 @@ export default function ClientDetailScreen() {
   const [editServicePrice, setEditServicePrice] = useState('');
   const [editServiceNextVisit, setEditServiceNextVisit] = useState(new Date());
   const [showEditServiceDatePicker, setShowEditServiceDatePicker] = useState(false);
+
+  // GoCardless settings modal state
+  const [gocardlessModalVisible, setGocardlessModalVisible] = useState(false);
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -420,6 +425,23 @@ export default function ClientDetailScreen() {
     setNotesModalVisible(true);
   };
 
+  const handleGocardlessSettings = () => {
+    setGocardlessModalVisible(true);
+  };
+
+  const handleSaveGocardlessSettings = async (settings: { enabled: boolean; customerId: string }) => {
+    if (typeof id !== 'string') return;
+    
+    try {
+      await updateClientGoCardlessSettings(id, settings);
+      // Refresh client data to show updated settings
+      fetchClient();
+    } catch (error) {
+      console.error('Error saving GoCardless settings:', error);
+      throw error; // Let the modal handle the error display
+    }
+  };
+
   const handleSaveNotes = async () => {
     if (typeof id !== 'string') return;
     
@@ -499,11 +521,10 @@ export default function ClientDetailScreen() {
         await logAction(
           'job_created',
           'job',
-          jobData.clientId,
+          typeof jobData.clientId === 'string' ? jobData.clientId : Array.isArray(jobData.clientId) ? jobData.clientId[0] : '',
           formatAuditDescription('job_created', `${clientAddress} (${finalJobType} on ${format(jobDate, 'do MMM yyyy')})`)
         );
       }
-      
       Alert.alert('Success', 'Job added successfully.');
       setModalVisible(false);
       setJobNotes('');
@@ -698,6 +719,7 @@ export default function ClientDetailScreen() {
                 {client.source && (
                   <ThemedText>Source: {client.source}</ThemedText>
                 )}
+                <ThemedText>GoCardless Customer: {client.gocardlessEnabled ? 'True' : 'False'}</ThemedText>
               </View>
               
               {/* Additional Recurring Services Panel */}
@@ -798,6 +820,16 @@ export default function ClientDetailScreen() {
                     onPress={handleDelete}
                   >
                     <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>🗂️</ThemedText>
+                  </Pressable>
+                  <Pressable 
+                    style={[
+                      styles.verticalButton, 
+                      styles.gocardlessButton,
+                      isMobileBrowser() && styles.mobileVerticalButton
+                    ]} 
+                    onPress={handleGocardlessSettings}
+                  >
+                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>DD</ThemedText>
                   </Pressable>
                 </View>
               </View>
@@ -1411,6 +1443,14 @@ export default function ClientDetailScreen() {
           </View>
         </View>
       </Modal>
+      
+      {/* GoCardless Settings Modal */}
+      <GoCardlessSettingsModal
+        visible={gocardlessModalVisible}
+        onClose={() => setGocardlessModalVisible(false)}
+        client={client}
+        onSave={handleSaveGocardlessSettings}
+      />
     </ThemedView>
   );
 }
@@ -1778,6 +1818,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 5,
     color: '#555',
+  },
+  gocardlessButton: {
+    backgroundColor: '#FFD700',
+    borderColor: '#FFC107',
   },
 });
 

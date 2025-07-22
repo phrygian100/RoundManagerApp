@@ -24,6 +24,9 @@ export type Client = {
   dateAdded?: string;
   source?: string;
   startingBalance?: number; // Starting balance for the client account
+  // GoCardless integration
+  gocardlessEnabled?: boolean; // defaults to false
+  gocardlessCustomerId?: string; // required when enabled
   // Notes
   runsheetNotes?: string; // Notes that appear when clicking ! icon in runsheet
   accountNotes?: AccountNote[]; // Running list of notes with timestamp and author
