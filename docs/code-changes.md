@@ -5,19 +5,44 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
-## 2025-01-31 - Enhanced GoCardless Integration with Improved Error Handling and User Experience 🔧
+## 2025-01-31 - Enhanced GoCardless Integration with Comprehensive Error Handling and Validation 🔧
 
 ### Summary
-Enhanced the GoCardless integration with better error handling, user feedback, and improved functionality based on code review findings.
+Enhanced the GoCardless integration with comprehensive error handling, validation, user feedback, and improved functionality based on thorough code review findings.
 
 ### Key Improvements Implemented
 
-**1. Better Error Handling & User Feedback**:
-- Added user notification when GoCardless is not configured but jobs are GoCardless-enabled
-- Users now receive clear feedback about why GoCardless payments weren't processed
-- Prevents silent failures and improves user experience
+**1. Sequential API Payment Failure Handling**:
+- Added warning popup when any API payment fails during day completion
+- Shows individual error details for each failed payment sequentially
+- Continues processing routine after user dismisses errors
+- Prevents silent failures and ensures user awareness of all issues
 
-**2. Test Connection Button**:
+**2. Enhanced Input Validation**:
+- Added customer ID format validation (must match GoCardless format: CU + alphanumeric)
+- Added payment amount validation (must be positive number)
+- Added mandate status validation with clear error messages
+- Prevents invalid data from reaching GoCardless API
+
+**3. Client Settings Synchronization**:
+- When client GoCardless settings are updated, all future jobs are automatically updated
+- Only updates jobs on runsheets that haven't been completed yet
+- Maintains data consistency between client and job records
+- Prevents stale GoCardless information on jobs
+
+**4. Network Error Recovery**:
+- Added retry logic with exponential backoff for network failures
+- 3 retry attempts with increasing delays (1s, 2s, 3s)
+- 30-second timeout for API calls to prevent hanging requests
+- Automatic recovery from temporary network issues
+
+**5. Comprehensive Audit Logging**:
+- Logs both successful and failed payment attempts
+- Tracks individual payment failures with detailed error messages
+- Maintains complete audit trail for compliance and debugging
+- Separate audit entries for each failed payment
+
+**6. Test Connection Button**:
 - Added "Test" button to GoCardless API Token modal
 - Validates API tokens before saving to prevent configuration issues
 - Provides immediate feedback on token validity
@@ -25,30 +50,30 @@ Enhanced the GoCardless integration with better error handling, user feedback, a
 - **Mobile Platform**: Performs actual API connection test
 - Clear messaging about platform-specific behavior
 
-**3. Fixed Payment Amount Conversion**:
+**7. Fixed Payment Amount Conversion**:
 - Fixed potential floating-point precision issues in payment amounts
 - Changed from `amount * 100` to `Math.round(amount * 100)` for proper pence conversion
 - Ensures accurate payment amounts for amounts like £10.99
 
-**4. Improved Mandate Lookup Logic**:
+**8. Improved Mandate Lookup Logic**:
 - Updated mandate selection to use the most recently created active mandate
 - Previously used first active mandate, now sorts by creation date
 - Handles customers with multiple mandates more intelligently
 - Ensures most recent mandate is used for payments
 
-**5. Changed Payment Creation Order**:
+**9. Changed Payment Creation Order**:
 - Modified day completion to create GoCardless API payments FIRST
 - Only creates local payment records after successful API payment creation
 - Prevents data inconsistency if API payments fail
 - Better error handling and rollback capability
 
-**6. User-Friendly Error Messages**:
+**10. User-Friendly Error Messages**:
 - Added comprehensive error message mapping for common GoCardless errors
 - Converts technical API errors to user-friendly messages
 - Covers mandate issues, authentication failures, insufficient funds, etc.
 - Improves user understanding of payment failures
 
-**7. Audit Logging for GoCardless Operations**:
+**11. Audit Logging for GoCardless Operations**:
 - Added `gocardless_payments_processed` audit action type
 - Logs GoCardless payment processing activities
 - Tracks who processed payments and when

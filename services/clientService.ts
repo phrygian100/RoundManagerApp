@@ -30,9 +30,102 @@ export async function updateClientGoCardlessSettings(
     }
 
     await updateDoc(clientRef, updateData);
+
+    // Update all jobs for this client that are on incomplete runsheets
+    await updateClientJobsGoCardlessSettings(clientId, settings);
   } catch (error) {
     console.error('Error updating GoCardless settings:', error);
     throw error;
+  }
+}
+
+/**
+ * Update GoCardless settings for all jobs belonging to a client
+ * Only updates jobs on runsheets that haven't been completed yet
+ */
+async function updateClientJobsGoCardlessSettings(
+  clientId: string,
+  settings: { enabled: boolean; customerId?: string }
+): Promise<void> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      throw new Error('User not authenticated');
+    }
+
+    // Get all jobs for this client
+    const jobsQuery = query(
+      collection(db, 'jobs'),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', clientId)
+    );
+    
+    const jobsSnapshot = await getDocs(jobsQuery);
+    
+    if (jobsSnapshot.empty) {
+      return;
+    }
+
+    // Get all completed days to filter out jobs on completed runsheets
+    const completedDaysQuery = query(
+      collection(db, 'completedDays'),
+      where('ownerId', '==', ownerId)
+    );
+    
+    const completedDaysSnapshot = await getDocs(completedDaysQuery);
+    const completedDays = new Set<string>();
+    
+    completedDaysSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.dayTitle) {
+        completedDays.add(data.dayTitle);
+      }
+    });
+
+    // Filter jobs that are on incomplete runsheets
+    const jobsToUpdate: any[] = [];
+    
+    jobsSnapshot.forEach(doc => {
+      const jobData = doc.data();
+      const scheduledDate = new Date(jobData.scheduledTime);
+      const dayTitle = scheduledDate.toLocaleDateString('en-US', { weekday: 'long' });
+      
+      // Only update jobs on runsheets that haven't been completed
+      if (!completedDays.has(dayTitle)) {
+        jobsToUpdate.push({
+          id: doc.id,
+          ref: doc.ref,
+          data: jobData
+        });
+      }
+    });
+
+    if (jobsToUpdate.length === 0) {
+      return;
+    }
+
+    // Update jobs in batches
+    const batchSize = 500;
+    for (let i = 0; i < jobsToUpdate.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const batchJobs = jobsToUpdate.slice(i, i + batchSize);
+      
+      batchJobs.forEach(job => {
+        batch.update(job.ref, {
+          gocardlessEnabled: settings.enabled,
+          gocardlessCustomerId: settings.enabled ? settings.customerId : null,
+          updatedAt: new Date().toISOString()
+        });
+      });
+      
+      await batch.commit();
+    }
+
+    console.log(`Updated GoCardless settings for ${jobsToUpdate.length} jobs for client ${clientId}`);
+  } catch (error) {
+    console.error('Error updating client jobs GoCardless settings:', error);
+    // Don't throw error here as the client update was successful
+    // Just log the error for debugging
   }
 }
 

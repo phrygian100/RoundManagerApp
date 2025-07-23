@@ -120,45 +120,88 @@ export class GoCardlessService {
    * Create a payment request in GoCardless
    */
   async createPayment(paymentRequest: GoCardlessPaymentRequest): Promise<GoCardlessPaymentResponse> {
-    try {
-      // First, get the mandate ID for the customer
-      const mandateId = await this.getMandateForCustomer(paymentRequest.customerId);
-      if (!mandateId) {
-        throw new Error(`No active mandate found for customer ${paymentRequest.customerId}`);
-      }
+    const maxRetries = 3;
+    const retryDelay = 1000; // 1 second
 
-      const response = await fetch(`${this.baseUrl}/payments`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.apiToken}`,
-          'Content-Type': 'application/json',
-          'GoCardless-Version': '2015-07-06'
-        },
-        body: JSON.stringify({
-          payments: {
-            amount: Math.round(paymentRequest.amount * 100), // Convert to pence with proper rounding
-            currency: paymentRequest.currency,
-            links: {
-              mandate: mandateId // Use the actual mandate ID
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        // Validate customer ID format
+        if (!this.isValidCustomerId(paymentRequest.customerId)) {
+          throw new Error(`Invalid GoCardless customer ID format: ${paymentRequest.customerId}. Customer IDs should be in the format CU followed by alphanumeric characters.`);
+        }
+
+        // Validate amount
+        if (!this.isValidAmount(paymentRequest.amount)) {
+          throw new Error(`Invalid payment amount: ${paymentRequest.amount}. Amount must be a positive number.`);
+        }
+
+        // First, get the mandate ID for the customer
+        const mandateId = await this.getMandateForCustomer(paymentRequest.customerId);
+        if (!mandateId) {
+          throw new Error(`No active mandate found for customer ${paymentRequest.customerId}. Please ensure the customer has completed the direct debit setup and the mandate is active.`);
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+        try {
+          const response = await fetch(`${this.baseUrl}/payments`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.apiToken}`,
+              'Content-Type': 'application/json',
+              'GoCardless-Version': '2015-07-06'
             },
-            description: paymentRequest.description,
-            reference: paymentRequest.reference || `DD-${Date.now()}`
+            body: JSON.stringify({
+              payments: {
+                amount: Math.round(paymentRequest.amount * 100), // Convert to pence with proper rounding
+                currency: paymentRequest.currency,
+                links: {
+                  mandate: mandateId // Use the actual mandate ID
+                },
+                description: paymentRequest.description,
+                reference: paymentRequest.reference || `DD-${Date.now()}`
+              }
+            }),
+            signal: controller.signal
+          });
+
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            const errorData: GoCardlessError = await response.json();
+            const userFriendlyMessage = getUserFriendlyErrorMessage(errorData.error.code, errorData.error.message);
+            throw new Error(userFriendlyMessage);
           }
-        })
-      });
 
-      if (!response.ok) {
-        const errorData: GoCardlessError = await response.json();
-        const userFriendlyMessage = getUserFriendlyErrorMessage(errorData.error.code, errorData.error.message);
-        throw new Error(userFriendlyMessage);
-      }
-
-      const data = await response.json();
-      return data.payments;
-    } catch (error) {
-      console.error('Error creating GoCardless payment:', error);
-      throw error;
+          const data = await response.json();
+          return data.payments;
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
+        }
+              } catch (error) {
+          const errorObj = error as any;
+          const isNetworkError = error instanceof TypeError || 
+                                errorObj.name === 'AbortError' || 
+                                (errorObj.message && errorObj.message.includes('fetch'));
+          
+          const isRetryable = isNetworkError && attempt < maxRetries;
+          
+          if (isRetryable) {
+            console.log(`GoCardless payment attempt ${attempt} failed (network error), retrying in ${retryDelay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, retryDelay * attempt)); // Exponential backoff
+            continue;
+          }
+          
+          // If it's the last attempt or a non-retryable error, throw it
+          console.error(`Error creating GoCardless payment (attempt ${attempt}/${maxRetries}):`, error);
+          throw error;
+        }
     }
+    
+    // This should never be reached, but TypeScript requires it
+    throw new Error('Unexpected error in payment creation');
   }
 
   /**
@@ -219,5 +262,27 @@ export class GoCardlessService {
       console.error('GoCardless connection test failed:', error);
       return false;
     }
+  }
+
+  /**
+   * Validate GoCardless customer ID format
+   */
+  private isValidCustomerId(customerId: string): boolean {
+    if (!customerId || typeof customerId !== 'string') {
+      return false;
+    }
+    // GoCardless customer IDs typically start with 'CU' followed by alphanumeric characters
+    const customerIdPattern = /^CU[A-Z0-9]+$/i;
+    return customerIdPattern.test(customerId);
+  }
+
+  /**
+   * Validate payment amount
+   */
+  private isValidAmount(amount: number): boolean {
+    return typeof amount === 'number' && 
+           !isNaN(amount) && 
+           isFinite(amount) && 
+           amount > 0;
   }
 } 

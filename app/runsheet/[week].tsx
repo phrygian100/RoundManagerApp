@@ -1107,6 +1107,7 @@ www.tgmwindowcleaning.co.uk`;
         const completionDate = format(new Date(), 'yyyy-MM-dd');
         const apiErrors: string[] = [];
         let apiPaymentsCreated = 0;
+        const failedPayments: Array<{ clientId: string; error: string }> = [];
 
         for (const [clientId, jobs] of gocardlessJobsByClient) {
           try {
@@ -1128,10 +1129,41 @@ www.tgmwindowcleaning.co.uk`;
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             console.error(`Failed to create GoCardless payment for client ${clientId}:`, errorMessage);
             apiErrors.push(`Client ${clientId}: ${errorMessage}`);
+            failedPayments.push({ clientId, error: errorMessage });
           }
         }
 
-        // Only create local payments if API payments were successful
+        // Show warning if any API payments failed
+        if (failedPayments.length > 0) {
+          const warningMessage = `Some GoCardless payments failed. You'll see details for each failed payment.\n\n${failedPayments.length} payment(s) failed to process.`;
+          
+          if (Platform.OS === 'web') {
+            window.alert(warningMessage);
+          } else {
+            await new Promise<void>((resolve) => {
+              Alert.alert('GoCardless Payment Warning', warningMessage, [
+                { text: 'Continue', onPress: () => resolve() }
+              ]);
+            });
+          }
+
+          // Show individual error for each failed payment
+          for (const failedPayment of failedPayments) {
+            const errorMessage = `GoCardless API payment failed for client ${failedPayment.clientId}:\n\n${failedPayment.error}`;
+            
+            if (Platform.OS === 'web') {
+              window.alert(errorMessage);
+            } else {
+              await new Promise<void>((resolve) => {
+                Alert.alert('Payment Failed', errorMessage, [
+                  { text: 'OK', onPress: () => resolve() }
+                ]);
+              });
+            }
+          }
+        }
+
+        // Create local payments for successful API payments
         let localPaymentsCreated = 0;
         if (apiPaymentsCreated > 0) {
           const completionDate = format(new Date(), 'yyyy-MM-dd');
@@ -1146,6 +1178,18 @@ www.tgmwindowcleaning.co.uk`;
             'batch',
             formatAuditDescription('gocardless_payments_processed', `${apiPaymentsCreated} direct debit(s) raised for ${dayTitle}`)
           );
+        }
+
+        // Log failed payments to audit trail
+        if (failedPayments.length > 0) {
+          for (const failedPayment of failedPayments) {
+            await logAction(
+              'gocardless_payments_processed',
+              'payment',
+              'failed',
+              formatAuditDescription('gocardless_payments_processed', `Failed to create direct debit for client ${failedPayment.clientId}: ${failedPayment.error}`)
+            );
+          }
         }
 
         // Show results to user
