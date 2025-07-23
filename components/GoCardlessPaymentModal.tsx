@@ -1,3 +1,6 @@
+import { format } from 'date-fns';
+import { getApp } from 'firebase/app';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -8,7 +11,7 @@ import {
     StyleSheet,
     View
 } from 'react-native';
-import { getPaymentsForJob } from '../services/paymentService';
+import { createPayment, getPaymentsForJob } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import { ThemedText } from './ThemedText';
@@ -44,26 +47,65 @@ export default function GoCardlessPaymentModal({
         return;
       }
 
-      // TEMPORARY: Show message about using day completion
-      const message = `GoCardless payment initiation is currently being set up. For now, please use the "Day Complete" button to process GoCardless payments for all completed jobs on that day.`;
+      // Create GoCardless API payment via Firebase Function
+      const functions = getFunctions(getApp());
+      const createGoCardlessPayment = httpsCallable(functions, 'createGoCardlessPayment');
+      
+      const paymentDate = format(new Date(), 'yyyy-MM-dd');
+      
+      // Use job's GoCardless settings or fall back to client's settings
+      const gocardlessCustomerId = job.gocardlessCustomerId || client?.gocardlessCustomerId;
+      
+      const paymentRequest = {
+        amount: job.price,
+        currency: 'GBP',
+        customerId: gocardlessCustomerId!,
+        description: `Cleaning service - ${client.name}`,
+        reference: `DD-${paymentDate}-${job.id}`
+      };
+
+      const result = await createGoCardlessPayment(paymentRequest);
+      const response = result.data as any;
+      
+      if (response.success) {
+        console.log('GoCardless payment created:', response.payment.id);
+      } else {
+        throw new Error(response.message || 'Payment creation failed');
+      }
+
+      // Create local payment record
+      const paymentData = {
+        clientId: job.clientId,
+        jobId: job.id,
+        amount: job.price,
+        date: paymentDate,
+        method: 'direct_debit' as const,
+        reference: `DD-${paymentDate}-${job.id}`,
+        notes: `GoCardless payment for ${client.name} - ${job.propertyDetails}`,
+      };
+
+      await createPayment(paymentData);
+
+      // Show success message
+      const successMessage = `Direct debit payment of £${job.price.toFixed(2)} has been initiated for ${client.name}.`;
       
       if (Platform.OS === 'web') {
-        window.alert(message);
+        window.alert(successMessage);
       } else {
-        Alert.alert('Feature Coming Soon', message, [
+        Alert.alert('Payment Initiated', successMessage, [
           { text: 'OK', onPress: onClose }
         ]);
       }
 
       onClose();
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error creating GoCardless payment:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       if (Platform.OS === 'web') {
-        window.alert(`Error: ${errorMessage}`);
+        window.alert(`Failed to initiate payment: ${errorMessage}`);
       } else {
-        Alert.alert('Error', `Error: ${errorMessage}`, [
+        Alert.alert('Payment Failed', `Failed to initiate payment: ${errorMessage}`, [
           { text: 'OK' }
         ]);
       }
