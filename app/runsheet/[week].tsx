@@ -11,7 +11,9 @@ import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
 import { formatAuditDescription, logAction } from '../../services/auditService';
+import { GoCardlessService } from '../../services/gocardlessService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
+import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { checkClientLimit } from '../../services/subscriptionService';
@@ -1046,10 +1048,128 @@ www.tgmwindowcleaning.co.uk`;
         ownerId: ownerId     // Add ownerId for backward compatibility
       });
 
-      Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}`);
+      // Process GoCardless payments for completed jobs
+      await processGoCardlessPayments(dayJobs, dayTitle);
     } catch (error) {
       console.error('Error completing day:', error);
       Alert.alert('Error', 'Failed to complete day. Please try again.');
+    }
+  };
+
+  /**
+   * Process GoCardless payments for completed jobs
+   */
+  const processGoCardlessPayments = async (dayJobs: any[], dayTitle: string) => {
+    try {
+      // Check if GoCardless is configured
+      const isConfigured = await GoCardlessService.isConfigured();
+      if (!isConfigured) {
+        console.log('GoCardless not configured, skipping payment processing');
+        return;
+      }
+
+      // Get GoCardless API token
+      const apiToken = await GoCardlessService.getUserApiToken();
+      if (!apiToken) {
+        console.log('No GoCardless API token found, skipping payment processing');
+        // Check if any jobs are GoCardless enabled to inform user
+        const hasGoCardlessJobs = dayJobs.some(job => job.gocardlessEnabled);
+        if (hasGoCardlessJobs) {
+          Alert.alert(
+            'GoCardless Not Configured',
+            'Some jobs are marked for direct debit but GoCardless is not configured. Please set up your GoCardless API token in Settings to enable automatic payment processing.',
+            [{ text: 'OK' }]
+          );
+        }
+        return;
+      }
+
+      // Create GoCardless service instance
+      const gocardlessService = new GoCardlessService(apiToken);
+
+      // Group jobs by client for GoCardless API calls
+      const gocardlessJobsByClient = new Map<string, Array<{ price: number; gocardlessCustomerId: string }>>();
+      
+      dayJobs.forEach(job => {
+        if (job.gocardlessEnabled && job.gocardlessCustomerId) {
+          if (!gocardlessJobsByClient.has(job.clientId)) {
+            gocardlessJobsByClient.set(job.clientId, []);
+          }
+          gocardlessJobsByClient.get(job.clientId)!.push({
+            price: job.price,
+            gocardlessCustomerId: job.gocardlessCustomerId
+          });
+        }
+      });
+
+      if (gocardlessJobsByClient.size > 0) {
+        // Create actual GoCardless API payments FIRST
+        const completionDate = format(new Date(), 'yyyy-MM-dd');
+        const apiErrors: string[] = [];
+        let apiPaymentsCreated = 0;
+
+        for (const [clientId, jobs] of gocardlessJobsByClient) {
+          try {
+            const totalAmount = jobs.reduce((sum, job) => sum + job.price, 0);
+            const firstJob = jobs[0];
+
+            const paymentRequest = {
+              amount: totalAmount,
+              currency: 'GBP',
+              customerId: firstJob.gocardlessCustomerId,
+              description: `Cleaning services for ${dayTitle}`,
+              reference: `DD-${completionDate}-${clientId}`
+            };
+
+            const response = await gocardlessService.createPayment(paymentRequest);
+            console.log(`GoCardless payment created for client ${clientId}:`, response.id);
+            apiPaymentsCreated++;
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            console.error(`Failed to create GoCardless payment for client ${clientId}:`, errorMessage);
+            apiErrors.push(`Client ${clientId}: ${errorMessage}`);
+          }
+        }
+
+        // Only create local payments if API payments were successful
+        let localPaymentsCreated = 0;
+        if (apiPaymentsCreated > 0) {
+          const completionDate = format(new Date(), 'yyyy-MM-dd');
+          const paymentResult = await createGoCardlessPaymentsForDay(dayJobs, completionDate);
+          localPaymentsCreated = paymentResult.paymentsCreated;
+          console.log(`Created ${localPaymentsCreated} GoCardless payments in app`);
+          
+          // Log the GoCardless payment processing
+          await logAction(
+            'gocardless_payments_processed',
+            'payment',
+            'batch',
+            formatAuditDescription('gocardless_payments_processed', `${apiPaymentsCreated} direct debit(s) raised for ${dayTitle}`)
+          );
+        }
+
+        // Show results to user
+        let message = `${dayJobs.length} jobs marked as completed for ${dayTitle}`;
+        if (localPaymentsCreated > 0) {
+          message += `\n\n${localPaymentsCreated} direct debit payment(s) created in app`;
+        }
+        if (apiPaymentsCreated > 0) {
+          message += `\n\n${apiPaymentsCreated} direct debit(s) raised in GoCardless`;
+        }
+        if (apiErrors.length > 0) {
+          message += `\n\n${apiErrors.length} payment(s) failed: ${apiErrors.join(', ')}`;
+        }
+
+        Alert.alert('Day Complete', message);
+      } else {
+        console.log('No GoCardless payments to process');
+        Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}`);
+      }
+
+    } catch (error) {
+      console.error('Error processing GoCardless payments:', error);
+      // Don't fail the day completion if GoCardless processing fails
+      Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}\n\nNote: GoCardless payment processing failed`);
     }
   };
 

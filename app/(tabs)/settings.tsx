@@ -12,6 +12,7 @@ import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
+import { GoCardlessService } from '../../services/gocardlessService';
 import { deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
@@ -312,6 +313,17 @@ export default function SettingsScreen() {
       throw error; // Re-throw to let the modal handle the error
     } finally {
       setSavingApiToken(false);
+    }
+  };
+
+  // Test GoCardless API connection
+  const handleTestGoCardlessConnection = async (token: string): Promise<boolean> => {
+    try {
+      const gocardlessService = new GoCardlessService(token);
+      return await gocardlessService.testConnection();
+    } catch (error) {
+      console.error('Error testing GoCardless connection:', error);
+      return false;
     }
   };
 
@@ -2353,6 +2365,7 @@ export default function SettingsScreen() {
         onClose={() => setGocardlessApiTokenModalVisible(false)}
         currentToken={currentApiToken}
         onSave={handleSaveGoCardlessApiToken}
+        onTestConnection={handleTestGoCardlessConnection}
       />
     </ThemedView>
   );

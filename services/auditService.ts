@@ -174,6 +174,8 @@ export function formatAuditDescription(
       return `Added one-time job${entityDisplay}`;
     case 'recurring_service_added':
       return `Added recurring service${entityDisplay}`;
+    case 'gocardless_payments_processed':
+      return `Processed GoCardless payments${entityDisplay}`;
     default:
       return `Performed ${actionType}${entityDisplay}`;
   }

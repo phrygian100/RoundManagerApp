@@ -131,4 +131,74 @@ export async function deleteAllPayments(): Promise<void> {
     console.error('Error deleting all payments:', error);
     throw error;
   }
+}
+
+/**
+ * Create payments for GoCardless clients when completing a day
+ */
+export async function createGoCardlessPaymentsForDay(
+  dayJobs: Array<{ id: string; clientId: string; price: number; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>,
+  completionDate: string
+): Promise<{ success: boolean; paymentsCreated: number; errors: string[] }> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) throw new Error('User not authenticated');
+
+  const errors: string[] = [];
+  let paymentsCreated = 0;
+
+  try {
+    // Group jobs by client and filter for GoCardless clients
+    const gocardlessJobsByClient = new Map<string, Array<{ id: string; price: number; gocardlessCustomerId?: string }>>();
+    
+    dayJobs.forEach(job => {
+      if (job.gocardlessEnabled && job.gocardlessCustomerId) {
+        if (!gocardlessJobsByClient.has(job.clientId)) {
+          gocardlessJobsByClient.set(job.clientId, []);
+        }
+        gocardlessJobsByClient.get(job.clientId)!.push({
+          id: job.id,
+          price: job.price,
+          gocardlessCustomerId: job.gocardlessCustomerId
+        });
+      }
+    });
+
+    if (gocardlessJobsByClient.size === 0) {
+      return { success: true, paymentsCreated: 0, errors: [] };
+    }
+
+    // Create payments for each GoCardless client
+    const batch = writeBatch(db);
+    const now = new Date().toISOString();
+
+    for (const [clientId, jobs] of gocardlessJobsByClient) {
+      const totalAmount = jobs.reduce((sum, job) => sum + job.price, 0);
+      const firstJobId = jobs[0].id; // Use first job as reference
+
+      const paymentData = {
+        ownerId,
+        clientId,
+        jobId: firstJobId, // Link to first job of the day
+        amount: totalAmount,
+        date: completionDate,
+        method: 'direct_debit' as const,
+        reference: `DD-${completionDate}-${clientId}`,
+        notes: `Auto-generated direct debit for ${jobs.length} completed job(s)`,
+        createdAt: now,
+        updatedAt: now,
+      };
+
+      const paymentRef = doc(collection(db, PAYMENTS_COLLECTION));
+      batch.set(paymentRef, paymentData);
+      paymentsCreated++;
+    }
+
+    await batch.commit();
+    return { success: true, paymentsCreated, errors };
+
+  } catch (error) {
+    console.error('Error creating GoCardless payments:', error);
+    errors.push(`Failed to create payments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { success: false, paymentsCreated, errors };
+  }
 } 

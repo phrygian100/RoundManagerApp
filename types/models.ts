@@ -65,7 +65,7 @@ export type Payment = {
   jobId?: string; // Link to the job if payment is for a specific job
   amount: number;
   date: string; // ISO date string
-  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'auto_balance';
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'auto_balance' | 'direct_debit';
   reference?: string; // payment reference or cheque number
   notes?: string;
   createdAt: string; // ISO date string

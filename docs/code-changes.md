@@ -5,6 +5,114 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Enhanced GoCardless Integration with Improved Error Handling and User Experience 🔧
+
+### Summary
+Enhanced the GoCardless integration with better error handling, user feedback, and improved functionality based on code review findings.
+
+### Key Improvements Implemented
+
+**1. Better Error Handling & User Feedback**:
+- Added user notification when GoCardless is not configured but jobs are GoCardless-enabled
+- Users now receive clear feedback about why GoCardless payments weren't processed
+- Prevents silent failures and improves user experience
+
+**2. Test Connection Button**:
+- Added "Test" button to GoCardless API Token modal
+- Validates API tokens before saving to prevent configuration issues
+- Provides immediate feedback on token validity
+- Uses GoCardless API connection test for real validation
+
+**3. Fixed Payment Amount Conversion**:
+- Fixed potential floating-point precision issues in payment amounts
+- Changed from `amount * 100` to `Math.round(amount * 100)` for proper pence conversion
+- Ensures accurate payment amounts for amounts like £10.99
+
+**4. Improved Mandate Lookup Logic**:
+- Updated mandate selection to use the most recently created active mandate
+- Previously used first active mandate, now sorts by creation date
+- Handles customers with multiple mandates more intelligently
+- Ensures most recent mandate is used for payments
+
+**5. Changed Payment Creation Order**:
+- Modified day completion to create GoCardless API payments FIRST
+- Only creates local payment records after successful API payment creation
+- Prevents data inconsistency if API payments fail
+- Better error handling and rollback capability
+
+**6. User-Friendly Error Messages**:
+- Added comprehensive error message mapping for common GoCardless errors
+- Converts technical API errors to user-friendly messages
+- Covers mandate issues, authentication failures, insufficient funds, etc.
+- Improves user understanding of payment failures
+
+**7. Audit Logging for GoCardless Operations**:
+- Added `gocardless_payments_processed` audit action type
+- Logs GoCardless payment processing activities
+- Tracks who processed payments and when
+- Maintains complete audit trail for compliance
+
+### Technical Implementation
+
+**Error Message Mapping**:
+```typescript
+const errorMessages: { [key: string]: string } = {
+  'mandate_not_found': 'No direct debit mandate found for this customer...',
+  'insufficient_funds': 'Insufficient funds in the customer\'s account...',
+  'authentication_failed': 'Authentication failed. Please check your GoCardless API token.',
+  // ... more mappings
+};
+```
+
+**Test Connection Function**:
+```typescript
+const handleTestGoCardlessConnection = async (token: string): Promise<boolean> => {
+  try {
+    const gocardlessService = new GoCardlessService(token);
+    return await gocardlessService.testConnection();
+  } catch (error) {
+    return false;
+  }
+};
+```
+
+**Improved Payment Flow**:
+```typescript
+// Create API payments FIRST
+for (const [clientId, jobs] of gocardlessJobsByClient) {
+  // API payment creation
+}
+
+// Only create local payments if API payments were successful
+if (apiPaymentsCreated > 0) {
+  const paymentResult = await createGoCardlessPaymentsForDay(dayJobs, completionDate);
+}
+```
+
+### Impact
+- ✅ **Better User Experience**: Clear feedback when GoCardless is not configured
+- ✅ **Reduced Configuration Errors**: Test connection prevents invalid token saves
+- ✅ **Accurate Payments**: Fixed amount conversion prevents rounding errors
+- ✅ **Smarter Mandate Selection**: Uses most recent mandate for better reliability
+- ✅ **Data Consistency**: API-first approach prevents orphaned local payments
+- ✅ **User-Friendly Errors**: Technical errors converted to understandable messages
+- ✅ **Complete Audit Trail**: All GoCardless operations now logged
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Enhanced error handling and payment flow
+- `components/GoCardlessApiTokenModal.tsx` - Added test connection functionality
+- `services/gocardlessService.ts` - Fixed amount conversion, improved mandate logic, added error mapping
+- `app/(tabs)/settings.tsx` - Added test connection handler
+- `types/audit.ts` - Added new audit action type
+- `services/auditService.ts` - Added audit description formatting
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical improvements to GoCardless integration reliability and user experience
+
+---
+
+---
+
 ## 2025-01-31 - Fixed Quote Job Issues in Runsheets 🔧
 
 ### Summary
@@ -4840,6 +4948,85 @@ const jobData = {
 - GoCardless API integration for mandate creation
 - Payment processing automation
 - Webhook handling for payment status updates
+
+---
+
+## 2025-01-31 - GoCardless Payment Integration for Day Completion 💳
+
+**Summary**: Implemented automatic GoCardless direct debit payment processing when users mark a day as complete. This creates both local payment records and actual GoCardless API payments for clients with direct debit enabled.
+
+**Changes Made**:
+
+**1. Payment Type Enhancement**:
+- Added `'direct_debit'` to Payment method enum in `types/models.ts`
+- Enables tracking of GoCardless payments in the payment system
+
+**2. GoCardless Service Creation**:
+- Created `services/gocardlessService.ts` - New service for GoCardless API integration
+- Features:
+  - GoCardless API client with authentication
+  - Mandate lookup by customer ID functionality
+  - Payment creation functionality
+  - Environment detection (live/sandbox)
+  - API token validation
+  - Error handling and validation
+  - Static methods for token retrieval and configuration checks
+
+**3. Payment Service Enhancement**:
+- Added `createGoCardlessPaymentsForDay()` function to `services/paymentService.ts`
+- Groups jobs by client and creates batch payments for GoCardless clients
+- Handles payment creation with proper references and notes
+- Returns detailed success/error information
+
+**4. Runsheet Day Completion Integration**:
+- Enhanced `handleDayComplete()` function in `app/runsheet/[week].tsx`
+- Added `processGoCardlessPayments()` helper function
+- Automatic payment processing when marking day complete
+- Comprehensive error handling and user feedback
+
+**Key Features**:
+- **Automatic Processing**: GoCardless payments created automatically when day is marked complete
+- **Batch Operations**: Groups multiple jobs per client into single payments
+- **Dual Creation**: Creates both local payment records and GoCardless API payments
+- **Error Resilience**: Day completion succeeds even if GoCardless processing fails
+- **User Feedback**: Detailed success/error messages for payment processing
+- **Configuration Check**: Only processes payments if GoCardless is properly configured
+
+**Payment Flow**:
+1. User marks day as complete
+2. Jobs are updated to 'completed' status
+3. Day is marked as completed in Firestore
+4. GoCardless clients are identified from completed jobs
+5. Local payment records are created FIRST (method: 'direct_debit')
+6. GoCardless API mandate lookup by customer ID
+7. GoCardless API payments are raised for each client
+8. User receives confirmation with payment details
+
+**Error Handling**:
+- Graceful fallback if GoCardless is not configured
+- Individual client payment failures don't block other payments
+- Detailed error reporting for failed payments
+- Day completion succeeds regardless of payment processing status
+
+**Security & Validation**:
+- API token validation before processing
+- Environment detection (live/sandbox)
+- Proper error handling for API failures
+- Secure token retrieval from user profile
+
+**Files Modified**:
+- `types/models.ts` - Added 'direct_debit' to Payment method enum
+- `services/gocardlessService.ts` - New GoCardless API service (created)
+- `services/paymentService.ts` - Added createGoCardlessPaymentsForDay function
+- `app/runsheet/[week].tsx` - Enhanced day completion with payment processing
+
+**Impact**: Complete GoCardless payment automation. Users can now mark days complete and automatically trigger direct debit payments for GoCardless-enabled clients, creating both local records and actual GoCardless API payments.
+
+**Next Steps**:
+- Webhook integration for payment status updates
+- Payment failure handling and retry logic
+- Mandate creation automation
+- Payment reconciliation features
 
 ---
 

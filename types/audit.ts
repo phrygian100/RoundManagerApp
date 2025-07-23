@@ -27,6 +27,7 @@ export type AuditActionType =
   | 'member_permissions_changed'
   | 'member_daily_rate_changed'
   | 'job_created'
-  | 'recurring_service_added';
+  | 'recurring_service_added'
+  | 'gocardless_payments_processed';
 
 export type AuditEntityType = 'client' | 'quote' | 'rota' | 'payment' | 'member' | 'job'; 

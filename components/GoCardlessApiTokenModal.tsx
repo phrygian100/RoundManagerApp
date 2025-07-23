@@ -7,16 +7,19 @@ interface GoCardlessApiTokenModalProps {
   onClose: () => void;
   currentToken?: string;
   onSave: (token: string) => Promise<void>;
+  onTestConnection?: (token: string) => Promise<boolean>;
 }
 
 export default function GoCardlessApiTokenModal({
   visible,
   onClose,
   currentToken,
-  onSave
+  onSave,
+  onTestConnection
 }: GoCardlessApiTokenModalProps) {
   const [token, setToken] = useState('');
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   // Initialize modal with current token
   useEffect(() => {
@@ -72,6 +75,45 @@ export default function GoCardlessApiTokenModal({
     // Reset to original values
     setToken(currentToken || '');
     onClose();
+  };
+
+  const handleTestConnection = async () => {
+    if (!token.trim()) {
+      Alert.alert('Error', 'Please enter an API token to test.');
+      return;
+    }
+
+    if (!onTestConnection) {
+      Alert.alert('Error', 'Test connection function not available.');
+      return;
+    }
+
+    setTesting(true);
+    try {
+      const success = await onTestConnection(token.trim());
+      if (success) {
+        if (Platform.OS === 'web') {
+          alert('✅ Connection successful! Your API token is valid.');
+        } else {
+          Alert.alert('Success', '✅ Connection successful! Your API token is valid.');
+        }
+      } else {
+        if (Platform.OS === 'web') {
+          alert('❌ Connection failed. Please check your API token.');
+        } else {
+          Alert.alert('Error', '❌ Connection failed. Please check your API token.');
+        }
+      }
+    } catch (error) {
+      console.error('Test connection error:', error);
+      if (Platform.OS === 'web') {
+        alert('❌ Connection failed. Please check your API token.');
+      } else {
+        Alert.alert('Error', '❌ Connection failed. Please check your API token.');
+      }
+    } finally {
+      setTesting(false);
+    }
   };
 
   const handleClearToken = () => {
@@ -162,16 +204,32 @@ export default function GoCardlessApiTokenModal({
             <Pressable
               style={[styles.button, styles.cancelButton]}
               onPress={handleClose}
-              disabled={saving}
+              disabled={saving || testing}
             >
               <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
             </Pressable>
+            
+            {token && onTestConnection && (
+              <Pressable
+                style={[
+                  styles.button,
+                  styles.testButton,
+                  testing && styles.disabledButton
+                ]}
+                onPress={handleTestConnection}
+                disabled={saving || testing}
+              >
+                <ThemedText style={styles.testButtonText}>
+                  {testing ? 'Testing...' : 'Test'}
+                </ThemedText>
+              </Pressable>
+            )}
             
             {token && (
               <Pressable
                 style={[styles.button, styles.clearButton]}
                 onPress={handleClearToken}
-                disabled={saving}
+                disabled={saving || testing}
               >
                 <ThemedText style={styles.clearButtonText}>Clear</ThemedText>
               </Pressable>
@@ -181,10 +239,10 @@ export default function GoCardlessApiTokenModal({
               style={[
                 styles.button,
                 styles.saveButton,
-                saving && styles.disabledButton
+                (saving || testing) && styles.disabledButton
               ]}
               onPress={handleSave}
-              disabled={saving}
+              disabled={saving || testing}
             >
               <ThemedText style={styles.saveButtonText}>
                 {saving ? 'Saving...' : 'Save'}
@@ -305,6 +363,9 @@ const styles = StyleSheet.create({
   clearButton: {
     backgroundColor: '#dc3545',
   },
+  testButton: {
+    backgroundColor: '#28a745',
+  },
   saveButton: {
     backgroundColor: '#007AFF',
   },
@@ -317,6 +378,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   clearButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  testButtonText: {
     color: 'white',
     fontSize: 16,
     fontWeight: '500',
