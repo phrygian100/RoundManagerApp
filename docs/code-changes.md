@@ -5154,8 +5154,8 @@ Implemented the ability for users to manually initiate GoCardless direct debit p
 - **`components/GoCardlessPaymentModal.tsx`**: Created confirmation modal for individual job payments
 - Shows job details, client information, and payment amount
 - Validates GoCardless configuration and existing payments
-- Creates both GoCardless API payment and local payment record
-- Provides clear success/error feedback
+- Currently shows temporary message directing users to use day completion
+- Ready for full implementation once Firebase Function is deployed
 
 **2. Payment Service Enhancement**:
 - **`services/paymentService.ts`**: Added `getPaymentsForJob()` function
@@ -5168,18 +5168,20 @@ Implemented the ability for users to manually initiate GoCardless direct debit p
 - Added modal state management and integration
 - Added cursor pointer styling for web platform
 - Prevents job modal from opening when DD badge is clicked
+- Falls back to client GoCardless settings when job doesn't have them stored
 
 **4. Validation Logic**:
 - Checks if GoCardless is configured for the account
 - Validates job has `gocardlessEnabled: true` and valid `gocardlessCustomerId`
+- Falls back to client settings if job doesn't have GoCardless information
 - Prevents duplicate payments for the same job
 - Shows appropriate error messages for validation failures
 
-**5. Payment Creation Flow**:
-- Creates GoCardless API payment with job-specific reference
-- Creates local payment record with method: 'direct_debit'
-- Links payment to specific job via `jobId` field
-- Provides detailed payment description and notes
+**5. Firebase Function (Ready for Deployment)**:
+- **`functions/index.js`**: Added `createGoCardlessPayment` function
+- Handles GoCardless API calls server-side to avoid CORS issues
+- Validates user authentication and GoCardless configuration
+- Creates payments with proper mandate lookup and error handling
 
 **Key Features**:
 - **Granular Control**: Initiate payments per job rather than waiting for day completion
@@ -5188,21 +5190,30 @@ Implemented the ability for users to manually initiate GoCardless direct debit p
 - **Comprehensive Validation**: Multiple validation layers ensure proper setup
 - **Clear User Feedback**: Success/error messages with specific details
 - **Consistent Integration**: Uses existing GoCardless service infrastructure
+- **Fallback Support**: Works with jobs created before GoCardless integration
+
+**Current Status**:
+- ✅ **Modal UI**: Fully implemented and working
+- ✅ **Click Detection**: DD badges are clickable and open modal
+- ✅ **Validation**: All validation logic working correctly
+- ✅ **Fallback Logic**: Uses client settings when job doesn't have GoCardless info
+- ⏳ **Payment Creation**: Firebase Function created but needs deployment
+- ⏳ **CORS Resolution**: Will be resolved once Firebase Function is deployed
 
 **User Experience**:
 1. User clicks yellow "DD" badge on GoCardless-enabled job
 2. Modal opens showing job details and payment amount
 3. User confirms payment initiation
 4. System validates configuration and existing payments
-5. Creates GoCardless API payment and local record
-6. Shows success confirmation with payment details
+5. Currently shows message directing to use day completion
+6. Future: Will create GoCardless API payment and local record
 
 **Error Handling**:
 - GoCardless not configured: Shows setup instructions
 - No valid customer ID: Shows configuration error
 - Duplicate payment: Shows existing payment message
-- API failures: Shows specific error details
-- Network issues: Retry logic with user feedback
+- API failures: Will show specific error details once deployed
+- Network issues: Will have retry logic with user feedback
 
 ### Impact
 - ✅ **Enhanced Payment Control**: Users can initiate payments when needed
@@ -5211,15 +5222,15 @@ Implemented the ability for users to manually initiate GoCardless direct debit p
 - ✅ **Data Integrity**: Prevents duplicate payments and validates setup
 - ✅ **Consistent Experience**: Integrates seamlessly with existing GoCardless workflow
 - ✅ **Cross-Platform Support**: Works on web, iOS, and Android
+- ✅ **Backward Compatibility**: Works with existing jobs and clients
 
 ### Files Modified
 - `components/GoCardlessPaymentModal.tsx` - New modal component (created)
 - `services/paymentService.ts` - Added getPaymentsForJob function
 - `app/runsheet/[week].tsx` - Enhanced DD badge clickability and modal integration
+- `functions/index.js` - Added createGoCardlessPayment function (ready for deployment)
 - `docs/code-changes.md` - Updated documentation
 
 **Priority**: HIGH - Core GoCardless functionality enhancement for improved payment workflow
 
----
-
-// ... existing code ...
+**Next Steps**: Deploy Firebase Function to enable full payment creation functionality

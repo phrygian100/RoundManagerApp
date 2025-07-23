@@ -1,4 +1,3 @@
-import { format } from 'date-fns';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -9,8 +8,7 @@ import {
     StyleSheet,
     View
 } from 'react-native';
-import { GoCardlessService } from '../services/gocardlessService';
-import { createPayment, getPaymentsForJob } from '../services/paymentService';
+import { getPaymentsForJob } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import { ThemedText } from './ThemedText';
@@ -35,28 +33,6 @@ export default function GoCardlessPaymentModal({
 
     setLoading(true);
     try {
-      // Check if GoCardless is configured
-      const isConfigured = await GoCardlessService.isConfigured();
-      if (!isConfigured) {
-        Alert.alert(
-          'GoCardless Not Configured',
-          'Please configure your GoCardless API token in Settings to enable direct debit payments.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
-      // Get GoCardless API token
-      const apiToken = await GoCardlessService.getUserApiToken();
-      if (!apiToken) {
-        Alert.alert(
-          'GoCardless Not Configured',
-          'No GoCardless API token found. Please set up your GoCardless API token in Settings.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-
       // Check if payment already exists for this job
       const existingPayments = await getPaymentsForJob(job.id);
       if (existingPayments.length > 0) {
@@ -68,59 +44,26 @@ export default function GoCardlessPaymentModal({
         return;
       }
 
-      // Create GoCardless service instance
-      const gocardlessService = new GoCardlessService(apiToken);
-
-      // Create GoCardless API payment
-      const paymentDate = format(new Date(), 'yyyy-MM-dd');
-      
-      // Use job's GoCardless settings or fall back to client's settings
-      const gocardlessCustomerId = job.gocardlessCustomerId || client?.gocardlessCustomerId;
-      
-      const paymentRequest = {
-        amount: job.price,
-        currency: 'GBP',
-        customerId: gocardlessCustomerId!,
-        description: `Cleaning service - ${client.name}`,
-        reference: `DD-${paymentDate}-${job.id}`
-      };
-
-      const response = await gocardlessService.createPayment(paymentRequest);
-      console.log('GoCardless payment created:', response.id);
-
-      // Create local payment record
-      const paymentData = {
-        clientId: job.clientId,
-        jobId: job.id,
-        amount: job.price,
-        date: paymentDate,
-        method: 'direct_debit' as const,
-        reference: `DD-${paymentDate}-${job.id}`,
-        notes: `GoCardless payment for ${client.name} - ${job.propertyDetails}`,
-      };
-
-      await createPayment(paymentData);
-
-      // Show success message
-      const successMessage = `Direct debit payment of £${job.price.toFixed(2)} has been initiated for ${client.name}.`;
+      // TEMPORARY: Show message about using day completion
+      const message = `GoCardless payment initiation is currently being set up. For now, please use the "Day Complete" button to process GoCardless payments for all completed jobs on that day.`;
       
       if (Platform.OS === 'web') {
-        window.alert(successMessage);
+        window.alert(message);
       } else {
-        Alert.alert('Payment Initiated', successMessage, [
+        Alert.alert('Feature Coming Soon', message, [
           { text: 'OK', onPress: onClose }
         ]);
       }
 
       onClose();
     } catch (error) {
-      console.error('Error creating GoCardless payment:', error);
+      console.error('Error:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
       if (Platform.OS === 'web') {
-        window.alert(`Failed to initiate payment: ${errorMessage}`);
+        window.alert(`Error: ${errorMessage}`);
       } else {
-        Alert.alert('Payment Failed', `Failed to initiate payment: ${errorMessage}`, [
+        Alert.alert('Error', `Error: ${errorMessage}`, [
           { text: 'OK' }
         ]);
       }

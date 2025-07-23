@@ -18,6 +18,117 @@ admin.initializeApp();
 
 setGlobalOptions({ maxInstances: 10 });
 
+// GoCardless payment creation function
+exports.createGoCardlessPayment = onCall(async (request) => {
+  console.log('createGoCardlessPayment called with:', request.data);
+  const { amount, currency, customerId, description, reference } = request.data;
+  const caller = request.auth;
+  
+  if (!caller) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to create payments.');
+  }
+  
+  if (!amount || !currency || !customerId || !description || !reference) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required payment parameters.');
+  }
+  
+  try {
+    // Get the user's GoCardless API token
+    const db = admin.firestore();
+    const userDoc = await db.collection('users').doc(caller.uid).get();
+    
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User not found.');
+    }
+    
+    const userData = userDoc.data();
+    const apiToken = userData.gocardlessApiToken;
+    
+    if (!apiToken) {
+      throw new functions.https.HttpsError('failed-precondition', 'GoCardless API token not configured.');
+    }
+    
+    // Determine if this is a sandbox or live token
+    const baseUrl = apiToken.startsWith('live_') 
+      ? 'https://api.gocardless.com/v1'
+      : 'https://api-sandbox.gocardless.com/v1';
+    
+    // First, get the mandate ID for the customer
+    const mandateResponse = await fetch(`${baseUrl}/mandates?customer=${customerId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'GoCardless-Version': '2015-07-06'
+      }
+    });
+    
+    if (!mandateResponse.ok) {
+      const errorData = await mandateResponse.json();
+      throw new functions.https.HttpsError('failed-precondition', `Failed to get mandate: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const mandateData = await mandateResponse.json();
+    const mandates = mandateData.mandates || [];
+    
+    // Find the most recently created active mandate for this customer
+    const activeMandates = mandates.filter(mandate => 
+      mandate.status === 'active' || mandate.status === 'pending_submission'
+    );
+    
+    if (activeMandates.length === 0) {
+      throw new functions.https.HttpsError('failed-precondition', 'No active mandate found for customer.');
+    }
+    
+    // Sort by creation date (newest first) and get the most recent
+    const sortedMandates = activeMandates.sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+    
+    const mandateId = sortedMandates[0].id;
+    
+    // Create the payment
+    const paymentResponse = await fetch(`${baseUrl}/payments`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+        'GoCardless-Version': '2015-07-06'
+      },
+      body: JSON.stringify({
+        payments: {
+          amount: Math.round(amount * 100), // Convert to pence
+          currency: currency,
+          links: {
+            mandate: mandateId
+          },
+          description: description,
+          reference: reference
+        }
+      })
+    });
+    
+    if (!paymentResponse.ok) {
+      const errorData = await paymentResponse.json();
+      throw new functions.https.HttpsError('internal', `Failed to create payment: ${errorData.error?.message || 'Unknown error'}`);
+    }
+    
+    const paymentData = await paymentResponse.json();
+    
+    return {
+      success: true,
+      payment: paymentData.payments,
+      message: 'Payment created successfully'
+    };
+    
+  } catch (error) {
+    console.error('GoCardless payment creation error:', error);
+    if (error.code) {
+      throw error; // Re-throw Firebase Functions errors
+    }
+    throw new functions.https.HttpsError('internal', `Payment creation failed: ${error.message || 'Unknown error'}`);
+  }
+});
+
 // Removed sendTeamInviteEmail as email is now handled in inviteMember
 
 exports.inviteMember = onCall(async (request) => {
