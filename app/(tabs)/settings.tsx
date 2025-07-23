@@ -6,6 +6,7 @@ import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
+import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { db } from '../../core/firebase';
@@ -107,6 +108,11 @@ export default function SettingsScreen() {
     bankAccountNumber: ''
   });
   const [savingBankInfo, setSavingBankInfo] = useState(false);
+
+  // GoCardless API Token modal state
+  const [gocardlessApiTokenModalVisible, setGocardlessApiTokenModalVisible] = useState(false);
+  const [currentApiToken, setCurrentApiToken] = useState<string>('');
+  const [savingApiToken, setSavingApiToken] = useState(false);
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
   const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
@@ -270,6 +276,42 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Failed to update profile. Please try again.');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  // Load GoCardless API token for editing
+  const loadGoCardlessApiToken = async () => {
+    try {
+      const session = await getUserSession();
+      if (session?.uid) {
+        const userProfile = await getUserProfile(session.uid);
+        if (userProfile) {
+          setCurrentApiToken(userProfile.gocardlessApiToken || '');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading GoCardless API token:', error);
+    }
+  };
+
+  // Save GoCardless API token
+  const handleSaveGoCardlessApiToken = async (token: string) => {
+    setSavingApiToken(true);
+    try {
+      const session = await getUserSession();
+      if (!session?.uid) {
+        Alert.alert('Error', 'User session not found.');
+        return;
+      }
+
+      await updateUserProfile(session.uid, {
+        gocardlessApiToken: token,
+      });
+    } catch (error) {
+      console.error('Error saving GoCardless API token:', error);
+      throw error; // Re-throw to let the modal handle the error
+    } finally {
+      setSavingApiToken(false);
     }
   };
 
@@ -1864,6 +1906,15 @@ export default function SettingsScreen() {
               }}
             />
           )}
+          {isOwner && (
+            <StyledButton
+              title="Link GoCardless"
+              onPress={() => {
+                loadGoCardlessApiToken();
+                setGocardlessApiTokenModalVisible(true);
+              }}
+            />
+          )}
         </View>
 
         {/* Subscription Section */}
@@ -2295,6 +2346,14 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* GoCardless API Token Modal */}
+      <GoCardlessApiTokenModal
+        visible={gocardlessApiTokenModalVisible}
+        onClose={() => setGocardlessApiTokenModalVisible(false)}
+        currentToken={currentApiToken}
+        onSave={handleSaveGoCardlessApiToken}
+      />
     </ThemedView>
   );
 }

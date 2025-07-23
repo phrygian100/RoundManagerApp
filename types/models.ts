@@ -25,6 +25,9 @@ export type User = {
   isExempt?: boolean; // Extra security flag for developer accounts
   stripeCustomerId?: string; // For future Stripe integration
   stripeSubscriptionId?: string; // For future Stripe integration
+  
+  // GoCardless integration
+  gocardlessApiToken?: string; // API token for GoCardless integration
 };
 
 export type Service = {

@@ -4782,3 +4782,65 @@ const jobData = {
 **Priority**: HIGH - Core GoCardless integration enhancement for complete system consistency
 
 ---
+
+## 2025-01-31 - GoCardless API Token Integration for Account-Level Configuration 🔑
+
+**Summary**: Implemented account-level GoCardless API token configuration in the settings page, allowing owners to securely store and manage their GoCardless API credentials for direct debit integration.
+
+**Changes Made**:
+
+**1. User Model Enhancement**:
+- Added `gocardlessApiToken?: string` field to User type in `types/models.ts`
+- Enables secure storage of GoCardless API credentials at the account level
+
+**2. GoCardless API Token Modal**:
+- Created `components/GoCardlessApiTokenModal.tsx` - New modal component for API token management
+- Features:
+  - Secure password input field for API token
+  - Token format validation (live_/sandbox_ prefix)
+  - Environment detection (Live/Sandbox)
+  - Security warning about token handling
+  - Clear token functionality
+  - Cross-platform compatibility (web/mobile)
+
+**3. Settings Page Integration**:
+- Added "Link GoCardless" button in Profile section of settings
+- Owner-only access (hidden from team members)
+- Integrated with existing user profile management system
+- Added state management for modal visibility and token handling
+
+**4. Service Layer Updates**:
+- Enhanced `userService.ts` to handle API token updates
+- Added `loadGoCardlessApiToken()` and `handleSaveGoCardlessApiToken()` functions
+- Secure token storage in user profile
+
+**Key Features**:
+- **Owner-Only Access**: Only account owners can configure API tokens
+- **Secure Input**: Password field for token entry
+- **Token Validation**: Basic format validation with override option
+- **Environment Detection**: Visual indication of live vs sandbox tokens
+- **Security Warnings**: Clear guidance on token security
+- **Cross-Platform**: Works on both web and mobile platforms
+
+**Security Considerations**:
+- API tokens stored securely in user profile
+- Owner-only access prevents unauthorized configuration
+- Clear security warnings about token handling
+- No token exposure in UI (password field)
+
+**Files Modified**:
+- `types/models.ts` - Added gocardlessApiToken field to User type
+- `components/GoCardlessApiTokenModal.tsx` - New modal component (created)
+- `app/(tabs)/settings.tsx` - Added button and modal integration
+- `services/userService.ts` - Enhanced for API token management
+
+**Impact**: Complete account-level GoCardless API configuration system. Owners can now securely store their API tokens, enabling the next phase of direct debit integration for payment processing.
+
+**Next Steps**:
+- GoCardless API integration for mandate creation
+- Payment processing automation
+- Webhook handling for payment status updates
+
+---
+
+## 2025-01-31 - Extended GoCardless Integration to Job Level with DD Display 🔄
