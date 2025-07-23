@@ -194,9 +194,18 @@ export class GoCardlessService {
 
   /**
    * Test the API connection
+   * Note: This will fail on web due to CORS restrictions, but works on mobile
    */
   async testConnection(): Promise<boolean> {
     try {
+      // On web platforms, we can't test the connection directly due to CORS
+      // Instead, we validate the token format and return true if it looks valid
+      if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+        // Web platform - validate token format only
+        return this.apiToken.startsWith('live_') || this.apiToken.startsWith('sandbox_');
+      }
+      
+      // Mobile platform - can make actual API call
       const response = await fetch(`${this.baseUrl}/mandates`, {
         method: 'GET',
         headers: {

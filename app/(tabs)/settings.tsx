@@ -320,7 +320,19 @@ export default function SettingsScreen() {
   const handleTestGoCardlessConnection = async (token: string): Promise<boolean> => {
     try {
       const gocardlessService = new GoCardlessService(token);
-      return await gocardlessService.testConnection();
+      const result = await gocardlessService.testConnection();
+      
+      // On web platforms, we can only validate format, not test actual connection
+      if (Platform.OS === 'web') {
+        if (result) {
+          // Show a note that this is format validation only
+          if (typeof window !== 'undefined') {
+            window.alert('✅ Token format is valid!\n\nNote: On web platforms, we can only validate the token format due to browser security restrictions. The actual connection will be tested when you complete a day with GoCardless jobs.');
+          }
+        }
+      }
+      
+      return result;
     } catch (error) {
       console.error('Error testing GoCardless connection:', error);
       return false;

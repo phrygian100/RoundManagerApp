@@ -93,13 +93,13 @@ export default function GoCardlessApiTokenModal({
       const success = await onTestConnection(token.trim());
       if (success) {
         if (Platform.OS === 'web') {
-          alert('✅ Connection successful! Your API token is valid.');
+          alert('✅ Token format is valid!\n\nNote: On web platforms, we can only validate the token format due to browser security restrictions. The actual connection will be tested when you complete a day with GoCardless jobs.');
         } else {
           Alert.alert('Success', '✅ Connection successful! Your API token is valid.');
         }
       } else {
         if (Platform.OS === 'web') {
-          alert('❌ Connection failed. Please check your API token.');
+          alert('❌ Token format is invalid. Please check your API token format.');
         } else {
           Alert.alert('Error', '❌ Connection failed. Please check your API token.');
         }
@@ -107,7 +107,7 @@ export default function GoCardlessApiTokenModal({
     } catch (error) {
       console.error('Test connection error:', error);
       if (Platform.OS === 'web') {
-        alert('❌ Connection failed. Please check your API token.');
+        alert('❌ Token validation failed. Please check your API token format.');
       } else {
         Alert.alert('Error', '❌ Connection failed. Please check your API token.');
       }

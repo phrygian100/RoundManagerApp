@@ -21,7 +21,9 @@ Enhanced the GoCardless integration with better error handling, user feedback, a
 - Added "Test" button to GoCardless API Token modal
 - Validates API tokens before saving to prevent configuration issues
 - Provides immediate feedback on token validity
-- Uses GoCardless API connection test for real validation
+- **Web Platform**: Validates token format only (due to CORS restrictions)
+- **Mobile Platform**: Performs actual API connection test
+- Clear messaging about platform-specific behavior
 
 **3. Fixed Payment Amount Conversion**:
 - Fixed potential floating-point precision issues in payment amounts
@@ -75,6 +77,8 @@ const handleTestGoCardlessConnection = async (token: string): Promise<boolean> =
   }
 };
 ```
+
+**Note**: Due to CORS restrictions, the test connection on web platforms only validates token format. Actual API connection testing is performed on mobile platforms or during day completion.
 
 **Improved Payment Flow**:
 ```typescript
