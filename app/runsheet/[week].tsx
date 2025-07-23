@@ -966,12 +966,15 @@ www.tgmwindowcleaning.co.uk`;
     }
   };
 
-  const handleDDClick = (job: Job & { client: Client | null }, event: any) => {
-    // Prevent the job press handler from being called
-    event.stopPropagation();
+  const handleDDClick = (job: Job & { client: Client | null }) => {
+    console.log('🔵 DD badge clicked for job:', job.id, job.client?.name);
     
     // Check if job is GoCardless enabled
     if (!job.gocardlessEnabled || !job.gocardlessCustomerId) {
+      console.log('❌ Job not GoCardless enabled:', { 
+        gocardlessEnabled: job.gocardlessEnabled, 
+        gocardlessCustomerId: job.gocardlessCustomerId 
+      });
       Alert.alert(
         'Direct Debit Not Available',
         'This client is not set up for direct debit payments.',
@@ -980,6 +983,7 @@ www.tgmwindowcleaning.co.uk`;
       return;
     }
     
+    console.log('✅ Opening GoCardless payment modal for job:', job.id);
     setGocardlessPaymentModal({ visible: true, job });
   };
 
@@ -1506,14 +1510,7 @@ www.tgmwindowcleaning.co.uk`;
                   const accountDisplay = getJobAccountDisplay(item, client);
                   if (accountDisplay.isGoCardless && accountDisplay.style) {
                     return (
-                      <Pressable
-                        style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}
-                        onPress={(event) => handleDDClick(item, event)}
-                      >
-                        <Text style={[styles.ddText, { color: accountDisplay.style.color }]}>
-                          {accountDisplay.text}
-                        </Text>
-                      </Pressable>
+                      <Text style={styles.accountNumberText}>{accountDisplay.text}</Text>
                     );
                   } else {
                     return (
@@ -1524,6 +1521,23 @@ www.tgmwindowcleaning.co.uk`;
               </View>
             )}
           </Pressable>
+          {/* DD Badge - Outside the main Pressable */}
+          {client?.accountNumber !== undefined && (() => {
+            const accountDisplay = getJobAccountDisplay(item, client);
+            if (accountDisplay.isGoCardless && accountDisplay.style) {
+              return (
+                <Pressable
+                  style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}
+                  onPress={() => handleDDClick(item)}
+                >
+                  <Text style={[styles.ddText, { color: accountDisplay.style.color }]}>
+                    {accountDisplay.text}
+                  </Text>
+                </Pressable>
+              );
+            }
+            return null;
+          })()}
         </View>
         {/* Notes button */}
         {(client?.runsheetNotes || client?.notes) && (client.runsheetNotes || client.notes || '').trim() !== '' && (
@@ -2857,6 +2871,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     marginLeft: 8,
+    marginTop: 4,
+    alignSelf: 'flex-start',
     ...(Platform.OS === 'web' && { cursor: 'pointer' }),
   },
   ddText: {
