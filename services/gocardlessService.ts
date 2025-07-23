@@ -159,8 +159,8 @@ export class GoCardlessService {
                 links: {
                   mandate: mandateId // Use the actual mandate ID
                 },
-                description: paymentRequest.description,
-                reference: paymentRequest.reference || `DD-${Date.now()}`
+                description: paymentRequest.description
+                // Removed custom reference to avoid scheme restrictions
               }
             }),
             signal: controller.signal

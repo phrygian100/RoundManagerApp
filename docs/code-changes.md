@@ -95,14 +95,25 @@ if (!customerIdPattern.test(customerId)) {
 }
 ```
 
+### Update: Fixed Custom Reference Restriction Issue
+
+**Additional Fix Applied**: Resolved "Custom payment references are not enabled for your scheme identifier" error by removing custom reference field from payment requests. GoCardless will now auto-generate payment references, which avoids scheme configuration restrictions.
+
+**Changes Made**:
+- Removed `reference` field from payment creation in Firebase Function
+- Removed `reference` field from client-side GoCardless service
+- Added explanatory comments about scheme restrictions
+
 ### Impact
 - ✅ **Better Debugging**: Comprehensive logging helps identify the exact point of failure
 - ✅ **Input Validation**: Prevents invalid customer IDs from reaching the GoCardless API
 - ✅ **Error Clarity**: Clear error messages help users understand what went wrong
 - ✅ **Troubleshooting**: Enhanced logging makes it easier to diagnose payment issues
+- ✅ **Reference Compatibility**: Removed custom references to avoid GoCardless scheme restrictions
 
 ### Files Modified
-- `functions/index.js` - Added enhanced logging and customer ID validation
+- `functions/index.js` - Added enhanced logging, customer ID validation, and removed custom reference
+- `services/gocardlessService.ts` - Removed custom reference to match function behavior
 - `docs/code-changes.md` - Updated documentation
 
 **Priority**: HIGH - Fixed critical direct debit payment functionality with better error handling

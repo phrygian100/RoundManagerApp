@@ -126,8 +126,8 @@ exports.createGoCardlessPayment = onCall(async (request) => {
           links: {
             mandate: mandateId
           },
-          description: description,
-          reference: reference
+          description: description
+          // Removed custom reference to avoid scheme restrictions
         }
       })
     });
