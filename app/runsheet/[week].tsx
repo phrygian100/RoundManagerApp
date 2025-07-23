@@ -969,11 +969,23 @@ www.tgmwindowcleaning.co.uk`;
   const handleDDClick = (job: Job & { client: Client | null }) => {
     console.log('🔵 DD badge clicked for job:', job.id, job.client?.name);
     
-    // Check if job is GoCardless enabled
-    if (!job.gocardlessEnabled || !job.gocardlessCustomerId) {
+    // Check if job is GoCardless enabled (fall back to client settings if job doesn't have them)
+    const isGoCardlessEnabled = job.gocardlessEnabled ?? job.client?.gocardlessEnabled ?? false;
+    const gocardlessCustomerId = job.gocardlessCustomerId ?? job.client?.gocardlessCustomerId;
+    
+    console.log('🔍 GoCardless check:', {
+      jobGocardlessEnabled: job.gocardlessEnabled,
+      clientGocardlessEnabled: job.client?.gocardlessEnabled,
+      finalGocardlessEnabled: isGoCardlessEnabled,
+      jobGocardlessCustomerId: job.gocardlessCustomerId,
+      clientGocardlessCustomerId: job.client?.gocardlessCustomerId,
+      finalGocardlessCustomerId: gocardlessCustomerId
+    });
+    
+    if (!isGoCardlessEnabled || !gocardlessCustomerId) {
       console.log('❌ Job not GoCardless enabled:', { 
-        gocardlessEnabled: job.gocardlessEnabled, 
-        gocardlessCustomerId: job.gocardlessCustomerId 
+        isGoCardlessEnabled, 
+        gocardlessCustomerId 
       });
       Alert.alert(
         'Direct Debit Not Available',

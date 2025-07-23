@@ -73,10 +73,14 @@ export default function GoCardlessPaymentModal({
 
       // Create GoCardless API payment
       const paymentDate = format(new Date(), 'yyyy-MM-dd');
+      
+      // Use job's GoCardless settings or fall back to client's settings
+      const gocardlessCustomerId = job.gocardlessCustomerId || client?.gocardlessCustomerId;
+      
       const paymentRequest = {
         amount: job.price,
         currency: 'GBP',
-        customerId: job.gocardlessCustomerId!,
+        customerId: gocardlessCustomerId!,
         description: `Cleaning service - ${client.name}`,
         reference: `DD-${paymentDate}-${job.id}`
       };
