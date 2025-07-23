@@ -64,13 +64,14 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     
     if (!mandateResponse.ok) {
       let errorMessage = `HTTP ${mandateResponse.status}: ${mandateResponse.statusText}`;
+      const responseText = await mandateResponse.text();
+      
       try {
-        const errorData = await mandateResponse.json();
+        const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
       } catch (parseError) {
         // If response is not JSON, use the text content
-        const textContent = await mandateResponse.text();
-        errorMessage = textContent || errorMessage;
+        errorMessage = responseText || errorMessage;
       }
       throw new functions.https.HttpsError('failed-precondition', `Failed to get mandate: ${errorMessage}`);
     }
@@ -117,13 +118,14 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     
     if (!paymentResponse.ok) {
       let errorMessage = `HTTP ${paymentResponse.status}: ${paymentResponse.statusText}`;
+      const responseText = await paymentResponse.text();
+      
       try {
-        const errorData = await paymentResponse.json();
+        const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
       } catch (parseError) {
         // If response is not JSON, use the text content
-        const textContent = await paymentResponse.text();
-        errorMessage = textContent || errorMessage;
+        errorMessage = responseText || errorMessage;
       }
       throw new functions.https.HttpsError('internal', `Failed to create payment: ${errorMessage}`);
     }
