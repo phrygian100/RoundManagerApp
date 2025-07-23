@@ -24,12 +24,24 @@ exports.createGoCardlessPayment = onCall(async (request) => {
   const { amount, currency, customerId, description, reference } = request.data;
   const caller = request.auth;
   
+  console.log('Customer ID received:', customerId);
+  
   if (!caller) {
     throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to create payments.');
   }
   
   if (!amount || !currency || !customerId || !description || !reference) {
     throw new functions.https.HttpsError('invalid-argument', 'Missing required payment parameters.');
+  }
+  
+  // Validate customer ID format
+  if (!customerId || typeof customerId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'Invalid customer ID: must be a non-empty string');
+  }
+  
+  const customerIdPattern = /^CU[A-Z0-9]+$/i;
+  if (!customerIdPattern.test(customerId)) {
+    throw new functions.https.HttpsError('invalid-argument', `Invalid GoCardless customer ID format: ${customerId}. Customer IDs should be in the format CU followed by alphanumeric characters.`);
   }
   
   try {
@@ -50,10 +62,12 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     
     // Determine if this is a sandbox or live token
     const baseUrl = apiToken.startsWith('live_') 
-      ? 'https://api.gocardless.com/v1'
-      : 'https://api-sandbox.gocardless.com/v1';
+      ? 'https://api.gocardless.com'
+      : 'https://api-sandbox.gocardless.com';
     
     // First, get the mandate ID for the customer
+    console.log('Making mandate lookup request for customer:', customerId);
+    console.log('API URL:', `${baseUrl}/mandates?customer=${customerId}`);
     const mandateResponse = await fetch(`${baseUrl}/mandates?customer=${customerId}`, {
       method: 'GET',
       headers: {
@@ -61,6 +75,8 @@ exports.createGoCardlessPayment = onCall(async (request) => {
         'GoCardless-Version': '2015-07-06'
       }
     });
+    
+    console.log('Mandate response status:', mandateResponse.status, mandateResponse.statusText);
     
     if (!mandateResponse.ok) {
       let errorMessage = `HTTP ${mandateResponse.status}: ${mandateResponse.statusText}`;

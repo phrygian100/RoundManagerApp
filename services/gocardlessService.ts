@@ -69,8 +69,8 @@ export class GoCardlessService {
     this.apiToken = apiToken;
     // Determine if this is a sandbox or live token
     this.baseUrl = apiToken.startsWith('live_') 
-      ? 'https://api.gocardless.com/v1'
-      : 'https://api-sandbox.gocardless.com/v1';
+      ? 'https://api.gocardless.com'
+      : 'https://api-sandbox.gocardless.com';
   }
 
   /**

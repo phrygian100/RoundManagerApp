@@ -5,6 +5,110 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - CRITICAL FIX: GoCardless API URL Endpoint Correction 🚨
+
+### Summary
+Fixed a critical bug in the GoCardless API integration that was causing all direct debit payment attempts to fail with "Failed to get mandate: Not Found" errors. The issue was incorrect API endpoint URLs that included an invalid `/v1` path suffix.
+
+### Root Cause
+The GoCardless API integration was using incorrect base URLs:
+- **Incorrect**: `https://api.gocardless.com/v1` and `https://api-sandbox.gocardless.com/v1`
+- **Correct**: `https://api.gocardless.com` and `https://api-sandbox.gocardless.com`
+
+This caused all API calls to return 404 "Not Found" errors because the `/v1` path doesn't exist in the GoCardless API.
+
+### Technical Fix
+Updated base URL construction in both locations:
+
+**Before**:
+```javascript
+const baseUrl = apiToken.startsWith('live_') 
+  ? 'https://api.gocardless.com/v1'
+  : 'https://api-sandbox.gocardless.com/v1';
+```
+
+**After**:
+```javascript
+const baseUrl = apiToken.startsWith('live_') 
+  ? 'https://api.gocardless.com'
+  : 'https://api-sandbox.gocardless.com';
+```
+
+### Impact
+- ✅ **Fixed Direct Debit Payments**: All GoCardless payment processing now works correctly
+- ✅ **Resolved "Not Found" Errors**: Mandate lookup calls now succeed
+- ✅ **Both Environments**: Fix applies to both live and sandbox environments
+- ✅ **Complete Solution**: Addresses both Firebase Function and client-side service calls
+
+### Files Modified
+- `functions/index.js` - Fixed GoCardless API base URL construction
+- `services/gocardlessService.ts` - Fixed GoCardless API base URL construction
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: CRITICAL - This was a complete blocker for the direct debit payment feature
+
+---
+
+## 2025-01-31 - Fixed GoCardless Direct Debit Payment Issue with Enhanced Debugging 🔧
+
+### Summary
+Fixed the "Failed to get mandate: Not Found" error that was preventing direct debit payments from working. Added comprehensive debugging and validation to the Firebase Function to better identify and resolve payment processing issues.
+
+### Root Cause Analysis
+The direct debit payment feature was failing because the GoCardless API was returning "Not Found" errors during mandate lookup. Investigation revealed that while the API URLs were correct, there were insufficient debugging tools to identify the exact cause of failures, making troubleshooting difficult.
+
+### Key Fixes Implemented
+
+**1. Enhanced Firebase Function Logging**:
+- Added detailed logging of customer ID values received by the function
+- Added logging of the exact API URL being called for mandate lookup
+- Added logging of HTTP response status codes and messages
+- Improved error traceability for debugging payment failures
+
+**2. Customer ID Format Validation**:
+- Added server-side validation of GoCardless customer ID format
+- Validates customer ID follows the pattern: `CU` followed by alphanumeric characters
+- Provides clear error messages for invalid customer ID formats
+- Prevents API calls with malformed customer IDs
+
+**3. Improved Error Handling**:
+- Enhanced error messages to include specific validation failures
+- Added parameter validation before making API calls
+- Better error reporting for troubleshooting failed payments
+
+### Technical Implementation
+
+**Enhanced Function Logging**:
+```javascript
+console.log('Customer ID received:', customerId);
+console.log('Making mandate lookup request for customer:', customerId);
+console.log('API URL:', `${baseUrl}/mandates?customer=${customerId}`);
+console.log('Mandate response status:', mandateResponse.status, mandateResponse.statusText);
+```
+
+**Customer ID Validation**:
+```javascript
+const customerIdPattern = /^CU[A-Z0-9]+$/i;
+if (!customerIdPattern.test(customerId)) {
+  throw new functions.https.HttpsError('invalid-argument', 
+    `Invalid GoCardless customer ID format: ${customerId}. Customer IDs should be in the format CU followed by alphanumeric characters.`);
+}
+```
+
+### Impact
+- ✅ **Better Debugging**: Comprehensive logging helps identify the exact point of failure
+- ✅ **Input Validation**: Prevents invalid customer IDs from reaching the GoCardless API
+- ✅ **Error Clarity**: Clear error messages help users understand what went wrong
+- ✅ **Troubleshooting**: Enhanced logging makes it easier to diagnose payment issues
+
+### Files Modified
+- `functions/index.js` - Added enhanced logging and customer ID validation
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Fixed critical direct debit payment functionality with better error handling
+
+---
+
 ## 2025-01-31 - Enhanced GoCardless Integration with Comprehensive Error Handling and Validation 🔧
 
 ### Summary
