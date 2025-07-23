@@ -56,11 +56,18 @@ export default function GoCardlessPaymentModal({
       // Use job's GoCardless settings or fall back to client's settings
       const gocardlessCustomerId = job.gocardlessCustomerId || client?.gocardlessCustomerId;
       
+      // Format the service date as ddmmyyyy
+      const serviceDate = format(new Date(job.scheduledTime), 'ddMMyyyy');
+      
+      // Create description with service type and date
+      const serviceDescription = job.serviceId || 'Window cleaning';
+      const description = `${serviceDescription} ${serviceDate}`;
+      
       const paymentRequest = {
         amount: job.price,
         currency: 'GBP',
         customerId: gocardlessCustomerId!,
-        description: `Cleaning service - ${client.name}`,
+        description: description,
         reference: `DD-${paymentDate}-${job.id}`
       };
 

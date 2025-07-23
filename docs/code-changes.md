@@ -103,6 +103,7 @@ if (!customerIdPattern.test(customerId)) {
 - Removed `reference` field from payment creation in Firebase Function
 - Removed `reference` field from client-side GoCardless service
 - Added explanatory comments about scheme restrictions
+- Updated payment descriptions to show service type and date in format: "{serviceType} {ddmmyyyy}"
 
 ### Impact
 - ✅ **Better Debugging**: Comprehensive logging helps identify the exact point of failure
@@ -114,6 +115,8 @@ if (!customerIdPattern.test(customerId)) {
 ### Files Modified
 - `functions/index.js` - Added enhanced logging, customer ID validation, and removed custom reference
 - `services/gocardlessService.ts` - Removed custom reference to match function behavior
+- `components/GoCardlessPaymentModal.tsx` - Updated payment description format
+- `app/runsheet/[week].tsx` - Updated day completion payment descriptions
 - `docs/code-changes.md` - Updated documentation
 
 **Priority**: HIGH - Fixed critical direct debit payment functionality with better error handling

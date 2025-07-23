@@ -1154,11 +1154,21 @@ www.tgmwindowcleaning.co.uk`;
             const totalAmount = jobs.reduce((sum, job) => sum + job.price, 0);
             const firstJob = jobs[0];
 
+            // Get the full job data for this client to create description
+            const clientJobs = dayJobs.filter(job => job.clientId === clientId && job.gocardlessEnabled);
+            const firstFullJob = clientJobs[0];
+            
+            // Create description with service type and date
+            const serviceDate = format(new Date(firstFullJob.scheduledTime), 'ddMMyyyy');
+            const serviceTypes = [...new Set(clientJobs.map(job => job.serviceId || 'Window cleaning'))];
+            const serviceDescription = serviceTypes.length === 1 ? serviceTypes[0] : 'Multiple services';
+            const description = `${serviceDescription} ${serviceDate}`;
+
             const paymentRequest = {
               amount: totalAmount,
               currency: 'GBP',
               customerId: firstJob.gocardlessCustomerId,
-              description: `Cleaning services for ${dayTitle}`,
+              description: description,
               reference: `DD-${completionDate}-${clientId}`
             };
 
