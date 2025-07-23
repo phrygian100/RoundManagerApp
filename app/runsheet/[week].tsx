@@ -977,6 +977,18 @@ www.tgmwindowcleaning.co.uk`;
       const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
       return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
     });
+    
+    // Debug logging
+    console.log(`isDayComplete check for ${dayTitle}:`, {
+      totalJobsForDay: jobs.filter((job) => {
+        const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+        return jobDate && jobDate.toDateString() === dayDate.toDateString();
+      }).length,
+      nonQuoteJobsForDay: jobsForDay.length,
+      completedJobs: jobsForDay.filter(job => job.status === 'completed').length,
+      allCompleted: jobsForDay.length > 0 && jobsForDay.every((job) => job.status === 'completed')
+    });
+    
     return jobsForDay.length > 0 && jobsForDay.every((job) => job.status === 'completed');
   };
 
@@ -991,8 +1003,16 @@ www.tgmwindowcleaning.co.uk`;
   };
 
   const handleDayComplete = async (dayTitle: string) => {
-    // Only include real jobs (exclude vehicle blocks, note jobs, or any without an id)
-    const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type && !isNoteJob(job));
+    // Only include real jobs (exclude vehicle blocks, note jobs, quote jobs, or any without an id)
+    const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job));
+    
+    // Debug logging
+    console.log(`handleDayComplete for ${dayTitle}:`, {
+      totalSectionData: (sections.find(section => section.title === dayTitle)?.data || []).length,
+      filteredDayJobs: dayJobs.length,
+      dayJobIds: dayJobs.map(job => ({ id: job.id, serviceId: job.serviceId, status: job.status }))
+    });
+    
     if (dayJobs.length === 0) return;
 
     try {
@@ -1480,6 +1500,15 @@ www.tgmwindowcleaning.co.uk`;
               const dayIsPast = isDayInPast(title);
               const dayIsCompleted = completedDays.includes(title);
               const showDayCompleteButton = isDayComplete(title) && !dayIsCompleted && !dayIsPast;
+
+              // Debug logging
+              console.log(`Section header for ${title}:`, {
+                dayIsPast,
+                dayIsCompleted,
+                isDayComplete: isDayComplete(title),
+                showDayCompleteButton,
+                totalJobs: data.filter(item => !item.__type).length
+              });
 
               return (
                 <View style={styles.sectionHeaderContainer}>
