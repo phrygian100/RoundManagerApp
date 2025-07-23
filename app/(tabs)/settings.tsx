@@ -1224,12 +1224,13 @@ export default function SettingsScreen() {
               
               // Map payment type
               const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
-              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit' = 'other';
               
               if (typeString === 'cash') method = 'cash';
               else if (typeString === 'card') method = 'card';
               else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
               else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+              else if (typeString === 'direct debit' || typeString === 'dd' || typeString === 'direct_debit') method = 'direct_debit';
               
               // Get notes
               const notes = (row as any)['Notes']?.trim() || '';
@@ -1282,12 +1283,13 @@ export default function SettingsScreen() {
               
               // Map payment type
               const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
-              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+              let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit' = 'other';
               
               if (typeString === 'cash') method = 'cash';
               else if (typeString === 'card') method = 'card';
               else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
               else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+              else if (typeString === 'direct debit' || typeString === 'dd' || typeString === 'direct_debit') method = 'direct_debit';
               
               // Get notes
               const notes = (row as any)['Notes']?.trim() || '';
@@ -1457,12 +1459,13 @@ export default function SettingsScreen() {
         }
         
         const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
-        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit' = 'other';
         
         if (typeString === 'cash') method = 'cash';
         else if (typeString === 'card') method = 'card';
         else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
         else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+        else if (typeString === 'direct debit' || typeString === 'dd' || typeString === 'direct_debit') method = 'direct_debit';
         
         const notes = (row as any)['Notes']?.trim() || '';
         
@@ -1513,12 +1516,13 @@ export default function SettingsScreen() {
         
         // Map payment type
         const typeString = (row as any)['Type']?.toString().trim().toLowerCase();
-        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' = 'other';
+        let method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit' = 'other';
         
         if (typeString === 'cash') method = 'cash';
         else if (typeString === 'card') method = 'card';
         else if (typeString === 'bacs' || typeString === 'bank' || typeString === 'bank transfer') method = 'bank_transfer';
         else if (typeString === 'cheque' || typeString === 'check') method = 'cheque';
+        else if (typeString === 'direct debit' || typeString === 'dd' || typeString === 'direct_debit') method = 'direct_debit';
         
         // Get notes
         const notes = (row as any)['Notes']?.trim() || '';

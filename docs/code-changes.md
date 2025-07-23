@@ -3792,6 +3792,36 @@ For each day Monday-Sunday:
 
 ---
 
+## 2025-01-28 - Direct Debit Support for CSV Payment Import
+
+### Enhancement:
+Added support for importing direct debit payments via CSV import functionality.
+
+### Implementation Details:
+
+**Payment Type Mapping Enhancement**:
+- Extended CSV import payment type mapping to recognize direct debit variations
+- Added support for: `'direct debit'`, `'dd'`, and `'direct_debit'` in CSV Type column
+- Updated TypeScript type definitions to include `'direct_debit'` as valid payment method
+- Applied changes to all four payment import sections:
+  - Web platform - known payments
+  - Web platform - unknown payments  
+  - Mobile platform - known payments
+  - Mobile platform - unknown payments
+
+**Technical Changes**:
+- Modified `app/(tabs)/settings.tsx` in `handleImportPayments()` function
+- Updated payment method type from `'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other'` to include `'direct_debit'`
+- Added conditional mapping: `else if (typeString === 'direct debit' || typeString === 'dd' || typeString === 'direct_debit') method = 'direct_debit';`
+
+### Files Modified:
+- `app/(tabs)/settings.tsx` - Enhanced payment type mapping in CSV import functions
+- `docs/code-changes.md` - Documentation update
+
+**Impact**: Users can now import historical direct debit payments from CSV files, ensuring complete payment type coverage for data migration scenarios. This complements the existing GoCardless direct debit automation system by supporting historical data import.
+
+---
+
 ## 2025-01-18 - Unknown Payments Feature
 
 ### Summary
