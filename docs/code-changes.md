@@ -4626,3 +4626,87 @@ Implemented visual identification for GoCardless-enabled clients by replacing ba
 **Priority**: MEDIUM - UX enhancement for better client payment method identification
 
 ---
+
+## 2025-01-31 - Extended GoCardless Integration to Job Level with DD Display 🔄
+
+### Summary
+Extended GoCardless identification beyond client cards to the job level, implementing "DD" badges for jobs from gocardless-enabled clients and storing gocardless information directly in job records for improved performance and consistency.
+
+### Implementation Details
+
+**1. Job Schema Updates**:
+- Added `gocardlessEnabled?: boolean` field to Job type
+- Added `gocardlessCustomerId?: string` field to Job type
+- Jobs now store gocardless information directly for efficient querying
+
+**2. Job Creation Logic Updates**:
+- **`services/jobService.ts`**: Updated all job creation functions to automatically include gocardless information from client records
+- **`app/(tabs)/clients/[id].tsx`**: Updated ad-hoc job creation to include gocardless fields
+- **`app/(tabs)/settings.tsx`**: Updated CSV import job creation to include gocardless information
+
+**3. Display Logic Updates**:
+- **`utils/jobDisplay.ts`**: Created utility functions for consistent job account display
+- **`app/runsheet/[week].tsx`**: Updated to show "DD" badges for gocardless jobs instead of account numbers
+- **`app/completed-jobs.tsx`**: Updated to show "DD" badges for gocardless jobs
+
+**4. Migration Strategy**:
+- **`scripts/migrate-gocardless-jobs.js`**: Created migration script to backfill existing jobs with gocardless information
+- All existing jobs updated with gocardless fields from their associated clients
+
+**Visual Implementation**:
+```typescript
+// Job display utility
+export const getJobAccountDisplay = (job: Job, client?: Client) => {
+  const isGoCardless = job.gocardlessEnabled || client?.gocardlessEnabled;
+  
+  if (isGoCardless) {
+    return {
+      text: 'DD',
+      isGoCardless: true,
+      style: {
+        backgroundColor: '#FFD700', // Yellow background
+        color: '#000000' // Black text
+      }
+    };
+  }
+  
+  return {
+    text: client?.accountNumber ? displayAccountNumber(client.accountNumber) : 'N/A',
+    isGoCardless: false,
+    style: null
+  };
+};
+```
+
+**Job Creation Integration**:
+```typescript
+// Automatic gocardless field population
+const jobData = {
+  ...job,
+  ownerId,
+  gocardlessEnabled: client?.gocardlessEnabled || false,
+  gocardlessCustomerId: client?.gocardlessCustomerId
+};
+```
+
+### Impact
+- ✅ **Consistent Visual Experience**: "DD" badges appear across all job displays
+- ✅ **Improved Performance**: Direct job-level gocardless queries without client joins
+- ✅ **Complete Historical Data**: Migration ensures all existing jobs have gocardless information
+- ✅ **Automatic Future Integration**: New jobs automatically include gocardless information
+- ✅ **Enhanced Payment Processing**: Direct access to gocardlessCustomerId for payment operations
+
+### Files Modified
+- `types/models.ts` - Added gocardless fields to Job type
+- `services/jobService.ts` - Updated all job creation functions
+- `app/(tabs)/clients/[id].tsx` - Updated ad-hoc job creation
+- `app/(tabs)/settings.tsx` - Updated CSV import job creation
+- `utils/jobDisplay.ts` - Created job display utility functions
+- `app/runsheet/[week].tsx` - Updated job display logic
+- `app/completed-jobs.tsx` - Updated job display logic
+- `scripts/migrate-gocardless-jobs.js` - Created migration script
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Core GoCardless integration enhancement for complete system consistency
+
+---

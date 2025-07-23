@@ -30,8 +30,30 @@ export async function createRequiredIndexes(): Promise<void> {
 export async function createJob(job: Omit<Job, 'id'>) {
   const ownerId = await getDataOwnerId();
   if (!ownerId) throw new Error('User not authenticated');
+  
+  // Get client information to include gocardless fields
+  let gocardlessEnabled = false;
+  let gocardlessCustomerId: string | undefined;
+  
+  try {
+    const clientDoc = await getDoc(doc(db, 'clients', job.clientId));
+    if (clientDoc.exists()) {
+      const client = clientDoc.data();
+      gocardlessEnabled = client.gocardlessEnabled || false;
+      gocardlessCustomerId = client.gocardlessCustomerId;
+    }
+  } catch (error) {
+    console.warn('Failed to fetch client gocardless info for job creation:', error);
+    // Continue with job creation even if client fetch fails
+  }
+  
   const jobsRef = collection(db, JOBS_COLLECTION);
-  const docRef = await addDoc(jobsRef, { ...job, ownerId });
+  const docRef = await addDoc(jobsRef, { 
+    ...job, 
+    ownerId,
+    gocardlessEnabled,
+    gocardlessCustomerId
+  });
   
   // Trigger capacity redistribution for future weeks when a new job is added
   try {
@@ -206,7 +228,11 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
         const batch = writeBatch(db);
         jobsToCreate.forEach(job => {
           const newJobRef = doc(collection(db, JOBS_COLLECTION));
-          batch.set(newJobRef, job);
+          batch.set(newJobRef, {
+            ...job,
+            gocardlessEnabled: client.gocardlessEnabled || false,
+            gocardlessCustomerId: client.gocardlessCustomerId
+          });
         });
         await batch.commit();
         totalJobsCreated += jobsToCreate.length;
@@ -386,6 +412,8 @@ export async function generateRecurringJobs() {
         status: 'pending',
         price: typeof client.quote === 'number' ? client.quote : 25,
         paymentStatus: 'unpaid',
+        gocardlessEnabled: client.gocardlessEnabled || false,
+        gocardlessCustomerId: client.gocardlessCustomerId,
       });
       
       visitDate = addWeeks(visitDate, Number(client.frequency));
@@ -458,6 +486,8 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
             status: 'pending',
             price: service.price,
             paymentStatus: 'unpaid',
+            gocardlessEnabled: client.gocardlessEnabled || false,
+            gocardlessCustomerId: client.gocardlessCustomerId,
           });
         }
 

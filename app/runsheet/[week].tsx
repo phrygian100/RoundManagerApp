@@ -18,7 +18,7 @@ import { checkClientLimit } from '../../services/subscriptionService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
 import type { Job } from '../../types/models';
-import { displayAccountNumber } from '../../utils/account';
+import { getJobAccountDisplay } from '../../utils/jobDisplay';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -1305,7 +1305,24 @@ www.tgmwindowcleaning.co.uk`;
               {(item as any).hasCustomPrice && ' ✏️'}
             </Text>
             {client?.accountNumber !== undefined && (
-              <Text style={styles.accountNumberText}>{displayAccountNumber(client.accountNumber)}</Text>
+              <View style={styles.accountNumberContainer}>
+                {(() => {
+                  const accountDisplay = getJobAccountDisplay(item, client);
+                  if (accountDisplay.isGoCardless && accountDisplay.style) {
+                    return (
+                      <View style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}>
+                        <Text style={[styles.ddText, { color: accountDisplay.style.color }]}>
+                          {accountDisplay.text}
+                        </Text>
+                      </View>
+                    );
+                  } else {
+                    return (
+                      <Text style={styles.accountNumberText}>{accountDisplay.text}</Text>
+                    );
+                  }
+                })()}
+              </View>
             )}
           </Pressable>
         </View>
@@ -2614,5 +2631,19 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  accountNumberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ddBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  ddText: {
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 }); 

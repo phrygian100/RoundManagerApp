@@ -50,6 +50,9 @@ export type Job = {
   paymentStatus: 'unpaid' | 'paid' | 'released';
   hasCustomPrice?: boolean; // Indicates if the price has been manually edited
   vehicleId?: string; // Manual vehicle assignment (optional - if not set, uses automatic allocation)
+  // GoCardless integration
+  gocardlessEnabled?: boolean; // Boolean flag for quick checks
+  gocardlessCustomerId?: string; // Customer ID for payment processing
 };
 
 export type Payment = {

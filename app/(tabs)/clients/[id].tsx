@@ -508,6 +508,8 @@ export default function ClientDetailScreen() {
       status: 'pending',
       scheduledTime: format(jobDate, 'yyyy-MM-dd') + 'T09:00:00',
       paymentStatus: 'unpaid',
+      gocardlessEnabled: client?.gocardlessEnabled || false,
+      gocardlessCustomerId: client?.gocardlessCustomerId,
     };
 
     console.log('➕ Creating adhoc job:', jobData);

@@ -1555,13 +1555,17 @@ export default function SettingsScreen() {
 
             const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
             const clientsSnapshot = await getDocs(clientsQuery);
-            const accountToClientMap = new Map<string, { id: string; address: string }>();
+            const accountToClientMap = new Map<string, { id: string; address: string; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>();
             
             clientsSnapshot.docs.forEach(doc => {
               const data = doc.data();
               if (data.accountNumber) {
-                const address = `${data.address1 || data.address || ''}, ${data.town || ''}, ${data.postcode || ''}`;
-                accountToClientMap.set(data.accountNumber.toUpperCase(), { id: doc.id, address });
+                accountToClientMap.set(data.accountNumber.toUpperCase(), {
+                  id: doc.id,
+                  address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`,
+                  gocardlessEnabled: data.gocardlessEnabled || false,
+                  gocardlessCustomerId: data.gocardlessCustomerId,
+                });
               }
             });
 
@@ -1649,7 +1653,9 @@ export default function SettingsScreen() {
                   scheduledTime: jobDate + 'T09:00:00',
                   status: 'completed',
                   price: amount,
-                  paymentStatus: 'unpaid'
+                  paymentStatus: 'unpaid',
+                  gocardlessEnabled: clientInfo.gocardlessEnabled || false,
+                  gocardlessCustomerId: clientInfo.gocardlessCustomerId,
                 });
                 imported++;
               } catch (e) {
@@ -1712,14 +1718,16 @@ export default function SettingsScreen() {
 
         const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
         const clientsSnapshot = await getDocs(clientsQuery);
-        const accountToClientMap = new Map<string, { id: string; address: string }>();
+        const accountToClientMap = new Map<string, { id: string; address: string; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>();
         
         clientsSnapshot.docs.forEach(doc => {
           const data = doc.data();
           if (data.accountNumber) {
             accountToClientMap.set(data.accountNumber.toUpperCase(), {
               id: doc.id,
-              address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`
+              address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`,
+              gocardlessEnabled: data.gocardlessEnabled || false,
+              gocardlessCustomerId: data.gocardlessCustomerId,
             });
           }
         });
@@ -1798,7 +1806,9 @@ export default function SettingsScreen() {
               scheduledTime: jobDate + 'T09:00:00',
               status: 'completed',
               price: amount,
-              paymentStatus: 'unpaid'
+              paymentStatus: 'unpaid',
+              gocardlessEnabled: clientInfo.gocardlessEnabled || false,
+              gocardlessCustomerId: clientInfo.gocardlessCustomerId,
             });
             imported++;
           } catch (e) {

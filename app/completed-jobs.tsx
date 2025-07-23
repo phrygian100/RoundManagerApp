@@ -10,11 +10,10 @@ import { getDataOwnerId } from '../core/session';
 import { deleteJob } from '../services/jobService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
-import { displayAccountNumber } from '../utils/account';
+import { getJobAccountDisplay } from '../utils/jobDisplay';
 
 // Mobile browser detection for better touch targets
 const isMobileBrowser = () => {
-  if (Platform.OS !== 'web') return false;
   if (typeof window === 'undefined') return false;
   const userAgent = window.navigator.userAgent;
   return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
@@ -198,7 +197,7 @@ export default function CompletedJobsScreen() {
           amount: item.price,
           clientName: client.name,
           address: address,
-          accountNumber: displayAccountNumber(client.accountNumber) || '',
+          accountNumber: client.accountNumber || '',
           from: '/completed-jobs'
         },
       });
@@ -221,6 +220,26 @@ export default function CompletedJobsScreen() {
         ) : null}
         <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
         <ThemedText>{client?.name || 'Unknown client'}</ThemedText>
+        {client?.accountNumber && (
+          <View style={styles.accountNumberContainer}>
+            {(() => {
+              const accountDisplay = getJobAccountDisplay(item, client);
+              if (accountDisplay.isGoCardless && accountDisplay.style) {
+                return (
+                  <View style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}>
+                    <ThemedText style={[styles.ddText, { color: accountDisplay.style.color }]}>
+                      {accountDisplay.text}
+                    </ThemedText>
+                  </View>
+                );
+              } else {
+                return (
+                  <ThemedText style={styles.accountNumberText}>{accountDisplay.text}</ThemedText>
+                );
+              }
+            })()}
+          </View>
+        )}
         <ThemedText>£{item.price.toFixed(2)}</ThemedText>
         <ThemedText>
           Completed: {format(parseISO(item.scheduledTime), 'd MMMM yyyy')}
@@ -427,5 +446,25 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     marginTop: 40,
+  },
+  accountNumberContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  accountNumberText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  ddBadge: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    marginLeft: 8,
+  },
+  ddText: {
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 }); 
