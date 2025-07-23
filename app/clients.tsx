@@ -303,8 +303,18 @@ export default function ClientsScreen() {
           {loadingBalances ? (
             <ActivityIndicator style={styles.balanceBadge} size="small" />
           ) : (
-            <View style={[styles.balanceBadge, { backgroundColor: balance < 0 ? '#ff4d4d' : '#4CAF50' }]}>
-              <ThemedText style={styles.balanceText}>£{balance.toFixed(2)}</ThemedText>
+            <View style={[
+              styles.balanceBadge, 
+              item.gocardlessEnabled 
+                ? { backgroundColor: '#FFD700' } // Yellow for DD
+                : { backgroundColor: balance < 0 ? '#ff4d4d' : '#4CAF50' } // Red/Green for balance
+            ]}>
+              <ThemedText style={[
+                styles.balanceText,
+                item.gocardlessEnabled && { color: '#000000' } // Black text for DD
+              ]}>
+                {item.gocardlessEnabled ? 'DD' : `£${balance.toFixed(2)}`}
+              </ThemedText>
             </View>
           )}
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>

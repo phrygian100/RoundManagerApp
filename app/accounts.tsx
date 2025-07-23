@@ -350,8 +350,18 @@ export default function AccountsScreen() {
         style={styles.outstandingClientCard}
         onPress={() => handleOpenAccountDetails(client)}
       >
-        <View style={[styles.balanceBadge, { backgroundColor: '#f44336' }]}>
-          <ThemedText style={styles.balanceText}>£{Math.abs(client.balance).toFixed(2)}</ThemedText>
+        <View style={[
+          styles.balanceBadge, 
+          client.gocardlessEnabled 
+            ? { backgroundColor: '#FFD700' } // Yellow for DD
+            : { backgroundColor: '#f44336' } // Red for outstanding balance
+        ]}>
+          <ThemedText style={[
+            styles.balanceText,
+            client.gocardlessEnabled && { color: '#000000' } // Black text for DD
+          ]}>
+            {client.gocardlessEnabled ? 'DD' : `£${Math.abs(client.balance).toFixed(2)}`}
+          </ThemedText>
         </View>
         <View style={styles.clientInfo}>
           <ThemedText style={styles.modalClientName}>{client.name || 'No name'}</ThemedText>

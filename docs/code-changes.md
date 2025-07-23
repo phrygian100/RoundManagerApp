@@ -4570,3 +4570,59 @@ This foundation enables:
 **Impact**: Foundation complete for GoCardless integration. Users can now tag clients and configure Customer IDs, ready for the next phase of API integration.
 
 ---
+
+## 2025-01-31 - Added GoCardless DD Badge Display for Client Identification 🏷️
+
+### Summary
+Implemented visual identification for GoCardless-enabled clients by replacing balance displays with "DD" badges in both the clients screen and outstanding accounts screen. This provides immediate visual distinction for clients using direct debit payment methods.
+
+### Implementation Details
+**Visual Design**:
+- **DD Badge**: Yellow background (`#FFD700`) with black text
+- **Balance Badge**: Maintains existing red/green color scheme for non-GoCardless clients
+- **Consistent Styling**: Same badge positioning, size, and padding across all screens
+
+**Screens Updated**:
+1. **Clients Screen** (`app/clients.tsx`):
+   - Balance badges now show "DD" for `gocardlessEnabled: true` clients
+   - Regular balance display maintained for standard clients
+   - Yellow background with black text for DD badges
+
+2. **Outstanding Accounts Screen** (`app/accounts.tsx`):
+   - Outstanding client cards show "DD" for GoCardless clients
+   - Maintains red background for outstanding balances on regular clients
+   - Consistent visual treatment across both screens
+
+**Technical Implementation**:
+```typescript
+// Conditional badge rendering
+<View style={[
+  styles.balanceBadge, 
+  item.gocardlessEnabled 
+    ? { backgroundColor: '#FFD700' } // Yellow for DD
+    : { backgroundColor: balance < 0 ? '#ff4d4d' : '#4CAF50' } // Red/Green for balance
+]}>
+  <ThemedText style={[
+    styles.balanceText,
+    item.gocardlessEnabled && { color: '#000000' } // Black text for DD
+  ]}>
+    {item.gocardlessEnabled ? 'DD' : `£${balance.toFixed(2)}`}
+  </ThemedText>
+</View>
+```
+
+### Impact
+- ✅ **Clear Visual Identification**: GoCardless clients immediately distinguishable
+- ✅ **Consistent Experience**: Same visual treatment across clients and accounts screens
+- ✅ **No Functional Regression**: Balance calculation and sorting remain unchanged
+- ✅ **Enhanced UX**: Quick recognition of payment method without opening client details
+- ✅ **Maintains Existing Workflow**: All existing functionality preserved
+
+### Files Modified
+- `app/clients.tsx` - Updated balance badge rendering logic
+- `app/accounts.tsx` - Updated outstanding client card badge display
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - UX enhancement for better client payment method identification
+
+---
