@@ -195,7 +195,7 @@ export default function RunsheetWeekScreen() {
                 const dayDate = addDays(weekStart, dayIndex);
                 const jobsForDay = jobsWithClients.filter((job: any) => {
                     const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-                    return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
+                    return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
                 });
                 
                 const isActuallyComplete = jobsForDay.length > 0 && jobsForDay.every(job => job.status === 'completed');
@@ -766,35 +766,23 @@ www.tgmwindowcleaning.co.uk`;
   // Delete logic for quote jobs (removes both job and associated quote)
   const handleDeleteQuoteJob = async (job: any) => {
     if (Platform.OS === 'web') {
-      if (window.confirm('Are you sure you want to permanently delete this quote job?')) {
-        if (job.quoteId) {
-          try {
-            await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
-          } catch (e) {
-            console.warn('Failed to delete quote document:', e);
-          }
-        }
+      if (window.confirm('Are you sure you want to remove this quote job from the runsheet? The quote will remain available in the quotes screen.')) {
+        // Only delete the job document, preserve the quote document
         await deleteDoc(doc(db, 'jobs', job.id));
         setJobs((prev) => prev.filter((j) => j.id !== job.id));
         setActionSheetJob(null);
       }
     } else {
       Alert.alert(
-        'Delete Quote Job',
-        'Are you sure you want to permanently delete this quote job?',
+        'Remove Quote Job',
+        'Are you sure you want to remove this quote job from the runsheet? The quote will remain available in the quotes screen.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
-            text: 'Delete',
+            text: 'Remove',
             style: 'destructive',
             onPress: async () => {
-              if (job.quoteId) {
-                try {
-                  await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
-                } catch (e) {
-                  console.warn('Failed to delete quote document:', e);
-                }
-              }
+              // Only delete the job document, preserve the quote document
               await deleteDoc(doc(db, 'jobs', job.id));
               setJobs((prev) => prev.filter((j) => j.id !== job.id));
               setActionSheetJob(null);
@@ -987,7 +975,7 @@ www.tgmwindowcleaning.co.uk`;
     const dayDate = addDays(weekStart, dayIndex);
     const jobsForDay = jobs.filter((job) => {
       const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-      return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
+      return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
     });
     return jobsForDay.length > 0 && jobsForDay.every((job) => job.status === 'completed');
   };

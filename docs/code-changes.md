@@ -5,6 +5,78 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - Fixed Quote Job Issues in Runsheets 🔧
+
+### Summary
+Fixed two critical issues with quote jobs in runsheets:
+1. Quote jobs were blocking day completion even when all regular work jobs were completed
+2. Deleting quote jobs from runsheets was also deleting the quote data from the quotes screen
+
+### Root Cause
+**Issue 1 - Day Completion Blocked**: The `isDayComplete` function was not excluding quote jobs from the completion check, while the `handleComplete` function correctly excluded them. This inconsistency meant quote jobs prevented users from marking their day as complete.
+
+**Issue 2 - Quote Data Loss**: The `handleDeleteQuoteJob` function was deleting both the job document AND the quote document, causing permanent data loss and removing quotes from the quotes screen.
+
+### Solution Implemented
+
+**Issue 1 - Fixed Day Completion Logic**:
+```typescript
+// Before: Quote jobs were included in completion check
+const jobsForDay = jobs.filter((job) => {
+  const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+  return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job);
+});
+
+// After: Quote jobs are now excluded from completion check
+const jobsForDay = jobs.filter((job) => {
+  const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+  return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
+});
+```
+
+**Issue 2 - Fixed Quote Job Deletion**:
+```typescript
+// Before: Deleted both job and quote documents
+if (job.quoteId) {
+  try {
+    await deleteDoc(doc(db, 'quotes', (job as any).quoteId));
+  } catch (e) {
+    console.warn('Failed to delete quote document:', e);
+  }
+}
+await deleteDoc(doc(db, 'jobs', job.id));
+
+// After: Only delete job document, preserve quote data
+await deleteDoc(doc(db, 'jobs', job.id));
+```
+
+### Technical Implementation
+
+**Updated Functions**:
+- `isDayComplete()` - Now excludes quote jobs from completion check
+- `handleDeleteQuoteJob()` - Now only deletes job document, preserves quote data
+- Updated confirmation messages to clarify that quotes remain available
+
+**User Experience Improvements**:
+- Changed confirmation dialog text from "permanently delete" to "remove from runsheet"
+- Clarified that quotes remain available in quotes screen
+- Consistent behavior across web and mobile platforms
+
+### Impact
+- ✅ **Day Completion Fixed**: Users can now complete their day when all regular work jobs are finished, regardless of quote jobs
+- ✅ **Quote Data Preserved**: Deleting quote jobs from runsheets no longer removes quote data
+- ✅ **Consistent Logic**: All day completion checks now properly exclude quote jobs
+- ✅ **No Regression**: Existing quote progression and client creation workflows remain unchanged
+- ✅ **Better UX**: Clearer messaging about what happens when removing quote jobs
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Updated `isDayComplete` and `handleDeleteQuoteJob` functions
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Critical functionality affecting day completion and data preservation
+
+---
+
 ## 2025-01-31 - Fixed Missing Audit Logging for Quote Progression from Runsheet 🔧
 
 ### Summary
