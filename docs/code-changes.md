@@ -5060,3 +5060,166 @@ const jobData = {
 ---
 
 ## 2025-01-31 - Extended GoCardless Integration to Job Level with DD Display 🔄
+
+### Summary
+Extended GoCardless identification beyond client cards to the job level, implementing "DD" badges for jobs from gocardless-enabled clients and storing gocardless information directly in job records for improved performance and consistency.
+
+### Implementation Details
+
+**1. Job Schema Updates**:
+- Added `gocardlessEnabled?: boolean` field to Job type
+- Added `gocardlessCustomerId?: string` field to Job type
+- Jobs now store gocardless information directly for efficient querying
+
+**2. Job Creation Logic Updates**:
+- **`services/jobService.ts`**: Updated all job creation functions to automatically include gocardless information from client records
+- **`app/(tabs)/clients/[id].tsx`**: Updated ad-hoc job creation to include gocardless fields
+- **`app/(tabs)/settings.tsx`**: Updated CSV import job creation to include gocardless information
+
+**3. Display Logic Updates**:
+- **`utils/jobDisplay.ts`**: Created utility functions for consistent job account display
+- **`app/runsheet/[week].tsx`**: Updated to show "DD" badges for gocardless jobs instead of account numbers
+- **`app/completed-jobs.tsx`**: Updated to show "DD" badges for gocardless jobs
+
+**4. Migration Strategy**:
+- **`scripts/migrate-gocardless-jobs.js`**: Created migration script to backfill existing jobs with gocardless information
+- All existing jobs updated with gocardless fields from their associated clients
+
+**Visual Implementation**:
+```typescript
+// Job display utility
+export const getJobAccountDisplay = (job: Job, client?: Client) => {
+  const isGoCardless = job.gocardlessEnabled || client?.gocardlessEnabled;
+  
+  if (isGoCardless) {
+    return {
+      text: 'DD',
+      isGoCardless: true,
+      style: {
+        backgroundColor: '#FFD700', // Yellow background
+        color: '#000000' // Black text
+      }
+    };
+  }
+  
+  return {
+    text: client?.accountNumber ? displayAccountNumber(client.accountNumber) : 'N/A',
+    isGoCardless: false,
+    style: null
+  };
+};
+```
+
+**Job Creation Integration**:
+```typescript
+// Automatic gocardless field population
+const jobData = {
+  ...job,
+  ownerId,
+  gocardlessEnabled: client?.gocardlessEnabled || false,
+  gocardlessCustomerId: client?.gocardlessCustomerId
+};
+```
+
+### Impact
+- ✅ **Consistent Visual Experience**: "DD" badges appear across all job displays
+- ✅ **Improved Performance**: Direct job-level gocardless queries without client joins
+- ✅ **Complete Historical Data**: Migration ensures all existing jobs have gocardless information
+- ✅ **Automatic Future Integration**: New jobs automatically include gocardless information
+- ✅ **Enhanced Payment Processing**: Direct access to gocardlessCustomerId for payment operations
+
+### Files Modified
+- `types/models.ts` - Added gocardless fields to Job type
+- `services/jobService.ts` - Updated all job creation functions
+- `app/(tabs)/clients/[id].tsx` - Updated ad-hoc job creation
+- `app/(tabs)/settings.tsx` - Updated CSV import job creation
+- `utils/jobDisplay.ts` - Created job display utility functions
+- `app/runsheet/[week].tsx` - Updated job display logic
+- `app/completed-jobs.tsx` - Updated job display logic
+- `scripts/migrate-gocardless-jobs.js` - Created migration script
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Core GoCardless integration enhancement for complete system consistency
+
+---
+
+## 2025-01-31 - GoCardless Individual Job Payment Initiation 💳
+
+### Summary
+Implemented the ability for users to manually initiate GoCardless direct debit payments on a per-job basis by clicking the yellow "DD" (Direct Debit) square in the runsheet, providing granular control over payment timing.
+
+### Implementation Details
+
+**1. New Modal Component**:
+- **`components/GoCardlessPaymentModal.tsx`**: Created confirmation modal for individual job payments
+- Shows job details, client information, and payment amount
+- Validates GoCardless configuration and existing payments
+- Creates both GoCardless API payment and local payment record
+- Provides clear success/error feedback
+
+**2. Payment Service Enhancement**:
+- **`services/paymentService.ts`**: Added `getPaymentsForJob()` function
+- Checks for existing payments to prevent duplicates
+- Enables validation before payment creation
+
+**3. Runsheet Integration**:
+- **`app/runsheet/[week].tsx`**: Enhanced DD badge functionality
+- Made DD badge clickable with `handleDDClick()` function
+- Added modal state management and integration
+- Added cursor pointer styling for web platform
+- Prevents job modal from opening when DD badge is clicked
+
+**4. Validation Logic**:
+- Checks if GoCardless is configured for the account
+- Validates job has `gocardlessEnabled: true` and valid `gocardlessCustomerId`
+- Prevents duplicate payments for the same job
+- Shows appropriate error messages for validation failures
+
+**5. Payment Creation Flow**:
+- Creates GoCardless API payment with job-specific reference
+- Creates local payment record with method: 'direct_debit'
+- Links payment to specific job via `jobId` field
+- Provides detailed payment description and notes
+
+**Key Features**:
+- **Granular Control**: Initiate payments per job rather than waiting for day completion
+- **Visual Feedback**: DD badge shows cursor pointer on web to indicate clickability
+- **Duplicate Prevention**: Checks for existing payments before creation
+- **Comprehensive Validation**: Multiple validation layers ensure proper setup
+- **Clear User Feedback**: Success/error messages with specific details
+- **Consistent Integration**: Uses existing GoCardless service infrastructure
+
+**User Experience**:
+1. User clicks yellow "DD" badge on GoCardless-enabled job
+2. Modal opens showing job details and payment amount
+3. User confirms payment initiation
+4. System validates configuration and existing payments
+5. Creates GoCardless API payment and local record
+6. Shows success confirmation with payment details
+
+**Error Handling**:
+- GoCardless not configured: Shows setup instructions
+- No valid customer ID: Shows configuration error
+- Duplicate payment: Shows existing payment message
+- API failures: Shows specific error details
+- Network issues: Retry logic with user feedback
+
+### Impact
+- ✅ **Enhanced Payment Control**: Users can initiate payments when needed
+- ✅ **Better Cash Flow**: Immediate payment initiation without waiting for day completion
+- ✅ **Improved UX**: Clear visual indicators and feedback
+- ✅ **Data Integrity**: Prevents duplicate payments and validates setup
+- ✅ **Consistent Experience**: Integrates seamlessly with existing GoCardless workflow
+- ✅ **Cross-Platform Support**: Works on web, iOS, and Android
+
+### Files Modified
+- `components/GoCardlessPaymentModal.tsx` - New modal component (created)
+- `services/paymentService.ts` - Added getPaymentsForJob function
+- `app/runsheet/[week].tsx` - Enhanced DD badge clickability and modal integration
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: HIGH - Core GoCardless functionality enhancement for improved payment workflow
+
+---
+
+// ... existing code ...

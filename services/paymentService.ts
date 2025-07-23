@@ -29,6 +29,15 @@ export async function getPaymentsForClient(clientId: string): Promise<Payment[]>
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
 }
 
+export async function getPaymentsForJob(jobId: string): Promise<Payment[]> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return [];
+  const paymentsRef = collection(db, PAYMENTS_COLLECTION);
+  const q = query(paymentsRef, where('ownerId', '==', ownerId), where('jobId', '==', jobId));
+  const querySnapshot = await getDocs(q);
+  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+}
+
 export async function getAllPayments(): Promise<Payment[]> {
   const ownerId = await getDataOwnerId();
   if (!ownerId) return [];

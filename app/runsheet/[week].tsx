@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId } from '../../core/session';
@@ -66,6 +67,12 @@ export default function RunsheetWeekScreen() {
 
   // Day reset functionality
   const [resettingDay, setResettingDay] = useState<string | null>(null);
+
+  // GoCardless payment modal
+  const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
+    visible: boolean;
+    job: Job & { client: Client | null } | null;
+  }>({ visible: false, job: null });
 
   const router = useRouter();
 
@@ -959,6 +966,23 @@ www.tgmwindowcleaning.co.uk`;
     }
   };
 
+  const handleDDClick = (job: Job & { client: Client | null }, event: any) => {
+    // Prevent the job press handler from being called
+    event.stopPropagation();
+    
+    // Check if job is GoCardless enabled
+    if (!job.gocardlessEnabled || !job.gocardlessCustomerId) {
+      Alert.alert(
+        'Direct Debit Not Available',
+        'This client is not set up for direct debit payments.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
+    setGocardlessPaymentModal({ visible: true, job });
+  };
+
   const toggleDay = (title: string) => {
     setCollapsedDays((prev) =>
       prev.includes(title) ? prev.filter((d) => d !== title) : [...prev, title]
@@ -1482,11 +1506,14 @@ www.tgmwindowcleaning.co.uk`;
                   const accountDisplay = getJobAccountDisplay(item, client);
                   if (accountDisplay.isGoCardless && accountDisplay.style) {
                     return (
-                      <View style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}>
+                      <Pressable
+                        style={[styles.ddBadge, { backgroundColor: accountDisplay.style.backgroundColor }]}
+                        onPress={(event) => handleDDClick(item, event)}
+                      >
                         <Text style={[styles.ddText, { color: accountDisplay.style.color }]}>
                           {accountDisplay.text}
                         </Text>
-                      </View>
+                      </Pressable>
                     );
                   } else {
                     return (
@@ -2292,6 +2319,14 @@ www.tgmwindowcleaning.co.uk`;
             </View>
           </View>
         </Modal>
+
+        {/* GoCardless Payment Modal */}
+        <GoCardlessPaymentModal
+          visible={gocardlessPaymentModal.visible}
+          onClose={() => setGocardlessPaymentModal({ visible: false, job: null })}
+          job={gocardlessPaymentModal.job}
+          client={gocardlessPaymentModal.job?.client || null}
+        />
       </View>
     </View>
   );
@@ -2822,6 +2857,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 6,
     marginLeft: 8,
+    ...(Platform.OS === 'web' && { cursor: 'pointer' }),
   },
   ddText: {
     fontSize: 14,
