@@ -83,7 +83,6 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
-  const [isRefreshingCapacity, setIsRefreshingCapacity] = useState(false);
 
   // Subscription state
   const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
@@ -1956,35 +1955,15 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* Capacity Management */}
+        {/* Team Management */}
         <View style={styles.section}>
-          <ThemedText style={styles.sectionTitle}>Capacity Management</ThemedText>
-          <StyledButton
-            title={isRefreshingCapacity ? "Refreshing..." : "Refresh Capacity for Current Week"}
-            onPress={async () => {
-              setIsRefreshingCapacity(true);
-              try {
-                const { startOfWeek } = await import('date-fns');
-                const { manualRefreshWeekCapacity } = await import('../../services/capacityService');
-                
-                const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
-                const result = await manualRefreshWeekCapacity(currentWeekStart);
-                
-                let message = `Capacity refresh complete!\n\nJobs redistributed: ${result.redistributedJobs}`;
-                if (result.warnings.length > 0) {
-                  message += `\n\nWarnings:\n${result.warnings.join('\n')}`;
-                }
-                
-                Alert.alert('Capacity Refreshed', message);
-              } catch (error) {
-                console.error('Error refreshing capacity:', error);
-                Alert.alert('Error', 'Failed to refresh capacity. Please try again.');
-              } finally {
-                setIsRefreshingCapacity(false);
-              }
-            }}
-            disabled={isRefreshingCapacity}
-          />
+          <ThemedText style={styles.sectionTitle}>Team</ThemedText>
+          {isOwner && (
+            <StyledButton
+              title="Team Members"
+              onPress={() => router.push('/team')}
+            />
+          )}
         </View>
 
         {/* Admin Section - Owner Only */}
