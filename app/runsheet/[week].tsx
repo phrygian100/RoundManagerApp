@@ -1526,6 +1526,10 @@ www.tgmwindowcleaning.co.uk`;
               {typeof item.price === 'number' ? ` — £${item.price.toFixed(2)}` : ''}
               {(item as any).hasCustomPrice && ' ✏️'}
             </Text>
+            {/* Display job notes if they exist */}
+            {item.propertyDetails && item.propertyDetails.trim() !== '' && (
+              <Text style={styles.jobNotes}>📝 {item.propertyDetails}</Text>
+            )}
             {client?.accountNumber !== undefined && (
               <View style={styles.accountNumberContainer}>
                 {(() => {
@@ -2477,6 +2481,13 @@ const styles = StyleSheet.create({
   },
   clientName: { fontSize: 16 },
   clientAddress: { fontSize: 16 },
+  jobNotes: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+    marginTop: 4,
+    paddingHorizontal: 12,
+  },
   empty: { textAlign: 'center', marginTop: 50 },
   controlsContainer: {
     justifyContent: 'space-around',

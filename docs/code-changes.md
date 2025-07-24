@@ -5,6 +5,106 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - BUG FIX: Job Notes from Add New Job Modal Not Displaying in Runsheet 🔧
+
+### Summary
+Fixed a bug where job notes entered in the "Add a New Job" modal were not appearing in the runsheet display. The notes were being saved correctly to the `propertyDetails` field but were not being displayed in the runsheet UI.
+
+### Root Cause
+The job creation process was correctly saving notes to `propertyDetails: jobNotes`, but the runsheet rendering logic was missing the display of this field for regular jobs. Note jobs were displaying `propertyDetails` correctly, but regular jobs created through the modal were not.
+
+### Technical Fix
+Added display logic for job notes in the runsheet rendering:
+
+**Before**: Job notes saved but not displayed
+```typescript
+<Text style={styles.clientName}>
+  {client?.name}
+  {typeof item.price === 'number' ? ` — £${item.price.toFixed(2)}` : ''}
+  {(item as any).hasCustomPrice && ' ✏️'}
+</Text>
+```
+
+**After**: Job notes displayed with icon
+```typescript
+<Text style={styles.clientName}>
+  {client?.name}
+  {typeof item.price === 'number' ? ` — £${item.price.toFixed(2)}` : ''}
+  {(item as any).hasCustomPrice && ' ✏️'}
+</Text>
+{/* Display job notes if they exist */}
+{item.propertyDetails && item.propertyDetails.trim() !== '' && (
+  <Text style={styles.jobNotes}>📝 {item.propertyDetails}</Text>
+)}
+```
+
+### Impact
+- ✅ **Job Notes Now Visible**: Notes entered in "Add New Job" modal now appear in runsheet
+- ✅ **Consistent UI**: Matches the note display pattern used for manual note jobs  
+- ✅ **Preserved Functionality**: All existing job creation and note functionality remains intact
+- ✅ **Backward Compatible**: Works with existing jobs that have notes in propertyDetails field
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Added job notes display logic and styling
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - UX improvement for better visibility of job-specific notes
+
+---
+
+## 2025-01-31 - CRITICAL FIX: Firebase Job Creation Error - Undefined Values 🚨
+
+### Summary
+Fixed a critical bug in job creation that was causing Firebase errors when adding new one-time jobs. The error "Function addDoc() called with invalid data. Unsupported field value: undefined (found in field gocardlessCustomerId)" was occurring because undefined values were being passed to Firebase, which are not allowed.
+
+### Root Cause
+When creating jobs, the code was attempting to set `gocardlessCustomerId` from client data without checking if the value was undefined. Firebase Firestore rejects documents containing undefined field values, causing job creation to fail.
+
+### Technical Fix
+Modified all job creation functions to filter out undefined values before sending to Firebase:
+
+**Before**:
+```typescript
+await addDoc(jobsRef, { 
+  ...job, 
+  ownerId,
+  gocardlessEnabled,
+  gocardlessCustomerId  // This could be undefined
+});
+```
+
+**After**:
+```typescript
+const jobData: any = {
+  ...job, 
+  ownerId,
+  gocardlessEnabled
+};
+
+// Only include gocardlessCustomerId if it has a value
+if (gocardlessCustomerId) {
+  jobData.gocardlessCustomerId = gocardlessCustomerId;
+}
+
+await addDoc(jobsRef, jobData);
+```
+
+### Impact
+- ✅ **Fixed Job Creation**: One-time jobs can now be added without Firebase errors
+- ✅ **Improved Data Integrity**: All job creation now properly handles optional fields
+- ✅ **Comprehensive Fix**: Applied to all job creation locations throughout the app
+- ✅ **Backward Compatible**: Existing jobs with/without GoCardless data remain unaffected
+
+### Files Modified
+- `services/jobService.ts` - Fixed createJob, createJobsForClient, generateRecurringJobs, and createJobsForAdditionalServices functions
+- `app/(tabs)/clients/[id].tsx` - Fixed adhoc job creation in client detail screen
+- `app/(tabs)/settings.tsx` - Fixed job creation in CSV import functionality (2 locations)
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: CRITICAL - This was preventing users from adding new jobs to their clients
+
+---
+
 ## 2025-01-31 - CRITICAL FIX: GoCardless API URL Endpoint Correction 🚨
 
 ### Summary
