@@ -1,3 +1,4 @@
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -14,7 +15,7 @@ import { ThemedView } from './ThemedView';
 interface UpgradeModalProps {
   visible: boolean;
   onClose: () => void;
-  onUpgradeSuccess: () => void;
+  onUpgradeSuccess?: () => void;
 }
 
 export default function UpgradeModal({
@@ -55,27 +56,24 @@ export default function UpgradeModal({
 
   const handleWebUpgrade = async () => {
     try {
-      // Create Stripe Checkout session
-      const response = await fetch('/api/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
-          successUrl: `${window.location.origin}/upgrade-success`,
-          cancelUrl: `${window.location.origin}/upgrade-cancelled`,
-        }),
+      // Create Stripe Checkout session using Firebase Callable Function
+      const functions = getFunctions();
+      const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
+      
+      const result = await createCheckoutSession({
+        priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
+        successUrl: `${window.location.origin}/upgrade-success`,
+        cancelUrl: `${window.location.origin}/upgrade-cancelled`,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+      const response = result.data as { sessionId: string; url: string };
+      
+      if (!response.url) {
+        throw new Error('No checkout URL returned from server');
       }
-
-      const { url } = await response.json();
       
       // Redirect to Stripe Checkout
-      window.location.href = url;
+      window.location.href = response.url;
     } catch (error) {
       console.error('Web upgrade error:', error);
       throw error;
