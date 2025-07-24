@@ -5874,3 +5874,117 @@ const isLargeScreen = isWeb && width > 768;
 **Priority**: HIGH - Significant UX improvement addressing user feedback about visual inconsistency
 
 ---
+
+## 2025-01-31 - Implemented PDF Download Functionality for Chase Payment Screen 📄
+
+### Summary
+Implemented comprehensive PDF download functionality for the chase payment screen, allowing users to generate and download professional invoice PDFs on both web and mobile platforms.
+
+### Changes Made
+
+**1. New PDF Service (`services/pdfService.ts`)**:
+- Created cross-platform PDF generation service using `react-native-print` for mobile and browser print API for web
+- Implemented HTML template generation for professional invoice formatting
+- Added platform detection and error handling for unsupported scenarios
+- Supports both iOS/Android native PDF generation and web browser printing
+
+**2. Enhanced Chase Payment Screen (`app/chase-payment.tsx`)**:
+- Updated download button handler to use new PDF service
+- Added comprehensive error handling with user-friendly alerts
+- Integrated invoice data formatting for PDF generation
+- Added platform-specific success messages
+
+**3. Professional Invoice Layout**:
+- Company header with business information
+- Client details and billing address
+- Outstanding balance summary
+- Complete account history table with running balances
+- Payment instructions with bank details
+- Print-optimized CSS with proper page breaks
+
+### Technical Implementation
+
+**Dependencies Added**:
+- `react-native-print` - Native PDF generation for iOS and Android
+
+**Platform-Specific Approach**:
+```typescript
+if (Platform.OS === 'web') {
+  // Use browser's print functionality with new window
+  const printWindow = window.open('', '_blank');
+  printWindow.document.write(html);
+  printWindow.print();
+} else {
+  // Use react-native-print for native platforms
+  await Print.print({ html, fileName, width: 612, height: 792 });
+}
+```
+
+**PDF Features**:
+- Professional invoice formatting with company branding
+- Responsive table layout for account history
+- Color-coded amounts (positive/negative) for easy reading
+- Print-optimized styling with page break handling
+- Dynamic file naming based on client and date
+
+### User Experience Improvements
+
+**Cross-Platform Support**:
+- **Mobile (iOS/Android)**: Native PDF generation with device's built-in PDF viewer
+- **Web**: Browser print dialog with option to save as PDF
+- **Error Handling**: Clear error messages for unsupported scenarios
+
+**Professional Output**:
+- Branded invoice header with business information
+- Complete payment history with running balances
+- Clear payment instructions with bank details
+- Professional styling matching the app's design language
+
+### Error Handling
+
+**Comprehensive Validation**:
+- Platform support detection before attempting PDF generation
+- Data validation to ensure all required invoice data is present
+- User-friendly error messages for different failure scenarios
+- Graceful fallback for popup-blocked browsers
+
+**Error Messages**:
+- "PDF Not Supported" - Platform/browser compatibility issues
+- "No Data" - Missing invoice data
+- "PDF Generation Failed" - Technical errors with detailed messages
+
+### Technical Benefits
+
+**Performance**:
+- Lightweight HTML generation without external dependencies
+- Platform-optimized rendering (native vs web)
+- Efficient memory usage with proper cleanup
+
+**Maintainability**:
+- Modular PDF service for reuse across the application
+- Clean separation of HTML generation and platform-specific rendering
+- TypeScript interfaces for type safety
+
+**Future Extensibility**:
+- Easy to add additional PDF templates
+- Configurable styling and branding options
+- Ready for integration with email services
+
+### Impact
+- ✅ **Enhanced User Experience**: Professional PDF invoices for payment collection
+- ✅ **Cross-Platform Compatibility**: Works on web, iOS, and Android
+- ✅ **Business Professional**: Branded invoices improve payment collection rates
+- ✅ **Error Resilient**: Comprehensive error handling and user feedback
+- ✅ **Performance Optimized**: Lightweight implementation with native platform APIs
+- ✅ **Future Ready**: Extensible foundation for additional PDF features
+
+### Files Modified
+- `app/chase-payment.tsx` - Updated download handler and added PDF service integration
+- `package.json` - Added react-native-print dependency
+
+### Files Created
+- `services/pdfService.ts` - Cross-platform PDF generation service with HTML template
+
+**Priority**: HIGH - Critical business feature for professional payment collection
+
+---

@@ -3,11 +3,12 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getDataOwnerId, getUserSession } from '../core/session';
+import { generateInvoicePDF, isPDFGenerationSupported, type InvoiceData } from '../services/pdfService';
 import { getUserProfile } from '../services/userService';
 import type { Client } from '../types/client';
 import type { Job, Payment, User } from '../types/models';
@@ -154,9 +155,51 @@ export default function ChasePaymentScreen() {
     console.log('Send email functionality to be implemented');
   };
 
-  const handleDownload = () => {
-    // TODO: Implement download functionality
-    console.log('Download functionality to be implemented');
+  const handleDownload = async () => {
+    if (!isPDFGenerationSupported()) {
+      Alert.alert(
+        'PDF Not Supported',
+        'PDF generation is not supported on this platform or browser.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    if (!client || !invoiceItems || invoiceItems.length === 0) {
+      Alert.alert(
+        'No Data',
+        'No invoice data available to generate PDF.',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
+
+    try {
+      const invoiceData: InvoiceData = {
+        client,
+        userProfile,
+        invoiceItems,
+        runningBalance,
+      };
+
+      await generateInvoicePDF(invoiceData);
+      
+      // Show success message on mobile platforms
+      if (Platform.OS !== 'web') {
+        Alert.alert(
+          'PDF Generated',
+          'The invoice PDF has been generated successfully.',
+          [{ text: 'OK', style: 'default' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      Alert.alert(
+        'PDF Generation Failed',
+        error instanceof Error ? error.message : 'An unexpected error occurred while generating the PDF.',
+        [{ text: 'OK', style: 'default' }]
+      );
+    }
   };
 
   if (loading) {
