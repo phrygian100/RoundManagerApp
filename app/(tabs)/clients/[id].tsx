@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
@@ -6,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
@@ -83,6 +84,11 @@ export default function ClientDetailScreen() {
 
   // GoCardless settings modal state
   const [gocardlessModalVisible, setGocardlessModalVisible] = useState(false);
+
+  // Get responsive layout like accounts screen
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const isLargeScreen = isWeb && width > 768;
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -660,272 +666,499 @@ export default function ClientDetailScreen() {
       ? ([{ type: 'startingBalance', amount: typedClient.startingBalance }, ...serviceHistory] as any[])
       : serviceHistory;
 
+  // Add SectionCard component matching quotes/accounts screens
+  const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+    <View style={styles.sectionCard}>
+      <View style={styles.sectionCardHeader}>
+        {icon}
+        <ThemedText style={styles.sectionCardTitle}>{title}</ThemedText>
+      </View>
+      <View style={styles.sectionCardContent}>{children}</View>
+    </View>
+  );
+
+  const InfoRow = ({ label, value }: { label: string; value: string | React.ReactNode }) => (
+    <View style={styles.infoRow}>
+      <ThemedText style={styles.infoLabel}>{label}:</ThemedText>
+      <ThemedText style={styles.infoValue}>{value}</ThemedText>
+    </View>
+  );
+
   return (
     <ThemedView style={{ flex: 1 }}>
-      <FlatList
-        contentContainerStyle={styles.content}
-        data={historyCollapsed ? [] : serviceHistoryWithStartingBalance}
-        keyExtractor={(item) => item.type === 'startingBalance' ? 'startingBalance' : (item.id ? `${item.type}-${item.id}` : `${item.type}`)}
-        renderItem={loadingHistory ? undefined : renderHistoryItem}
-        ListEmptyComponent={
-          loadingHistory
-            ? <ActivityIndicator />
-            : (!historyCollapsed && serviceHistoryWithStartingBalance.length === 0
-                ? <ThemedText>No service history found.</ThemedText>
-                : null)
-        }
-        ListHeaderComponent={
-          <>
-            <View style={styles.titleRow}>
-              <ThemedText type="title" style={styles.title}>{displayAddress}</ThemedText>
-              <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
-                <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-              </Pressable>
-            </View>
-            <View style={styles.infoAndButtonsRow}>
-              <View style={styles.clientInfo}>
-      <ThemedText style={{ marginTop: 20 }}>Name: {client.name}</ThemedText>
-                <ThemedText>Account Number: {displayAccountNumber(client.accountNumber)}</ThemedText>
-                <ThemedText>Round Order Number: {client.roundOrderNumber ?? 'N/A'}</ThemedText>
-      {typeof client.quote === 'number' && !isNaN(client.quote) ? (
-        <ThemedText>Quote: £{client.quote.toFixed(2)}</ThemedText>
-      ) : (
-        <ThemedText>Quote: N/A</ThemedText>
-      )}
-                {client.frequency && client.frequency !== 'one-off' ? (
-        <ThemedText>Visit every {client.frequency} weeks</ThemedText>
-                ) : client.frequency === 'one-off' ? (
-                  <ThemedText>No recurring work</ThemedText>
-                ) : null}
-                {nextScheduledVisit ? (
-                  <ThemedText>Next scheduled visit: {new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                    day: '2-digit',
-                    month: 'long',
-                    year: 'numeric',
-                  })}</ThemedText>
-                ) : (
-                  <ThemedText>Next scheduled visit: N/A</ThemedText>
-                )}
-                
-                <ThemedText>Mobile Number: {client.mobileNumber ?? 'N/A'}</ThemedText>
+      {/* Header Bar - matching accounts/quotes style */}
+      <View style={styles.headerBar}>
+        <ThemedText style={styles.headerTitle}>{displayAddress}</ThemedText>
+        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+          <Ionicons name="home-outline" size={22} color="#1976d2" />
+        </Pressable>
+      </View>
+
+      <ScrollView 
+        style={styles.scrollContainer} 
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLargeScreen ? (
+          <View style={styles.desktopContainer}>
+            {/* Left Column: Client Information */}
+            <View style={styles.leftColumn}>
+              {/* Client Information Card */}
+              <SectionCard 
+                title="Client Information" 
+                icon={<Ionicons name="person-outline" size={22} color="#1976d2" />}
+              >
+                <InfoRow label="Name" value={client.name} />
+                <InfoRow label="Account Number" value={displayAccountNumber(client.accountNumber)} />
+                <InfoRow label="Round Order Number" value={client.roundOrderNumber ?? 'N/A'} />
+              </SectionCard>
+
+              {/* Service Details Card */}
+              <SectionCard 
+                title="Service Details" 
+                icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
+              >
+                <InfoRow 
+                  label="Quote" 
+                  value={typeof client.quote === 'number' && !isNaN(client.quote) 
+                    ? `£${client.quote.toFixed(2)}` 
+                    : 'N/A'
+                  } 
+                />
+                <InfoRow 
+                  label="Frequency" 
+                  value={client.frequency && client.frequency !== 'one-off' 
+                    ? `Visit every ${client.frequency} weeks` 
+                    : client.frequency === 'one-off' 
+                      ? 'No recurring work' 
+                      : 'N/A'
+                  } 
+                />
+                <InfoRow 
+                  label="Next Scheduled Visit" 
+                  value={nextScheduledVisit 
+                    ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : 'N/A'
+                  } 
+                />
+              </SectionCard>
+
+              {/* Contact Information Card */}
+              <SectionCard 
+                title="Contact Information" 
+                icon={<Ionicons name="call-outline" size={22} color="#1976d2" />}
+              >
+                <InfoRow label="Mobile Number" value={client.mobileNumber ?? 'N/A'} />
                 {client.email && (
-                  <ThemedText>Email: {client.email}</ThemedText>
+                  <InfoRow label="Email" value={client.email} />
                 )}
+              </SectionCard>
+
+              {/* Account Details Card */}
+              <SectionCard 
+                title="Account Details" 
+                icon={<Ionicons name="document-text-outline" size={22} color="#1976d2" />}
+              >
                 {client.dateAdded && (
-                  <ThemedText>Date Added: {new Date(client.dateAdded).toLocaleDateString('en-GB', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        })}</ThemedText>
-      )}
+                  <InfoRow 
+                    label="Date Added" 
+                    value={new Date(client.dateAdded).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })} 
+                  />
+                )}
                 {client.source && (
-                  <ThemedText>Source: {client.source}</ThemedText>
+                  <InfoRow label="Source" value={client.source} />
                 )}
-                <ThemedText>GoCardless Customer: {client.gocardlessEnabled ? 'True' : 'False'}</ThemedText>
-              </View>
-              
-              {/* Additional Recurring Services Panel */}
-              <View style={styles.rightPanel}>
-                {client.additionalServices && client.additionalServices.length > 0 && (
-                  <View style={styles.additionalServicesPanel}>
-                    <ThemedText style={styles.additionalServicesPanelTitle}>Additional Services</ThemedText>
-                    {client.additionalServices.filter(service => service.isActive).map((service) => (
-                                             <Pressable key={service.id} onPress={() => {
-                         setSelectedService(service);
-                         // Check if it's a predefined service type or a custom one
-                         const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
-                         if (predefinedTypes.includes(service.serviceType)) {
-                           setEditServiceType(service.serviceType);
-                           setEditCustomServiceType('');
-                         } else {
-                           setEditServiceType('Other');
-                           setEditCustomServiceType(service.serviceType);
-                         }
-                         setEditServiceFrequency(service.frequency);
-                         setEditServicePrice(service.price.toString());
-                         setEditServiceNextVisit(new Date(service.nextVisit));
-                         setShowEditServiceDatePicker(false); // Reset date picker
-                         setEditServiceModalVisible(true);
-                       }}>
-                        <View style={styles.additionalServiceCard}>
-                          <ThemedText style={styles.additionalServiceName}>
-                            {service.serviceType}
-                          </ThemedText>
-                          <ThemedText style={styles.additionalServiceDetails}>
-                            Every {service.frequency} weeks
-                          </ThemedText>
-                          <ThemedText style={styles.additionalServicePrice}>
-                            £{service.price.toFixed(2)}
-                          </ThemedText>
-                          <ThemedText style={styles.additionalServiceNext}>
-                            Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </ThemedText>
-                        </View>
-                      </Pressable>
-                    ))}
-                  </View>
-                )}
-                
-                {/* Vertical Action Buttons */}
-                <View style={[styles.verticalButtons, isMobileBrowser() && styles.mobileVerticalButtons]}>
-                  <Pressable 
-                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
-                    onPress={handleEditDetails}
-                  >
-                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>✏️</ThemedText>
+                <InfoRow 
+                  label="GoCardless Customer" 
+                  value={client.gocardlessEnabled ? 'Yes' : 'No'} 
+                />
+              </SectionCard>
+            </View>
+
+            {/* Right Column: Additional Services & Actions */}
+            <View style={styles.rightColumn}>
+              {/* Additional Services Card */}
+              {client.additionalServices && client.additionalServices.filter(service => service.isActive).length > 0 && (
+                <SectionCard 
+                  title="Additional Services" 
+                  icon={<Ionicons name="list-outline" size={22} color="#1976d2" />}
+                >
+                  {client.additionalServices.filter(service => service.isActive).map((service) => (
+                    <Pressable key={service.id} onPress={() => {
+                      setSelectedService(service);
+                      // Check if it's a predefined service type or a custom one
+                      const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
+                      if (predefinedTypes.includes(service.serviceType)) {
+                        setEditServiceType(service.serviceType);
+                        setEditCustomServiceType('');
+                      } else {
+                        setEditServiceType('Other');
+                        setEditCustomServiceType(service.serviceType);
+                      }
+                      setEditServiceFrequency(service.frequency);
+                      setEditServicePrice(service.price.toString());
+                      setEditServiceNextVisit(new Date(service.nextVisit));
+                      setShowEditServiceDatePicker(false);
+                      setEditServiceModalVisible(true);
+                    }}>
+                      <View style={styles.additionalServiceCard}>
+                        <ThemedText style={styles.additionalServiceName}>
+                          {service.serviceType}
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServiceDetails}>
+                          Every {service.frequency} weeks
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServicePrice}>
+                          £{service.price.toFixed(2)}
+                        </ThemedText>
+                        <ThemedText style={styles.additionalServiceNext}>
+                          Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </ThemedText>
+                      </View>
+                    </Pressable>
+                  ))}
+                </SectionCard>
+              )}
+
+              {/* Action Buttons Card */}
+              <SectionCard 
+                title="Quick Actions" 
+                icon={<Ionicons name="settings-outline" size={22} color="#1976d2" />}
+              >
+                <View style={styles.actionButtonsGrid}>
+                  <Pressable style={styles.actionButton} onPress={handleEditDetails}>
+                    <Ionicons name="create-outline" size={20} color="#1976d2" />
+                    <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
                   </Pressable>
-                  <Pressable 
-                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
-                    onPress={() => setModalVisible(true)}
-                  >
-                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>➕</ThemedText>
+                  <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
+                    <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
+                    <ThemedText style={styles.actionButtonText}>Add Service</ThemedText>
                   </Pressable>
-                  <Pressable 
-                    style={[styles.verticalButton, isMobileBrowser() && styles.mobileVerticalButton]} 
-                    onPress={handleMakePayment}
-                  >
-                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💳</ThemedText>
+                  <Pressable style={styles.actionButton} onPress={handleMakePayment}>
+                    <Ionicons name="card-outline" size={20} color="#1976d2" />
+                    <ThemedText style={styles.actionButtonText}>Add Payment</ThemedText>
                   </Pressable>
-                  {balance !== null ? (
+                  {balance !== null && (
                     <Pressable 
-                      style={[
-                        styles.verticalButton, 
-                        balance < 0 ? styles.negativeBalance : styles.positiveBalance,
-                        isMobileBrowser() && styles.mobileVerticalButton
-                      ]} 
+                      style={[styles.actionButton, balance < 0 ? styles.negativeBalanceAction : styles.positiveBalanceAction]} 
                       onPress={() => router.push({
                         pathname: '/client-balance',
                         params: { clientId: id, clientName: client.name }
                       } as never)}
                     >
-                      <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💰</ThemedText>
+                      <Ionicons name="wallet-outline" size={20} color={balance < 0 ? "#f44336" : "#4CAF50"} />
+                      <ThemedText style={[styles.actionButtonText, { color: balance < 0 ? "#f44336" : "#4CAF50" }]}>
+                        Balance: £{Math.abs(balance).toFixed(2)}
+                      </ThemedText>
                     </Pressable>
-                  ) : (
-                    <View style={[
-                      styles.verticalButton, 
-                      styles.disabledButton,
-                      isMobileBrowser() && styles.mobileVerticalButton
-                    ]}>
-                      <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>💰</ThemedText>
-                    </View>
                   )}
-                  <Pressable 
-                    style={[
-                      styles.verticalButton, 
-                      styles.dangerButton,
-                      isMobileBrowser() && styles.mobileVerticalButton
-                    ]} 
-                    onPress={handleDelete}
-                  >
-                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>🗂️</ThemedText>
+                  <Pressable style={[styles.actionButton, styles.dangerAction]} onPress={handleDelete}>
+                    <Ionicons name="archive-outline" size={20} color="#f44336" />
+                    <ThemedText style={[styles.actionButtonText, { color: "#f44336" }]}>Archive Client</ThemedText>
                   </Pressable>
-                  <Pressable 
-                    style={[
-                      styles.verticalButton, 
-                      styles.gocardlessButton,
-                      isMobileBrowser() && styles.mobileVerticalButton
-                    ]} 
-                    onPress={handleGocardlessSettings}
-                  >
-                    <ThemedText style={[styles.verticalButtonIcon, isMobileBrowser() && styles.mobileVerticalButtonIcon]}>DD</ThemedText>
+                  <Pressable style={styles.actionButton} onPress={handleGocardlessSettings}>
+                    <ThemedText style={styles.ddButtonText}>DD</ThemedText>
+                    <ThemedText style={styles.actionButtonText}>GoCardless</ThemedText>
                   </Pressable>
                 </View>
-              </View>
+              </SectionCard>
             </View>
-            <View style={styles.notesSection}>
-              <Pressable style={styles.sectionHeading} onPress={() => setNotesCollapsed(!notesCollapsed)}>
-                <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
-                <ThemedText style={styles.sectionHeadingText}>Runsheet Notes</ThemedText>
-              </Pressable>
-              {!notesCollapsed && (
-                <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
-                  {notes ? (
-                    <ThemedText style={styles.notesText}>{notes}</ThemedText>
-                  ) : (
-                    <ThemedText style={styles.notesPlaceholder}>Tap to add runsheet notes...</ThemedText>
-                  )}
-                </Pressable>
-              )}
-            </View>
-            
-            {/* Account Notes Section */}
-            <View style={styles.notesSection}>
-              <Pressable style={styles.sectionHeading} onPress={() => setAccountNotesCollapsed(!accountNotesCollapsed)}>
-                <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: accountNotesCollapsed ? '0deg' : '90deg' }] }} />
-                <ThemedText style={styles.sectionHeadingText}>Account Notes</ThemedText>
-              </Pressable>
-              {!accountNotesCollapsed && (
-                <View>
-                  <Pressable 
-                    style={[styles.notesContent, { backgroundColor: '#e8f4fd', marginBottom: 10 }]} 
-                    onPress={() => setAccountNotesModalVisible(true)}
-                  >
-                    <ThemedText style={{ color: '#1976d2', fontWeight: 'bold' }}>+ Add New Note</ThemedText>
-                  </Pressable>
-                  {client?.accountNotes && client.accountNotes.length > 0 ? (
-                    client.accountNotes.map((note) => (
-                      <View key={note.id} style={[styles.notesContent, { marginBottom: 8 }]}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <ThemedText style={{ fontSize: 12, color: '#666' }}>{note.author}</ThemedText>
-                          <ThemedText style={{ fontSize: 12, color: '#666' }}>
-                            {new Date(note.date).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </ThemedText>
-                        </View>
-                        <ThemedText>{note.text}</ThemedText>
-                      </View>
-                    ))
-                  ) : (
-                    <ThemedText style={styles.notesPlaceholder}>No account notes yet</ThemedText>
-                  )}
-                </View>
-              )}
-            </View>
-            
-            <Pressable style={styles.sectionHeading} onPress={() => setHistoryCollapsed(!historyCollapsed)}>
-              <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
-              <ThemedText style={styles.sectionHeadingText}>Service History</ThemedText>
-            </Pressable>
-          </>
-        }
-        ListFooterComponent={
-          <View style={styles.scheduleContainer}>
-            <Pressable style={styles.sectionHeading} onPress={() => setScheduleCollapsed(!scheduleCollapsed)}>
-              <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: scheduleCollapsed ? '0deg' : '90deg' }] }} />
-              <ThemedText style={styles.sectionHeadingText}>Service Schedule</ThemedText>
-            </Pressable>
-            {!scheduleCollapsed && (
-              pendingJobs.length === 0 ? (
-                <ThemedText>No pending jobs.</ThemedText>
-              ) : (
-                [...pendingJobs]
-                  .sort((a, b) => new Date(a.scheduledTime).getTime() - new Date(b.scheduledTime).getTime())
-                  .map(job => (
-                    <View key={job.id} style={[styles.historyItem, styles.jobItem]}>
-                      <ThemedText style={styles.historyItemText}>
-                        <ThemedText style={{ fontWeight: 'bold' }}>{job.serviceId || 'Job'}:</ThemedText>{' '}
-                        {format(parseISO(job.scheduledTime), 'do MMMM yyyy')}
-                      </ThemedText>
-                      <ThemedText style={styles.historyItemText}>
-                        Price: £{job.price.toFixed(2)}
-                      </ThemedText>
-                    </View>
-                  ))
-              )
-            )}
           </View>
-        }
-        keyboardShouldPersistTaps="handled"
-      />
+        ) : (
+          // Mobile/stacked layout
+          <View style={styles.mobileContainer}>
+            {/* Client Information Card */}
+            <SectionCard 
+              title="Client Information" 
+              icon={<Ionicons name="person-outline" size={22} color="#1976d2" />}
+            >
+              <InfoRow label="Name" value={client.name} />
+              <InfoRow label="Account Number" value={displayAccountNumber(client.accountNumber)} />
+              <InfoRow label="Round Order Number" value={client.roundOrderNumber ?? 'N/A'} />
+            </SectionCard>
+
+            {/* Service Details Card */}
+            <SectionCard 
+              title="Service Details" 
+              icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
+            >
+              <InfoRow 
+                label="Quote" 
+                value={typeof client.quote === 'number' && !isNaN(client.quote) 
+                  ? `£${client.quote.toFixed(2)}` 
+                  : 'N/A'
+                } 
+              />
+              <InfoRow 
+                label="Frequency" 
+                value={client.frequency && client.frequency !== 'one-off' 
+                  ? `Visit every ${client.frequency} weeks` 
+                  : client.frequency === 'one-off' 
+                    ? 'No recurring work' 
+                    : 'N/A'
+                } 
+              />
+              <InfoRow 
+                label="Next Scheduled Visit" 
+                value={nextScheduledVisit 
+                  ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric',
+                    })
+                  : 'N/A'
+                } 
+              />
+            </SectionCard>
+
+            {/* Contact Information Card */}
+            <SectionCard 
+              title="Contact Information" 
+              icon={<Ionicons name="call-outline" size={22} color="#1976d2" />}
+            >
+              <InfoRow label="Mobile Number" value={client.mobileNumber ?? 'N/A'} />
+              {client.email && (
+                <InfoRow label="Email" value={client.email} />
+              )}
+            </SectionCard>
+
+            {/* Account Details Card */}
+            <SectionCard 
+              title="Account Details" 
+              icon={<Ionicons name="document-text-outline" size={22} color="#1976d2" />}
+            >
+              {client.dateAdded && (
+                <InfoRow 
+                  label="Date Added" 
+                  value={new Date(client.dateAdded).toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric',
+                  })} 
+                />
+              )}
+              {client.source && (
+                <InfoRow label="Source" value={client.source} />
+              )}
+              <InfoRow 
+                label="GoCardless Customer" 
+                value={client.gocardlessEnabled ? 'Yes' : 'No'} 
+              />
+            </SectionCard>
+
+            {/* Additional Services Card */}
+            {client.additionalServices && client.additionalServices.filter(service => service.isActive).length > 0 && (
+              <SectionCard 
+                title="Additional Services" 
+                icon={<Ionicons name="list-outline" size={22} color="#1976d2" />}
+              >
+                {client.additionalServices.filter(service => service.isActive).map((service) => (
+                  <Pressable key={service.id} onPress={() => {
+                    setSelectedService(service);
+                    const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
+                    if (predefinedTypes.includes(service.serviceType)) {
+                      setEditServiceType(service.serviceType);
+                      setEditCustomServiceType('');
+                    } else {
+                      setEditServiceType('Other');
+                      setEditCustomServiceType(service.serviceType);
+                    }
+                    setEditServiceFrequency(service.frequency);
+                    setEditServicePrice(service.price.toString());
+                    setEditServiceNextVisit(new Date(service.nextVisit));
+                    setShowEditServiceDatePicker(false);
+                    setEditServiceModalVisible(true);
+                  }}>
+                    <View style={styles.additionalServiceCard}>
+                      <ThemedText style={styles.additionalServiceName}>
+                        {service.serviceType}
+                      </ThemedText>
+                      <ThemedText style={styles.additionalServiceDetails}>
+                        Every {service.frequency} weeks
+                      </ThemedText>
+                      <ThemedText style={styles.additionalServicePrice}>
+                        £{service.price.toFixed(2)}
+                      </ThemedText>
+                      <ThemedText style={styles.additionalServiceNext}>
+                        Next: {new Date(service.nextVisit).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                ))}
+              </SectionCard>
+            )}
+
+            {/* Action Buttons Card */}
+            <SectionCard 
+              title="Quick Actions" 
+              icon={<Ionicons name="settings-outline" size={22} color="#1976d2" />}
+            >
+              <View style={styles.actionButtonsGrid}>
+                <Pressable style={styles.actionButton} onPress={handleEditDetails}>
+                  <Ionicons name="create-outline" size={20} color="#1976d2" />
+                  <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
+                </Pressable>
+                <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
+                  <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
+                  <ThemedText style={styles.actionButtonText}>Add Service</ThemedText>
+                </Pressable>
+                <Pressable style={styles.actionButton} onPress={handleMakePayment}>
+                  <Ionicons name="card-outline" size={20} color="#1976d2" />
+                  <ThemedText style={styles.actionButtonText}>Add Payment</ThemedText>
+                </Pressable>
+                {balance !== null && (
+                  <Pressable 
+                    style={[styles.actionButton, balance < 0 ? styles.negativeBalanceAction : styles.positiveBalanceAction]} 
+                    onPress={() => router.push({
+                      pathname: '/client-balance',
+                      params: { clientId: id, clientName: client.name }
+                    } as never)}
+                  >
+                    <Ionicons name="wallet-outline" size={20} color={balance < 0 ? "#f44336" : "#4CAF50"} />
+                    <ThemedText style={[styles.actionButtonText, { color: balance < 0 ? "#f44336" : "#4CAF50" }]}>
+                      Balance: £{Math.abs(balance).toFixed(2)}
+                    </ThemedText>
+                  </Pressable>
+                )}
+                <Pressable style={[styles.actionButton, styles.dangerAction]} onPress={handleDelete}>
+                  <Ionicons name="archive-outline" size={20} color="#f44336" />
+                  <ThemedText style={[styles.actionButtonText, { color: "#f44336" }]}>Archive Client</ThemedText>
+                </Pressable>
+                <Pressable style={styles.actionButton} onPress={handleGocardlessSettings}>
+                  <ThemedText style={styles.ddButtonText}>DD</ThemedText>
+                  <ThemedText style={styles.actionButtonText}>GoCardless</ThemedText>
+                </Pressable>
+              </View>
+            </SectionCard>
+          </View>
+        )}
+
+        {/* Notes Section */}
+        <View style={styles.notesSection}>
+          <Pressable style={styles.sectionHeading} onPress={() => setNotesCollapsed(!notesCollapsed)}>
+            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={styles.sectionHeadingText}>Runsheet Notes</ThemedText>
+          </Pressable>
+          {!notesCollapsed && (
+            <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
+              {notes ? (
+                <ThemedText style={styles.notesText}>{notes}</ThemedText>
+              ) : (
+                <ThemedText style={styles.notesPlaceholder}>Tap to add runsheet notes...</ThemedText>
+              )}
+            </Pressable>
+          )}
+        </View>
+            
+        {/* Account Notes Section */}
+        <View style={styles.notesSection}>
+          <Pressable style={styles.sectionHeading} onPress={() => setAccountNotesCollapsed(!accountNotesCollapsed)}>
+            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: accountNotesCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={styles.sectionHeadingText}>Account Notes</ThemedText>
+          </Pressable>
+          {!accountNotesCollapsed && (
+            <View>
+              <Pressable 
+                style={[styles.notesContent, { backgroundColor: '#e8f4fd', marginBottom: 10 }]} 
+                onPress={() => setAccountNotesModalVisible(true)}
+              >
+                <ThemedText style={{ color: '#1976d2', fontWeight: 'bold' }}>+ Add New Note</ThemedText>
+              </Pressable>
+              {client?.accountNotes && client.accountNotes.length > 0 ? (
+                client.accountNotes.map((note) => (
+                  <View key={note.id} style={[styles.notesContent, { marginBottom: 8 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <ThemedText style={{ fontSize: 12, color: '#666' }}>{note.author}</ThemedText>
+                      <ThemedText style={{ fontSize: 12, color: '#666' }}>
+                        {new Date(note.date).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </ThemedText>
+                    </View>
+                    <ThemedText>{note.text}</ThemedText>
+                  </View>
+                ))
+              ) : (
+                <ThemedText style={styles.notesPlaceholder}>No account notes yet</ThemedText>
+              )}
+            </View>
+          )}
+        </View>
+        
+        {/* Service History Section */}
+        <View style={styles.notesSection}>
+          <Pressable style={styles.sectionHeading} onPress={() => setHistoryCollapsed(!historyCollapsed)}>
+            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={styles.sectionHeadingText}>Service History</ThemedText>
+          </Pressable>
+          {!historyCollapsed && (
+            <FlatList
+              data={serviceHistoryWithStartingBalance}
+              keyExtractor={(item) => item.type === 'startingBalance' ? 'startingBalance' : (item.id ? `${item.type}-${item.id}` : `${item.type}`)}
+              renderItem={loadingHistory ? undefined : renderHistoryItem}
+              ListEmptyComponent={
+                loadingHistory
+                  ? <ActivityIndicator />
+                  : <ThemedText>No service history found.</ThemedText>
+              }
+              contentContainerStyle={styles.historyContainer}
+              showsVerticalScrollIndicator={false}
+            />
+          )}
+        </View>
+
+        {/* Service Schedule Section */}
+        <View style={styles.notesSection}>
+          <Pressable style={styles.sectionHeading} onPress={() => setScheduleCollapsed(!scheduleCollapsed)}>
+            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: scheduleCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={styles.sectionHeadingText}>Service Schedule</ThemedText>
+          </Pressable>
+          {!scheduleCollapsed && (
+            pendingJobs.length === 0 ? (
+              <ThemedText>No pending jobs.</ThemedText>
+            ) : (
+              <FlatList
+                data={pendingJobs}
+                keyExtractor={(item) => item.id}
+                renderItem={({ item }) => (
+                  <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
+                    <ThemedText style={styles.historyItemText}>
+                      <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
+                      {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
+                    </ThemedText>
+                    <ThemedText style={styles.historyItemText}>
+                      Price: £{item.price.toFixed(2)}
+                    </ThemedText>
+                  </View>
+                )}
+                contentContainerStyle={styles.historyContainer}
+                showsVerticalScrollIndicator={false}
+              />
+            )
+          )}
+        </View>
+      </ScrollView>
+
       <Modal
         animationType="slide"
         transparent={true}
@@ -1515,15 +1748,14 @@ const styles = StyleSheet.create({
   },
   homeButton: {
     padding: 8,
-    borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    borderRadius: 6,
+    backgroundColor: '#eaf2ff',
   },
   homeButtonText: {
     fontSize: 18,
   },
   historyContainer: {
-    marginTop: 24,
-    flex: 1,
+    marginTop: 12,
   },
   historyTitle: {
     marginBottom: 12,
@@ -1824,6 +2056,148 @@ const styles = StyleSheet.create({
   gocardlessButton: {
     backgroundColor: '#FFD700',
     borderColor: '#FFC107',
+  },
+  // New styles for responsive layout
+  headerBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 50,
+    paddingBottom: 10,
+    backgroundColor: '#f8f9fa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  scrollContentContainer: {
+    padding: 20,
+    paddingBottom: 80,
+  },
+  desktopContainer: {
+    flexDirection: 'row',
+    gap: 20,
+  },
+  leftColumn: {
+    flex: 2,
+  },
+  rightColumn: {
+    flex: 1,
+  },
+  mobileContainer: {
+    // No specific styles for mobile container, it will stack
+  },
+  // SectionCard styles matching quotes/accounts screens
+  sectionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    marginBottom: 28,
+    padding: 0,
+    borderWidth: 1,
+    borderColor: '#eee',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 2px 8px #0001',
+      },
+      default: {
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+    }),
+  },
+  sectionCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: '#f0f0f0',
+    backgroundColor: '#f8faff',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  sectionCardTitle: {
+    fontWeight: 'bold',
+    fontSize: 20,
+    marginLeft: 8,
+    color: '#333',
+  },
+  sectionCardContent: {
+    padding: 16,
+  },
+  // InfoRow styles
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f5',
+  },
+  infoLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#555',
+    flex: 1,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#333',
+    flex: 2,
+    textAlign: 'right',
+  },
+  // Action buttons styles
+  actionButtonsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0f7fa',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 15,
+    width: '48%',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#b2ebf2',
+  },
+  actionButtonText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#1976d2',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  negativeBalanceAction: {
+    backgroundColor: '#ffebee',
+    borderColor: '#ef9a9a',
+  },
+  positiveBalanceAction: {
+    backgroundColor: '#e8f5e9',
+    borderColor: '#a5d6a7',
+  },
+  dangerAction: {
+    backgroundColor: '#ffebee',
+    borderColor: '#ef9a9a',
+  },
+  ddButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1976d2',
+    marginRight: 4,
   },
 });
 

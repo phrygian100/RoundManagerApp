@@ -5382,3 +5382,151 @@ Implemented the ability for users to manually initiate GoCardless direct debit p
 **Priority**: HIGH - Core GoCardless functionality enhancement for improved payment workflow
 
 **Next Steps**: Deploy Firebase Function to enable full payment creation functionality
+
+## 2025-01-24 – Client Profile Screen Visual Redesign 🎨
+
+### Summary
+Completely redesigned the client profile screen to match the visual consistency and layout patterns of the quotes and accounts screens, transforming it from dense text lists into organized, card-based sections.
+
+### Before: Issues Identified
+- **Dense text layout**: Client information displayed as plain text list on the left side
+- **Poor visual hierarchy**: No proper grouping, headers, or visual organization
+- **Inconsistent design**: Didn't match the SectionCard pattern used in quotes/accounts screens
+- **Hard to digest**: Information presented in a way that was difficult to scan and understand
+- **No responsive layout**: Layout didn't adapt well to different screen sizes
+
+### After: Visual Transformation
+
+#### **Adopted SectionCard Pattern**
+- **Consistent styling**: Now uses the exact same SectionCard component as quotes and accounts screens
+- **White cards**: Clean white background with subtle shadows
+- **Blue headers**: Light blue header background (#f8faff) with icons and titles
+- **Proper spacing**: 28px margin between cards, 16px padding within cards
+
+#### **Organized Information Architecture**
+1. **Client Information Card** 📋
+   - Name, Account Number, Round Order Number
+   - Clean label/value pairs with proper alignment
+
+2. **Service Details Card** 🔧
+   - Quote amount, frequency, next scheduled visit
+   - Formatted currency and date displays
+
+3. **Contact Information Card** 📞
+   - Mobile number, email address
+   - Only shows fields that have values
+
+4. **Account Details Card** 📄
+   - Date added, source, GoCardless status
+   - Professional "Yes/No" instead of "True/False"
+
+5. **Additional Services Card** 📝
+   - Existing functionality preserved
+   - Now styled as proper SectionCard
+
+6. **Quick Actions Card** ⚙️
+   - Redesigned action buttons with icons and labels
+   - Grid layout with proper spacing
+   - Color-coded balance display (red/green)
+
+#### **Responsive Design Implementation**
+- **Desktop Layout**: Two-column layout (60/40 split)
+  - Left column: Client info cards
+  - Right column: Additional services and actions
+- **Mobile Layout**: Stacked single-column layout
+- **Breakpoint**: 768px width detection
+- **ScrollView wrapper**: Proper scrolling for all content
+
+#### **Enhanced User Experience**
+- **Visual hierarchy**: Icons and headers guide the eye
+- **Scannable content**: Information organized in digestible chunks
+- **Professional appearance**: Consistent with other screens
+- **Improved navigation**: Clear action buttons with descriptive labels
+- **Better balance display**: Shows actual balance amount with color coding
+
+### Technical Implementation
+
+#### **SectionCard Component**
+```tsx
+const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <View style={styles.sectionCard}>
+    <View style={styles.sectionCardHeader}>
+      {icon}
+      <ThemedText style={styles.sectionCardTitle}>{title}</ThemedText>
+    </View>
+    <View style={styles.sectionCardContent}>{children}</View>
+  </View>
+);
+```
+
+#### **InfoRow Component**
+```tsx
+const InfoRow = ({ label, value }: { label: string; value: string | React.ReactNode }) => (
+  <View style={styles.infoRow}>
+    <ThemedText style={styles.infoLabel}>{label}:</ThemedText>
+    <ThemedText style={styles.infoValue}>{value}</ThemedText>
+  </View>
+);
+```
+
+#### **Responsive Layout Logic**
+```tsx
+const { width } = useWindowDimensions();
+const isWeb = Platform.OS === 'web';
+const isLargeScreen = isWeb && width > 768;
+
+// Conditional rendering based on screen size
+{isLargeScreen ? (
+  <View style={styles.desktopContainer}>
+    <View style={styles.leftColumn}>...</View>
+    <View style={styles.rightColumn}>...</View>
+  </View>
+) : (
+  <View style={styles.mobileContainer}>...</View>
+)}
+```
+
+### Visual Design Consistency
+
+#### **Matching Quotes/Accounts Screens**
+- **Same SectionCard styling**: Identical card appearance with shadows and borders
+- **Identical header design**: Light blue background with icons and titles
+- **Consistent spacing**: 28px margins, 16px padding throughout
+- **Same typography**: Font weights, sizes, and colors match exactly
+- **Icon usage**: Ionicons for visual consistency
+
+#### **Color Palette**
+- **Primary blue**: #1976d2 (icons, action buttons)
+- **Header background**: #f8faff (light blue)
+- **Card borders**: #eee (subtle gray)
+- **Success green**: #4CAF50 (positive balance)
+- **Warning red**: #f44336 (negative balance, danger actions)
+
+### Functionality Preservation
+- ✅ **All existing features maintained**: Edit details, add services, payments, etc.
+- ✅ **GoCardless integration**: DD button and settings preserved
+- ✅ **Additional services**: Edit functionality maintained
+- ✅ **Balance calculations**: Color coding and navigation preserved
+- ✅ **Notes sections**: Runsheet and account notes unchanged
+- ✅ **Service history**: Collapsible sections maintained
+
+### Performance Improvements
+- **ScrollView optimization**: Better memory usage with proper scroll behavior
+- **Responsive rendering**: Only renders appropriate layout for screen size
+- **Optimized re-renders**: Component structure reduces unnecessary updates
+
+### Files Modified
+- `app/(tabs)/clients/[id].tsx` - Complete redesign with new components and responsive layout
+- `docs/code-changes.md` - Updated documentation
+
+### Impact
+- ✅ **Visual Consistency**: Client profile now matches quotes and accounts screens
+- ✅ **Improved UX**: Information is easier to scan and understand
+- ✅ **Professional Appearance**: Clean, modern card-based design
+- ✅ **Better Accessibility**: Clear labels and proper information hierarchy
+- ✅ **Responsive Design**: Works well on both desktop and mobile
+- ✅ **Preserved Functionality**: All existing features work exactly as before
+
+**Priority**: HIGH - Significant UX improvement addressing user feedback about visual inconsistency
+
+---
