@@ -6,7 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 
-function AppContent({ instanceId }: { instanceId?: string }) {
+function AppContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
@@ -17,7 +17,7 @@ function AppContent({ instanceId }: { instanceId?: string }) {
   // Set up auth listener only once
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth as Auth, (user: User | null) => {
-      console.log(`🔑 Firebase auth change (${instanceId || 'single'}):`, { 
+      console.log('🔑 Firebase auth change:', { 
         hasUser: !!user, 
         previousUser: !!previousUserRef.current,
         userId: user?.uid 
@@ -26,7 +26,7 @@ function AppContent({ instanceId }: { instanceId?: string }) {
       // Only clear quote context data when user actually changes (login/logout)
       // Not on every auth state change to prevent instability
       if (previousUserRef.current?.uid !== user?.uid) {
-        console.log(`🔒 Clearing quote context data for security (user change) - ${instanceId || 'single'}`);
+        console.log('🔒 Clearing quote context data for security (user change)');
         clearQuoteData();
       }
       
@@ -35,7 +35,7 @@ function AppContent({ instanceId }: { instanceId?: string }) {
       setAuthReady(true);
     });
     return () => unsubscribe();
-  }, [clearQuoteData, instanceId]);
+  }, [clearQuoteData]);
   
   // Handle redirects based on auth state and pathname
   useEffect(() => {
@@ -49,22 +49,22 @@ function AppContent({ instanceId }: { instanceId?: string }) {
     const alwaysAllowed = ['/set-password', '/forgot-password'];
     
     if (!loggedIn) {
-      console.log(`🔑 Not logged in (${instanceId || 'single'}), checking if redirect needed for:`, pathname);
+      console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
       if (!unauthAllowed.some(p => pathname.startsWith(p))) {
-        console.log(`🔑 Redirecting to login from: ${pathname} (${instanceId || 'single'})`);
+        console.log('🔑 Redirecting to login from:', pathname);
         router.replace('/login');
       }
     } else {
-      console.log(`🔑 Logged in (${instanceId || 'single'}), checking redirect rules for:`, pathname);
+      console.log('🔑 Logged in, checking redirect rules for:', pathname);
       // Don't redirect if we're in a password reset flow
       if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
           !alwaysAllowed.some(p => pathname.startsWith(p)) && 
           !isPasswordResetFlow) {
-        console.log(`🔑 Redirecting to home from: ${pathname} (${instanceId || 'single'})`);
+        console.log('🔑 Redirecting to home from:', pathname);
         router.replace('/');
       }
     }
-  }, [authReady, currentUser, pathname, instanceId]);
+  }, [authReady, currentUser, pathname]);
   
   if (!authReady) {
     return (
@@ -76,12 +76,14 @@ function AppContent({ instanceId }: { instanceId?: string }) {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Slot />
+      <DualInstanceWrapper>
+        <Slot />
+      </DualInstanceWrapper>
     </GestureHandlerRootView>
   );
 }
 
-function DesktopAwareWrapper() {
+function DualInstanceWrapper({ children }: { children: React.ReactNode }) {
   const [isDesktop, setIsDesktop] = useState(false);
   
   // Detect desktop screen size (1200px+ width)
@@ -104,10 +106,10 @@ function DesktopAwareWrapper() {
     return (
       <View style={{ flex: 1, flexDirection: 'row' }}>
         <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#e0e0e0' }}>
-          <AppContent instanceId="left" />
+          {children}
         </View>
         <View style={{ flex: 1 }}>
-          <AppContent instanceId="right" />
+          {children}
         </View>
       </View>
     );
@@ -115,13 +117,13 @@ function DesktopAwareWrapper() {
 
   // Mobile/tablet: single instance (existing behavior)
   console.log('📱 Rendering single mobile/tablet instance');
-  return <AppContent />;
+  return <>{children}</>;
 }
 
 export default function RootLayout() {
   return (
     <QuoteToClientProvider>
-      <DesktopAwareWrapper />
+      <AppContent />
     </QuoteToClientProvider>
   );
 }
