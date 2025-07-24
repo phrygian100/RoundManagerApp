@@ -1,9 +1,8 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { DualInstanceProvider } from '../contexts/DualInstanceContext';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 
@@ -77,9 +76,7 @@ function AppContent() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <DualInstanceProvider>
-        <Slot />
-      </DualInstanceProvider>
+      <Slot />
     </GestureHandlerRootView>
   );
 }
