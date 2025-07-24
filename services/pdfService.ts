@@ -46,32 +46,33 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
         
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          font-size: 14px;
-          line-height: 1.5;
+          font-size: 12px;
+          line-height: 1.3;
           color: #333;
           background: #fff;
-          padding: 20px;
+          padding: 15px;
         }
         
         .invoice-header {
           display: flex;
           justify-content: space-between;
-          margin-bottom: 30px;
-          padding: 20px;
+          margin-bottom: 20px;
+          padding: 15px;
           background: #f9f9f9;
-          border-radius: 8px;
+          border-radius: 6px;
         }
         
         .company-info h1 {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: bold;
           color: #1976d2;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
         
         .company-info p {
           color: #666;
-          margin-bottom: 4px;
+          margin-bottom: 2px;
+          font-size: 11px;
         }
         
         .invoice-details {
@@ -79,41 +80,47 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
         }
         
         .invoice-title {
-          font-size: 32px;
+          font-size: 26px;
           font-weight: bold;
           color: #1976d2;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
         }
         
         .invoice-meta {
           color: #666;
+          font-size: 11px;
         }
         
         .client-section {
-          margin-bottom: 30px;
-          padding: 20px;
+          margin-bottom: 18px;
+          padding: 12px;
           background: #f9f9f9;
-          border-radius: 8px;
+          border-radius: 6px;
         }
         
         .section-title {
-          font-size: 18px;
+          font-size: 14px;
           font-weight: bold;
-          margin-bottom: 12px;
+          margin-bottom: 6px;
           color: #333;
         }
         
         .client-name {
-          font-size: 20px;
+          font-size: 16px;
           font-weight: bold;
-          margin-bottom: 8px;
+          margin-bottom: 4px;
+        }
+        
+        .client-details {
+          font-size: 11px;
+          color: #666;
         }
         
         .balance-section {
-          margin-bottom: 30px;
-          padding: 20px;
+          margin-bottom: 18px;
+          padding: 12px;
           background: #f9f9f9;
-          border-radius: 8px;
+          border-radius: 6px;
         }
         
         .balance-row {
@@ -123,32 +130,35 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
         }
         
         .balance-amount {
-          font-size: 24px;
+          font-size: 20px;
           font-weight: bold;
           color: #f44336;
         }
         
         .account-history {
-          margin-bottom: 30px;
+          margin-bottom: 20px;
         }
         
         .table {
           width: 100%;
           border-collapse: collapse;
-          margin-top: 16px;
+          margin-top: 8px;
+          font-size: 11px;
         }
         
         .table th {
           background: #f5f5f5;
-          padding: 12px 8px;
+          padding: 6px 4px;
           text-align: left;
           font-weight: bold;
-          border-bottom: 2px solid #ddd;
+          border-bottom: 1px solid #ddd;
+          font-size: 10px;
         }
         
         .table td {
-          padding: 12px 8px;
+          padding: 4px 4px;
           border-bottom: 1px solid #eee;
+          vertical-align: top;
         }
         
         .table tr:nth-child(even) {
@@ -172,24 +182,32 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
         }
         
         .payment-instructions {
-          margin-bottom: 30px;
-          padding: 20px;
+          padding: 12px;
           background: #f9f9f9;
-          border-radius: 8px;
+          border-radius: 6px;
         }
         
         .instruction-text {
-          margin-bottom: 8px;
+          margin-bottom: 4px;
           color: #666;
+          font-size: 11px;
+        }
+        
+        .instruction-highlight {
+          font-weight: bold;
+          color: #333;
         }
         
         @media print {
           body {
-            padding: 0;
+            padding: 10px;
+            font-size: 11px;
           }
           
           .invoice-header {
             page-break-inside: avoid;
+            margin-bottom: 15px;
+            padding: 12px;
           }
           
           .table {
@@ -199,6 +217,22 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
           .table tr {
             page-break-inside: avoid;
             page-break-after: auto;
+          }
+          
+          .table th {
+            padding: 4px 3px;
+          }
+          
+          .table td {
+            padding: 3px 3px;
+          }
+          
+          .section-title {
+            font-size: 13px;
+          }
+          
+          .balance-amount {
+            font-size: 18px;
           }
         }
       </style>
@@ -225,8 +259,10 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
       <div class="client-section">
         <div class="section-title">Bill To:</div>
         <div class="client-name">${client.name || 'No name'}</div>
-        <p>${displayAddress}</p>
-        ${client.accountNumber ? `<p>Account: ${client.accountNumber}</p>` : ''}
+        <div class="client-details">
+          <p>${displayAddress}</p>
+          ${client.accountNumber ? `<p>Account: ${client.accountNumber}</p>` : ''}
+        </div>
       </div>
 
       <!-- Balance Summary -->
@@ -244,10 +280,10 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
         <table class="table">
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Amount</th>
-              <th>Balance</th>
+              <th style="width: 15%;">Date</th>
+              <th style="width: 50%;">Description</th>
+              <th style="width: 15%;">Amount</th>
+              <th style="width: 20%;">Balance</th>
             </tr>
           </thead>
           <tbody>
@@ -282,14 +318,14 @@ export const generateInvoiceHTML = (data: InvoiceData): string => {
       <div class="payment-instructions">
         <div class="section-title">Payment Instructions</div>
         <p class="instruction-text">
-          Please settle your balance of £${Math.abs(client.balance).toFixed(2)}
+          Please settle your balance of <span class="instruction-highlight">£${Math.abs(client.balance).toFixed(2)}</span>
         </p>
         ${userProfile?.bankSortCode && userProfile?.bankAccountNumber ? `
-          <p class="instruction-text">Sort Code: ${userProfile.bankSortCode}</p>
-          <p class="instruction-text">Account Number: ${userProfile.bankAccountNumber}</p>
+          <p class="instruction-text">Sort Code: <span class="instruction-highlight">${userProfile.bankSortCode}</span></p>
+          <p class="instruction-text">Account Number: <span class="instruction-highlight">${userProfile.bankAccountNumber}</span></p>
         ` : ''}
         <p class="instruction-text">
-          Reference: ${client.accountNumber || 'Your Account Number'}
+          Reference: <span class="instruction-highlight">${client.accountNumber || 'Your Account Number'}</span>
         </p>
       </div>
     </body>
