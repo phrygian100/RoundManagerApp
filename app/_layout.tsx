@@ -1,12 +1,12 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 
-function AppContent() {
+function AppContent({ instanceId }: { instanceId?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const [authReady, setAuthReady] = useState(false);
@@ -17,7 +17,7 @@ function AppContent() {
   // Set up auth listener only once
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth as Auth, (user: User | null) => {
-      console.log('🔑 Firebase auth change:', { 
+      console.log(`🔑 Firebase auth change (${instanceId || 'single'}):`, { 
         hasUser: !!user, 
         previousUser: !!previousUserRef.current,
         userId: user?.uid 
@@ -26,7 +26,7 @@ function AppContent() {
       // Only clear quote context data when user actually changes (login/logout)
       // Not on every auth state change to prevent instability
       if (previousUserRef.current?.uid !== user?.uid) {
-        console.log('🔒 Clearing quote context data for security (user change)');
+        console.log(`🔒 Clearing quote context data for security (user change) - ${instanceId || 'single'}`);
         clearQuoteData();
       }
       
@@ -35,7 +35,7 @@ function AppContent() {
       setAuthReady(true);
     });
     return () => unsubscribe();
-  }, [clearQuoteData]);
+  }, [clearQuoteData, instanceId]);
   
   // Handle redirects based on auth state and pathname
   useEffect(() => {
@@ -49,22 +49,22 @@ function AppContent() {
     const alwaysAllowed = ['/set-password', '/forgot-password'];
     
     if (!loggedIn) {
-      console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
+      console.log(`🔑 Not logged in (${instanceId || 'single'}), checking if redirect needed for:`, pathname);
       if (!unauthAllowed.some(p => pathname.startsWith(p))) {
-        console.log('🔑 Redirecting to login from:', pathname);
+        console.log(`🔑 Redirecting to login from: ${pathname} (${instanceId || 'single'})`);
         router.replace('/login');
       }
     } else {
-      console.log('🔑 Logged in, checking redirect rules for:', pathname);
+      console.log(`🔑 Logged in (${instanceId || 'single'}), checking redirect rules for:`, pathname);
       // Don't redirect if we're in a password reset flow
       if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
           !alwaysAllowed.some(p => pathname.startsWith(p)) && 
           !isPasswordResetFlow) {
-        console.log('🔑 Redirecting to home from:', pathname);
+        console.log(`🔑 Redirecting to home from: ${pathname} (${instanceId || 'single'})`);
         router.replace('/');
       }
     }
-  }, [authReady, currentUser, pathname]);
+  }, [authReady, currentUser, pathname, instanceId]);
   
   if (!authReady) {
     return (
@@ -81,10 +81,47 @@ function AppContent() {
   );
 }
 
+function DesktopAwareWrapper() {
+  const [isDesktop, setIsDesktop] = useState(false);
+  
+  // Detect desktop screen size (1200px+ width)
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const checkScreenSize = () => {
+        const newIsDesktop = window.innerWidth >= 1200;
+        setIsDesktop(newIsDesktop);
+        console.log('🖥️ Screen size check:', { width: window.innerWidth, isDesktop: newIsDesktop });
+      };
+      
+      checkScreenSize();
+      window.addEventListener('resize', checkScreenSize);
+      return () => window.removeEventListener('resize', checkScreenSize);
+    }
+  }, []);
+
+  if (isDesktop) {
+    console.log('🖥️ Rendering dual desktop instances');
+    return (
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#e0e0e0' }}>
+          <AppContent instanceId="left" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <AppContent instanceId="right" />
+        </View>
+      </View>
+    );
+  }
+
+  // Mobile/tablet: single instance (existing behavior)
+  console.log('📱 Rendering single mobile/tablet instance');
+  return <AppContent />;
+}
+
 export default function RootLayout() {
   return (
     <QuoteToClientProvider>
-      <AppContent />
+      <DesktopAwareWrapper />
     </QuoteToClientProvider>
   );
 }
