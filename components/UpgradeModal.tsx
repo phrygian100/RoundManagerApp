@@ -8,6 +8,7 @@ import {
     StyleSheet,
     View,
 } from 'react-native';
+import { getAuth } from 'firebase/auth';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 
@@ -55,11 +56,21 @@ export default function UpgradeModal({
 
   const handleWebUpgrade = async () => {
     try {
+      // Get the current user's auth token
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
+      const idToken = await user.getIdToken();
+      
       // Create Stripe Checkout session using REST API (now proxied through Firebase Hosting)
       const response = await fetch('/api/createCheckoutSession', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
@@ -69,7 +80,8 @@ export default function UpgradeModal({
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
       const { url } = await response.json();

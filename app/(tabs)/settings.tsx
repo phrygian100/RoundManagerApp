@@ -2,6 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -175,11 +176,21 @@ export default function SettingsScreen() {
       
       // For web, redirect to customer portal
       if (Platform.OS === 'web') {
+        // Get the current user's auth token
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) {
+          throw new Error('User not authenticated');
+        }
+        
+        const idToken = await user.getIdToken();
+        
         // Use REST API (now proxied through Firebase Hosting)
         const response = await fetch('/api/createCustomerPortalSession', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
           },
           body: JSON.stringify({
             returnUrl: window.location.href,
@@ -187,7 +198,8 @@ export default function SettingsScreen() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to create customer portal session');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(errorData.error || 'Failed to create customer portal session');
         }
 
         const { url } = await response.json();

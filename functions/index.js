@@ -513,29 +513,56 @@ exports.removeMember = onCall(async (request) => {
 });
 
 // Stripe Checkout session creation
-exports.createCheckoutSession = onCall(async (request) => {
+exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).send('');
+    return;
+  }
+  
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
   // Initialize Stripe inside function
   const stripe = require('stripe')(functions.config().stripe.secret_key);
   
-  console.log('createCheckoutSession called with:', request.data);
-  const { priceId, successUrl, cancelUrl } = request.data;
-  const caller = request.auth;
+  console.log('createCheckoutSession called with:', req.body);
+  const { priceId, successUrl, cancelUrl } = req.body;
   
-  if (!caller) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to create checkout sessions.');
+  // Get the authorization token from the request
+  const authHeader = req.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized: No valid authorization token provided' });
+    return;
   }
   
-  if (!priceId || !successUrl || !cancelUrl) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: priceId, successUrl, or cancelUrl.');
-  }
+  const idToken = authHeader.split('Bearer ')[1];
   
   try {
+    // Verify the ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    
+    if (!priceId || !successUrl || !cancelUrl) {
+      res.status(400).json({ error: 'Missing required parameters: priceId, successUrl, or cancelUrl' });
+      return;
+    }
+    
     const db = admin.firestore();
     
     // Get user information
-    const userDoc = await db.collection('users').doc(caller.uid).get();
+    const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'User not found.');
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
     
     const userData = userDoc.data();
@@ -544,10 +571,10 @@ exports.createCheckoutSession = onCall(async (request) => {
     // Create Stripe customer if doesn't exist
     if (!customerId) {
       const customer = await stripe.customers.create({
-        email: userData.email || caller.token.email,
+        email: userData.email || decodedToken.email,
         name: userData.name || '',
         metadata: {
-          userId: caller.uid,
+          userId: uid,
           businessName: userData.businessName || '',
         },
       });
@@ -573,11 +600,11 @@ exports.createCheckoutSession = onCall(async (request) => {
       success_url: successUrl + '?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: cancelUrl,
       metadata: {
-        userId: caller.uid,
+        userId: uid,
       },
       subscription_data: {
         metadata: {
-          userId: caller.uid,
+          userId: uid,
         },
       },
       customer_update: {
@@ -591,16 +618,20 @@ exports.createCheckoutSession = onCall(async (request) => {
     
     console.log('Stripe Checkout session created:', session.id);
     
-    return {
+    res.status(200).json({
       sessionId: session.id,
       url: session.url,
-    };
+    });
   } catch (error) {
     console.error('Error creating Stripe Checkout session:', error);
-    if (error.code) {
-      throw error; // Re-throw Firebase Functions errors
+    
+    if (error.code === 'auth/id-token-expired') {
+      res.status(401).json({ error: 'Token expired' });
+    } else if (error.code === 'auth/argument-error') {
+      res.status(401).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: `Checkout session creation failed: ${error.message || 'Unknown error'}` });
     }
-    throw new functions.https.HttpsError('internal', `Checkout session creation failed: ${error.message || 'Unknown error'}`);
   }
 });
 
@@ -740,34 +771,62 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 }
 
 // Create customer portal session
-exports.createCustomerPortalSession = onCall(async (request) => {
+exports.createCustomerPortalSession = functions.https.onRequest(async (req, res) => {
+  // Set CORS headers
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.status(200).send('');
+    return;
+  }
+  
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' });
+    return;
+  }
+  
   // Initialize Stripe inside function
   const stripe = require('stripe')(functions.config().stripe.secret_key);
   
   console.log('createCustomerPortalSession called');
-  const { returnUrl } = request.data;
-  const caller = request.auth;
+  const { returnUrl } = req.body;
   
-  if (!caller) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+  // Get the authorization token from the request
+  const authHeader = req.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized: No valid authorization token provided' });
+    return;
   }
   
-  if (!returnUrl) {
-    throw new functions.https.HttpsError('invalid-argument', 'Return URL is required.');
-  }
+  const idToken = authHeader.split('Bearer ')[1];
   
   try {
+    // Verify the ID token
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const uid = decodedToken.uid;
+    
+    if (!returnUrl) {
+      res.status(400).json({ error: 'Return URL is required' });
+      return;
+    }
+    
     const db = admin.firestore();
     
     // Get user's Stripe customer ID
-    const userDoc = await db.collection('users').doc(caller.uid).get();
+    const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'User not found.');
+      res.status(404).json({ error: 'User not found' });
+      return;
     }
     
     const userData = userDoc.data();
     if (!userData.stripeCustomerId) {
-      throw new functions.https.HttpsError('failed-precondition', 'No Stripe customer found. Please subscribe first.');
+      res.status(400).json({ error: 'No Stripe customer found. Please subscribe first.' });
+      return;
     }
     
     // Create customer portal session
@@ -778,14 +837,18 @@ exports.createCustomerPortalSession = onCall(async (request) => {
     
     console.log('Customer portal session created:', session.id);
     
-    return {
+    res.status(200).json({
       url: session.url,
-    };
+    });
   } catch (error) {
     console.error('Error creating customer portal session:', error);
-    if (error.code) {
-      throw error; // Re-throw Firebase Functions errors
+    
+    if (error.code === 'auth/id-token-expired') {
+      res.status(401).json({ error: 'Token expired' });
+    } else if (error.code === 'auth/argument-error') {
+      res.status(401).json({ error: 'Invalid token' });
+    } else {
+      res.status(500).json({ error: `Portal session creation failed: ${error.message || 'Unknown error'}` });
     }
-    throw new functions.https.HttpsError('internal', `Portal session creation failed: ${error.message || 'Unknown error'}`);
   }
 });
