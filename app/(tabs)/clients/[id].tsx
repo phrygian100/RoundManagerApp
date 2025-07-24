@@ -1241,10 +1241,13 @@ export default function ClientDetailScreen() {
                 )}
                 
                 <TextInput
-                  style={styles.input}
+                  style={styles.jobNotesInput}
                   placeholder="Job Notes"
                   value={jobNotes}
                   onChangeText={setJobNotes}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
                 />
                 <TextInput
                   style={styles.input}
@@ -1826,7 +1829,7 @@ const styles = StyleSheet.create({
   },
   picker: {
     width: '100%',
-    height: 150,
+    height: 50,
   },
   input: {
     borderWidth: 1,
@@ -2198,6 +2201,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#1976d2',
     marginRight: 4,
+  },
+  jobNotesInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#fff',
+    color: '#222',
+    marginVertical: 10,
+    minHeight: 80,
+    fontSize: 16,
   },
 });
 
