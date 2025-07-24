@@ -1,8 +1,9 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
-import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { DualInstanceProvider } from '../contexts/DualInstanceContext';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 
@@ -76,48 +77,11 @@ function AppContent() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <DualInstanceWrapper>
+      <DualInstanceProvider>
         <Slot />
-      </DualInstanceWrapper>
+      </DualInstanceProvider>
     </GestureHandlerRootView>
   );
-}
-
-function DualInstanceWrapper({ children }: { children: React.ReactNode }) {
-  const [isDesktop, setIsDesktop] = useState(false);
-  
-  // Detect desktop screen size (1200px+ width)
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const checkScreenSize = () => {
-        const newIsDesktop = window.innerWidth >= 1200;
-        setIsDesktop(newIsDesktop);
-        console.log('🖥️ Screen size check:', { width: window.innerWidth, isDesktop: newIsDesktop });
-      };
-      
-      checkScreenSize();
-      window.addEventListener('resize', checkScreenSize);
-      return () => window.removeEventListener('resize', checkScreenSize);
-    }
-  }, []);
-
-  if (isDesktop) {
-    console.log('🖥️ Rendering dual desktop instances');
-    return (
-      <View style={{ flex: 1, flexDirection: 'row' }}>
-        <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#e0e0e0' }}>
-          {children}
-        </View>
-        <View style={{ flex: 1 }}>
-          {children}
-        </View>
-      </View>
-    );
-  }
-
-  // Mobile/tablet: single instance (existing behavior)
-  console.log('📱 Rendering single mobile/tablet instance');
-  return <>{children}</>;
 }
 
 export default function RootLayout() {

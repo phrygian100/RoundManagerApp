@@ -7,11 +7,13 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import { OPENWEATHER_API_KEY } from '../../config';
+import { useDualInstance } from '../../contexts/DualInstanceContext';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { isDualMode } = useDualInstance();
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -60,99 +62,40 @@ export default function HomeScreen() {
     return null;
   };
 
-  // Fetch weather data using OpenWeatherMap API
+  // Fetch weather data
   const fetchWeather = async () => {
+    if (!OPENWEATHER_API_KEY) {
+      console.log('No weather API key provided');
+      setWeatherLoading(false);
+      return;
+    }
+
     try {
       setWeatherLoading(true);
       
-      // Check if we have recent weather data (less than 30 minutes old)
-      if (weather?.lastFetched && Date.now() - weather.lastFetched < 30 * 60 * 1000) {
-        console.log('Using cached weather data');
+      // Check cache first (5 minutes)
+      const now = Date.now();
+      if (weather?.lastFetched && (now - weather.lastFetched) < 300000) {
         setWeatherLoading(false);
         return;
       }
 
-      const address = await fetchUserAddress();
+      const response = await fetch(
+        `https://api.openweathermap.org/data/2.5/weather?q=Billingham,UK&appid=${OPENWEATHER_API_KEY}&units=metric`
+      );
       
-      if (!address || (!address.postcode && !address.town)) {
-        setWeather(null);
-        setWeatherLoading(false);
-        return;
+      if (!response.ok) {
+        throw new Error('Weather API request failed');
       }
-
-      // Use real OpenWeatherMap API
-      const API_KEY = OPENWEATHER_API_KEY || '6b74e8db380dbcdf9778b678b1a5f9fd'; // Temporary fallback
-      if (API_KEY && API_KEY !== '') {
-        try {
-          // Try multiple location formats for better results
-          const locations = [];
-          if (address.town) {
-            locations.push(address.town + ',UK');
-            locations.push(address.town);
-          }
-          if (address.postcode) {
-            locations.push(address.postcode + ',UK');
-            locations.push(address.postcode);
-          }
-          
-          let weatherData = null;
-          let lastError = null;
-          
-          // Try each location format until one works
-          for (const location of locations) {
-            try {
-              console.log(`Trying weather for: ${location}`);
-              const response = await fetch(
-                `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(location)}&appid=${API_KEY}&units=metric`
-              );
-              
-              if (response.ok) {
-                weatherData = await response.json();
-                console.log(`Weather data received for: ${location}`);
-                break;
-              } else {
-                console.log(`Failed for ${location}: ${response.status}`);
-                lastError = `${response.status} ${response.statusText}`;
-              }
-            } catch (err) {
-              console.log(`Error for ${location}:`, err);
-              lastError = err;
-            }
-          }
-          
-          if (weatherData) {
-            setWeather({
-              temp: Math.round(weatherData.main.temp),
-              condition: weatherData.weather[0].main,
-              icon: getWeatherEmoji(weatherData.weather[0].main),
-              lastFetched: Date.now()
-            });
-            setWeatherLoading(false);
-            return;
-          } else {
-            console.warn('All location formats failed. Last error:', lastError);
-          }
-        } catch (apiError) {
-          console.error('OpenWeatherMap API request failed:', apiError);
-        }
-      } else {
-        console.log('No OpenWeatherMap API key configured');
-      }
-
-      // Fallback to mock data for development/demo
-      console.log('Using mock weather data (API key not configured or API failed)');
-      const mockWeatherData = {
-        temp: Math.floor(Math.random() * 15) + 10, // 10-25°C
-        condition: ['Clear', 'Clouds', 'Rain'][Math.floor(Math.random() * 3)]
-      };
-
+      
+      const data = await response.json();
+      
       setWeather({
-        temp: mockWeatherData.temp,
-        condition: mockWeatherData.condition,
-        icon: getWeatherEmoji(mockWeatherData.condition),
-        lastFetched: Date.now()
+        temp: Math.round(data.main.temp),
+        condition: data.weather[0].description,
+        icon: data.weather[0].icon,
+        lastFetched: now,
       });
-
     } catch (error) {
       console.error('Error fetching weather:', error);
       setWeather(null);
@@ -376,102 +319,98 @@ export default function HomeScreen() {
     }, [router])
   );
 
-  // Determine how many buttons per row: use 3 on web for wider screens
-  const buttonsPerRow = Platform.OS === 'web' ? 3 : 2;
+  // Determine how many buttons per row: use 3 on web for wider screens, adjust for dual mode
+  const buttonsPerRow = isDualMode ? 2 : (Platform.OS === 'web' ? 3 : 2);
 
-  // Split buttons into rows
-  const rows: {
-    label: string;
-    onPress: () => void;
-    disabled?: boolean;
-  }[][] = [];
-  for (let i = 0; i < buttons.length; i += buttonsPerRow) {
-    rows.push(buttons.slice(i, i + buttonsPerRow));
-  }
-
-  if (loading) {
-    return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
-
-  return (
+  // Render the main screen content
+  const renderScreenContent = () => (
     <View style={styles.container}>
-      {/* Header with settings gear icon */}
-      <View style={styles.header}>
-        <Pressable style={styles.settingsButton} onPress={() => handleNavigation('/settings')}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
-        </Pressable>
-        <View style={styles.headerContent}>
-          {/* Weather widget */}
-          {weatherLoading ? (
-            <Text style={styles.weatherPlaceholder}>Weather loading...</Text>
-          ) : weather ? (
-            <View style={styles.weatherWidget}>
-              <Text style={styles.weatherIcon}>{weather.icon}</Text>
-              <Text style={styles.weatherText}>{weather.temp}°C {weather.condition}</Text>
-            </View>
-          ) : (
-            <Text style={styles.weatherPlaceholder}>Weather unavailable</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      ) : (
+        <>
+          {email && (
+            <Text style={styles.emailText}>Logged in as: {email}</Text>
           )}
-        </View>
-      </View>
+          
+          {/* Dashboard Widgets */}
+          <View style={styles.widgetContainer}>
+            {/* Weather Widget */}
+            <View style={styles.widget}>
+              <Text style={styles.widgetTitle}>Weather</Text>
+              {weatherLoading ? (
+                <Text style={styles.widgetContent}>Loading...</Text>
+              ) : weather ? (
+                <Text style={styles.widgetContent}>
+                  {weather.temp}°C {weather.condition}
+                </Text>
+              ) : (
+                <Text style={styles.widgetContent}>Unable to load weather</Text>
+              )}
+            </View>
 
-      {/* Dashboard stats section */}
-      <View style={styles.statsSection}>
-        {jobStatsLoading ? (
-          <Text style={styles.statsPlaceholder}>Job stats loading...</Text>
-        ) : jobStats ? (
-          <View style={styles.jobStatsWidget}>
-            <Text style={styles.jobStatsText}>
-              📋 Today's Progress: {jobStats.completed}/{jobStats.total} jobs completed
-            </Text>
-            {jobStats.total > 0 && (
-              <View style={styles.progressBar}>
-                <View 
+            {/* Job Stats Widget */}
+            <View style={styles.widget}>
+              <Text style={styles.widgetTitle}>Today's Progress</Text>
+              {jobStatsLoading ? (
+                <Text style={styles.widgetContent}>Loading...</Text>
+              ) : jobStats ? (
+                <>
+                  <Text style={styles.widgetContent}>
+                    {jobStats.completed}/{jobStats.total} jobs completed
+                  </Text>
+                  {jobStats.total > 0 && (
+                    <View style={styles.progressBar}>
+                      <View 
+                        style={[
+                          styles.progressFill, 
+                          { width: `${(jobStats.completed / jobStats.total) * 100}%` }
+                        ]} 
+                      />
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.widgetContent}>No jobs today</Text>
+              )}
+            </View>
+          </View>
+
+          {/* Navigation Buttons */}
+          <View style={styles.buttonContainer}>
+            {buttons.map((button, index) => {
+              const rowIndex = Math.floor(index / buttonsPerRow);
+              const colIndex = index % buttonsPerRow;
+              const isFirstInRow = colIndex === 0;
+              const isLastInRow = colIndex === buttonsPerRow - 1 || index === buttons.length - 1;
+
+              return (
+                <Pressable
+                  key={index}
                   style={[
-                    styles.progressFill, 
-                    { width: `${Math.round((jobStats.completed / jobStats.total) * 100)}%` }
-                  ]} 
-                />
-              </View>
-            )}
-            {jobStats.total > 0 && (
-              <Text style={styles.progressPercentage}>
-                {jobStats.completed === jobStats.total ? '✅ ' : '🔄 '}{Math.round((jobStats.completed / jobStats.total) * 100)}% complete
-              </Text>
-            )}
+                    styles.button,
+                    {
+                      width: `${100 / buttonsPerRow - 2}%`,
+                      marginLeft: isFirstInRow ? 0 : '2%',
+                      marginTop: rowIndex > 0 ? 16 : 0,
+                    },
+                    button.disabled && styles.buttonDisabled,
+                  ]}
+                  onPress={button.onPress}
+                  disabled={button.disabled || navigationInProgress}
+                >
+                  <Text style={[styles.buttonText, button.disabled && styles.buttonTextDisabled]}>
+                    {button.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-        ) : (
-          <Text style={styles.statsPlaceholder}>📋 No jobs scheduled for today</Text>
-        )}
-      </View>
-
-      {/* Main buttons grid */}
-      <View style={styles.buttonsContainer}>
-        {rows.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.row}>
-            {row.map((btn, idx) => (
-              <Pressable
-                key={idx}
-                style={[styles.button, btn.disabled && styles.buttonDisabled]}
-                onPress={btn.onPress}
-                disabled={btn.disabled}
-              >
-                <Text style={styles.buttonText}>{btn.label}</Text>
-              </Pressable>
-            ))}
-          </View>
-        ))}
-      </View>
-
-      {email && (
-        <View style={styles.emailContainer}>
-          <Text style={styles.email}>Logged in as {email}</Text>
-        </View>
+        </>
       )}
+
       {showFirstTimeSetup && (
         <FirstTimeSetupModal 
           visible={showFirstTimeSetup} 
@@ -480,168 +419,124 @@ export default function HomeScreen() {
       )}
     </View>
   );
+
+  // Return dual layout for desktop or single layout for mobile
+  if (isDualMode) {
+    console.log('🖥️ Rendering dual desktop dashboard');
+    return (
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+        <View style={[styles.dualInstanceContainer, styles.leftInstance]}>
+          {renderScreenContent()}
+        </View>
+        <View style={[styles.dualInstanceContainer, styles.rightInstance]}>
+          {renderScreenContent()}
+        </View>
+      </View>
+    );
+  }
+
+  return renderScreenContent();
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  settingsButton: {
-    padding: 8,
-    borderRadius: 8,
+    padding: 20,
     backgroundColor: '#f5f5f5',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
-  settingsIcon: {
-    fontSize: 20,
-  },
-  headerContent: {
+  dualInstanceContainer: {
     flex: 1,
-    alignItems: 'center',
-    marginLeft: 16,
   },
-  weatherPlaceholder: {
-    fontSize: 14,
+  leftInstance: {
+    borderRightWidth: 1,
+    borderRightColor: '#e0e0e0',
+  },
+  rightInstance: {
+    // No additional styles needed
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    fontSize: 18,
     color: '#666',
   },
-  weatherWidget: {
+  emailText: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  widgetContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    padding: 10,
-    width: '100%',
-    maxWidth: 250,
+    marginBottom: 30,
+    gap: 15,
   },
-  weatherIcon: {
-    fontSize: 24,
-    marginRight: 8,
+  widget: {
+    flex: 1,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    padding: 15,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
-  weatherText: {
+  widgetTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    marginBottom: 8,
+    color: '#333',
   },
-  statsSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  statsPlaceholder: {
+  widgetContent: {
     fontSize: 14,
     color: '#666',
-    textAlign: 'center',
-  },
-  jobStatsWidget: {
-    borderRadius: 16,
-    padding: 20,
-    margin: 8,
-    width: '100%',
-    maxWidth: 320,
-    alignSelf: 'center',
-    // iOS shadow
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    // Android shadow
-    elevation: 8,
-    // Border for definition
-    borderWidth: 1,
-    borderColor: '#e8e8e8',
-    // Platform-specific styling
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        backgroundColor: '#ffffff',
-      },
-      default: {
-        backgroundColor: '#ffffff',
-      },
-    }),
-  },
-  jobStatsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-    color: '#2c3e50',
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#f0f2f5',
-    borderRadius: 4,
+    height: 6,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 3,
+    marginTop: 8,
     overflow: 'hidden',
-    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#34c759',
-    borderRadius: 4,
+    backgroundColor: '#4CAF50',
+    borderRadius: 3,
   },
-  progressPercentage: {
-    fontSize: 16,
-    color: '#34c759',
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  buttonsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    paddingTop: 40,
-  },
-  row: {
+  buttonContainer: {
     flexDirection: 'row',
-    width: '100%',
-    justifyContent: 'space-between',
-    marginBottom: 24,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
   },
   button: {
-    flex: 1,
-    aspectRatio: 1,
-    marginHorizontal: 8,
     backgroundColor: '#007AFF',
-    borderRadius: 12,
-    justifyContent: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 15,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 80,
     elevation: 2,
-    minWidth: 0,
-    maxWidth: 250,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   buttonDisabled: {
-    backgroundColor: '#eee',
+    backgroundColor: '#ccc',
   },
   buttonText: {
-    color: '#fff',
+    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  email: { 
-    fontSize: 12, 
-    color: '#666',
-    textAlign: 'center',
-  },
-  emailContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
+  buttonTextDisabled: {
+    color: '#999',
   },
 });
 
