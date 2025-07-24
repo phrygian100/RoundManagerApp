@@ -5,6 +5,62 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - BUG FIX: Job Address Information Displaying as Notes in Runsheet 📝
+
+### Summary
+Fixed a bug where job `propertyDetails` field containing address information (from automatic job creation) was being displayed as user notes with the 📝 icon in the runsheet, when only actual user-entered notes should be displayed.
+
+### Root Cause
+The `propertyDetails` field serves dual purposes:
+1. **User notes** from "Add New Job" modal: `propertyDetails: jobNotes`
+2. **Address info** from automatic job creation: `propertyDetails: "${client.address}, ${client.town}, ${client.postcode}"`
+
+My previous implementation displayed ALL `propertyDetails` content as notes, causing addresses to appear as notes.
+
+### Technical Fix
+Added logic to distinguish between user notes and address information:
+
+**Before**: All propertyDetails shown as notes
+```typescript
+{item.propertyDetails && item.propertyDetails.trim() !== '' && (
+  <Text style={styles.jobNotes}>📝 {item.propertyDetails}</Text>
+)}
+```
+
+**After**: Only actual user notes shown
+```typescript
+{item.propertyDetails && item.propertyDetails.trim() !== '' && (() => {
+  // Check if propertyDetails is just address information (auto-generated)
+  if (client) {
+    const expectedAddress = `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`;
+    const isAddressInfo = item.propertyDetails.trim() === expectedAddress.trim();
+    
+    // Only display as notes if it's NOT address information
+    if (!isAddressInfo) {
+      return <Text style={styles.jobNotes}>📝 {item.propertyDetails}</Text>;
+    }
+  } else {
+    // For jobs without clients (like quotes), show propertyDetails as notes
+    return <Text style={styles.jobNotes}>📝 {item.propertyDetails}</Text>;
+  }
+  return null;
+})()}
+```
+
+### Impact
+- ✅ **Clean Runsheet Display**: Address information no longer appears as fake notes
+- ✅ **Real Notes Visible**: Actual user-entered notes still display properly with 📝 icon
+- ✅ **Backward Compatible**: Works with both manual and automatic job creation
+- ✅ **Quote Jobs Preserved**: Quote jobs (without clients) continue to show notes properly
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Added address vs notes detection logic
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - UX improvement to reduce visual clutter and confusion
+
+---
+
 ## 2025-01-31 - BUG FIX: Custom Job Types Getting Blue Accent Instead of Yellow in Runsheet 🎨
 
 ### Summary
