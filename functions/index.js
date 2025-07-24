@@ -19,7 +19,22 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-setGlobalOptions({ maxInstances: 10 });
+// Configure CORS for Firebase v2 functions to allow custom domain
+setGlobalOptions({ 
+  maxInstances: 10
+});
+
+// CORS configuration for custom domain
+const corsOptions = {
+  cors: {
+    origin: [
+      "https://guvnor.app",
+      "https://www.guvnor.app", 
+      "http://localhost:8081",
+      "http://localhost:3000"
+    ]
+  }
+};
 
 // Stripe will be initialized inside functions when needed
 
@@ -510,7 +525,7 @@ exports.removeMember = onCall(async (request) => {
 });
 
 // Stripe Checkout session creation
-exports.createCheckoutSession = onCall(async (request) => {
+exports.createCheckoutSession = onCall(corsOptions, async (request) => {
   // Initialize Stripe inside function
   const stripe = require('stripe')(functions.config().stripe.secret_key);
   
@@ -737,7 +752,7 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 }
 
 // Create customer portal session
-exports.createCustomerPortalSession = onCall(async (request) => {
+exports.createCustomerPortalSession = onCall(corsOptions, async (request) => {
   // Initialize Stripe inside function
   const stripe = require('stripe')(functions.config().stripe.secret_key);
   
