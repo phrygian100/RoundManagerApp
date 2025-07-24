@@ -5,6 +5,55 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-31 - BUG FIX: Custom Job Types Getting Blue Accent Instead of Yellow in Runsheet 🎨
+
+### Summary
+Fixed a styling issue where custom job types (created when users select "Other" in the Add New Job modal) were appearing with blue accent color instead of the expected yellow accent that other one-off jobs receive.
+
+### Root Cause
+The runsheet styling logic was checking for exact matches in a predefined array of one-off services:
+```typescript
+const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
+```
+
+When users selected "Other" and entered custom text like "Clean garage", the `serviceId` became "Clean garage" (not "Other"), so it didn't match the array and was incorrectly classified as an additional service (blue styling).
+
+### Technical Fix
+Updated the styling logic to treat custom job types as one-off jobs:
+
+**Before**: Only predefined services got yellow styling
+```typescript
+const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
+const isAdditionalService = item.serviceId && item.serviceId !== 'window-cleaning' && !isOneOffJob;
+```
+
+**After**: Custom job types also get yellow styling
+```typescript
+const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'];
+const predefinedAdditionalServices: string[] = [];
+
+const isOneOffJob = predefinedOneOffServices.includes(item.serviceId);
+const isCustomJobType = item.serviceId && 
+                       item.serviceId !== 'window-cleaning' && 
+                       !predefinedOneOffServices.includes(item.serviceId) &&
+                       !predefinedAdditionalServices.includes(item.serviceId);
+const shouldUseOneOffStyling = isOneOffJob || isCustomJobType;
+```
+
+### Impact
+- ✅ **Consistent Styling**: Custom job types now display with yellow accent like other one-off jobs
+- ✅ **Improved UX**: Visual consistency makes it easier to identify one-off vs recurring services
+- ✅ **Future Proof**: Logic accommodates any custom job type text entered by users
+- ✅ **Backward Compatible**: Existing predefined one-off jobs continue to work as before
+
+### Files Modified
+- `app/runsheet/[week].tsx` - Updated job styling classification logic
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: LOW - Visual consistency improvement
+
+---
+
 ## 2025-01-31 - BUG FIX: Job Notes from Add New Job Modal Not Displaying in Runsheet 🔧
 
 ### Summary

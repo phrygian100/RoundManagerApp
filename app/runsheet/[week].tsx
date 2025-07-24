@@ -1493,8 +1493,20 @@ www.tgmwindowcleaning.co.uk`;
     // Only show complete button for the first incomplete job within this vehicle on today, if today is not marked complete
     const showCompleteButton = isCurrentWeek && isToday && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
-    const isOneOffJob = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'].includes(item.serviceId);
-    const isAdditionalService = item.serviceId && item.serviceId !== 'window-cleaning' && !isOneOffJob;
+    // Define predefined service types
+    const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'];
+    const predefinedAdditionalServices: string[] = []; // Add any predefined additional services here if needed
+    
+    const isOneOffJob = predefinedOneOffServices.includes(item.serviceId);
+    // Treat custom job types (not in any predefined list and not window-cleaning) as one-off jobs
+    const isCustomJobType = item.serviceId && 
+                           item.serviceId !== 'window-cleaning' && 
+                           !predefinedOneOffServices.includes(item.serviceId) &&
+                           !predefinedAdditionalServices.includes(item.serviceId);
+    const isAdditionalService = predefinedAdditionalServices.includes(item.serviceId);
+    
+    // Combine one-off jobs and custom job types for styling
+    const shouldUseOneOffStyling = isOneOffJob || isCustomJobType;
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
@@ -1503,7 +1515,7 @@ www.tgmwindowcleaning.co.uk`;
       <View style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
-        isOneOffJob && !isCompleted && styles.oneOffJobRow,
+        shouldUseOneOffStyling && !isCompleted && styles.oneOffJobRow,
         isAdditionalService && !isCompleted && styles.additionalServiceRow
       ]}>
         <View style={{ flex: 1 }}>
@@ -1511,7 +1523,7 @@ www.tgmwindowcleaning.co.uk`;
             <View style={styles.addressBlock}>
               <Text style={styles.addressTitle}>{address}</Text>
             </View>
-            {isOneOffJob && (
+            {shouldUseOneOffStyling && (
               <View style={styles.oneOffJobLabel}>
                 <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
               </View>
