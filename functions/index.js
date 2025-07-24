@@ -18,6 +18,14 @@ admin.initializeApp();
 
 setGlobalOptions({ maxInstances: 10 });
 
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+// Initialize Stripe
+const stripe = require('stripe')(functions.config().stripe.secret_key);
+
 // GoCardless payment creation function
 exports.createGoCardlessPayment = onCall(async (request) => {
   console.log('createGoCardlessPayment called with:', request.data);
@@ -502,4 +510,273 @@ exports.removeMember = onCall(async (request) => {
   }
   
   return { success: true };
+});
+
+// Stripe Checkout session creation
+exports.createCheckoutSession = onCall(async (request) => {
+  console.log('createCheckoutSession called with:', request.data);
+  const { priceId, successUrl, cancelUrl } = request.data;
+  const caller = request.auth;
+  
+  if (!caller) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to create checkout sessions.');
+  }
+  
+  if (!priceId || !successUrl || !cancelUrl) {
+    throw new functions.https.HttpsError('invalid-argument', 'Missing required parameters: priceId, successUrl, or cancelUrl.');
+  }
+  
+  try {
+    const db = admin.firestore();
+    
+    // Get user information
+    const userDoc = await db.collection('users').doc(caller.uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User not found.');
+    }
+    
+    const userData = userDoc.data();
+    let customerId = userData.stripeCustomerId;
+    
+    // Create Stripe customer if doesn't exist
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: userData.email || caller.token.email,
+        name: userData.name || '',
+        metadata: {
+          userId: caller.uid,
+          businessName: userData.businessName || '',
+        },
+      });
+      
+      customerId = customer.id;
+      
+      // Save customer ID to user document
+      await userDoc.ref.update({
+        stripeCustomerId: customerId,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    
+    // Create Stripe Checkout session
+    const session = await stripe.checkout.sessions.create({
+      customer: customerId,
+      payment_method_types: ['card'],
+      line_items: [{
+        price: priceId,
+        quantity: 1,
+      }],
+      mode: 'subscription',
+      success_url: successUrl + '?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: cancelUrl,
+      metadata: {
+        userId: caller.uid,
+      },
+      subscription_data: {
+        metadata: {
+          userId: caller.uid,
+        },
+      },
+      customer_update: {
+        name: 'auto',
+        address: 'auto',
+      },
+      invoice_creation: {
+        enabled: true,
+      },
+    });
+    
+    console.log('Stripe Checkout session created:', session.id);
+    
+    return {
+      sessionId: session.id,
+      url: session.url,
+    };
+  } catch (error) {
+    console.error('Error creating Stripe Checkout session:', error);
+    if (error.code) {
+      throw error; // Re-throw Firebase Functions errors
+    }
+    throw new functions.https.HttpsError('internal', `Checkout session creation failed: ${error.message || 'Unknown error'}`);
+  }
+});
+
+// Handle Stripe webhooks
+exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  
+  let event;
+  
+  try {
+    event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+  } catch (err) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+  
+  console.log('Stripe webhook event received:', event.type);
+  
+  try {
+    const db = admin.firestore();
+    
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object;
+        console.log('Checkout session completed:', session.id);
+        
+        // Get user ID from metadata
+        const userId = session.metadata.userId;
+        if (!userId) {
+          console.error('No user ID found in session metadata');
+          break;
+        }
+        
+        // Update user subscription status
+        await updateUserSubscription(db, userId, 'premium', 'active', session.subscription);
+        break;
+      }
+      
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object;
+        console.log('Subscription updated:', subscription.id, subscription.status);
+        
+        // Get user ID from metadata
+        const userId = subscription.metadata.userId;
+        if (!userId) {
+          console.error('No user ID found in subscription metadata');
+          break;
+        }
+        
+        let tier = 'free';
+        let status = 'active';
+        
+        if (subscription.status === 'active') {
+          tier = 'premium';
+          status = 'active';
+        } else if (subscription.status === 'canceled') {
+          tier = 'free';
+          status = 'canceled';
+        } else if (subscription.status === 'past_due') {
+          tier = 'premium'; // Keep premium during grace period
+          status = 'past_due';
+        } else if (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') {
+          tier = 'free';
+          status = 'canceled';
+        }
+        
+        await updateUserSubscription(db, userId, tier, status, subscription.id);
+        break;
+      }
+      
+      case 'customer.subscription.deleted': {
+        const subscription = event.data.object;
+        console.log('Subscription canceled:', subscription.id);
+        
+        // Get user ID from metadata
+        const userId = subscription.metadata.userId;
+        if (!userId) {
+          console.error('No user ID found in subscription metadata');
+          break;
+        }
+        
+        await updateUserSubscription(db, userId, 'free', 'canceled', null);
+        break;
+      }
+      
+      case 'invoice.payment_succeeded': {
+        const invoice = event.data.object;
+        console.log('Payment succeeded for invoice:', invoice.id);
+        // Add any specific logic for successful payments
+        break;
+      }
+      
+      case 'invoice.payment_failed': {
+        const invoice = event.data.object;
+        console.log('Payment failed for invoice:', invoice.id);
+        // Add any specific logic for failed payments
+        break;
+      }
+      
+      default:
+        console.log(`Unhandled event type: ${event.type}`);
+    }
+    
+    res.json({ received: true });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    res.status(500).send('Internal server error');
+  }
+});
+
+// Helper function to update user subscription
+async function updateUserSubscription(db, userId, tier, status, subscriptionId) {
+  try {
+    const updates = {
+      subscriptionTier: tier,
+      subscriptionStatus: status,
+      isExempt: tier === 'exempt',
+      clientLimit: tier === 'free' ? 20 : null,
+      updatedAt: new Date().toISOString(),
+    };
+    
+    if (subscriptionId) {
+      updates.stripeSubscriptionId = subscriptionId;
+    }
+    
+    await db.collection('users').doc(userId).update(updates);
+    console.log(`Updated subscription for user ${userId}: ${tier} (${status})`);
+  } catch (error) {
+    console.error('Error updating user subscription:', error);
+    throw error;
+  }
+}
+
+// Create customer portal session
+exports.createCustomerPortalSession = onCall(async (request) => {
+  console.log('createCustomerPortalSession called');
+  const { returnUrl } = request.data;
+  const caller = request.auth;
+  
+  if (!caller) {
+    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+  }
+  
+  if (!returnUrl) {
+    throw new functions.https.HttpsError('invalid-argument', 'Return URL is required.');
+  }
+  
+  try {
+    const db = admin.firestore();
+    
+    // Get user's Stripe customer ID
+    const userDoc = await db.collection('users').doc(caller.uid).get();
+    if (!userDoc.exists) {
+      throw new functions.https.HttpsError('not-found', 'User not found.');
+    }
+    
+    const userData = userDoc.data();
+    if (!userData.stripeCustomerId) {
+      throw new functions.https.HttpsError('failed-precondition', 'No Stripe customer found. Please subscribe first.');
+    }
+    
+    // Create customer portal session
+    const session = await stripe.billingPortal.sessions.create({
+      customer: userData.stripeCustomerId,
+      return_url: returnUrl,
+    });
+    
+    console.log('Customer portal session created:', session.id);
+    
+    return {
+      url: session.url,
+    };
+  } catch (error) {
+    console.error('Error creating customer portal session:', error);
+    if (error.code) {
+      throw error; // Re-throw Firebase Functions errors
+    }
+    throw new functions.https.HttpsError('internal', `Portal session creation failed: ${error.message || 'Unknown error'}`);
+  }
 });

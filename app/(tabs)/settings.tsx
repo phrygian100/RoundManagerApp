@@ -9,6 +9,7 @@ import * as XLSX from 'xlsx';
 import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
+import UpgradeModal from '../../components/UpgradeModal';
 import { db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
@@ -90,6 +91,9 @@ export default function SettingsScreen() {
   const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
 
+  // Upgrade modal state
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+
   // Profile edit modal state
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -161,6 +165,64 @@ export default function SettingsScreen() {
       console.error('Error loading subscription:', error);
     } finally {
       setLoadingSubscription(false);
+    }
+  };
+
+  // Handle manage billing
+  const handleManageBilling = async () => {
+    try {
+      setLoading(true);
+      
+      // For web, redirect to customer portal
+      if (Platform.OS === 'web') {
+        const response = await fetch('/api/create-customer-portal-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            returnUrl: window.location.href,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create customer portal session');
+        }
+
+        const { url } = await response.json();
+        window.location.href = url;
+      } else {
+        // For mobile, show message to use web
+        Alert.alert(
+          'Manage Billing',
+          'Please use the web version to manage your billing and subscription settings.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Error opening billing portal:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to open billing portal';
+      
+      if (Platform.OS === 'web') {
+        window.alert(`Error: ${errorMessage}`);
+      } else {
+        Alert.alert('Error', errorMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle upgrade success
+  const handleUpgradeSuccess = async () => {
+    setUpgradeModalVisible(false);
+    // Refresh subscription data
+    await loadSubscription();
+    
+    if (Platform.OS === 'web') {
+      window.alert('🎉 Welcome to Premium! Your upgrade was successful.');
+    } else {
+      Alert.alert('Upgrade Successful', '🎉 Welcome to Premium! Your upgrade was successful.');
     }
   };
 
@@ -2030,6 +2092,22 @@ export default function SettingsScreen() {
               }}
             />
           )}
+          
+          {/* Upgrade button for free tier users */}
+          {subscription && subscription.tier === 'free' && (
+            <StyledButton
+              title="🚀 Upgrade to Premium - £18/month"
+              onPress={() => setUpgradeModalVisible(true)}
+            />
+          )}
+          
+          {/* Manage billing button for premium users */}
+          {subscription && subscription.tier === 'premium' && subscription.status === 'active' && (
+            <StyledButton
+              title="Manage Billing"
+              onPress={handleManageBilling}
+            />
+          )}
         </View>
 
         {/* Import Section */}
@@ -2396,6 +2474,13 @@ export default function SettingsScreen() {
         currentToken={currentApiToken}
         onSave={handleSaveGoCardlessApiToken}
         onTestConnection={handleTestGoCardlessConnection}
+      />
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        visible={upgradeModalVisible}
+        onClose={() => setUpgradeModalVisible(false)}
+        onUpgradeSuccess={handleUpgradeSuccess}
       />
     </ThemedView>
   );
