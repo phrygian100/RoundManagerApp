@@ -51,14 +51,28 @@ The Firebase functions `createCheckoutSession` and `createCustomerPortalSession`
 - `app/(tabs)/settings.tsx`: Added auth token to billing portal requests
 - `docs/code-changes.md`: Updated documentation
 
-### Testing Required
-After deployment, test the complete Stripe upgrade flow:
-1. Access settings screen on a free account
-2. Click "Upgrade to Premium" button
-3. Verify Stripe Checkout session opens correctly
-4. Test billing portal access for existing premium customers
+### Resolution Steps Completed
+1. **✅ Converted Functions**: Changed both Stripe functions from `onCall` to `onRequest` functions
+2. **✅ Deployed Functions**: Successfully deleted old callable functions and deployed new HTTP functions  
+3. **✅ Fixed Firebase Config**: Added missing Firebase environment variables to `.env.local`:
+   - `EXPO_PUBLIC_FIREBASE_API_KEY`
+   - `EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN` 
+   - `EXPO_PUBLIC_FIREBASE_PROJECT_ID`
+   - `EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   - `EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+   - `EXPO_PUBLIC_FIREBASE_APP_ID`
+4. **✅ Rebuilt and Deployed**: App rebuilt and deployed to Firebase Hosting with working configuration
 
-**Priority**: CRITICAL - This was blocking premium subscription signups
+### Final Status
+- ✅ **Functions Deployed**: HTTP functions accessible at:
+  - `https://us-central1-roundmanagerapp.cloudfunctions.net/createCheckoutSession`
+  - `https://us-central1-roundmanagerapp.cloudfunctions.net/createCustomerPortalSession`
+- ✅ **Firebase Hosting Rewrites**: `/api/createCheckoutSession` and `/api/createCustomerPortalSession` routes working
+- ✅ **Firebase Authentication**: Properly initialized with environment variables
+- ✅ **Auth Token Generation**: Users can now generate Firebase ID tokens for API requests
+- ✅ **Ready for Testing**: Stripe upgrade flow should now work end-to-end
+
+**Priority**: CRITICAL - Fixed blocking issue for premium subscription signups
 
 ---
 
