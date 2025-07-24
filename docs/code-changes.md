@@ -2355,6 +2355,151 @@ Transformed the main dashboard from a simple button grid to an informative dashb
 - Added dedicated header section with clean styling
 
 **2. Weather Widget Implementation**:
+- Added real-time weather data fetching using OpenWeatherMap API
+- Weather based on user's business address from profile settings
+- Displays current temperature, weather condition, and location
+- Automatic refresh and error handling for weather data
+- Visual weather icons and clean card-based design
+
+**3. Today's Jobs Dashboard Widget**:
+- Real-time tracking of today's job completion progress
+- Shows completed vs total jobs for current day
+- Visual progress bar with percentage completion
+- Automatic updates when jobs are marked complete
+- Links to runsheet for quick access to today's work
+
+**4. Enhanced Dashboard Layout**:
+- Card-based widget system for better visual organization
+- Responsive design with proper spacing and shadows
+- Weather and job widgets prominently displayed
+- Maintained quick access to core features below widgets
+
+### Technical Implementation:
+
+**Weather Integration**:
+- OpenWeatherMap API integration with API key management
+- Geolocation fallback when address geocoding fails
+- Weather data caching and error handling
+- Responsive weather display with icons and temperature
+
+**Job Progress Tracking**:
+- Real-time Firebase queries for today's job status
+- Automatic progress calculation and visual indicators
+- Integration with existing job management system
+- Performance optimized with proper query filtering
+
+**UI/UX Improvements**:
+- Modern card-based layout with shadows and borders
+- Professional color scheme with proper contrast
+- Loading states and error handling for all widgets
+- Responsive design for different screen sizes
+
+### Impact
+- ✅ **Modern Dashboard**: Transformed from basic menu to informative overview
+- ✅ **Real-time Data**: Live weather and job progress information
+- ✅ **Better Navigation**: Settings moved to standard header location
+- ✅ **User Experience**: Quick overview of today's work and conditions
+- ✅ **Professional Appearance**: Clean, modern interface design
+
+### Files Modified
+- `app/(tabs)/index.tsx` - Complete dashboard redesign with widgets
+- `docs/code-changes.md` - Updated documentation
+
+---
+
+## 2025-01-27 - Added Privacy Policy Page and Updated Footer Links ✅
+
+### Summary
+Implemented a comprehensive privacy policy page at `/privacy-policy` and updated all website footer sections to include a new Legal section with privacy policy and terms of service links.
+
+### Changes Made:
+
+**1. Created Privacy Policy Page**:
+- Created `web/src/app/privacy-policy/page.tsx` with comprehensive privacy policy content
+- Follows existing Next.js app router structure and design patterns
+- Includes proper SEO metadata and structured content sections
+- Consistent navigation, hero section, and footer design
+
+**2. Updated Footer Structure**:
+- Changed footer grid from 4 columns to 5 columns across all pages
+- Added new "Legal" section with Privacy Policy link and placeholder for Terms of Service
+- Updated footers on: `/home`, `/about`, `/contact`, `/pricing`, and `/privacy-policy` pages
+- Consistent styling and responsive design maintained
+
+**3. Privacy Policy Content Structure**:
+- **Introduction**: Company commitment to privacy and data protection
+- **Information Collection**: What data is collected and how
+- **Data Usage**: How collected information is used
+- **Information Sharing**: When and how data is shared with third parties
+- **Data Security**: Security measures and encryption practices
+- **Data Retention**: How long information is stored
+- **Cookies & Tracking**: Use of cookies and tracking technologies
+- **User Rights**: Privacy rights including access, correction, deletion
+- **International Transfers**: Cross-border data handling practices
+- **Third-Party Services**: Integration with Firebase and payment processors
+- **Children's Privacy**: Age restrictions and child protection
+- **Policy Updates**: How privacy policy changes are communicated
+- **Contact Information**: How to reach privacy team and exercise rights
+
+**4. Legal Compliance Features**:
+- GDPR compliance considerations for EU users
+- User rights section (access, correction, deletion, portability)
+- Data retention and deletion policies
+- Third-party service disclosures (Firebase, payment processors)
+- International data transfer safeguards
+- Clear contact information for privacy inquiries
+
+**5. Design & UX Consistency**:
+- Matches existing page design patterns from `/about` page
+- Professional typography with clear section headings
+- Hero section with page title and description
+- Call-to-action section encouraging users to start free trial
+- Consistent footer with all navigation links
+
+### Technical Implementation:
+
+**Next.js App Router Structure**:
+```
+web/src/app/privacy-policy/
+  └── page.tsx (complete privacy policy page)
+```
+
+**SEO Optimization**:
+```typescript
+export const metadata = {
+  title: "Privacy Policy - Guvnor",
+  description: "Learn how Guvnor collects, uses, and protects your personal information. Transparent privacy practices for cleaning business management.",
+  keywords: "privacy policy, data protection, GDPR, personal information, cleaning business software",
+};
+```
+
+**Footer Updates Across All Pages**:
+- `/home` - Added Legal section with privacy policy link
+- `/about` - Added Legal section with privacy policy link  
+- `/contact` - Added Legal section with privacy policy link
+- `/pricing` - Added Legal section with privacy policy link
+- `/privacy-policy` - Includes Legal section (self-referential)
+
+### Business & Legal Impact:
+- ✅ **Legal Compliance**: Comprehensive privacy policy for data protection regulations
+- ✅ **User Trust**: Transparent data handling practices clearly documented
+- ✅ **Professional Image**: Consistent with business-grade SaaS platforms
+- ✅ **Accessibility**: Easy to find privacy policy from any website page
+- ✅ **Future Ready**: Prepared for terms of service addition
+
+### Files Created:
+- `web/src/app/privacy-policy/page.tsx` - Complete privacy policy page
+
+### Files Modified:
+- `web/src/app/home/page.tsx` - Updated footer with Legal section
+- `web/src/app/about/page.tsx` - Updated footer with Legal section
+- `web/src/app/contact/page.tsx` - Updated footer with Legal section
+- `web/src/app/pricing/page.tsx` - Updated footer with Legal section
+- `docs/code-changes.md` - Updated documentation
+
+**Priority**: MEDIUM - Legal compliance and professional website completion
+
+**Website URL**: The privacy policy is now accessible at `www.guvnor.app/privacy-policy`mplementation**:
 - Created weather widget using user's registered address (postcode/town)
 - Added support for OpenWeatherMap API integration (with mock data for demo)
 - Displays temperature, weather condition, and emoji icons
