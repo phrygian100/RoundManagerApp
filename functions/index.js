@@ -14,17 +14,14 @@ const { Resend } = require("resend");
 const { onCall } = require("firebase-functions/v2/https");
 const functions = require("firebase-functions");
 
-admin.initializeApp();
-
-setGlobalOptions({ maxInstances: 10 });
-
 // Initialize Firebase Admin
 if (!admin.apps.length) {
   admin.initializeApp();
 }
 
-// Initialize Stripe
-const stripe = require('stripe')(functions.config().stripe.secret_key);
+setGlobalOptions({ maxInstances: 10 });
+
+// Stripe will be initialized inside functions when needed
 
 // GoCardless payment creation function
 exports.createGoCardlessPayment = onCall(async (request) => {
@@ -514,6 +511,9 @@ exports.removeMember = onCall(async (request) => {
 
 // Stripe Checkout session creation
 exports.createCheckoutSession = onCall(async (request) => {
+  // Initialize Stripe inside function
+  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  
   console.log('createCheckoutSession called with:', request.data);
   const { priceId, successUrl, cancelUrl } = request.data;
   const caller = request.auth;
@@ -603,8 +603,11 @@ exports.createCheckoutSession = onCall(async (request) => {
 
 // Handle Stripe webhooks
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+  // Initialize Stripe inside function
+  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  
   const sig = req.headers['stripe-signature'];
-  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const endpointSecret = functions.config().stripe.webhook_secret;
   
   let event;
   
@@ -735,6 +738,9 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 
 // Create customer portal session
 exports.createCustomerPortalSession = onCall(async (request) => {
+  // Initialize Stripe inside function
+  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  
   console.log('createCustomerPortalSession called');
   const { returnUrl } = request.data;
   const caller = request.auth;
