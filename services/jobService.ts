@@ -48,12 +48,20 @@ export async function createJob(job: Omit<Job, 'id'>) {
   }
   
   const jobsRef = collection(db, JOBS_COLLECTION);
-  const docRef = await addDoc(jobsRef, { 
+  
+  // Build job data, filtering out undefined values that Firebase doesn't allow
+  const jobData: any = {
     ...job, 
     ownerId,
-    gocardlessEnabled,
-    gocardlessCustomerId
-  });
+    gocardlessEnabled
+  };
+  
+  // Only include gocardlessCustomerId if it has a value
+  if (gocardlessCustomerId) {
+    jobData.gocardlessCustomerId = gocardlessCustomerId;
+  }
+  
+  const docRef = await addDoc(jobsRef, jobData);
   
   // Trigger capacity redistribution for future weeks when a new job is added
   try {
@@ -228,11 +236,19 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 8
         const batch = writeBatch(db);
         jobsToCreate.forEach(job => {
           const newJobRef = doc(collection(db, JOBS_COLLECTION));
-          batch.set(newJobRef, {
+          
+          // Build job data, filtering out undefined values
+          const jobData: any = {
             ...job,
-            gocardlessEnabled: client.gocardlessEnabled || false,
-            gocardlessCustomerId: client.gocardlessCustomerId
-          });
+            gocardlessEnabled: client.gocardlessEnabled || false
+          };
+          
+          // Only include gocardlessCustomerId if it has a value
+          if (client.gocardlessCustomerId) {
+            jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+          }
+          
+          batch.set(newJobRef, jobData);
         });
         await batch.commit();
         totalJobsCreated += jobsToCreate.length;
@@ -402,7 +418,8 @@ export async function generateRecurringJobs() {
       }
       const weekStr = format(visitDate, 'yyyy-MM-dd');
 
-      jobsToCreate.push({
+      // Build job data, filtering out undefined values
+      const jobData: any = {
         ownerId,
         clientId: client.id,
         providerId: 'test-provider-1',
@@ -413,8 +430,14 @@ export async function generateRecurringJobs() {
         price: typeof client.quote === 'number' ? client.quote : 25,
         paymentStatus: 'unpaid',
         gocardlessEnabled: client.gocardlessEnabled || false,
-        gocardlessCustomerId: client.gocardlessCustomerId,
-      });
+      };
+      
+      // Only include gocardlessCustomerId if it has a value
+      if (client.gocardlessCustomerId) {
+        jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+      }
+      
+      jobsToCreate.push(jobData);
       
       visitDate = addWeeks(visitDate, Number(client.frequency));
     }
@@ -476,7 +499,8 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
 
         // Only create job if no existing job for this date and service
         if (!jobExistsForDateAndService) {
-          jobsToCreate.push({
+          // Build job data, filtering out undefined values
+          const jobData: any = {
             ownerId,
             clientId: client.id,
             providerId: 'test-provider-1',
@@ -487,8 +511,14 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
             price: service.price,
             paymentStatus: 'unpaid',
             gocardlessEnabled: client.gocardlessEnabled || false,
-            gocardlessCustomerId: client.gocardlessCustomerId,
-          });
+          };
+          
+          // Only include gocardlessCustomerId if it has a value
+          if (client.gocardlessCustomerId) {
+            jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+          }
+          
+          jobsToCreate.push(jobData);
         }
 
         serviceDate = addWeeks(serviceDate, service.frequency);

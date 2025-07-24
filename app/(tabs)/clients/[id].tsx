@@ -504,7 +504,8 @@ export default function ClientDetailScreen() {
       return;
     }
 
-    const jobData = {
+    // Build job data, filtering out undefined values that Firebase doesn't allow
+    const jobData: any = {
       ownerId, // <-- Ensure ownerId is set
       clientId: id,
       providerId: 'test-provider-1',
@@ -515,8 +516,12 @@ export default function ClientDetailScreen() {
       scheduledTime: format(jobDate, 'yyyy-MM-dd') + 'T09:00:00',
       paymentStatus: 'unpaid',
       gocardlessEnabled: client?.gocardlessEnabled || false,
-      gocardlessCustomerId: client?.gocardlessCustomerId,
     };
+    
+    // Only include gocardlessCustomerId if it has a value
+    if (client?.gocardlessCustomerId) {
+      jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+    }
 
     console.log('➕ Creating adhoc job:', jobData);
 

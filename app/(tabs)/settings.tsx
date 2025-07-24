@@ -1714,7 +1714,8 @@ export default function SettingsScreen() {
               }
               
               try {
-                await addDoc(collection(db, 'jobs'), {
+                // Build job data, filtering out undefined values
+                const jobData: any = {
                   ownerId,
                   clientId: clientInfo.id,
                   providerId: 'test-provider-1',
@@ -1725,8 +1726,14 @@ export default function SettingsScreen() {
                   price: amount,
                   paymentStatus: 'unpaid',
                   gocardlessEnabled: clientInfo.gocardlessEnabled || false,
-                  gocardlessCustomerId: clientInfo.gocardlessCustomerId,
-                });
+                };
+                
+                // Only include gocardlessCustomerId if it has a value
+                if (clientInfo.gocardlessCustomerId) {
+                  jobData.gocardlessCustomerId = clientInfo.gocardlessCustomerId;
+                }
+                
+                await addDoc(collection(db, 'jobs'), jobData);
                 imported++;
               } catch (e) {
                 console.error('Error creating job:', e, 'for row:', row);
@@ -1867,7 +1874,8 @@ export default function SettingsScreen() {
           }
           
           try {
-            await addDoc(collection(db, 'jobs'), {
+            // Build job data, filtering out undefined values
+            const jobData: any = {
               ownerId,
               clientId: clientInfo.id,
               providerId: 'test-provider-1',
@@ -1878,8 +1886,14 @@ export default function SettingsScreen() {
               price: amount,
               paymentStatus: 'unpaid',
               gocardlessEnabled: clientInfo.gocardlessEnabled || false,
-              gocardlessCustomerId: clientInfo.gocardlessCustomerId,
-            });
+            };
+            
+            // Only include gocardlessCustomerId if it has a value
+            if (clientInfo.gocardlessCustomerId) {
+              jobData.gocardlessCustomerId = clientInfo.gocardlessCustomerId;
+            }
+            
+            await addDoc(collection(db, 'jobs'), jobData);
             imported++;
           } catch (e) {
             console.error('Error creating job:', e, 'for row:', row);
