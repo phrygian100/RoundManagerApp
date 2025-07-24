@@ -57,7 +57,7 @@ export async function logAction(
 }
 
 /**
- * Get audit logs for the current account (owner-only)
+ * Get audit logs for the current account (accessible by owners and members)
  */
 export async function getAuditLogs(limitCount: number = 100): Promise<AuditLog[]> {
   try {
@@ -66,10 +66,7 @@ export async function getAuditLogs(limitCount: number = 100): Promise<AuditLog[]
       throw new Error('Not authenticated');
     }
 
-    if (!session.isOwner) {
-      throw new Error('Access denied: Only owners can view audit logs');
-    }
-
+    // Allow both owners and members to view audit logs for their account
     const ownerId = await getDataOwnerId();
     if (!ownerId) {
       throw new Error('No owner ID found');
@@ -94,7 +91,7 @@ export async function getAuditLogs(limitCount: number = 100): Promise<AuditLog[]
 }
 
 /**
- * Get audit logs for a specific entity (owner-only)
+ * Get audit logs for a specific entity (accessible by owners and members)
  */
 export async function getAuditLogsForEntity(
   entityType: AuditEntityType,
@@ -103,10 +100,11 @@ export async function getAuditLogsForEntity(
 ): Promise<AuditLog[]> {
   try {
     const session = await getUserSession();
-    if (!session || !session.isOwner) {
-      throw new Error('Access denied: Only owners can view audit logs');
+    if (!session) {
+      throw new Error('Not authenticated');
     }
 
+    // Allow both owners and members to view audit logs for their account
     const ownerId = await getDataOwnerId();
     if (!ownerId) {
       throw new Error('No owner ID found');

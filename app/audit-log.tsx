@@ -13,7 +13,6 @@ import {
     TextInput,
     View
 } from 'react-native';
-import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { getAuditLogs } from '../services/auditService';
@@ -138,12 +137,7 @@ export default function AuditLogScreen() {
   ];
 
   return (
-    <PermissionGate perm="isOwner" fallback={
-      <ThemedView style={styles.container}>
-        <Text style={styles.accessDenied}>Access denied. Only account owners can view activity logs.</Text>
-      </ThemedView>
-    }>
-      <ThemedView style={styles.container}>
+    <ThemedView style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -216,8 +210,7 @@ export default function AuditLogScreen() {
             }
           />
         )}
-      </ThemedView>
-    </PermissionGate>
+    </ThemedView>
   );
 }
 
@@ -357,11 +350,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6c757d',
     textAlign: 'center',
-  },
-  accessDenied: {
-    fontSize: 16,
-    color: '#dc3545',
-    textAlign: 'center',
-    padding: 32,
   },
 }); 

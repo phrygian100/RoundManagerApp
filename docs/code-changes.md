@@ -1794,6 +1794,145 @@ Fixed an issue where quote jobs on runsheets were not respecting vehicle collaps
 
 ---
 
+## 2025-01-31 - Extended Activity Log Access to Team Members 👥
+
+### Summary
+Extended the Activity Log feature to allow team members (not just owners) to view all account activities. Members can now access the Activity Log from their home screen and see all actions performed by both owners and other members within their account.
+
+### Changes Made
+
+**1. Updated Home Screen Access**:
+- Removed owner-only restriction (`permKey: 'isOwner'`) from Activity Log button
+- Changed to `permKey: null` to allow all authenticated users
+- Activity Log now appears on member home screens
+
+**2. Updated Service Layer Permissions**:
+- Modified `getAuditLogs()` in `auditService.ts` to allow members
+- Modified `getAuditLogsForEntity()` to allow members  
+- Removed `!session.isOwner` checks that blocked member access
+- Maintained account scoping through `getDataOwnerId()` for security
+
+**3. Updated Firestore Security Rules**:
+- Changed audit log read permissions from owner-only to `hasAccountAccess()`
+- Members can now read audit logs for their account using existing access control functions
+- Maintained create restrictions to ensure only account owners can write audit entries
+
+**4. Updated UI Components**:
+- Removed `PermissionGate` component with `perm="isOwner"` from audit log screen
+- All authenticated users with valid sessions can now access the interface
+- Removed "Access denied" fallback message
+
+### User Experience
+- **Members**: Can now access Activity Log from home screen and view all account activities
+- **Owners**: No change to existing functionality, can still access all features
+- **Security**: All activities remain scoped to the user's account (no cross-account access)
+- **Visibility**: Members see activities from all users in their account (owners and other members)
+
+### Technical Implementation
+- **Account Scoping**: Uses existing `accountId` from user session to determine data access
+- **Query Logic**: Unchanged - continues to filter by `ownerId` field which contains the account ID
+- **Security**: Leverages existing `hasAccountAccess()` function in Firestore rules
+- **Backwards Compatibility**: Existing audit logging continues to work unchanged
+
+### Business Impact
+- **Team Transparency**: Members can now see all activities in their account
+- **Accountability**: Complete visibility into actions by all team members
+- **User Experience**: Consistent access to activity information for all authenticated users
+- **Security**: Maintained strong account isolation and data scoping
+
+### Files Modified
+- `app/(tabs)/index.tsx` - Removed owner-only restriction from Activity Log button
+- `services/auditService.ts` - Updated permission checks to allow members
+- `firestore.rules` - Updated audit log access rules for members
+- `app/audit-log.tsx` - Removed PermissionGate restriction
+- `docs/code-changes.md` - Documentation update
+
+**Priority**: MEDIUM - Improves team collaboration and transparency while maintaining security
+
+---
+
+## 2025-01-31 - Fixed Critical Activity Log Security and Performance Issues 🔧
+
+### Summary
+Fixed critical security issue preventing team members from creating audit log entries and added missing database index for entity-specific audit log queries. These fixes ensure the activity log feature works correctly for all users.
+
+### Issues Fixed
+
+**1. Critical Security Bug - Member Audit Log Creation**:
+- **Issue**: Firestore security rule prevented team members from creating audit logs
+- **Root Cause**: Rule checked `request.resource.data.ownerId == request.auth.uid` which fails for members (their UID ≠ account owner ID)
+- **Impact**: All audit logging by team members was silently failing
+- **Fix**: Updated rule to use `hasAccountAccess(request.resource.data.ownerId)` to allow both owners and members
+
+**2. Performance Issue - Missing Database Index**:
+- **Issue**: `getAuditLogsForEntity()` function used complex query without proper indexing
+- **Impact**: Poor performance or query failures for entity-specific audit log lookups
+- **Fix**: Added composite index for `ownerId + entityType + entityId + timestamp` queries
+
+### Technical Changes
+
+**Updated Firestore Security Rules**:
+```javascript
+// Before (broken for members)
+allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
+
+// After (works for owners and members)
+allow create: if isSignedIn() && hasAccountAccess(request.resource.data.ownerId);
+```
+
+**Added Composite Database Index**:
+```json
+{
+  "collectionGroup": "auditLogs",
+  "queryScope": "COLLECTION",
+  "fields": [
+    {
+      "fieldPath": "ownerId",
+      "order": "ASCENDING"
+    },
+    {
+      "fieldPath": "entityType",
+      "order": "ASCENDING"
+    },
+    {
+      "fieldPath": "entityId",
+      "order": "ASCENDING"
+    },
+    {
+      "fieldPath": "timestamp",
+      "order": "DESCENDING"
+    }
+  ]
+}
+```
+
+### Firebase Index Configuration Required
+
+**Important**: After deploying these changes, you need to configure the new index in Firebase Console:
+
+1. Navigate to Firestore → Indexes in Firebase Console
+2. The new composite index should auto-create when the query is first executed, or you can manually create it with these exact field configurations:
+   - Collection: `auditLogs`
+   - Fields: `ownerId` (Ascending), `entityType` (Ascending), `entityId` (Ascending), `timestamp` (Descending)
+
+Alternatively, deploy the updated `firestore.indexes.json` file to automatically configure the index.
+
+### Impact
+- ✅ **Critical Fix**: Team members can now create audit log entries
+- ✅ **Performance**: Entity-specific audit queries now properly indexed
+- ✅ **Complete Audit Trail**: All user actions (owners and members) are now logged
+- ✅ **Database Efficiency**: Optimized query performance for audit log lookups
+- ✅ **No Breaking Changes**: Existing functionality preserved
+
+### Files Modified
+- `firestore.rules` - Fixed audit log creation permission for team members
+- `firestore.indexes.json` - Added composite index for entity-specific queries
+- `docs/code-changes.md` - Documentation update
+
+**Priority**: CRITICAL - Essential for activity log functionality to work correctly for team members
+
+---
+
 ## 2025-01-31 - Fixed Activity Log to Use Customer Addresses Instead of Names 🔧
 
 ### Summary

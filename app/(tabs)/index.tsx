@@ -281,7 +281,7 @@ export default function HomeScreen() {
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
-      { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
+      { label: 'Activity Log', path: '/audit-log', permKey: null },
       { label: 'Quotes', path: '/quotes', permKey: null },
     ];
 
@@ -354,7 +354,7 @@ export default function HomeScreen() {
           { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
-          { label: 'Activity Log', path: '/audit-log', permKey: 'isOwner' },
+          { label: 'Activity Log', path: '/audit-log', permKey: null },
           { label: 'Quotes', path: '/quotes', permKey: null },
         ];
 
