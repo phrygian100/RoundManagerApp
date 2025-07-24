@@ -2,7 +2,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -176,21 +175,28 @@ export default function SettingsScreen() {
       
       // For web, redirect to customer portal
       if (Platform.OS === 'web') {
-        // Use Firebase Callable Function instead of REST API
-        const functions = getFunctions();
-        const createCustomerPortalSession = httpsCallable(functions, 'createCustomerPortalSession');
-        
-        const result = await createCustomerPortalSession({
-          returnUrl: window.location.href,
+        // Use REST API (now proxied through Firebase Hosting)
+        const response = await fetch('/api/createCustomerPortalSession', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            returnUrl: window.location.href,
+          }),
         });
 
-        const response = result.data as { url: string };
+        if (!response.ok) {
+          throw new Error('Failed to create customer portal session');
+        }
+
+        const { url } = await response.json();
         
-        if (!response.url) {
+        if (!url) {
           throw new Error('No portal URL returned from server');
         }
         
-        window.location.href = response.url;
+        window.location.href = url;
       } else {
         // For mobile, show message to use web
         Alert.alert(

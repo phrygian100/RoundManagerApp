@@ -1,4 +1,3 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
@@ -56,24 +55,31 @@ export default function UpgradeModal({
 
   const handleWebUpgrade = async () => {
     try {
-      // Create Stripe Checkout session using Firebase Callable Function
-      const functions = getFunctions();
-      const createCheckoutSession = httpsCallable(functions, 'createCheckoutSession');
-      
-      const result = await createCheckoutSession({
-        priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
-        successUrl: `${window.location.origin}/upgrade-success`,
-        cancelUrl: `${window.location.origin}/upgrade-cancelled`,
+      // Create Stripe Checkout session using REST API (now proxied through Firebase Hosting)
+      const response = await fetch('/api/createCheckoutSession', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
+          successUrl: `${window.location.origin}/upgrade-success`,
+          cancelUrl: `${window.location.origin}/upgrade-cancelled`,
+        }),
       });
 
-      const response = result.data as { sessionId: string; url: string };
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
       
-      if (!response.url) {
+      if (!url) {
         throw new Error('No checkout URL returned from server');
       }
       
       // Redirect to Stripe Checkout
-      window.location.href = response.url;
+      window.location.href = url;
     } catch (error) {
       console.error('Web upgrade error:', error);
       throw error;
