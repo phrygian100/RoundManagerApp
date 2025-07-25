@@ -546,40 +546,45 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
   }
   
   console.log('🔧 [FUNCTION DEBUG] Initializing Stripe...');
-  // Initialize Stripe inside function
+  // Initialize Stripe - using secure configuration approach
   let stripe;
   try {
-    // For Firebase Functions v2, use environment variables or throw clear error
-    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    // For Firebase Functions v2, we'll use hosting config injection
+    // The key will be injected at runtime from hosting environment
+    let stripeSecretKey;
     
-    // If environment variable not available, try functions.config() safely
+    // Try environment variable first
+    stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
+    // If no environment variable, the key should be available from hosting config
+    // This will be set via Firebase hosting environment configuration
     if (!stripeSecretKey) {
-      try {
-        const config = functions.config();
-        stripeSecretKey = config.stripe?.secret_key;
-        console.log('🔧 [FUNCTION DEBUG] Using functions.config() for Stripe key');
-      } catch (configError) {
-        console.error('🔧 [FUNCTION DEBUG] functions.config() not available and no environment variable set');
-        throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY environment variable or configure functions.config()');
-      }
+      // The hosting config should make this available
+      stripeSecretKey = process.env.FUNCTIONS_CONFIG_stripe_secret_key || 
+                       process.env.stripe_secret_key ||
+                       process.env.STRIPE_SECRET;
     }
     
-    console.log('🔑 [FUNCTION DEBUG] Stripe config available:', {
+    console.log('🔑 [FUNCTION DEBUG] Stripe config:', {
       hasSecretKey: !!stripeSecretKey,
       secretKeyStart: stripeSecretKey ? stripeSecretKey.substring(0, 8) + '...' : 'Missing',
-      usingEnvVar: !!process.env.STRIPE_SECRET_KEY,
-      runtime: 'v2'
+      envVarChecked: ['STRIPE_SECRET_KEY', 'FUNCTIONS_CONFIG_stripe_secret_key', 'stripe_secret_key', 'STRIPE_SECRET'],
+      availableEnvVars: Object.keys(process.env).filter(key => key.includes('STRIPE') || key.includes('stripe'))
     });
     
     if (!stripeSecretKey) {
-      throw new Error('Stripe secret key not found in environment variables or config');
+      throw new Error('Stripe secret key not found in environment. Please configure STRIPE_SECRET_KEY environment variable.');
     }
     
     stripe = require('stripe')(stripeSecretKey);
     console.log('✅ [FUNCTION DEBUG] Stripe initialized successfully');
   } catch (stripeError) {
     console.error('💀 [FUNCTION DEBUG] Stripe initialization failed:', stripeError);
-    res.status(500).json({ error: 'Stripe initialization failed', details: stripeError.message });
+    res.status(500).json({ 
+      error: 'Stripe initialization failed', 
+      details: stripeError.message,
+      helpText: 'Please ensure STRIPE_SECRET_KEY environment variable is configured'
+    });
     return;
   }
   
