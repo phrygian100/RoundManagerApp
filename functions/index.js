@@ -514,6 +514,18 @@ exports.removeMember = onCall(async (request) => {
 
 // Stripe Checkout session creation
 exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
+  console.log('🚀 [FUNCTION DEBUG] createCheckoutSession called');
+  console.log('📋 [FUNCTION DEBUG] Request details:', {
+    method: req.method,
+    headers: Object.keys(req.headers),
+    origin: req.headers.origin,
+    userAgent: req.headers['user-agent'],
+    contentType: req.headers['content-type'],
+    authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'Missing',
+    bodyExists: !!req.body,
+    body: req.body
+  });
+  
   // Set CORS headers
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -521,75 +533,130 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
   
   // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
+    console.log('✅ [FUNCTION DEBUG] Handling OPTIONS preflight request');
     res.status(200).send('');
     return;
   }
   
   // Only allow POST requests
   if (req.method !== 'POST') {
+    console.error('❌ [FUNCTION DEBUG] Method not allowed:', req.method);
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
   
+  console.log('🔧 [FUNCTION DEBUG] Initializing Stripe...');
   // Initialize Stripe inside function
-  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  let stripe;
+  try {
+    const stripeConfig = functions.config().stripe;
+    console.log('🔑 [FUNCTION DEBUG] Stripe config available:', {
+      hasSecretKey: !!stripeConfig?.secret_key,
+      secretKeyStart: stripeConfig?.secret_key ? stripeConfig.secret_key.substring(0, 8) + '...' : 'Missing'
+    });
+    stripe = require('stripe')(stripeConfig.secret_key);
+    console.log('✅ [FUNCTION DEBUG] Stripe initialized successfully');
+  } catch (stripeError) {
+    console.error('💀 [FUNCTION DEBUG] Stripe initialization failed:', stripeError);
+    res.status(500).json({ error: 'Stripe initialization failed', details: stripeError.message });
+    return;
+  }
   
-  console.log('createCheckoutSession called with:', req.body);
+  console.log('📦 [FUNCTION DEBUG] Request body:', req.body);
   const { priceId, successUrl, cancelUrl } = req.body;
   
   // Get the authorization token from the request
   const authHeader = req.get('Authorization');
+  console.log('🔐 [FUNCTION DEBUG] Auth header analysis:', {
+    hasAuthHeader: !!authHeader,
+    startsWithBearer: authHeader ? authHeader.startsWith('Bearer ') : false,
+    headerLength: authHeader ? authHeader.length : 0
+  });
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('❌ [FUNCTION DEBUG] Missing or invalid authorization header');
     res.status(401).json({ error: 'Unauthorized: No valid authorization token provided' });
     return;
   }
   
   const idToken = authHeader.split('Bearer ')[1];
+  console.log('🎫 [FUNCTION DEBUG] Extracted ID token:', {
+    tokenLength: idToken.length,
+    tokenStart: idToken.substring(0, 20) + '...'
+  });
   
   try {
+    console.log('🔍 [FUNCTION DEBUG] Verifying Firebase ID token...');
     // Verify the ID token
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const uid = decodedToken.uid;
     
+    console.log('✅ [FUNCTION DEBUG] Token verified successfully:', {
+      uid: uid,
+      email: decodedToken.email,
+      emailVerified: decodedToken.email_verified,
+      issuer: decodedToken.iss,
+      audience: decodedToken.aud
+    });
+    
+    console.log('📋 [FUNCTION DEBUG] Validating request parameters...');
     if (!priceId || !successUrl || !cancelUrl) {
+      console.error('❌ [FUNCTION DEBUG] Missing parameters:', { priceId, successUrl, cancelUrl });
       res.status(400).json({ error: 'Missing required parameters: priceId, successUrl, or cancelUrl' });
       return;
     }
     
+    console.log('🗄️ [FUNCTION DEBUG] Getting user data from Firestore...');
     const db = admin.firestore();
     
     // Get user information
     const userDoc = await db.collection('users').doc(uid).get();
     if (!userDoc.exists) {
+      console.error('❌ [FUNCTION DEBUG] User document not found for uid:', uid);
       res.status(404).json({ error: 'User not found' });
       return;
     }
     
     const userData = userDoc.data();
+    console.log('👤 [FUNCTION DEBUG] User data retrieved:', {
+      hasStripeCustomerId: !!userData.stripeCustomerId,
+      email: userData.email,
+      businessName: userData.businessName
+    });
+    
     let customerId = userData.stripeCustomerId;
     
     // Create Stripe customer if doesn't exist
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: userData.email || decodedToken.email,
-        name: userData.name || '',
-        metadata: {
-          userId: uid,
-          businessName: userData.businessName || '',
-        },
-      });
-      
-      customerId = customer.id;
-      
-      // Save customer ID to user document
-      await userDoc.ref.update({
-        stripeCustomerId: customerId,
-        updatedAt: new Date().toISOString(),
-      });
+      console.log('👥 [FUNCTION DEBUG] Creating new Stripe customer...');
+      try {
+        const customer = await stripe.customers.create({
+          email: userData.email || decodedToken.email,
+          name: userData.name || '',
+          metadata: {
+            userId: uid,
+            businessName: userData.businessName || '',
+          },
+        });
+        
+        customerId = customer.id;
+        console.log('✅ [FUNCTION DEBUG] Stripe customer created:', customerId);
+        
+        // Save customer ID to user document
+        await userDoc.ref.update({
+          stripeCustomerId: customerId,
+          updatedAt: new Date().toISOString(),
+        });
+        console.log('💾 [FUNCTION DEBUG] Customer ID saved to Firestore');
+      } catch (customerError) {
+        console.error('💀 [FUNCTION DEBUG] Failed to create Stripe customer:', customerError);
+        res.status(500).json({ error: 'Failed to create customer', details: customerError.message });
+        return;
+      }
     }
     
-    // Create Stripe Checkout session
-    const session = await stripe.checkout.sessions.create({
+    console.log('🛒 [FUNCTION DEBUG] Creating Stripe Checkout session...');
+    const sessionConfig = {
       customer: customerId,
       payment_method_types: ['card'],
       line_items: [{
@@ -614,23 +681,44 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
       invoice_creation: {
         enabled: true,
       },
+    };
+    
+    console.log('⚙️ [FUNCTION DEBUG] Session config:', {
+      customer: customerId,
+      priceId: priceId,
+      successUrl: sessionConfig.success_url,
+      cancelUrl: sessionConfig.cancel_url
     });
     
-    console.log('Stripe Checkout session created:', session.id);
+    // Create Stripe Checkout session
+    const session = await stripe.checkout.sessions.create(sessionConfig);
+    
+    console.log('🎉 [FUNCTION DEBUG] Stripe Checkout session created successfully:', {
+      sessionId: session.id,
+      url: session.url,
+      status: session.status
+    });
     
     res.status(200).json({
       sessionId: session.id,
       url: session.url,
     });
   } catch (error) {
-    console.error('Error creating Stripe Checkout session:', error);
+    console.error('💀 [FUNCTION DEBUG] Error in createCheckoutSession:', error);
+    console.error('💀 [FUNCTION DEBUG] Error stack:', error.stack);
     
     if (error.code === 'auth/id-token-expired') {
+      console.error('⏰ [FUNCTION DEBUG] Token expired');
       res.status(401).json({ error: 'Token expired' });
     } else if (error.code === 'auth/argument-error') {
+      console.error('🔧 [FUNCTION DEBUG] Invalid token format');
       res.status(401).json({ error: 'Invalid token' });
     } else {
-      res.status(500).json({ error: `Checkout session creation failed: ${error.message || 'Unknown error'}` });
+      console.error('🔥 [FUNCTION DEBUG] General error');
+      res.status(500).json({ 
+        error: `Checkout session creation failed: ${error.message || 'Unknown error'}`,
+        details: error.stack || 'No stack trace available'
+      });
     }
   }
 });

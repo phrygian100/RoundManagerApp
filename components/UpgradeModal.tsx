@@ -55,45 +55,110 @@ export default function UpgradeModal({
   };
 
   const handleWebUpgrade = async () => {
+    console.log('🚀 [DEBUG] Starting web upgrade process...');
+    
     try {
       // Get the current user's auth token
       const auth = getAuth();
       const user = auth.currentUser;
+      
+      console.log('🔐 [DEBUG] Auth state:', {
+        userExists: !!user,
+        uid: user?.uid,
+        email: user?.email,
+        isAnonymous: user?.isAnonymous,
+        emailVerified: user?.emailVerified
+      });
+      
       if (!user) {
         throw new Error('User not authenticated');
       }
       
+      console.log('🎫 [DEBUG] Getting ID token...');
       const idToken = await user.getIdToken();
+      console.log('🎫 [DEBUG] ID token obtained:', {
+        tokenLength: idToken.length,
+        tokenStart: idToken.substring(0, 20) + '...'
+      });
+      
+      const requestBody = {
+        priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
+        successUrl: `${window.location.origin}/upgrade-success`,
+        cancelUrl: `${window.location.origin}/upgrade-cancelled`,
+      };
+      
+      console.log('📦 [DEBUG] Request details:', {
+        url: 'https://roundmanagerapp.web.app/api/createCheckoutSession',
+        method: 'POST',
+        body: requestBody,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer [REDACTED]'
+        },
+        currentOrigin: window.location.origin,
+        userAgent: navigator.userAgent
+      });
       
       // Create Stripe Checkout session using REST API (now proxied through Firebase Hosting)
+      console.log('🌐 [DEBUG] Making API request...');
       const response = await fetch('https://roundmanagerapp.web.app/api/createCheckoutSession', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${idToken}`,
         },
-        body: JSON.stringify({
-          priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
-          successUrl: `${window.location.origin}/upgrade-success`,
-          cancelUrl: `${window.location.origin}/upgrade-cancelled`,
-        }),
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('📡 [DEBUG] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+        url: response.url
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ [DEBUG] Response not OK, attempting to parse error...');
+        let errorData;
+        const contentType = response.headers.get('content-type');
+        console.log('📋 [DEBUG] Response content-type:', contentType);
+        
+        try {
+          const responseText = await response.text();
+          console.log('📝 [DEBUG] Raw response text:', responseText);
+          
+          if (contentType && contentType.includes('application/json')) {
+            errorData = JSON.parse(responseText);
+          } else {
+            errorData = { error: `HTTP ${response.status}: ${responseText || response.statusText}` };
+          }
+        } catch (parseError) {
+          console.error('🔥 [DEBUG] Error parsing response:', parseError);
+          errorData = { error: `HTTP ${response.status}: Failed to parse error response` };
+        }
+        
+        console.error('💥 [DEBUG] Final error data:', errorData);
         throw new Error(errorData.error || 'Failed to create checkout session');
       }
 
-      const { url } = await response.json();
+      console.log('✅ [DEBUG] Success response, parsing JSON...');
+      const responseData = await response.json();
+      console.log('🎉 [DEBUG] Success data:', responseData);
+      
+      const { url } = responseData;
       
       if (!url) {
+        console.error('🚫 [DEBUG] No URL in response data');
         throw new Error('No checkout URL returned from server');
       }
       
+      console.log('🚀 [DEBUG] Redirecting to Stripe Checkout:', url);
       // Redirect to Stripe Checkout
       window.location.href = url;
     } catch (error) {
-      console.error('Web upgrade error:', error);
+      console.error('💀 [DEBUG] Web upgrade error:', error);
+      console.error('💀 [DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack available');
       throw error;
     }
   };

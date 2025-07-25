@@ -6,7 +6,7 @@ import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextIn
 import { auth } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
-const BUILD_ID = '9eb5699';
+const BUILD_ID = '30ec56e';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
