@@ -19,6 +19,10 @@
       "destination": "/_marketing/contact/index.html"
     },
     {
+      "source": "/privacy-policy",
+      "destination": "/_marketing/privacy-policy/index.html"
+    },
+    {
       "source": "/_next/static/(.*)",
       "destination": "/_next/static/$1"
     },
