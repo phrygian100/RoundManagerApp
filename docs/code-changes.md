@@ -5,6 +5,44 @@ For full debugging notes see project history; this file now focuses on high-leve
 
 ---
 
+## 2025-01-27 - Added Terms of Service Page ✅
+
+### Summary
+Created a comprehensive Terms of Service page at `/terms` to complement the existing privacy policy. The page covers all essential legal aspects including acceptable use, payment terms, data ownership, liability limitations, and termination procedures.
+
+### Implementation
+1. **Created Terms Page**: New page at `web/src/app/terms/page.tsx` with comprehensive terms covering:
+   - Service description and user accounts
+   - Acceptable use policy and payment terms
+   - Data ownership and intellectual property rights
+   - Service availability and limitation of liability
+   - Termination procedures and governing law
+   - Contact information for legal inquiries
+
+2. **Added Routing Configuration**: Added Vercel rewrite rule for `/terms` → `/_marketing/terms/index.html`
+3. **Updated Build Process**: Added `terms` to routes verification in `scripts/merge-builds.js`
+4. **Updated Footer Links**: Connected privacy policy and terms pages with proper navigation links
+
+### Technical Details
+- **Page Design**: Follows same layout and styling as privacy policy page for consistency
+- **SEO Optimization**: Proper metadata, keywords, and structured content
+- **Legal Compliance**: UK-focused terms with appropriate governing law (England and Wales)
+- **Cross-linking**: Privacy policy and terms pages now link to each other
+
+### Impact
+- ✅ **Legal Compliance**: Complete legal framework with both privacy and terms coverage
+- ✅ **Professional Presentation**: Consistent branding and navigation across legal pages
+- ✅ **Proper Routing**: Terms page accessible at `/terms` with full deployment integration
+- ✅ **SEO Benefits**: Improved site structure with proper legal documentation
+
+### Files Modified
+- `web/src/app/terms/page.tsx`: New comprehensive terms of service page
+- `vercel.json`: Added terms routing configuration
+- `scripts/merge-builds.js`: Added terms to build verification
+- `web/src/app/privacy-policy/page.tsx`: Updated footer to link to terms page
+
+---
+
 ## 2025-01-27 - Fixed Privacy Policy Page Routing ✅
 
 ### Summary

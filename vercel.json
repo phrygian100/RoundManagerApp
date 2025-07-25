@@ -23,6 +23,10 @@
       "destination": "/_marketing/privacy-policy/index.html"
     },
     {
+      "source": "/terms",
+      "destination": "/_marketing/terms/index.html"
+    },
+    {
       "source": "/_next/static/(.*)",
       "destination": "/_next/static/$1"
     },

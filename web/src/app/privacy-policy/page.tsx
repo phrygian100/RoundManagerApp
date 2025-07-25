@@ -291,7 +291,6 @@ export default function PrivacyPolicyPage() {
                 <ul className="space-y-2">
                   <li><strong>Email:</strong> privacy@guvnor.app</li>
                   <li><strong>Website:</strong> <Link href="/contact" className="text-indigo-600 hover:text-indigo-800">Contact Form</Link></li>
-                  <li><strong>Address:</strong> [Your business address will be added here]</li>
                 </ul>
               </div>
               <p>
@@ -370,7 +369,7 @@ export default function PrivacyPolicyPage() {
               <h4 className="font-semibold mb-4">Legal</h4>
               <ul className="space-y-2 text-gray-400">
                 <li><Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link></li>
-                <li><span className="text-gray-500">Terms of Service</span></li>
+                <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
               </ul>
             </div>
           </div>
