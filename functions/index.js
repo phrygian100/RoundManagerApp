@@ -549,12 +549,20 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
   // Initialize Stripe inside function
   let stripe;
   try {
-    const stripeConfig = functions.config().stripe;
+    // Use environment variables instead of functions.config() for v2 compatibility
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
     console.log('🔑 [FUNCTION DEBUG] Stripe config available:', {
-      hasSecretKey: !!stripeConfig?.secret_key,
-      secretKeyStart: stripeConfig?.secret_key ? stripeConfig.secret_key.substring(0, 8) + '...' : 'Missing'
+      hasSecretKey: !!stripeSecretKey,
+      secretKeyStart: stripeSecretKey ? stripeSecretKey.substring(0, 8) + '...' : 'Missing',
+      usingEnvVar: !!process.env.STRIPE_SECRET_KEY,
+      usingConfig: !!functions.config().stripe?.secret_key
     });
-    stripe = require('stripe')(stripeConfig.secret_key);
+    
+    if (!stripeSecretKey) {
+      throw new Error('Stripe secret key not found in environment variables or config');
+    }
+    
+    stripe = require('stripe')(stripeSecretKey);
     console.log('✅ [FUNCTION DEBUG] Stripe initialized successfully');
   } catch (stripeError) {
     console.error('💀 [FUNCTION DEBUG] Stripe initialization failed:', stripeError);
@@ -725,11 +733,28 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
 
 // Handle Stripe webhooks
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
-  // Initialize Stripe inside function
-  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  console.log('🎣 [WEBHOOK DEBUG] Stripe webhook called');
+  
+  // Initialize Stripe inside function with environment variables
+  let stripe;
+  let endpointSecret;
+  try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+    endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || functions.config().stripe?.webhook_secret;
+    
+    console.log('🔑 [WEBHOOK DEBUG] Config check:', {
+      hasSecretKey: !!stripeSecretKey,
+      hasWebhookSecret: !!endpointSecret,
+      usingEnvVars: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET)
+    });
+    
+    stripe = require('stripe')(stripeSecretKey);
+  } catch (configError) {
+    console.error('💀 [WEBHOOK DEBUG] Configuration error:', configError);
+    return res.status(500).send('Configuration Error');
+  }
   
   const sig = req.headers['stripe-signature'];
-  const endpointSecret = functions.config().stripe.webhook_secret;
   
   let event;
   
@@ -860,6 +885,8 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 
 // Create customer portal session
 exports.createCustomerPortalSession = functions.https.onRequest(async (req, res) => {
+  console.log('🏪 [PORTAL DEBUG] createCustomerPortalSession called');
+  
   // Set CORS headers
   res.set('Access-Control-Allow-Origin', '*');
   res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -867,18 +894,39 @@ exports.createCustomerPortalSession = functions.https.onRequest(async (req, res)
   
   // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
+    console.log('✅ [PORTAL DEBUG] Handling OPTIONS preflight request');
     res.status(200).send('');
     return;
   }
   
   // Only allow POST requests
   if (req.method !== 'POST') {
+    console.error('❌ [PORTAL DEBUG] Method not allowed:', req.method);
     res.status(405).json({ error: 'Method not allowed' });
     return;
   }
   
-  // Initialize Stripe inside function
-  const stripe = require('stripe')(functions.config().stripe.secret_key);
+  console.log('🔧 [PORTAL DEBUG] Initializing Stripe...');
+  // Initialize Stripe inside function with environment variables
+  let stripe;
+  try {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+    console.log('🔑 [PORTAL DEBUG] Stripe config available:', {
+      hasSecretKey: !!stripeSecretKey,
+      usingEnvVar: !!process.env.STRIPE_SECRET_KEY
+    });
+    
+    if (!stripeSecretKey) {
+      throw new Error('Stripe secret key not found');
+    }
+    
+    stripe = require('stripe')(stripeSecretKey);
+    console.log('✅ [PORTAL DEBUG] Stripe initialized successfully');
+  } catch (stripeError) {
+    console.error('💀 [PORTAL DEBUG] Stripe initialization failed:', stripeError);
+    res.status(500).json({ error: 'Stripe initialization failed', details: stripeError.message });
+    return;
+  }
   
   console.log('createCustomerPortalSession called');
   const { returnUrl } = req.body;
