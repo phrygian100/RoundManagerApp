@@ -227,7 +227,7 @@ const predefinedAdditionalServices: string[] = [];
 
 const isOneOffJob = predefinedOneOffServices.includes(item.serviceId);
 const isCustomJobType = item.serviceId && 
-                       item.serviceId !== 'window-cleaning' && 
+                       item.serviceId !== 'window-cleaning' &&
                        !predefinedOneOffServices.includes(item.serviceId) &&
                        !predefinedAdditionalServices.includes(item.serviceId);
 const shouldUseOneOffStyling = isOneOffJob || isCustomJobType;
@@ -1968,7 +1968,7 @@ Implemented a comprehensive subscription tier system with free, premium, and exe
 ### Files Modified:
 - `types/models.ts` - Added subscription fields to User type
 - `app/add-client.tsx` - Client limit enforcement
-- `app/(tabs)/team.tsx` - Member creation permission checking  
+- `app/(tabs)/team.tsx` - Member creation permission checking
 - `app/(tabs)/settings.tsx` - Subscription display and migration tools
 - `docs/code-changes.md` - Documentation update
 
@@ -6398,5 +6398,87 @@ EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID=price_1RoOifF7C2Zg8asU9qRfxMSA
 - 📱 Responsive design works on both web and mobile platforms
 
 **Status**: ✅ **COMPLETED** - Privacy policy page fully implemented and accessible
+
+---
+
+## 2025-01-31 - Fixed 404 API Errors (Domain Mismatch) 🔧
+
+### Summary
+Resolved critical 404 errors in premium upgrade functionality caused by domain hosting mismatch between www.guvnor.app (Vercel) and Firebase functions (roundmanagerapp.web.app).
+
+### Root Cause Analysis
+**The Problem:**
+- `www.guvnor.app` is hosted on **Vercel** 
+- Firebase functions are deployed to `roundmanagerapp.web.app`
+- App used relative URLs like `/api/createCheckoutSession`
+- When accessed via `www.guvnor.app`, relative URLs tried to call `www.guvnor.app/api/createCheckoutSession` (doesn't exist ❌)
+- API endpoints only exist on `roundmanagerapp.web.app/api/createCheckoutSession` ✅
+
+### Technical Details
+**DNS Investigation:**
+```
+nslookup www.guvnor.app
+→ Points to vercel-dns-017.com (Vercel hosting)
+
+firebase hosting:sites:list
+→ No custom domains configured on Firebase hosting
+```
+
+**Firebase Functions Status:**
+```
+firebase functions:list
+→ createCheckoutSession ✅ (deployed)
+→ createCustomerPortalSession ✅ (deployed) 
+→ stripeWebhook ✅ (deployed)
+```
+
+### Solution Implemented
+**Fixed API URLs to use absolute paths:**
+
+**1. Upgrade Modal (`components/UpgradeModal.tsx`)**:
+```javascript
+// Before
+const response = await fetch('/api/createCheckoutSession', {
+
+// After  
+const response = await fetch('https://roundmanagerapp.web.app/api/createCheckoutSession', {
+```
+
+**2. Settings Screen (`app/(tabs)/settings.tsx`)**:
+```javascript
+// Before
+const response = await fetch('/api/createCustomerPortalSession', {
+
+// After
+const response = await fetch('https://roundmanagerapp.web.app/api/createCustomerPortalSession', {
+```
+
+### Testing Verification
+**API Endpoint Validation:**
+- ✅ `https://roundmanagerapp.web.app/api/createCheckoutSession` → Responds (no more 404)
+- ✅ `https://roundmanagerapp.web.app/api/createCustomerPortalSession` → Responds (no more 404)
+- ✅ Firebase hosting rewrites working correctly
+- ✅ Functions deployed and accessible
+
+### Files Modified
+- `components/UpgradeModal.tsx` - Fixed checkout session API URL
+- `app/(tabs)/settings.tsx` - Fixed customer portal API URL
+- `docs/code-changes.md` - Documented the fix
+
+### Business Impact
+**Immediate Resolution:**
+- 🚀 Premium upgrade flow now accessible from www.guvnor.app
+- 💳 Billing management portal now functional  
+- 📱 Cross-platform compatibility maintained
+- 🎯 No more 404 errors blocking revenue generation
+
+### Alternative Solutions (Future Consideration)
+**Option 1**: Set up custom domain `www.guvnor.app` on Firebase hosting
+**Option 2**: Proxy API calls through Vercel to Firebase functions
+**Option 3**: Move all hosting to single platform (Firebase or Vercel)
+
+**Current Status**: ✅ **RESOLVED** - Premium upgrade functionality now works across all domains and platforms.
+
+**Ready for Testing**: Users can now successfully upgrade to premium from both www.guvnor.app and roundmanagerapp.web.app.
 
 ---

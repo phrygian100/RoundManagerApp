@@ -66,7 +66,7 @@ export default function UpgradeModal({
       const idToken = await user.getIdToken();
       
       // Create Stripe Checkout session using REST API (now proxied through Firebase Hosting)
-      const response = await fetch('/api/createCheckoutSession', {
+      const response = await fetch('https://roundmanagerapp.web.app/api/createCheckoutSession', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

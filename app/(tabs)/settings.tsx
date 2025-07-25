@@ -186,7 +186,7 @@ export default function SettingsScreen() {
         const idToken = await user.getIdToken();
         
         // Use REST API (now proxied through Firebase Hosting)
-        const response = await fetch('/api/createCustomerPortalSession', {
+        const response = await fetch('https://roundmanagerapp.web.app/api/createCustomerPortalSession', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
