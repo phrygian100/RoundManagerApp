@@ -7,12 +7,11 @@
  * See a full list of supported triggers at https://firebase.google.com/docs/functions
  */
 
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+// const { onDocumentCreated } = require("firebase-functions/v2/firestore"); // Currently unused
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
-const { onCall } = require("firebase-functions/v2/https");
-const functions = require("firebase-functions");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -35,21 +34,21 @@ exports.createGoCardlessPayment = onCall(async (request) => {
   console.log('Customer ID received:', customerId);
   
   if (!caller) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to create payments.');
+    throw new HttpsError('unauthenticated', 'You must be logged in to create payments.');
   }
   
   if (!amount || !currency || !customerId || !description || !reference) {
-    throw new functions.https.HttpsError('invalid-argument', 'Missing required payment parameters.');
+    throw new HttpsError('invalid-argument', 'Missing required payment parameters.');
   }
   
   // Validate customer ID format
   if (!customerId || typeof customerId !== 'string') {
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid customer ID: must be a non-empty string');
+    throw new HttpsError('invalid-argument', 'Invalid customer ID: must be a non-empty string');
   }
   
   const customerIdPattern = /^CU[A-Z0-9]+$/i;
   if (!customerIdPattern.test(customerId)) {
-    throw new functions.https.HttpsError('invalid-argument', `Invalid GoCardless customer ID format: ${customerId}. Customer IDs should be in the format CU followed by alphanumeric characters.`);
+    throw new HttpsError('invalid-argument', `Invalid GoCardless customer ID format: ${customerId}. Customer IDs should be in the format CU followed by alphanumeric characters.`);
   }
   
   try {
@@ -58,14 +57,14 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     const userDoc = await db.collection('users').doc(caller.uid).get();
     
     if (!userDoc.exists) {
-      throw new functions.https.HttpsError('not-found', 'User not found.');
+      throw new HttpsError('not-found', 'User not found.');
     }
     
     const userData = userDoc.data();
     const apiToken = userData.gocardlessApiToken;
     
     if (!apiToken) {
-      throw new functions.https.HttpsError('failed-precondition', 'GoCardless API token not configured.');
+      throw new HttpsError('failed-precondition', 'GoCardless API token not configured.');
     }
     
     // Determine if this is a sandbox or live token
@@ -93,11 +92,11 @@ exports.createGoCardlessPayment = onCall(async (request) => {
       try {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
-      } catch (parseError) {
+      } catch (_parseError) {
         // If response is not JSON, use the text content
         errorMessage = responseText || errorMessage;
       }
-      throw new functions.https.HttpsError('failed-precondition', `Failed to get mandate: ${errorMessage}`);
+              throw new HttpsError('failed-precondition', `Failed to get mandate: ${errorMessage}`);
     }
     
     const mandateData = await mandateResponse.json();
@@ -109,7 +108,7 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     );
     
     if (activeMandates.length === 0) {
-      throw new functions.https.HttpsError('failed-precondition', 'No active mandate found for customer.');
+      throw new HttpsError('failed-precondition', 'No active mandate found for customer.');
     }
     
     // Sort by creation date (newest first) and get the most recent
@@ -147,11 +146,11 @@ exports.createGoCardlessPayment = onCall(async (request) => {
       try {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
-      } catch (parseError) {
+      } catch (_parseError) {
         // If response is not JSON, use the text content
         errorMessage = responseText || errorMessage;
       }
-      throw new functions.https.HttpsError('internal', `Failed to create payment: ${errorMessage}`);
+              throw new HttpsError('internal', `Failed to create payment: ${errorMessage}`);
     }
     
     const paymentData = await paymentResponse.json();
@@ -167,7 +166,7 @@ exports.createGoCardlessPayment = onCall(async (request) => {
     if (error.code) {
       throw error; // Re-throw Firebase Functions errors
     }
-    throw new functions.https.HttpsError('internal', `Payment creation failed: ${error.message || 'Unknown error'}`);
+    throw new HttpsError('internal', `Payment creation failed: ${error.message || 'Unknown error'}`);
   }
 });
 
@@ -178,24 +177,24 @@ exports.inviteMember = onCall(async (request) => {
   const { email } = request.data;
   const caller = request.auth;
   if (!caller || !caller.token.accountId || !caller.token.isOwner) {
-    throw new functions.https.HttpsError('permission-denied', 'Only owners can invite members.');
+    throw new HttpsError('permission-denied', 'Only owners can invite members.');
   }
   const accountId = caller.token.accountId;
   if (!email) {
-    throw new functions.https.HttpsError('invalid-argument', 'Email required.');
+    throw new HttpsError('invalid-argument', 'Email required.');
   }
   const db = admin.firestore();
   // Check if already a member
   const existingMemberSnap = await db.collection(`accounts/${accountId}/members`).where('email', '==', email).get();
   if (!existingMemberSnap.empty) {
-    throw new functions.https.HttpsError('already-exists', 'User is already a member.');
+          throw new HttpsError('already-exists', 'User is already a member.');
   }
   // Generate inviteCode
   const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
   const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
-    throw new functions.https.HttpsError('internal', 'Configuration error.');
+          throw new HttpsError('internal', 'Configuration error.');
   }
   const resend = new Resend(apiKey);
   const appUrl = process.env.APP_URL || 'https://guvnor.app';
@@ -236,7 +235,7 @@ exports.inviteMember = onCall(async (request) => {
   } catch (err) {
     console.error('Invite error details:', err);
     if (err.code) console.error('Error code:', err.code);
-    throw new functions.https.HttpsError('internal', 'Failed to send invite: ' + (err.message || 'Unknown error'));
+    throw new HttpsError('internal', 'Failed to send invite: ' + (err.message || 'Unknown error'));
   }
 });
 
@@ -246,11 +245,11 @@ exports.acceptTeamInvite = onCall(async (request) => {
   const user = request.auth;
 
   if (!user) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in to accept an invite.');
+    throw new HttpsError('unauthenticated', 'You must be logged in to accept an invite.');
   }
 
   if (!inviteCode) {
-    throw new functions.https.HttpsError('invalid-argument', 'Invite code is required.');
+    throw new HttpsError('invalid-argument', 'Invite code is required.');
   }
 
   const db = admin.firestore();
@@ -259,7 +258,7 @@ exports.acceptTeamInvite = onCall(async (request) => {
 
   if (querySnap.empty) {
     console.log('No matching invite found for code:', inviteCode);
-    throw new functions.https.HttpsError('not-found', 'Invalid or expired invite code.');
+    throw new HttpsError('not-found', 'Invalid or expired invite code.');
   }
 
   const memberDocSnap = querySnap.docs[0];
@@ -269,7 +268,7 @@ exports.acceptTeamInvite = onCall(async (request) => {
 
   if (memberData.uid && memberData.uid !== user.uid) {
     console.log('UID mismatch: stored', memberData.uid, 'requester', user.uid);
-    throw new functions.https.HttpsError('permission-denied', 'This invite is not for your account.');
+    throw new HttpsError('permission-denied', 'This invite is not for your account.');
   }
 
   const newMemberRef = db.collection(`accounts/${accountId}/members`).doc(user.uid);
@@ -303,7 +302,7 @@ exports.acceptTeamInvite = onCall(async (request) => {
 exports.listMembers = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
 
   const db = admin.firestore();
@@ -348,7 +347,7 @@ exports.listMembers = onCall(async (request) => {
 exports.listVehicles = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
 
   const db = admin.firestore();
@@ -360,7 +359,7 @@ exports.listVehicles = onCall(async (request) => {
 exports.addVehicle = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
   const { name, dailyRate } = request.data;
   const db = admin.firestore();
@@ -372,7 +371,7 @@ exports.addVehicle = onCall(async (request) => {
 exports.updateVehicle = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
   const { id, data } = request.data;
   const db = admin.firestore();
@@ -383,7 +382,7 @@ exports.updateVehicle = onCall(async (request) => {
 exports.deleteVehicle = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
   const { id } = request.data;
   const db = admin.firestore();
@@ -394,7 +393,7 @@ exports.deleteVehicle = onCall(async (request) => {
 exports.refreshClaims = onCall(async (request) => {
   const user = request.auth;
   if (!user) {
-    throw new functions.https.HttpsError('unauthenticated', 'You must be logged in.');
+    throw new HttpsError('unauthenticated', 'You must be logged in.');
   }
 
   const db = admin.firestore();
@@ -464,7 +463,7 @@ exports.removeMember = onCall(async (request) => {
   const caller = request.auth;
   
   if (!caller || !caller.token.accountId || !caller.token.isOwner) {
-    throw new functions.https.HttpsError('permission-denied', 'Only owners can remove members.');
+    throw new HttpsError('permission-denied', 'Only owners can remove members.');
   }
   
   const db = admin.firestore();
@@ -476,7 +475,7 @@ exports.removeMember = onCall(async (request) => {
   const memberDoc = await memberRef.get();
   
   if (!memberDoc.exists) {
-    throw new functions.https.HttpsError('not-found', 'Member not found.');
+          throw new HttpsError('not-found', 'Member not found.');
   }
   
   const memberData = memberDoc.data();
@@ -513,7 +512,7 @@ exports.removeMember = onCall(async (request) => {
 });
 
 // Stripe Checkout session creation
-exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
+exports.createCheckoutSession = onRequest(async (req, res) => {
   console.log('🚀 [FUNCTION DEBUG] createCheckoutSession called');
   console.log('📋 [FUNCTION DEBUG] Request details:', {
     method: req.method,
@@ -750,7 +749,7 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
 });
 
 // Handle Stripe webhooks
-exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
+exports.stripeWebhook = onRequest(async (req, res) => {
   console.log('🎣 [WEBHOOK DEBUG] Stripe webhook called');
   
   // Initialize Stripe inside function with safe config handling
@@ -761,17 +760,9 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
     let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
     
-    // If not available, try legacy config with safe error handling
     if (!stripeSecretKey || !endpointSecret) {
-      try {
-        const config = functions.config();
-        stripeSecretKey = stripeSecretKey || config.stripe?.secret_key;
-        endpointSecret = endpointSecret || config.stripe?.webhook_secret;
-        console.log('🔧 [WEBHOOK DEBUG] Using functions.config() for Stripe configuration');
-      } catch (configError) {
-        console.error('🔧 [WEBHOOK DEBUG] functions.config() not available and environment variables not set');
-        throw new Error('Stripe configuration not found. Please set environment variables or configure functions.config()');
-      }
+      console.error('🔧 [WEBHOOK DEBUG] Required environment variables not set');
+      throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET environment variables.');
     }
     
     console.log('🔑 [WEBHOOK DEBUG] Config check:', {
@@ -920,7 +911,7 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 }
 
 // Create customer portal session
-exports.createCustomerPortalSession = functions.https.onRequest(async (req, res) => {
+exports.createCustomerPortalSession = onRequest(async (req, res) => {
   console.log('🏪 [PORTAL DEBUG] createCustomerPortalSession called');
   
   // Set CORS headers
@@ -949,16 +940,9 @@ exports.createCustomerPortalSession = functions.https.onRequest(async (req, res)
     // Try environment variable first
     let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     
-    // If not available, try legacy config with safe error handling
     if (!stripeSecretKey) {
-      try {
-        const config = functions.config();
-        stripeSecretKey = config.stripe?.secret_key;
-        console.log('🔧 [PORTAL DEBUG] Using functions.config() for Stripe key');
-      } catch (configError) {
-        console.error('🔧 [PORTAL DEBUG] functions.config() not available and no environment variable set');
-        throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY environment variable');
-      }
+      console.error('🔧 [PORTAL DEBUG] STRIPE_SECRET_KEY environment variable not set');
+      throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY environment variable');
     }
     
     console.log('🔑 [PORTAL DEBUG] Stripe config available:', {
