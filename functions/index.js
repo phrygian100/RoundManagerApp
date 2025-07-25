@@ -549,13 +549,26 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
   // Initialize Stripe inside function
   let stripe;
   try {
-    // Use environment variables instead of functions.config() for v2 compatibility
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+    // For Firebase Functions v2, use environment variables or throw clear error
+    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
+    // If environment variable not available, try functions.config() safely
+    if (!stripeSecretKey) {
+      try {
+        const config = functions.config();
+        stripeSecretKey = config.stripe?.secret_key;
+        console.log('🔧 [FUNCTION DEBUG] Using functions.config() for Stripe key');
+      } catch (configError) {
+        console.error('🔧 [FUNCTION DEBUG] functions.config() not available and no environment variable set');
+        throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY environment variable or configure functions.config()');
+      }
+    }
+    
     console.log('🔑 [FUNCTION DEBUG] Stripe config available:', {
       hasSecretKey: !!stripeSecretKey,
       secretKeyStart: stripeSecretKey ? stripeSecretKey.substring(0, 8) + '...' : 'Missing',
       usingEnvVar: !!process.env.STRIPE_SECRET_KEY,
-      usingConfig: !!functions.config().stripe?.secret_key
+      runtime: 'v2'
     });
     
     if (!stripeSecretKey) {
@@ -735,18 +748,36 @@ exports.createCheckoutSession = functions.https.onRequest(async (req, res) => {
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
   console.log('🎣 [WEBHOOK DEBUG] Stripe webhook called');
   
-  // Initialize Stripe inside function with environment variables
+  // Initialize Stripe inside function with safe config handling
   let stripe;
   let endpointSecret;
   try {
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
-    endpointSecret = process.env.STRIPE_WEBHOOK_SECRET || functions.config().stripe?.webhook_secret;
+    // Try environment variables first
+    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    
+    // If not available, try legacy config with safe error handling
+    if (!stripeSecretKey || !endpointSecret) {
+      try {
+        const config = functions.config();
+        stripeSecretKey = stripeSecretKey || config.stripe?.secret_key;
+        endpointSecret = endpointSecret || config.stripe?.webhook_secret;
+        console.log('🔧 [WEBHOOK DEBUG] Using functions.config() for Stripe configuration');
+      } catch (configError) {
+        console.error('🔧 [WEBHOOK DEBUG] functions.config() not available and environment variables not set');
+        throw new Error('Stripe configuration not found. Please set environment variables or configure functions.config()');
+      }
+    }
     
     console.log('🔑 [WEBHOOK DEBUG] Config check:', {
       hasSecretKey: !!stripeSecretKey,
       hasWebhookSecret: !!endpointSecret,
       usingEnvVars: !!(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET)
     });
+    
+    if (!stripeSecretKey) {
+      throw new Error('Stripe secret key not found');
+    }
     
     stripe = require('stripe')(stripeSecretKey);
   } catch (configError) {
@@ -907,10 +938,24 @@ exports.createCustomerPortalSession = functions.https.onRequest(async (req, res)
   }
   
   console.log('🔧 [PORTAL DEBUG] Initializing Stripe...');
-  // Initialize Stripe inside function with environment variables
+  // Initialize Stripe inside function with safe config handling
   let stripe;
   try {
-    const stripeSecretKey = process.env.STRIPE_SECRET_KEY || functions.config().stripe?.secret_key;
+    // Try environment variable first
+    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    
+    // If not available, try legacy config with safe error handling
+    if (!stripeSecretKey) {
+      try {
+        const config = functions.config();
+        stripeSecretKey = config.stripe?.secret_key;
+        console.log('🔧 [PORTAL DEBUG] Using functions.config() for Stripe key');
+      } catch (configError) {
+        console.error('🔧 [PORTAL DEBUG] functions.config() not available and no environment variable set');
+        throw new Error('Stripe configuration not found. Please set STRIPE_SECRET_KEY environment variable');
+      }
+    }
+    
     console.log('🔑 [PORTAL DEBUG] Stripe config available:', {
       hasSecretKey: !!stripeSecretKey,
       usingEnvVar: !!process.env.STRIPE_SECRET_KEY
