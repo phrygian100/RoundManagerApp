@@ -6274,3 +6274,63 @@ EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID=price_1RoOifF7C2Zg8asU9qRfxMSA
 **Testing**: Ready for end-to-end testing of complete upgrade flow from Settings → Upgrade Modal → Stripe Checkout → Success.
 
 ---
+
+## 🆕 Privacy Policy Implementation (January 2025)
+
+**Created comprehensive privacy policy webpage at `/privacy-policy`**
+
+### Pages Created:
+- `web/src/app/privacy-policy/page.tsx` - Complete privacy policy page with professional design
+- Accessible at `www.guvnor.app/privacy-policy`
+
+### Footer Updates:
+- Updated footer across all pages (`/home`, `/about`, `/contact`, `/pricing`) to include Privacy Policy link
+- Added Legal section with Privacy Policy and placeholder for Terms of Service
+- Maintained consistent footer structure across all marketing pages
+
+### Privacy Policy Content:
+- Introduction and commitment to privacy
+- Information collection practices (direct and automatic)
+- Data usage policies for cleaning business management
+- Information sharing guidelines (no client data sharing)
+- Data storage, security, and retention policies
+- Cookie and tracking technology usage
+- User privacy rights (GDPR compliant)
+- International data transfer protections
+- Third-party service integrations (Firebase, payment processors)
+- Children's privacy protections
+- Policy update procedures
+- Contact information for privacy concerns
+
+### Technical Features:
+- SEO optimized with proper metadata
+- Professional design matching existing website aesthetics
+- Responsive layout for all device sizes
+- Proper navigation integration
+- Call-to-action sections for user engagement
+
+### Build Fixes Applied:
+- **Fixed Firebase configuration for web builds**: Updated `web/src/lib/firebaseClient.ts` to handle missing environment variables gracefully
+- **Improved error handling**: Added proper null checks for Firebase auth to prevent build failures
+- **Environment variable compatibility**: Added support for both `NEXT_PUBLIC_` and `EXPO_PUBLIC_` prefixed variables
+- **Build resilience**: Ensured web app builds successfully even when Firebase environment variables are not configured
+
+### Files Modified:
+- `web/src/app/privacy-policy/page.tsx` - New privacy policy page
+- `web/src/app/home/page.tsx` - Updated footer with privacy policy link
+- `web/src/app/about/page.tsx` - Updated footer with privacy policy link
+- `web/src/app/contact/page.tsx` - Updated footer with privacy policy link
+- `web/src/app/pricing/page.tsx` - Updated footer with privacy policy link
+- `web/src/lib/firebaseClient.ts` - Fixed Firebase configuration for builds
+- `web/src/app/forgot-password/page.tsx` - Added null check for auth service
+- `docs/code-changes.md` - Documented implementation
+
+### Deployment Notes:
+- ✅ Web build completes successfully with all pages including privacy policy
+- ⚠️ Firebase environment variables should be configured for full functionality in production
+- 🌐 Privacy policy page accessible at production URL: `www.guvnor.app/privacy-policy`
+- 📱 Responsive design works on both web and mobile platforms
+
+**Status**: ✅ **COMPLETED** - Privacy policy page fully implemented and accessible
+
+---

@@ -254,7 +254,7 @@ export default function PrivacyPolicyPage() {
 
           {/* Children's Privacy */}
           <div className="mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">Children's Privacy</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-6">Children&apos;s Privacy</h2>
             <div className="prose prose-lg text-gray-600 space-y-4">
               <p>
                 Our services are not intended for individuals under the age of 16. We do not knowingly 
@@ -270,7 +270,7 @@ export default function PrivacyPolicyPage() {
             <div className="prose prose-lg text-gray-600 space-y-4">
               <p>
                 We may update this Privacy Policy from time to time. We will notify you of any material 
-                changes by posting the new Privacy Policy on this page and updating the "Last updated" date. 
+                changes by posting the new Privacy Policy on this page and updating the &quot;Last updated&quot; date. 
                 We encourage you to review this Privacy Policy periodically.
               </p>
               <p>

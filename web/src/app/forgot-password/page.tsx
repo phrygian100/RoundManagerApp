@@ -14,6 +14,11 @@ export default function ForgotPassword() {
       alert('Please enter your email address');
       return;
     }
+
+    if (!auth) {
+      alert('Authentication service is not available. Please check your configuration.');
+      return;
+    }
     
     try {
       setLoading(true);
