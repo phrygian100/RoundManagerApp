@@ -92,7 +92,7 @@ exports.createGoCardlessPayment = onCall(async (request) => {
       try {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
-      } catch (_parseError) {
+      } catch (_) {
         // If response is not JSON, use the text content
         errorMessage = responseText || errorMessage;
       }
@@ -146,7 +146,7 @@ exports.createGoCardlessPayment = onCall(async (request) => {
       try {
         const errorData = JSON.parse(responseText);
         errorMessage = errorData.error?.message || errorMessage;
-      } catch (_parseError) {
+      } catch (_) {
         // If response is not JSON, use the text content
         errorMessage = responseText || errorMessage;
       }
