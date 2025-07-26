@@ -708,9 +708,9 @@ exports.createCheckoutSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }, asyn
         name: 'auto',
         address: 'auto',
       },
-      invoice_creation: {
-        enabled: true,
-      },
+      // invoice_creation: {
+      //   enabled: true,
+      // },
     };
     
     console.log('⚙️ [FUNCTION DEBUG] Session config:', {
