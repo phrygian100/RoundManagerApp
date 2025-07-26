@@ -43,6 +43,7 @@
     "expo-system-ui": "~5.0.10",
     "expo-web-browser": "~14.2.0",
     "firebase": "^9.22.2",
+    "firebase-functions": "^6.4.0",
     "gocardless": "^1.0.0-beta6",
     "papaparse": "^5.5.3",
     "react": "19.0.0",

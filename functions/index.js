@@ -12,6 +12,11 @@ const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
 const { Resend } = require("resend");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
+
+// Secure Stripe secrets (managed via Firebase Secret Manager)
+const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
+const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -512,7 +517,7 @@ exports.removeMember = onCall(async (request) => {
 });
 
 // Stripe Checkout session creation
-exports.createCheckoutSession = onRequest(async (req, res) => {
+exports.createCheckoutSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }, async (req, res) => {
   console.log('🚀 [FUNCTION DEBUG] createCheckoutSession called');
   console.log('📋 [FUNCTION DEBUG] Request details:', {
     method: req.method,
@@ -552,8 +557,8 @@ exports.createCheckoutSession = onRequest(async (req, res) => {
     // The key will be injected at runtime from hosting environment
     let stripeSecretKey;
     
-    // Try environment variable first
-    stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    // Prefer Secret Manager, then fall back to env vars (for local emulation)
+    stripeSecretKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
     
     // If no environment variable, the key should be available from hosting config
     // This will be set via Firebase hosting environment configuration
@@ -749,7 +754,7 @@ exports.createCheckoutSession = onRequest(async (req, res) => {
 });
 
 // Handle Stripe webhooks
-exports.stripeWebhook = onRequest(async (req, res) => {
+exports.stripeWebhook = onRequest({ secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET] }, async (req, res) => {
   console.log('🎣 [WEBHOOK DEBUG] Stripe webhook called');
   
   // Initialize Stripe inside function with safe config handling
@@ -757,8 +762,8 @@ exports.stripeWebhook = onRequest(async (req, res) => {
   let endpointSecret;
   try {
     // Try environment variables first
-    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-    endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    let stripeSecretKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
+    endpointSecret = STRIPE_WEBHOOK_SECRET.value() || process.env.STRIPE_WEBHOOK_SECRET;
     
     if (!stripeSecretKey || !endpointSecret) {
       console.error('🔧 [WEBHOOK DEBUG] Required environment variables not set');
@@ -911,7 +916,7 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
 }
 
 // Create customer portal session
-exports.createCustomerPortalSession = onRequest(async (req, res) => {
+exports.createCustomerPortalSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }, async (req, res) => {
   console.log('🏪 [PORTAL DEBUG] createCustomerPortalSession called');
   
   // Set CORS headers
@@ -938,7 +943,7 @@ exports.createCustomerPortalSession = onRequest(async (req, res) => {
   let stripe;
   try {
     // Try environment variable first
-    let stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    let stripeSecretKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
     
     if (!stripeSecretKey) {
       console.error('🔧 [PORTAL DEBUG] STRIPE_SECRET_KEY environment variable not set');
