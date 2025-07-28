@@ -336,13 +336,10 @@ export default function PrivacyPolicyPage() {
               <Image
                 src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
-                width={150}
-                height={50}
-                className="h-10 w-auto mb-4 filter invert"
+                width={450}
+                height={150}
+                className="w-auto mb-4 filter invert"
               />
-              <p className="text-gray-400">
-                Streamline your cleaning business with intelligent management tools.
-              </p>
             </div>
             <div>
               <h4 className="font-semibold mb-4">Product</h4>

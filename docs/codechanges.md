@@ -41,6 +41,11 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Replaced the original logo with a new, color-inverted version in the footer to ensure proper visibility on dark backgrounds.
 - The `logo_colourInverted.png` is now used across all marketing and login pages.
 
+## Increased Footer Logo Size and Removed Text
+
+- Made the footer logo 3x larger for better visibility.
+- Removed the descriptive text "Streamline your cleaning business with intelligent management tools" from below the footer logo.
+
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 

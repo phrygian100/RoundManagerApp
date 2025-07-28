@@ -246,9 +246,6 @@ export default function LoginScreen() {
               style={styles.footerLogo}
               resizeMode="contain"
             />
-            <Text style={styles.footerDescription}>
-              Streamline your cleaning business with intelligent management tools.
-            </Text>
           </View>
           
           <View style={styles.footerLinks}>
@@ -554,8 +551,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footerLogo: {
-    width: 200,
-    height: 53,
+    width: 600,
+    height: 159,
     marginBottom: 16,
     ...Platform.select({
       web: {
