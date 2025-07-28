@@ -334,7 +334,7 @@ export default function PrivacyPolicyPage() {
           <div className="grid md:grid-cols-5 gap-8">
             <div>
               <Image
-                src="/Logo - Service Platform.png"
+                src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
                 width={150}
                 height={50}

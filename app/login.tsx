@@ -242,7 +242,7 @@ export default function LoginScreen() {
         <View style={styles.footerContent}>
           <View style={styles.footerSection}>
             <Image 
-              source={require('../assets/images/Logo - Service Platform.png')} 
+              source={require('../assets/images/logo_colourInverted.png')} 
               style={styles.footerLogo}
               resizeMode="contain"
             />

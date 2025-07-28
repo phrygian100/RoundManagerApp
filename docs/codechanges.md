@@ -36,6 +36,11 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Removed the `brightness-0` filter from the footer logo to fix an issue where it was rendering as a white square on dark backgrounds.
 - The logo now appears correctly with a transparent background on all marketing and login pages.
 
+## Swapped to Inverted Logo in Footer
+
+- Replaced the original logo with a new, color-inverted version in the footer to ensure proper visibility on dark backgrounds.
+- The `logo_colourInverted.png` is now used across all marketing and login pages.
+
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 
