@@ -31,6 +31,11 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Top banner logo increased by a factor of 3x, from 225x60 to 675x180.
 - Login form logo increased by a factor of 2x, from 380x152 to 760x304. 
 
+## Fixed Footer Logo Rendering
+
+- Removed the `brightness-0` filter from the footer logo to fix an issue where it was rendering as a white square on dark backgrounds.
+- The logo now appears correctly with a transparent background on all marketing and login pages.
+
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 

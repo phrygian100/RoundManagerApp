@@ -559,7 +559,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     ...Platform.select({
       web: {
-        filter: 'brightness(0) invert(1)',
+        filter: 'invert(1)',
       },
       default: {
         tintColor: '#fff',

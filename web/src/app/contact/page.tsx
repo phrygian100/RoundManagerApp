@@ -168,7 +168,7 @@ export default function ContactPage() {
                 alt="Guvnor Logo"
                 width={150}
                 height={50}
-                className="h-10 w-auto mb-4 filter brightness-0 invert"
+                className="h-10 w-auto mb-4 filter invert"
               />
               <p className="text-gray-400">
                 Streamline your cleaning business with intelligent management tools.
