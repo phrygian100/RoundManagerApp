@@ -10,6 +10,7 @@ Implemented fully functional contact form submission system for marketing websit
 - Form resets on successful submission and shows appropriate user feedback messages.
 - Email addresses (support@guvnor.app, sales@guvnor.app) are configured with Zoho.com email hosting - inbox access via Zoho webmail.
 - Fixed Vercel build error: corrected Firebase client import path from `../../../lib/firebaseClient` to `../../lib/firebaseClient` in contact page.
+- Fixed TypeScript linting errors: replaced `any` types with proper Firebase types (`FirebaseApp`, `Functions`) and improved error handling with proper type checking.
 
 Updated About Us page "Our Story" section with new company background text.
 
@@ -88,4 +89,11 @@ Completely redesigned New Quote modal with modern styling and improved user expe
 - Added comprehensive StyleSheet with organized sections for modal, header, body, inputs, and footer styles.
 - Implemented proper responsive design with max width constraints and mobile/desktop adaptations.
 - Added proper visual feedback for form interactions and improved accessibility.
-- Follows the same design language as edit customer modal with consistent colors and spacing patterns. 
+- Follows the same design language as edit customer modal with consistent colors and spacing patterns.
+
+Fixed calendar date picker z-index layering issue in New Quote modal.
+
+- Increased z-index of `webDatePickerContainer` from 1000 to 9999 to ensure calendar appears above all modal content.
+- Increased elevation from 8 to 15 for better visual separation on Android devices.
+- Resolved issue where calendar widget was appearing behind other UI elements when creating a new quote.
+- Calendar now properly displays above the modal content without being obscured by other elements. 

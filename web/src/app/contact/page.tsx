@@ -1,7 +1,7 @@
 'use client';
 
-import { getApp } from "firebase/app";
-import { getFunctions, httpsCallable } from "firebase/functions";
+import { FirebaseApp, getApp } from "firebase/app";
+import { Functions, getFunctions, httpsCallable } from "firebase/functions";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -10,8 +10,8 @@ import { useState } from "react";
 import "../../lib/firebaseClient";
 
 // Get Firebase app instance with error handling
-let app: any = null;
-let functions: any = null;
+let app: FirebaseApp | null = null;
+let functions: Functions | null = null;
 
 try {
   app = getApp();
@@ -67,7 +67,7 @@ export default function ContactPage() {
       console.log('✅ Function call successful', result);
       
       setSubmitStatus('success');
-      setSubmitMessage((result.data as any).message || 'Thank you for your message! We\'ll get back to you soon.');
+      setSubmitMessage((result.data as { message?: string }).message || 'Thank you for your message! We\'ll get back to you soon.');
       
       // Clear form on success
       setFormData({
@@ -79,10 +79,11 @@ export default function ContactPage() {
         subject: '',
         message: ''
       });
-    } catch (error: any) {
-      console.error('Contact form submission error:', error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send your message. Please try again or contact us directly at support@guvnor.app';
+      console.error('Contact form submission error:', errorMessage);
       setSubmitStatus('error');
-      setSubmitMessage(error.message || 'Failed to send your message. Please try again or contact us directly at support@guvnor.app');
+      setSubmitMessage(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
