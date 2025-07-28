@@ -26,4 +26,13 @@ Added long press functionality for mobile browsers in Round Order Manager.
 - Long press behavior mimics holding arrow keys on desktop - starts after 500ms delay, then repeats action every 100ms.
 - Only enabled for mobile browsers (detected via `isMobileBrowser()` function) to avoid interfering with native mobile app.
 - Added proper cleanup of timers on component unmount to prevent memory leaks.
-- Greatly reduces tedium when moving clients through many positions in the round order. 
+- Greatly reduces tedium when moving clients through many positions in the round order.
+
+Added +10/-10 quick navigation buttons to Round Order Manager mobile interface.
+
+- Replaced "Position x of x" text with two new navigation buttons: "-10" and "+10".
+- -10 button moves position down by 10 places, +10 button moves position up by 10 places.
+- New buttons include same long press functionality as single-step up/down buttons.
+- Updated mobile navigation layout: ▲ | -10 | +10 | ▼ for fast navigation through large lists.
+- Added proper boundary checking to prevent going below position 1 or above maximum position.
+- Significantly improves efficiency when repositioning clients across many positions. 

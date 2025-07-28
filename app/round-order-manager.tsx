@@ -446,7 +446,7 @@ export default function RoundOrderManagerScreen() {
   };
 
   // Long press functionality for mobile browsers
-  const startLongPress = (direction: 'up' | 'down') => {
+  const startLongPress = (direction: 'up' | 'down' | 'up10' | 'down10') => {
     // Only enable for mobile browsers
     if (Platform.OS !== 'web' || !isMobileBrowser()) return;
     
@@ -459,8 +459,12 @@ export default function RoundOrderManagerScreen() {
       longPressInterval.current = setInterval(() => {
         if (direction === 'up') {
           moveUp();
-        } else {
+        } else if (direction === 'down') {
           moveDown();
+        } else if (direction === 'up10') {
+          moveUp10();
+        } else if (direction === 'down10') {
+          moveDown10();
         }
       }, 100);
     }, 500);
@@ -495,6 +499,31 @@ export default function RoundOrderManagerScreen() {
     const newPosition = selectedPosition + 1;
     const maxPosition = clients.length + 1;
     const clampedPosition = Math.min(maxPosition, newPosition);
+    if (clampedPosition !== selectedPosition) {
+      handlePositionChange(clampedPosition);
+    } else {
+      // Stop long press if we've reached the boundary
+      stopLongPress();
+    }
+  };
+
+  const moveUp10 = () => {
+    console.log('Moving up 10 from position:', selectedPosition);
+    const newPosition = selectedPosition + 10;
+    const maxPosition = clients.length + 1;
+    const clampedPosition = Math.min(maxPosition, newPosition);
+    if (clampedPosition !== selectedPosition) {
+      handlePositionChange(clampedPosition);
+    } else {
+      // Stop long press if we've reached the boundary
+      stopLongPress();
+    }
+  };
+
+  const moveDown10 = () => {
+    console.log('Moving down 10 from position:', selectedPosition);
+    const newPosition = selectedPosition - 10;
+    const clampedPosition = Math.max(1, newPosition);
     if (clampedPosition !== selectedPosition) {
       handlePositionChange(clampedPosition);
     } else {
@@ -604,9 +633,25 @@ export default function RoundOrderManagerScreen() {
                   <ThemedText style={styles.mobileNavButtonText}>▲</ThemedText>
                 </Pressable>
                 
-                <ThemedText style={styles.mobilePositionIndicator}>
-                  Position {selectedPosition} of {clients.length + 1}
-                </ThemedText>
+                <Pressable 
+                  style={[styles.mobileNavButton, styles.mobileNavButton10, selectedPosition <= 10 && styles.mobileNavButtonDisabled]}
+                  onPress={moveDown10}
+                  onPressIn={() => startLongPress('down10')}
+                  onPressOut={stopLongPress}
+                  disabled={selectedPosition <= 10}
+                >
+                  <ThemedText style={styles.mobileNavButtonText10}>-10</ThemedText>
+                </Pressable>
+                
+                <Pressable 
+                  style={[styles.mobileNavButton, styles.mobileNavButton10, selectedPosition >= clients.length + 1 - 9 && styles.mobileNavButtonDisabled]}
+                  onPress={moveUp10}
+                  onPressIn={() => startLongPress('up10')}
+                  onPressOut={stopLongPress}
+                  disabled={selectedPosition >= clients.length + 1 - 9}
+                >
+                  <ThemedText style={styles.mobileNavButtonText10}>+10</ThemedText>
+                </Pressable>
                 
                 <Pressable 
                   style={[styles.mobileNavButton, selectedPosition >= clients.length + 1 && styles.mobileNavButtonDisabled]}
@@ -731,7 +776,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
-    gap: 20,
+    gap: 12,
     backgroundColor: '#f5f5f5',
     borderRadius: 12,
     marginHorizontal: 8,
@@ -739,9 +784,9 @@ const styles = StyleSheet.create({
   },
   mobileNavButton: {
     backgroundColor: '#007AFF',
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -757,15 +802,17 @@ const styles = StyleSheet.create({
   },
   mobileNavButtonText: {
     color: '#fff',
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
   },
-  mobilePositionIndicator: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    minWidth: 120,
-    textAlign: 'center',
+  mobileNavButton10: {
+    width: 60,
+    height: 60,
+  },
+  mobileNavButtonText10: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   // Desktop styles (unchanged)
   pickerWrapper: {
