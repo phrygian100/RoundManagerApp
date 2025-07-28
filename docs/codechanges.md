@@ -9,6 +9,7 @@ Implemented fully functional contact form submission system for marketing websit
 - Email templates include professional formatting with contact information, message content, and timestamp.
 - Form resets on successful submission and shows appropriate user feedback messages.
 - Email addresses (support@guvnor.app, sales@guvnor.app) are configured with Zoho.com email hosting - inbox access via Zoho webmail.
+- Fixed Vercel build error: corrected Firebase client import path from `../../../lib/firebaseClient` to `../../lib/firebaseClient` in contact page.
 
 Updated About Us page "Our Story" section with new company background text.
 

@@ -7,7 +7,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 // Import existing Firebase configuration
-import "../../../lib/firebaseClient";
+import "../../lib/firebaseClient";
 
 // Get Firebase app instance with error handling
 let app: any = null;
