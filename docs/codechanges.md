@@ -30,3 +30,7 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Dramatically increased the logo sizes on the login page based on user feedback.
 - Top banner logo increased by a factor of 3x, from 225x60 to 675x180.
 - Login form logo increased by a factor of 2x, from 380x152 to 760x304. 
+
+## Updated Copyright Year
+
+- Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 

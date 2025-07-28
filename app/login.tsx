@@ -275,7 +275,7 @@ export default function LoginScreen() {
         </View>
         
         <View style={styles.footerBottom}>
-          <Text style={styles.copyright}>© 2024 Guvnor. All rights reserved.</Text>
+          <Text style={styles.copyright}>© 2025 Guvnor. All rights reserved.</Text>
           <Text style={styles.build}>Build: {BUILD_ID}</Text>
         </View>
       </View>
