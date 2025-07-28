@@ -356,10 +356,11 @@ export default function RoundOrderManagerScreen() {
         }
       }
       
+      const isSelected = pos === selectedPosition;
       displayItems.push(
-        <View key={pos} style={styles.clientItem}>
-          <ThemedText style={styles.positionText}>{pos}</ThemedText>
-          <ThemedText style={styles.addressText}>
+        <View key={pos} style={[styles.clientItem, isSelected && styles.selectedClientItem]}>
+          <ThemedText style={[styles.positionText, isSelected && styles.selectedPositionText]}>{pos}</ThemedText>
+          <ThemedText style={[styles.addressText, isSelected && styles.selectedAddressText]}>
             {displayText}
           </ThemedText>
         </View>
@@ -422,10 +423,12 @@ export default function RoundOrderManagerScreen() {
       position = item.displayPosition || 0;
     }
     
+    const isSelected = isNewClient || position === selectedPosition;
+    
     return (
-      <View style={styles.clientItem}>
-        <ThemedText style={styles.positionText}>{position}</ThemedText>
-        <ThemedText style={styles.addressText}>{displayText}</ThemedText>
+      <View style={[styles.clientItem, isSelected && styles.selectedClientItem]}>
+        <ThemedText style={[styles.positionText, isSelected && styles.selectedPositionText]}>{position}</ThemedText>
+        <ThemedText style={[styles.addressText, isSelected && styles.selectedAddressText]}>{displayText}</ThemedText>
       </View>
     );
   };
@@ -540,18 +543,6 @@ export default function RoundOrderManagerScreen() {
                 <View style={styles.list}>
                   {renderPositionList()}
                 </View>
-                <View style={styles.mobilePickerHighlight} pointerEvents="none">
-                  <ThemedText style={styles.mobileHighlightPositionText}>{selectedPosition}</ThemedText>
-                  <ThemedText style={styles.mobileHighlightClientText}>
-                    {activeClient && editingClientId ? 
-                      (() => {
-                        const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
-                        return addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
-                      })() :
-                      activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`
-                    }
-                  </ThemedText>
-                </View>
               </View>
               
               {/* Navigation buttons grouped together for mobile */}
@@ -593,18 +584,6 @@ export default function RoundOrderManagerScreen() {
               <View style={styles.pickerWrapper}>
                 <View style={styles.list}>
                   {renderPositionList()}
-                </View>
-                <View style={styles.pickerHighlight} pointerEvents="none">
-                  <ThemedText style={styles.highlightPositionText}>{selectedPosition}</ThemedText>
-                  <ThemedText style={styles.highlightClientText}>
-                    {activeClient && editingClientId ? 
-                      (() => {
-                        const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
-                        return addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
-                      })() :
-                      activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`
-                    }
-                  </ThemedText>
                 </View>
               </View>
               
@@ -695,34 +674,7 @@ const styles = StyleSheet.create({
     maxHeight: ITEM_HEIGHT * VISIBLE_ITEMS,
     overflow: 'scroll',
   },
-  mobilePickerHighlight: {
-    position: 'absolute',
-    top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    backgroundColor: 'rgba(0, 122, 255, 0.15)',
-    borderTopWidth: 3,
-    borderBottomWidth: 3,
-    borderColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginHorizontal: 8,
-  },
-  mobileHighlightPositionText: {
-    width: 50,
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  mobileHighlightClientText: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
+
   mobileNavigationButtons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -769,32 +721,6 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT * VISIBLE_ITEMS,
     width: '100%',
   },
-  pickerHighlight: {
-    position: 'absolute',
-    top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: '#007AFF',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  highlightPositionText: {
-    width: 40,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
-  highlightClientText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#007AFF',
-  },
   list: {
     flex: 1,
     ...(Platform.OS === 'web' && {
@@ -826,6 +752,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#333',
+  },
+  selectedClientItem: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#007AFF',
+    borderWidth: 2,
+  },
+  selectedPositionText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
+  selectedAddressText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
   },
   // Action buttons
   actionButtonsContainer: {
