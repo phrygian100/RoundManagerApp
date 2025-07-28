@@ -64,28 +64,7 @@ export default function AboutPage() {
           
           <div className="prose prose-lg mx-auto text-gray-600">
             <p className="text-xl leading-relaxed mb-6">
-              Guvnor was born from a simple observation: cleaning professionals work incredibly hard 
-              to build their businesses, but often struggle with the administrative side of running 
-              a service-based company.
-            </p>
-            
-            <p className="text-lg leading-relaxed mb-6">
-              We watched as talented cleaners spent hours on spreadsheets, sticky notes, and 
-              phone calls trying to keep track of their rounds, payments, and schedules. 
-              We knew there had to be a better way.
-            </p>
-            
-            <p className="text-lg leading-relaxed mb-6">
-              That&apos;s why we built Guvnor - to give cleaning professionals the tools they need 
-              to focus on what they do best: providing exceptional service to their clients. 
-              Our platform handles the complexity of business management so you can concentrate 
-              on growing your business.
-            </p>
-            
-            <p className="text-lg leading-relaxed">
-              Today, thousands of cleaning professionals trust Guvnor to manage their rounds, 
-              track their payments, and streamline their operations. We&apos;re proud to be part 
-              of their success stories.
+              Guvnor.app was conceived by a window cleaning business in the UK. We have our own rounds and manage a fleet of vans, providing window cleaning residentially and commercially. We didn&apos;t like the route optimisation that was available from other service business apps. We made our own tools and it quickly became apparent that what we offer is exceptional and specifically for window cleaners. It is perfect for starting a business and scales elegantly with growth. We have very ambitious plans for the future development of Guvnor to become invaluable to the UK window cleaning industry.
             </p>
           </div>
         </div>

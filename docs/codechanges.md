@@ -1,3 +1,10 @@
+Updated About Us page "Our Story" section with new company background text.
+
+- Replaced generic cleaning business messaging with specific window cleaning company origin story.
+- Updated content to reflect UK-based window cleaning business roots and fleet management experience.
+- Emphasized route optimization expertise and window cleaner-specific functionality.
+- Highlighted scalability and future development plans for UK window cleaning industry.
+
 Added Stripe secret binding for Cloud Functions (premium upgrade flow).
 
 - Imported `defineSecret` from `firebase-functions/params` in `functions/index.js`.
