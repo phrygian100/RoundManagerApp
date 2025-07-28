@@ -7,3 +7,13 @@ Simplified contact page by removing form and keeping only contact information.
 - Simplified page layout to focus on direct email contact rather than form submission.
 - Removed all Firebase form handling, state management, and form validation code.
 - Contact page now displays email addresses prominently for direct communication: support@guvnor.app and sales@guvnor.app. 
+
+## Logo Size Improvements - Marketing Website
+
+Increased logo sizes across all marketing website pages for better visibility and brand presence.
+
+- Updated navigation bar logos from h-8 (32px) to h-12 (48px) across all pages
+- Updated footer logos from h-8 (32px) to h-10 (40px) for better proportions
+- Modified width/height attributes to match new dimensions: nav logos (180x60), footer logos (150x50)
+- Changes applied to: home, about, contact, pricing, terms, and privacy-policy pages
+- Logo is now appropriately sized and more prominent in the marketing site interface 

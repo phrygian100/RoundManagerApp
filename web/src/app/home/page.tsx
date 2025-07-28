@@ -12,9 +12,9 @@ export default function HomePage() {
               <Image
                 src="/Logo - Service Platform.png"
                 alt="Guvnor Logo"
-                width={120}
-                height={40}
-                className="h-8 w-auto"
+                width={180}
+                height={60}
+                className="h-12 w-auto"
               />
             </div>
             <div className="hidden md:block">
@@ -208,9 +208,9 @@ export default function HomePage() {
               <Image
                 src="/Logo - Service Platform.png"
                 alt="Guvnor Logo"
-                width={120}
-                height={40}
-                className="h-8 w-auto mb-4 filter brightness-0 invert"
+                width={150}
+                height={50}
+                className="h-10 w-auto mb-4 filter brightness-0 invert"
               />
               <p className="text-gray-400">
                 Streamline your cleaning business with intelligent management tools.
