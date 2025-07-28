@@ -98,3 +98,12 @@ Fixed calendar date picker positioning issue in New Quote modal.
 - Repositioned `webDatePickerContainer` to be centered in the overlay rather than absolutely positioned relative to input group.
 - Resolved issue where calendar widget was appearing behind "Lead Source" and "Additional Notes" form fields.
 - Calendar now properly displays above all modal content in a centered overlay when date field is clicked. 
+
+Fixed contact form Firebase initialization errors on marketing website.
+
+- Created `.env.development.local` file in the `web/` directory with proper Firebase configuration variables.
+- Added all required NEXT_PUBLIC_FIREBASE_* environment variables using values from main app configuration.
+- Fixed Firebase initialization failures that were preventing the contact form from working properly.
+- Environment variables now properly initialized: FIREBASE_API_KEY, FIREBASE_AUTH_DOMAIN, FIREBASE_PROJECT_ID, FIREBASE_STORAGE_BUCKET, FIREBASE_MESSAGING_SENDER_ID, and FIREBASE_APP_ID.
+- Contact form can now successfully call the `submitContactForm` Firebase function to send enquiries via Resend email service.
+- Console errors resolved: "Firebase initialization failed" and "No Firebase App '[DEFAULT]' has been created" messages eliminated. 
