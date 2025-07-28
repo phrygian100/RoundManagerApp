@@ -1,11 +1,11 @@
+import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
-import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
 import { formatAuditDescription, logAction } from '../../../../services/auditService';
@@ -185,287 +185,605 @@ export default function EditCustomerScreen() {
     }
   };
 
+  const handleClose = () => {
+    router.back();
+  };
+
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
-        <ThemedText>Loading...</ThemedText>
-      </ThemedView>
+      <Modal visible={true} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.loadingContainer}>
+              <ThemedText style={styles.loadingText}>Loading customer details...</ThemedText>
+            </View>
+          </View>
+        </View>
+      </Modal>
     );
   }
 
   const displayAddress =
-    (town && postcode)
+    (address1 && town && postcode)
       ? `${address1}, ${town}, ${postcode}`
       : address || 'Edit Customer';
 
   return (
-    <ThemedView style={styles.container}>
-      <ThemedText type="title">{displayAddress}</ThemedText>
+    <Modal visible={true} animationType="slide" transparent onRequestClose={handleClose}>
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          {/* Modal Header */}
+          <View style={styles.modalHeader}>
+            <View style={styles.headerContent}>
+              <ThemedText style={styles.modalTitle}>Edit Customer</ThemedText>
+              <ThemedText style={styles.customerAddress}>{displayAddress}</ThemedText>
+            </View>
+            <Pressable style={styles.closeButton} onPress={handleClose}>
+              <Ionicons name="close" size={24} color="#666" />
+            </Pressable>
+          </View>
 
-      {/* Section Tabs */}
-      <View style={styles.tabContainer}>
-        <Pressable 
-          style={[styles.tab, activeSection === 'details' && styles.activeTab]} 
-          onPress={() => setActiveSection('details')}
-        >
-          <ThemedText style={[styles.tabText, activeSection === 'details' && styles.activeTabText]}>
-            Customer Details
-          </ThemedText>
-        </Pressable>
-        <Pressable 
-          style={[styles.tab, activeSection === 'routine' && styles.activeTab]} 
-          onPress={() => setActiveSection('routine')}
-        >
-          <ThemedText style={[styles.tabText, activeSection === 'routine' && styles.activeTabText]}>
-            Service Routine
-          </ThemedText>
-        </Pressable>
-      </View>
-
-      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-        {activeSection === 'details' ? (
-          <View style={styles.section}>
-            <TextInput
-              style={styles.input}
-              value={name}
-              onChangeText={setName}
-              placeholder="Client Name"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={address1}
-              onChangeText={setAddress1}
-              placeholder="Address Line 1"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={town}
-              onChangeText={setTown}
-              placeholder="Town"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={postcode}
-              onChangeText={setPostcode}
-              placeholder="Postcode"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={address}
-              onChangeText={setAddress}
-              placeholder="Address (legacy format)"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={accountNumber}
-              onChangeText={setAccountNumber}
-              placeholder="Account Number"
-            />
-
-            <ThemedText style={styles.label}>Round Order</ThemedText>
-            <Pressable style={styles.roundOrderButton} onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}>
-              <ThemedText style={styles.roundOrderButtonText}>
-                Change Round Order (Currently: {roundOrderNumber})
+          {/* Section Tabs */}
+          <View style={styles.tabContainer}>
+            <Pressable 
+              style={[styles.tab, activeSection === 'details' && styles.activeTab]} 
+              onPress={() => setActiveSection('details')}
+            >
+              <Ionicons 
+                name="person-outline" 
+                size={18} 
+                color={activeSection === 'details' ? '#fff' : '#666'} 
+                style={styles.tabIcon}
+              />
+              <ThemedText style={[styles.tabText, activeSection === 'details' && styles.activeTabText]}>
+                Customer Details
               </ThemedText>
             </Pressable>
-
-            <TextInput
-              style={styles.input}
-              value={quote}
-              onChangeText={setQuote}
-              placeholder="Quote (£)"
-              keyboardType="numeric"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={mobileNumber}
-              onChangeText={setMobileNumber}
-              placeholder="Mobile Number"
-              keyboardType="phone-pad"
-            />
-
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-            />
-          </View>
-        ) : (
-          <View style={styles.section}>
-            <ThemedText style={styles.label}>Name</ThemedText>
-            <ThemedText style={styles.readOnlyText}>{name}</ThemedText>
-
-            <ThemedText style={styles.label}>Address</ThemedText>
-            <ThemedText style={styles.readOnlyText}>
-              {address1 && town && postcode 
-                ? `${address1}, ${town}, ${postcode}` 
-                : address || 'No address'}
-            </ThemedText>
-
-            <ThemedText style={styles.label}>Visit Frequency (weeks)</ThemedText>
-            <TextInput
-              style={styles.input}
-              value={frequency}
-              onChangeText={setFrequency}
-              placeholder="e.g. 4"
-              keyboardType="numeric"
-            />
-
-            <ThemedText style={styles.label}>Date</ThemedText>
-            {Platform.OS === 'web' ? (
-              <input
-                type="date"
-                value={nextVisit}
-                onChange={e => setNextVisit(e.target.value)}
-                style={{ ...styles.input, height: 50, padding: 10, fontSize: 16 }}
+            <Pressable 
+              style={[styles.tab, activeSection === 'routine' && styles.activeTab]} 
+              onPress={() => setActiveSection('routine')}
+            >
+              <Ionicons 
+                name="calendar-outline" 
+                size={18} 
+                color={activeSection === 'routine' ? '#fff' : '#666'} 
+                style={styles.tabIcon}
               />
-            ) : (
-              <>
-                <Pressable
-                  style={styles.input}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <ThemedText>
-                    {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
-                  </ThemedText>
-                </Pressable>
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={nextVisit ? parseISO(nextVisit) : new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    minimumDate={new Date()}
-                    onChange={(event, selectedDate) => {
-                      console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
-                      
-                      // On Android, the picker closes automatically when a date is selected
-                      // On iOS, we need to handle the spinner mode differently
-                      if (Platform.OS === 'android') {
-                        setShowDatePicker(false);
-                        if (selectedDate) {
-                          const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                          console.log('Android: Setting nextVisit to:', formattedDate);
-                          setNextVisit(formattedDate);
-                        }
-                      } else {
-                        // iOS spinner mode - only update when user confirms
-                        if (event.type === 'set' && selectedDate) {
-                          const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                          console.log('iOS: Setting nextVisit to:', formattedDate);
-                          setNextVisit(formattedDate);
-                        }
-                        if (event.type === 'dismissed') {
-                          setShowDatePicker(false);
-                        }
-                      }
-                    }}
-                  />
-                )}
-              </>
-            )}
+              <ThemedText style={[styles.tabText, activeSection === 'routine' && styles.activeTabText]}>
+                Service Routine
+              </ThemedText>
+            </Pressable>
           </View>
-        )}
-      </ScrollView>
 
-      <View style={[styles.buttonContainer, { marginBottom: 32 }]}>
-        <Button title="Save Changes" onPress={handleSave} disabled={updating} />
-        {updating && (
-          <ThemedText style={styles.loadingText}>Updating customer...</ThemedText>
-        )}
+          {/* Modal Body */}
+          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+            {activeSection === 'details' ? (
+              <View style={styles.section}>
+                {/* Basic Information */}
+                <View style={styles.sectionGroup}>
+                  <ThemedText style={styles.sectionTitle}>Basic Information</ThemedText>
+                  
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Customer Name *</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={name}
+                      onChangeText={setName}
+                      placeholder="Enter customer name"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Address Line 1</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={address1}
+                      onChangeText={setAddress1}
+                      placeholder="Street address"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+
+                  <View style={styles.inputRow}>
+                    <View style={[styles.inputGroup, { flex: 2 }]}>
+                      <ThemedText style={styles.inputLabel}>Town/City</ThemedText>
+                      <TextInput
+                        style={styles.input}
+                        value={town}
+                        onChangeText={setTown}
+                        placeholder="Town or city"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                    <View style={[styles.inputGroup, { flex: 1 }]}>
+                      <ThemedText style={styles.inputLabel}>Postcode</ThemedText>
+                      <TextInput
+                        style={styles.input}
+                        value={postcode}
+                        onChangeText={setPostcode}
+                        placeholder="Postcode"
+                        placeholderTextColor="#999"
+                      />
+                    </View>
+                  </View>
+
+                  {address && (
+                    <View style={styles.inputGroup}>
+                      <ThemedText style={styles.inputLabel}>Legacy Address</ThemedText>
+                      <TextInput
+                        style={[styles.input, styles.legacyInput]}
+                        value={address}
+                        onChangeText={setAddress}
+                        placeholder="Legacy address format"
+                        placeholderTextColor="#999"
+                        editable={false}
+                      />
+                      <ThemedText style={styles.helperText}>This field is read-only and will be updated automatically</ThemedText>
+                    </View>
+                  )}
+                </View>
+
+                {/* Account Information */}
+                <View style={styles.sectionGroup}>
+                  <ThemedText style={styles.sectionTitle}>Account Information</ThemedText>
+                  
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Account Number</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={accountNumber}
+                      onChangeText={setAccountNumber}
+                      placeholder="Account number"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Round Order</ThemedText>
+                    <Pressable 
+                      style={styles.roundOrderButton} 
+                      onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}
+                    >
+                      <Ionicons name="list-outline" size={20} color="#007AFF" />
+                      <ThemedText style={styles.roundOrderButtonText}>
+                        Change Round Order (Currently: {roundOrderNumber || 'Not set'})
+                      </ThemedText>
+                      <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+                    </Pressable>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Quote Amount (£)</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={quote}
+                      onChangeText={setQuote}
+                      placeholder="0.00"
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+
+                {/* Contact Information */}
+                <View style={styles.sectionGroup}>
+                  <ThemedText style={styles.sectionTitle}>Contact Information</ThemedText>
+                  
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Mobile Number</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={mobileNumber}
+                      onChangeText={setMobileNumber}
+                      placeholder="Mobile number"
+                      keyboardType="phone-pad"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Email Address</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="Email address"
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      placeholderTextColor="#999"
+                    />
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.section}>
+                {/* Customer Summary */}
+                <View style={styles.sectionGroup}>
+                  <ThemedText style={styles.sectionTitle}>Customer Summary</ThemedText>
+                  
+                  <View style={styles.summaryCard}>
+                    <View style={styles.summaryRow}>
+                      <ThemedText style={styles.summaryLabel}>Name:</ThemedText>
+                      <ThemedText style={styles.summaryValue}>{name || 'No name'}</ThemedText>
+                    </View>
+                    <View style={styles.summaryRow}>
+                      <ThemedText style={styles.summaryLabel}>Address:</ThemedText>
+                      <ThemedText style={styles.summaryValue}>
+                        {address1 && town && postcode 
+                          ? `${address1}, ${town}, ${postcode}` 
+                          : address || 'No address'}
+                      </ThemedText>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Service Schedule */}
+                <View style={styles.sectionGroup}>
+                  <ThemedText style={styles.sectionTitle}>Service Schedule</ThemedText>
+                  
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Visit Frequency (weeks)</ThemedText>
+                    <TextInput
+                      style={styles.input}
+                      value={frequency}
+                      onChangeText={setFrequency}
+                      placeholder="e.g. 4"
+                      keyboardType="numeric"
+                      placeholderTextColor="#999"
+                    />
+                    <ThemedText style={styles.helperText}>How often should this customer be visited?</ThemedText>
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <ThemedText style={styles.inputLabel}>Next Visit Date</ThemedText>
+                    {Platform.OS === 'web' ? (
+                      <input
+                        type="date"
+                        value={nextVisit}
+                        onChange={e => setNextVisit(e.target.value)}
+                        style={styles.webDateInput}
+                      />
+                    ) : (
+                      <>
+                        <Pressable
+                          style={styles.dateButton}
+                          onPress={() => setShowDatePicker(true)}
+                        >
+                          <Ionicons name="calendar-outline" size={20} color="#666" />
+                          <ThemedText style={styles.dateButtonText}>
+                            {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+                          </ThemedText>
+                          <Ionicons name="chevron-down" size={20} color="#666" />
+                        </Pressable>
+                        {showDatePicker && (
+                          <DateTimePicker
+                            value={nextVisit ? parseISO(nextVisit) : new Date()}
+                            mode="date"
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                            minimumDate={new Date()}
+                            onChange={(event, selectedDate) => {
+                              console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
+                              
+                              if (Platform.OS === 'android') {
+                                setShowDatePicker(false);
+                                if (selectedDate) {
+                                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                                  console.log('Android: Setting nextVisit to:', formattedDate);
+                                  setNextVisit(formattedDate);
+                                }
+                              } else {
+                                if (event.type === 'set' && selectedDate) {
+                                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                                  console.log('iOS: Setting nextVisit to:', formattedDate);
+                                  setNextVisit(formattedDate);
+                                }
+                                if (event.type === 'dismissed') {
+                                  setShowDatePicker(false);
+                                }
+                              }
+                            }}
+                          />
+                        )}
+                      </>
+                    )}
+                    <ThemedText style={styles.helperText}>
+                      Setting a schedule will regenerate future jobs for this customer
+                    </ThemedText>
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Modal Footer */}
+          <View style={styles.modalFooter}>
+            <Pressable style={styles.cancelButton} onPress={handleClose} disabled={updating}>
+              <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
+            </Pressable>
+            <Pressable 
+              style={[styles.saveButton, updating && styles.saveButtonDisabled]} 
+              onPress={handleSave} 
+              disabled={updating}
+            >
+              {updating ? (
+                <>
+                  <ThemedText style={styles.saveButtonText}>Updating...</ThemedText>
+                </>
+              ) : (
+                <>
+                  <Ionicons name="checkmark" size={20} color="#fff" />
+                  <ThemedText style={styles.saveButtonText}>Save Changes</ThemedText>
+                </>
+              )}
+            </Pressable>
+          </View>
+        </View>
       </View>
-    </ThemedView>
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  // Modal styles
+  modalOverlay: {
     flex: 1,
-    padding: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
   },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 600,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  
+  // Header styles
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  headerContent: {
+    flex: 1,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  customerAddress: {
+    fontSize: 16,
+    color: '#666',
+  },
+  closeButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+  },
+  
+  // Tab styles
   tabContainer: {
     flexDirection: 'row',
-    marginVertical: 20,
-    borderRadius: 8,
-    backgroundColor: '#f0f0f0',
+    margin: 20,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 12,
     padding: 4,
   },
   tab: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 6,
-    alignItems: 'center',
+    borderRadius: 8,
   },
   activeTab: {
     backgroundColor: '#007AFF',
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  tabIcon: {
+    marginRight: 8,
   },
   tabText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
     color: '#666',
   },
   activeTabText: {
     color: '#fff',
   },
-  scrollView: {
+  
+  // Body styles
+  modalBody: {
     flex: 1,
+    paddingHorizontal: 24,
   },
   section: {
     paddingBottom: 20,
   },
-  label: {
-    fontSize: 16,
+  sectionGroup: {
+    marginBottom: 32,
+  },
+  sectionTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
-    marginTop: 20,
-    marginBottom: 4,
+    color: '#333',
+    marginBottom: 16,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  
+  // Input styles
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 12,
-    marginVertical: 8,
+    borderColor: '#ddd',
     borderRadius: 8,
+    padding: 14,
     fontSize: 16,
+    backgroundColor: '#f9f9f9',
+    color: '#333',
   },
-  readOnlyText: {
-    fontSize: 16,
-    padding: 12,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 8,
-    marginVertical: 8,
+  legacyInput: {
+    backgroundColor: '#f0f0f0',
     color: '#666',
   },
-  picker: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    marginVertical: 8,
+  helperText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 6,
+    fontStyle: 'italic',
   },
+  
+  // Special input styles
   roundOrderButton: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 8,
+    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 10,
+    backgroundColor: '#f0f8ff',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    padding: 14,
+    gap: 12,
   },
   roundOrderButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+    flex: 1,
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
-  buttonContainer: {
-    paddingTop: 20,
+  
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 14,
+    gap: 12,
+  },
+  dateButtonText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
+  webDateInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 14,
+    fontSize: 16,
+    backgroundColor: '#f9f9f9',
+    color: '#333',
+  },
+  
+  // Summary styles
+  summaryCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#666',
+    width: 80,
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+  },
+  
+  // Footer styles
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    padding: 24,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    backgroundColor: '#f8f9fa',
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+  },
+  cancelButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+  },
+  saveButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    gap: 8,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#999',
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  
+  // Loading styles
+  loadingContainer: {
+    padding: 40,
+    alignItems: 'center',
   },
   loadingText: {
-    textAlign: 'center',
-    marginTop: 16,
+    fontSize: 16,
     color: '#666',
-    fontStyle: 'italic',
   },
 }); 
