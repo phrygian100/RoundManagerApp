@@ -1,3 +1,15 @@
+Implemented fully functional contact form submission system for marketing website.
+
+- Created Firebase Function `submitContactForm` to handle contact form submissions via Resend email service.
+- Added React form state management and Firebase client integration to `/contact` page.
+- Configured email delivery to support@guvnor.app with formatted HTML templates including sender details and message content.
+- Added comprehensive form validation, loading states, success/error feedback, and disabled states during submission.
+- Updated web package.json to include Firebase v11.1.0 dependency for client-side integration.
+- Contact form now properly categorizes submissions by subject (Demo, Support, Pricing, Partnership, General).
+- Email templates include professional formatting with contact information, message content, and timestamp.
+- Form resets on successful submission and shows appropriate user feedback messages.
+- Email addresses (support@guvnor.app, sales@guvnor.app) are configured with Zoho.com email hosting - inbox access via Zoho webmail.
+
 Updated About Us page "Our Story" section with new company background text.
 
 - Replaced generic cleaning business messaging with specific window cleaning company origin story.

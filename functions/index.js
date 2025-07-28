@@ -1027,3 +1027,85 @@ exports.createCustomerPortalSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }
     }
   }
 });
+
+// Contact form submission function
+exports.submitContactForm = onCall(async (request) => {
+  console.log('submitContactForm called with:', request.data);
+  
+  const { firstName, lastName, email, phone, company, subject, message } = request.data;
+  
+  // Validate required fields
+  if (!firstName || !lastName || !email || !subject || !message) {
+    throw new HttpsError('invalid-argument', 'Missing required fields: firstName, lastName, email, subject, and message are required.');
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new HttpsError('invalid-argument', 'Invalid email address format.');
+  }
+  
+  const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
+  if (!apiKey) {
+    console.error('No Resend API key found in environment!');
+    throw new HttpsError('internal', 'Email service configuration error.');
+  }
+  
+  const resend = new Resend(apiKey);
+  
+  // Format the subject for better categorization
+  const subjectMap = {
+    'demo': 'Demo Request',
+    'support': 'Technical Support',
+    'pricing': 'Pricing Question',
+    'partnership': 'Partnership Inquiry',
+    'general': 'General Question'
+  };
+  
+  const formattedSubject = subjectMap[subject] || 'Contact Form Submission';
+  
+  try {
+    // Send email to support
+    const { error } = await resend.emails.send({
+      from: 'noreply@guvnor.app',
+      to: 'support@guvnor.app',
+      subject: `[Contact Form] ${formattedSubject} - ${firstName} ${lastName}`,
+      html: `
+        <h2>New Contact Form Submission</h2>
+        <div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin: 20px 0;">
+          <h3>Contact Information</h3>
+          <p><strong>Name:</strong> ${firstName} ${lastName}</p>
+          <p><strong>Email:</strong> <a href="mailto:${email}">${email}</a></p>
+          <p><strong>Phone:</strong> ${phone || 'Not provided'}</p>
+          <p><strong>Business:</strong> ${company || 'Not provided'}</p>
+          <p><strong>Subject:</strong> ${formattedSubject}</p>
+        </div>
+        
+        <h3>Message</h3>
+        <div style="background: #fff; padding: 15px; border-left: 4px solid #007AFF; margin: 20px 0;">
+          <p style="white-space: pre-wrap;">${message}</p>
+        </div>
+        
+        <hr style="margin: 30px 0;">
+        <p style="font-size: 12px; color: #666;">
+          This message was sent via the Guvnor contact form at ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })} GMT.
+        </p>
+      `,
+    });
+    
+    if (error) {
+      console.error('Resend error:', error);
+      throw error;
+    }
+    
+    console.log('Contact form email sent successfully');
+    return { 
+      success: true, 
+      message: 'Your message has been sent successfully. We\'ll get back to you within 24 hours during business days.' 
+    };
+    
+  } catch (err) {
+    console.error('Contact form submission error:', err);
+    throw new HttpsError('internal', 'Failed to send your message. Please try again or contact us directly at support@guvnor.app');
+  }
+});

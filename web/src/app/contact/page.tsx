@@ -1,7 +1,92 @@
+'use client';
+
+import { getApp } from "firebase/app";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import Image from "next/image";
 import Link from "next/link";
+import { useState } from "react";
+
+// Import existing Firebase configuration
+import "../../../lib/firebaseClient";
+
+// Get Firebase app instance with error handling
+let app: any = null;
+let functions: any = null;
+
+try {
+  app = getApp();
+  functions = getFunctions(app);
+  console.log('✅ Firebase initialized successfully');
+} catch (error) {
+  console.error('❌ Firebase initialization failed:', error);
+  console.error('💡 Make sure these environment variables are set in web/.env.development.local:');
+  console.error('- NEXT_PUBLIC_FIREBASE_API_KEY');
+  console.error('- NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'); 
+  console.error('- NEXT_PUBLIC_FIREBASE_PROJECT_ID');
+  console.error('- NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET');
+  console.error('- NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID');
+  console.error('- NEXT_PUBLIC_FIREBASE_APP_ID');
+}
 
 export default function ContactPage() {
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    company: '',
+    subject: '',
+    message: ''
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [submitMessage, setSubmitMessage] = useState('');
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('🚀 Form submission started', formData);
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+
+    try {
+      if (!functions) {
+        throw new Error('Firebase is not properly configured. Check console for details.');
+      }
+      
+      console.log('📞 Calling submitContactForm function...');
+      const submitContactForm = httpsCallable(functions, 'submitContactForm');
+      const result = await submitContactForm(formData);
+      console.log('✅ Function call successful', result);
+      
+      setSubmitStatus('success');
+      setSubmitMessage((result.data as any).message || 'Thank you for your message! We\'ll get back to you soon.');
+      
+      // Clear form on success
+      setFormData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        company: '',
+        subject: '',
+        message: ''
+      });
+    } catch (error: any) {
+      console.error('Contact form submission error:', error);
+      setSubmitStatus('error');
+      setSubmitMessage(error.message || 'Failed to send your message. Please try again or contact us directly at support@guvnor.app');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
   return (
     <div className="min-h-screen bg-white">
       {/* Navigation */}
@@ -62,7 +147,30 @@ export default function ContactPage() {
             {/* Contact Form */}
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a message</h2>
-              <form className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Success/Error Messages */}
+                {submitStatus === 'success' && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <div className="flex">
+                      <svg className="w-5 h-5 text-green-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <p className="text-green-700">{submitMessage}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {submitStatus === 'error' && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex">
+                      <svg className="w-5 h-5 text-red-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <p className="text-red-700">{submitMessage}</p>
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
@@ -72,8 +180,11 @@ export default function ContactPage() {
                       type="text"
                       id="firstName"
                       name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isSubmitting}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -84,8 +195,11 @@ export default function ContactPage() {
                       type="text"
                       id="lastName"
                       name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
                       required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={isSubmitting}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -98,8 +212,11 @@ export default function ContactPage() {
                     type="email"
                     id="email"
                     name="email"
+                    value={formData.email}
+                    onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 
@@ -111,7 +228,10 @@ export default function ContactPage() {
                     type="tel"
                     id="phone"
                     name="phone"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.phone}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 
@@ -123,7 +243,10 @@ export default function ContactPage() {
                     type="text"
                     id="company"
                     name="company"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   />
                 </div>
                 
@@ -134,8 +257,11 @@ export default function ContactPage() {
                   <select
                     id="subject"
                     name="subject"
+                    value={formData.subject}
+                    onChange={handleInputChange}
                     required
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">Select a topic</option>
                     <option value="demo">Request a Demo</option>
@@ -154,17 +280,31 @@ export default function ContactPage() {
                     id="message"
                     name="message"
                     rows={5}
+                    value={formData.message}
+                    onChange={handleInputChange}
                     required
+                    disabled={isSubmitting}
                     placeholder="Tell us about your cleaning business and how we can help..."
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   ></textarea>
                 </div>
                 
                 <button
                   type="submit"
-                  className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-3 rounded-lg font-semibold transition-colors"
+                  disabled={isSubmitting}
+                  className="w-full bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed px-6 py-3 rounded-lg font-semibold transition-colors"
                 >
-                  Send Message
+                  {isSubmitting ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Sending...
+                    </span>
+                  ) : (
+                    'Send Message'
+                  )}
                 </button>
                 
                 <p className="text-sm text-gray-500">
