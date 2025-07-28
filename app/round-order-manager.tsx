@@ -326,7 +326,14 @@ export default function RoundOrderManagerScreen() {
       let displayText = '';
       
       if (pos === selectedPosition) {
-        displayText = 'NEW CLIENT';
+        if (activeClient && editingClientId) {
+          // Edit mode - show the client being edited
+          const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
+          displayText = addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
+        } else {
+          // Create mode - show NEW CLIENT
+          displayText = 'NEW CLIENT';
+        }
       } else if (pos > selectedPosition) {
         // Show clients that will be at this position after NEW CLIENT is inserted
         // Find client that will be at position (pos - 1) in the current array
@@ -490,11 +497,22 @@ export default function RoundOrderManagerScreen() {
     label: `${index + 1}. ${client.name || 'Unnamed Client'}`,
   }));
 
-  // Add the "NEW CLIENT" option at the selected position
+  // Add the client being positioned at the selected position
   const wheelPickerDataWithNewClient = [...wheelPickerData];
+  let insertLabel = '';
+  if (activeClient && editingClientId) {
+    // Edit mode - show the client being edited
+    const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
+    insertLabel = `${selectedPosition}. ${address}`;
+  } else {
+    // Create mode - show NEW CLIENT
+    insertLabel = `${selectedPosition}. NEW CLIENT`;
+  }
+  
   wheelPickerDataWithNewClient.splice(selectedPosition - 1, 0, {
     value: selectedPosition,
-    label: `${selectedPosition}. NEW CLIENT`,
+    label: insertLabel,
   });
 
   if (loading) {
@@ -525,7 +543,13 @@ export default function RoundOrderManagerScreen() {
                 <View style={styles.mobilePickerHighlight} pointerEvents="none">
                   <ThemedText style={styles.mobileHighlightPositionText}>{selectedPosition}</ThemedText>
                   <ThemedText style={styles.mobileHighlightClientText}>
-                    {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+                    {activeClient && editingClientId ? 
+                      (() => {
+                        const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
+                        return addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
+                      })() :
+                      activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`
+                    }
                   </ThemedText>
                 </View>
               </View>
@@ -573,7 +597,13 @@ export default function RoundOrderManagerScreen() {
                 <View style={styles.pickerHighlight} pointerEvents="none">
                   <ThemedText style={styles.highlightPositionText}>{selectedPosition}</ThemedText>
                   <ThemedText style={styles.highlightClientText}>
-                    {activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`}
+                    {activeClient && editingClientId ? 
+                      (() => {
+                        const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
+                        return addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
+                      })() :
+                      activeClient ? 'NEW CLIENT' : `Position ${selectedPosition}`
+                    }
                   </ThemedText>
                 </View>
               </View>
