@@ -17,3 +17,10 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Modified width/height attributes to match new dimensions: nav logos (180x60), footer logos (150x50)
 - Changes applied to: home, about, contact, pricing, terms, and privacy-policy pages
 - Logo is now appropriately sized and more prominent in the marketing site interface 
+
+## Login Page Logo Size Update
+
+- Increased the logo size on the main login page for better brand visibility.
+- Navigation logo increased from 120x32 to 150x40.
+- Login form logo increased from 160x64 to 200x80.
+- Footer logo increased from 120x32 to 150x40. 

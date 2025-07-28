@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 120,
-    height: 32,
+    width: 150,
+    height: 40,
   },
   navLinks: {
     flexDirection: 'row',
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 160,
-    height: 64,
+    width: 200,
+    height: 80,
     marginBottom: 16,
   },
   formTitle: {
@@ -554,8 +554,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   footerLogo: {
-    width: 120,
-    height: 32,
+    width: 150,
+    height: 40,
     marginBottom: 16,
     ...Platform.select({
       web: {
