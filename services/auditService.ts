@@ -1,10 +1,46 @@
 import { getAuth } from 'firebase/auth';
-import { addDoc, collection, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, collectionGroup, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId, getUserSession } from '../core/session';
 import type { AuditActionType, AuditEntityType, AuditLog } from '../types/audit';
 
 const AUDIT_COLLECTION = 'auditLogs';
+
+/**
+ * Fallback function to determine owner ID when getUserSession/getDataOwnerId fails
+ * This helps ensure audit logging works even when session setup is incomplete
+ */
+async function fallbackGetDataOwnerId(userUid: string): Promise<string | null> {
+  try {
+    console.warn('🔄 Attempting fallback owner ID resolution for user:', userUid);
+    
+    // Try to find member record in any account
+    const memberQuery = query(
+      collectionGroup(db, 'members'),
+      where('uid', '==', userUid),
+      where('status', '==', 'active'),
+      limit(1)
+    );
+    
+    const memberSnapshot = await getDocs(memberQuery);
+    
+    if (!memberSnapshot.empty) {
+      const memberDoc = memberSnapshot.docs[0];
+      const accountId = memberDoc.ref.parent.parent?.id;
+      if (accountId) {
+        console.warn('✅ Fallback successful: Found member record, using accountId:', accountId);
+        return accountId;
+      }
+    }
+    
+    // If no member record found, assume they're an owner of their own account
+    console.warn('⚠️ Fallback: No member record found, assuming user is owner of their own account');
+    return userUid;
+  } catch (error) {
+    console.error('❌ Fallback getDataOwnerId failed:', error);
+    return null;
+  }
+}
 
 /**
  * Log an action performed by a member
@@ -23,12 +59,35 @@ export async function logAction(
     
     if (!session || !currentUser) {
       console.warn('Cannot log audit action: no authenticated user session');
+      console.warn('Session details:', { hasSession: !!session, hasCurrentUser: !!currentUser, userUid: currentUser?.uid });
       return;
     }
 
-    const ownerId = await getDataOwnerId();
+    let ownerId = await getDataOwnerId();
+    
+    // Enhanced error handling: Try fallback if primary method fails
+    if (!ownerId && session?.uid) {
+      console.warn('⚠️ getDataOwnerId() returned null, attempting fallback resolution...');
+      console.warn('Session info:', { 
+        uid: session.uid, 
+        accountId: session.accountId, 
+        isOwner: session.isOwner,
+        hasPerms: !!session.perms 
+      });
+      
+      ownerId = await fallbackGetDataOwnerId(session.uid);
+    }
+    
     if (!ownerId) {
-      console.warn('Cannot log audit action: no owner ID found');
+      console.error('❌ Cannot log audit action: no owner ID found after all attempts');
+      console.error('Debug info:', { 
+        sessionUid: session?.uid,
+        sessionAccountId: session?.accountId,
+        sessionIsOwner: session?.isOwner,
+        actionType,
+        entityType,
+        entityId 
+      });
       return;
     }
 
@@ -49,10 +108,18 @@ export async function logAction(
     }
 
     await addDoc(collection(db, AUDIT_COLLECTION), auditLog);
-    console.log(`✅ Audit logged: ${actionType} - ${description}`);
+    console.log(`✅ Audit logged: ${actionType} - ${description} (ownerId: ${ownerId})`);
   } catch (error) {
-    // Don't let audit logging failure break the main operation
-    console.error('Failed to log audit action:', error);
+    // Enhanced error logging with context
+    console.error('❌ Failed to log audit action:', error);
+    console.error('Context:', { 
+      actionType, 
+      entityType, 
+      entityId, 
+      description,
+      userUid: getAuth().currentUser?.uid,
+      timestamp: new Date().toISOString()
+    });
   }
 }
 
@@ -196,4 +263,4 @@ export function getClientAddress(client: { address?: string; address1?: string; 
   
   // Fallback if no address available
   return 'Address not available';
-} 
+}
