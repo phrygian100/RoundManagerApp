@@ -323,8 +323,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 225,
-    height: 60,
+    width: 675,
+    height: 180,
   },
   navLinks: {
     flexDirection: 'row',
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 380,
-    height: 152,
+    width: 760,
+    height: 304,
     marginBottom: 16,
   },
   formTitle: {
