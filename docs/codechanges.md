@@ -18,4 +18,12 @@ Improved Round Order Manager UI by removing awkward blue overlay highlights.
 - Removed overlay highlight divs (`pickerHighlight` and `mobilePickerHighlight`) that appeared on top of list items.
 - Added new styling (`selectedClientItem`, `selectedPositionText`, `selectedAddressText`) to make the selected list item blue and bold.
 - Updated both desktop and mobile rendering functions to apply selected styling directly to the item being moved.
-- Cleaner visual appearance with the selected item having a light blue background, blue border, and bold blue text. 
+- Cleaner visual appearance with the selected item having a light blue background, blue border, and bold blue text.
+
+Added long press functionality for mobile browsers in Round Order Manager.
+
+- Added long press detection for mobile navigation buttons (up/down arrows) using `onPressIn` and `onPressOut` events.
+- Long press behavior mimics holding arrow keys on desktop - starts after 500ms delay, then repeats action every 100ms.
+- Only enabled for mobile browsers (detected via `isMobileBrowser()` function) to avoid interfering with native mobile app.
+- Added proper cleanup of timers on component unmount to prevent memory leaks.
+- Greatly reduces tedium when moving clients through many positions in the round order. 

@@ -36,6 +36,8 @@ export default function RoundOrderManagerScreen() {
   const [selectedPosition, setSelectedPosition] = useState(1);
   const [activeClient, setActiveClient] = useState<Client | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const longPressInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const longPressTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const loadClients = async () => {
@@ -443,6 +445,38 @@ export default function RoundOrderManagerScreen() {
     handlePositionChange(newPosition);
   };
 
+  // Long press functionality for mobile browsers
+  const startLongPress = (direction: 'up' | 'down') => {
+    // Only enable for mobile browsers
+    if (Platform.OS !== 'web' || !isMobileBrowser()) return;
+    
+    // Clear any existing timers
+    stopLongPress();
+    
+    // Start long press after 500ms delay
+    longPressTimeout.current = setTimeout(() => {
+      // Start repeating the action every 100ms
+      longPressInterval.current = setInterval(() => {
+        if (direction === 'up') {
+          moveUp();
+        } else {
+          moveDown();
+        }
+      }, 100);
+    }, 500);
+  };
+
+  const stopLongPress = () => {
+    if (longPressTimeout.current) {
+      clearTimeout(longPressTimeout.current);
+      longPressTimeout.current = null;
+    }
+    if (longPressInterval.current) {
+      clearInterval(longPressInterval.current);
+      longPressInterval.current = null;
+    }
+  };
+
   // Navigation functions
   const moveUp = () => {
     console.log('Moving up from position:', selectedPosition);
@@ -450,6 +484,9 @@ export default function RoundOrderManagerScreen() {
     const clampedPosition = Math.max(1, newPosition);
     if (clampedPosition !== selectedPosition) {
       handlePositionChange(clampedPosition);
+    } else {
+      // Stop long press if we've reached the boundary
+      stopLongPress();
     }
   };
 
@@ -460,6 +497,9 @@ export default function RoundOrderManagerScreen() {
     const clampedPosition = Math.min(maxPosition, newPosition);
     if (clampedPosition !== selectedPosition) {
       handlePositionChange(clampedPosition);
+    } else {
+      // Stop long press if we've reached the boundary
+      stopLongPress();
     }
   };
 
@@ -493,6 +533,13 @@ export default function RoundOrderManagerScreen() {
       }
     }
   }, [selectedPosition, clients.length]);
+
+  // Cleanup long press timers on unmount
+  useEffect(() => {
+    return () => {
+      stopLongPress();
+    };
+  }, []);
 
   // Create wheel picker data
   const wheelPickerData = clients.map((client, index) => ({
@@ -550,6 +597,8 @@ export default function RoundOrderManagerScreen() {
                 <Pressable 
                   style={[styles.mobileNavButton, selectedPosition <= 1 && styles.mobileNavButtonDisabled]}
                   onPress={moveUp}
+                  onPressIn={() => startLongPress('up')}
+                  onPressOut={stopLongPress}
                   disabled={selectedPosition <= 1}
                 >
                   <ThemedText style={styles.mobileNavButtonText}>▲</ThemedText>
@@ -562,6 +611,8 @@ export default function RoundOrderManagerScreen() {
                 <Pressable 
                   style={[styles.mobileNavButton, selectedPosition >= clients.length + 1 && styles.mobileNavButtonDisabled]}
                   onPress={moveDown}
+                  onPressIn={() => startLongPress('down')}
+                  onPressOut={stopLongPress}
                   disabled={selectedPosition >= clients.length + 1}
                 >
                   <ThemedText style={styles.mobileNavButtonText}>▼</ThemedText>
