@@ -21,6 +21,6 @@ Increased logo sizes across all marketing website pages for better visibility an
 ## Login Page Logo Size Update
 
 - Increased the logo size on the main login page for better brand visibility.
-- Navigation logo increased from 120x32 to 150x40.
-- Login form logo increased from 160x64 to 200x80.
-- Footer logo increased from 120x32 to 150x40. 
+- Navigation logo increased from 150x40 to 225x60.
+- Login form logo increased from 200x80 to 380x152.
+- Footer logo increased from 150x40 to 200x53. 
