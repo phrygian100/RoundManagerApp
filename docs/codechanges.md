@@ -91,9 +91,10 @@ Completely redesigned New Quote modal with modern styling and improved user expe
 - Added proper visual feedback for form interactions and improved accessibility.
 - Follows the same design language as edit customer modal with consistent colors and spacing patterns.
 
-Fixed calendar date picker z-index layering issue in New Quote modal.
+Fixed calendar date picker positioning issue in New Quote modal.
 
-- Increased z-index of `webDatePickerContainer` from 1000 to 9999 to ensure calendar appears above all modal content.
-- Increased elevation from 8 to 15 for better visual separation on Android devices.
-- Resolved issue where calendar widget was appearing behind other UI elements when creating a new quote.
-- Calendar now properly displays above the modal content without being obscured by other elements. 
+- Moved web date picker from inline positioning to overlay approach to prevent it being covered by subsequent form elements.
+- Created new `webDatePickerOverlay` that covers the entire modal with semi-transparent background.
+- Repositioned `webDatePickerContainer` to be centered in the overlay rather than absolutely positioned relative to input group.
+- Resolved issue where calendar widget was appearing behind "Lead Source" and "Additional Notes" form fields.
+- Calendar now properly displays above all modal content in a centered overlay when date field is clicked. 

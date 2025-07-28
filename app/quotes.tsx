@@ -575,43 +575,21 @@ export default function QuotesScreen() {
                     </Text>
                     <Ionicons name="chevron-down" size={20} color="#666" />
                   </Pressable>
-                  {showDatePicker && (
-                    Platform.OS === 'web' && DatePicker ? (
-                      <View style={styles.webDatePickerContainer}>
-                        <DatePicker
-                          selected={webDate}
-                          onChange={(date: Date | null) => {
-                            if (date) {
-                              const yyyy = date.getFullYear();
-                              const mm = String(date.getMonth() + 1).padStart(2, '0');
-                              const dd = String(date.getDate()).padStart(2, '0');
-                              setForm(f => ({ ...f, date: `${yyyy}-${mm}-${dd}` }));
-                              setWebDate(date);
-                            }
-                            setShowDatePicker(false);
-                          }}
-                          inline
-                        />
-                        <Pressable style={styles.cancelDateButton} onPress={() => setShowDatePicker(false)}>
-                          <Text style={styles.cancelDateText}>Cancel</Text>
-                        </Pressable>
-                      </View>
-                    ) : (
-                      <DateTimePicker
-                        value={form.date ? new Date(form.date) : new Date()}
-                        mode="date"
-                        display="default"
-                        onChange={(_event, selectedDate) => {
-                          if (selectedDate) {
-                            const yyyy = selectedDate.getFullYear();
-                            const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                            const dd = String(selectedDate.getDate()).padStart(2, '0');
-                            setForm(f => ({ ...f, date: `${yyyy}-${mm}-${dd}` }));
-                          }
-                          setShowDatePicker(false);
-                        }}
-                      />
-                    )
+                  {showDatePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={form.date ? new Date(form.date) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(_event, selectedDate) => {
+                        if (selectedDate) {
+                          const yyyy = selectedDate.getFullYear();
+                          const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                          const dd = String(selectedDate.getDate()).padStart(2, '0');
+                          setForm(f => ({ ...f, date: `${yyyy}-${mm}-${dd}` }));
+                        }
+                        setShowDatePicker(false);
+                      }}
+                    />
                   )}
                 </View>
 
@@ -658,6 +636,31 @@ export default function QuotesScreen() {
                 </View>
               </View>
             </ScrollView>
+
+            {/* Web Date Picker Overlay */}
+            {showDatePicker && Platform.OS === 'web' && DatePicker && (
+              <View style={styles.webDatePickerOverlay}>
+                <View style={styles.webDatePickerContainer}>
+                  <DatePicker
+                    selected={webDate}
+                    onChange={(date: Date | null) => {
+                      if (date) {
+                        const yyyy = date.getFullYear();
+                        const mm = String(date.getMonth() + 1).padStart(2, '0');
+                        const dd = String(date.getDate()).padStart(2, '0');
+                        setForm(f => ({ ...f, date: `${yyyy}-${mm}-${dd}` }));
+                        setWebDate(date);
+                      }
+                      setShowDatePicker(false);
+                    }}
+                    inline
+                  />
+                  <Pressable style={styles.cancelDateButton} onPress={() => setShowDatePicker(false)}>
+                    <Text style={styles.cancelDateText}>Cancel</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
 
             {/* Modal Footer */}
             <View style={styles.modalFooter}>
@@ -874,12 +877,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
-  webDatePickerContainer: {
+  webDatePickerOverlay: {
     position: 'absolute',
-    top: 60,
+    top: 0,
     left: 0,
     right: 0,
+    bottom: 0,
     zIndex: 9999,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  webDatePickerContainer: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
@@ -889,6 +898,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 15,
     alignItems: 'center',
+    maxWidth: 350,
+    width: '90%',
   },
   cancelDateButton: {
     marginTop: 12,
