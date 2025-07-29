@@ -140,7 +140,13 @@ export default function ClientDetailScreen() {
         // Pending jobs for schedule
         const pending = jobsSnapshot.docs
           .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
-          .filter(job => job.status !== 'completed');
+          .filter(job => job.status !== 'completed')
+          // Sort by scheduled date (earliest first)
+          .sort((a, b) => {
+            const dateA = new Date(a.scheduledTime || 0).getTime();
+            const dateB = new Date(b.scheduledTime || 0).getTime();
+            return dateA - dateB;
+          });
         setPendingJobs(pending);
       } catch (error) {
         console.error("Error fetching service history:", error);

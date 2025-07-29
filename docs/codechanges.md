@@ -61,3 +61,7 @@ Increased logo sizes across all marketing website pages for better visibility an
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 
+
+## Client Detail – Ordered Service Schedule
+
+- Pending (non-completed) jobs in the Service Schedule section of each client are now sorted by their `scheduledTime`, earliest first, so the soonest upcoming job appears at the top of the list. 
