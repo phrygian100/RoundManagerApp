@@ -208,8 +208,8 @@ export default function HomePage() {
               <Image
                 src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
-                width={150}
-                height={50}
+                width={112}
+                height={37}
                 className="w-auto"
               />
             </div>
