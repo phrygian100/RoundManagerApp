@@ -52,6 +52,12 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Fixed the missing logo issue on marketing pages by copying the inverted logo to the web app's public directory.
 - Removed the unnecessary `invert` filter from the marketing page footers.
 
+## Improved Footer Layout and Logo Sizing
+
+- Reorganized the footer layout for better visual balance: logo on the left, navigation links grouped on the right.
+- Resized the footer logo to a more appropriate size (150x50) for better proportions.
+- Changed from a 5-column grid to a flex layout with logo left and 4-column navigation grid on the right.
+
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 

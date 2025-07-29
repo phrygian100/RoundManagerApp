@@ -383,43 +383,45 @@ export default function TermsOfServicePage() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-5 gap-8">
+          <div className="flex flex-col md:flex-row justify-between gap-8">
             <div>
               <Image
                 src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
-                width={450}
-                height={150}
-                className="w-auto mb-4"
+                width={150}
+                height={50}
+                className="w-auto"
               />
             </div>
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
-                <li><Link href="/home" className="hover:text-white">Features</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/about" className="hover:text-white">About</Link></li>
-                <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/contact" className="hover:text-white">Help Center</Link></li>
-                <li><Link href="/" className="hover:text-white">Sign In</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-white">Terms of Service</Link></li>
-              </ul>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
+              <div>
+                <h4 className="font-semibold mb-4">Product</h4>
+                <ul className="space-y-2 text-gray-400">
+                  <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+                  <li><Link href="/home" className="hover:text-white">Features</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-4">Company</h4>
+                <ul className="space-y-2 text-gray-400">
+                  <li><Link href="/about" className="hover:text-white">About</Link></li>
+                  <li><Link href="/contact" className="hover:text-white">Contact</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-4">Support</h4>
+                <ul className="space-y-2 text-gray-400">
+                  <li><Link href="/contact" className="hover:text-white">Help Center</Link></li>
+                  <li><Link href="/" className="hover:text-white">Sign In</Link></li>
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-4">Legal</h4>
+                <ul className="space-y-2 text-gray-400">
+                  <li><Link href="/privacy-policy" className="hover:text-white">Privacy Policy</Link></li>
+                  <li><span className="text-gray-500">Terms of Service</span></li>
+                </ul>
+              </div>
             </div>
           </div>
           <div className="mt-8 border-t border-gray-800 pt-8 text-center text-gray-500">
