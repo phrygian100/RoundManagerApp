@@ -111,7 +111,7 @@ export default function LoginScreen() {
         <View style={styles.navContent}>
           <Pressable onPress={() => handleNavigation('/home')} style={styles.logoContainer}>
             <Image 
-              source={require('../assets/images/Logo - Service Platform.png')} 
+              source={require('../assets/images/logo_transparent.png')} 
               style={styles.navLogo}
               resizeMode="contain"
             />
@@ -152,7 +152,7 @@ export default function LoginScreen() {
         <View style={styles.loginCard}>
           <View style={styles.formHeader}>
             <Image 
-              source={require('../assets/images/Logo - Service Platform.png')} 
+              source={require('../assets/images/logo_transparent.png')} 
               style={styles.formLogo}
               resizeMode="contain"
             />
@@ -242,7 +242,7 @@ export default function LoginScreen() {
         <View style={styles.footerContent}>
           <View style={styles.footerSection}>
             <Image 
-              source={require('../assets/images/logo_colourInverted.png')} 
+              source={require('../assets/images/logo_transparent.png')} 
               style={styles.footerLogo}
               resizeMode="contain"
             />

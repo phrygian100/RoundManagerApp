@@ -10,7 +10,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
               <Image
-                src="/Logo - Service Platform.png"
+                src="/logo_transparent.png"
                 alt="Guvnor Logo"
                 width={288}
                 height={96}

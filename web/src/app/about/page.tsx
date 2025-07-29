@@ -11,7 +11,7 @@ export default function AboutPage() {
             <div className="flex items-center">
               <Link href="/home">
                 <Image
-                  src="/Logo - Service Platform.png"
+                  src="/logo_transparent.png"
                   alt="Guvnor Logo"
                   width={288}
                   height={96}
