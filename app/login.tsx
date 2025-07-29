@@ -552,8 +552,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLogo: {
-    width: 150,
-    height: 40,
+    width: 75,
+    height: 25,
     marginBottom: 16,
     ...Platform.select({
       web: {
