@@ -208,9 +208,9 @@ export default function HomePage() {
               <Image
                 src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
-                width={48}
-                height={16}
-                className="w-12"
+                width={96}
+                height={32}
+                className="w-24"
               />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
