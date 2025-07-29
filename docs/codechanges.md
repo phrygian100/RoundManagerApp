@@ -46,6 +46,12 @@ Increased logo sizes across all marketing website pages for better visibility an
 - Made the footer logo 3x larger for better visibility.
 - Removed the descriptive text "Streamline your cleaning business with intelligent management tools" from below the footer logo.
 
+## Centered Footer Logo and Fixed Missing Logo
+
+- Centered the logo in the footer of the login page for a more balanced layout.
+- Fixed the missing logo issue on marketing pages by copying the inverted logo to the web app's public directory.
+- Removed the unnecessary `invert` filter from the marketing page footers.
+
 ## Updated Copyright Year
 
 - Updated the copyright year from 2024 to 2025 in the footer of all marketing and login pages. 

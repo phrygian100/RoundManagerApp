@@ -390,7 +390,7 @@ export default function TermsOfServicePage() {
                 alt="Guvnor Logo"
                 width={450}
                 height={150}
-                className="w-auto mb-4 filter invert"
+                className="w-auto mb-4"
               />
             </div>
             <div>

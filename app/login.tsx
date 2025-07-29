@@ -549,6 +549,7 @@ const styles = StyleSheet.create({
   },
   footerSection: {
     flex: 1,
+    alignItems: 'center',
   },
   footerLogo: {
     width: 600,
