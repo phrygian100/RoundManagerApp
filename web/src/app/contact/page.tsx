@@ -166,9 +166,9 @@ export default function ContactPage() {
               <Image
                 src="/logo_colourInverted.png"
                 alt="Guvnor Logo"
-                width={75}
-                height={25}
-                className="w-auto"
+                width={48}
+                height={16}
+                className="w-12"
               />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
