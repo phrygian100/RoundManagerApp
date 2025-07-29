@@ -19,9 +19,9 @@ export default function PrivacyPolicyPage() {
                 <Image
                   src="/Logo - Service Platform.png"
                   alt="Guvnor Logo"
-                  width={180}
-                  height={60}
-                  className="h-12 w-auto"
+                  width={288}
+                  height={96}
+                  className="h-24 w-auto"
                 />
               </Link>
             </div>
