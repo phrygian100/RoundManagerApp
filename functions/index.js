@@ -10,6 +10,7 @@
 // const { onDocumentCreated } = require("firebase-functions/v2/firestore"); // Currently unused
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const admin = require("firebase-admin");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { Resend } = require("resend");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
@@ -26,6 +27,42 @@ if (!admin.apps.length) {
 // Configure CORS for Firebase v2 functions to allow custom domain
 setGlobalOptions({ 
   maxInstances: 10
+});
+
+// Default subscription tier assignment for new users
+const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
+exports.setDefaultSubscriptionTier = onDocumentCreated('users/{userId}', async (event) => {
+  const snapshot = event.data;
+  if (!snapshot) return;
+
+  const existingData = snapshot.data();
+  const userId = event.params.userId;
+
+  // If subscriptionTier already exists, exit early
+  if (existingData && existingData.subscriptionTier) {
+    return;
+  }
+
+  const updates = userId === DEVELOPER_UID
+    ? {
+        subscriptionTier: 'exempt',
+        subscriptionStatus: 'exempt',
+        clientLimit: null,
+        isExempt: true,
+      }
+    : {
+        subscriptionTier: 'free',
+        subscriptionStatus: 'active',
+        clientLimit: 20,
+        isExempt: false,
+      };
+
+  try {
+    await snapshot.ref.update(updates);
+    console.log(`Default subscription tier set for user ${userId}`);
+  } catch (err) {
+    console.error(`Failed to set default subscription tier for user ${userId}:`, err);
+  }
 });
 
 // Stripe will be initialized inside functions when needed

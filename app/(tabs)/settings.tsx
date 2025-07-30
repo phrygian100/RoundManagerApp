@@ -1,8 +1,8 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import { useRouter } from 'expo-router';
-import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { getAuth } from 'firebase/auth';
+import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -2075,41 +2075,6 @@ export default function SettingsScreen() {
             <ThemedText style={styles.errorText}>Unable to load subscription information</ThemedText>
           )}
           
-          {/* Migration button for owners only */}
-          {isOwner && (
-            <StyledButton
-              title="Initialize Subscription Tiers"
-              onPress={async () => {
-                Alert.alert(
-                  'Initialize Subscription System',
-                  'This will set up subscription tiers for all users. This should only be done once. Continue?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { 
-                      text: 'Initialize', 
-                      onPress: async () => {
-                        try {
-                          setLoading(true);
-                          const { migrateUsersToSubscriptions } = await import('../../services/subscriptionService');
-                          const result = await migrateUsersToSubscriptions();
-                          Alert.alert(
-                            'Migration Complete',
-                            `Updated ${result.updated} users to free tier, ${result.exempt} exempt accounts created, ${result.errors} errors occurred.`
-                          );
-                          await loadSubscription(); // Refresh subscription data
-                        } catch (error) {
-                          console.error('Migration error:', error);
-                          Alert.alert('Error', 'Failed to initialize subscription tiers.');
-                        } finally {
-                          setLoading(false);
-                        }
-                      }
-                    }
-                  ]
-                );
-              }}
-            />
-          )}
           
           {/* Upgrade button for free tier users */}
           {subscription && subscription.tier === 'free' && (
