@@ -569,6 +569,85 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleExportCompletedJobs = async () => {
+    try {
+      setLoading(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Authentication Error', 'Unable to determine account owner');
+        return;
+      }
+
+      const jobsSnapshot = await getDocs(
+        query(collection(db, 'jobs'), where('ownerId', '==', ownerId), where('status', '==', 'completed'))
+      );
+
+      if (jobsSnapshot.empty) {
+        showAlert('No Completed Jobs', 'You have no completed jobs to export.');
+        return;
+      }
+
+      // Preload all clients for account number mapping
+      const clientsSnapshot = await getDocs(
+        query(collection(db, 'clients'), where('ownerId', '==', ownerId))
+      );
+      const clientMap = new Map<string, any>();
+      clientsSnapshot.forEach((doc) => clientMap.set(doc.id, doc.data()));
+
+      const rows: any[] = [];
+      jobsSnapshot.forEach((docSnap) => {
+        const job: any = docSnap.data();
+        const clientData: any = clientMap.get(job.clientId) || {};
+        const accountNumber = clientData.accountNumber || '';
+        const date = job.scheduledTime ? job.scheduledTime.split('T')[0] : '';
+        rows.push({
+          'Account Number': accountNumber,
+          'Date': date,
+          'Amount (£)': job.price ?? '',
+        });
+      });
+
+      const csv = Papa.unparse(rows);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `completed-jobs-${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}completed-jobs-${Date.now()}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        try {
+          // @ts-ignore
+          const Sharing = await import('expo-sharing');
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'text/csv',
+              dialogTitle: 'Share Completed Jobs CSV',
+            });
+          } else {
+            showAlert('Exported', `CSV saved to ${fileUri}`);
+          }
+        } catch (_) {
+          showAlert('Exported', `CSV saved to ${fileUri}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting completed jobs:', error);
+      showAlert('Export Error', 'Failed to export completed jobs. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImport = async () => {
     if (Platform.OS === 'web') {
       // Use native file input for better browser compatibility
@@ -2221,6 +2300,11 @@ export default function SettingsScreen() {
           <StyledButton
             title="Export Clients"
             onPress={handleExportClients}
+            disabled={loading}
+          />
+          <StyledButton
+            title="Export Completed Jobs"
+            onPress={handleExportCompletedJobs}
             disabled={loading}
           />
         </View>

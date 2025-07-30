@@ -1,9 +1,10 @@
-### (Date: 2025-07-30) – Added Client CSV Export
+
+### (Date: 2025-07-30) – Added Completed Jobs CSV Export
 
 1. `app/(tabs)/settings.tsx`
-   • Added `handleExportClients` function: queries current owner’s clients, converts data to CSV (including runsheet notes, account notes, GoCardless flag and one-row-per-additional-service) and saves / shares the file.
-   • Injected dynamic import of `expo-sharing` to avoid build errors on platforms where the module is absent; uses `expo-file-system` for storage.
-   • Inserted “Export Data” section in UI with a new `Export Clients` button.
-   • Added `expo-file-system` import.
+   • Implemented `handleExportCompletedJobs` which exports all jobs with status `completed` into CSV (`Account Number`, `Date`, `Amount (£)`).
+   • Pre-fetches client data to map clientId → accountNumber.
+   • Shares / downloads the file similarly to client export, with dynamic import of `expo-sharing` for native platforms.
+   • Added “Export Completed Jobs” button in the Export section.
 
-No existing functionality was modified; the change is additive only.
+This is a purely additive change and does not alter existing behavior.
