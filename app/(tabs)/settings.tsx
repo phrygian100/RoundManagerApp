@@ -648,6 +648,92 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleExportPayments = async () => {
+    try {
+      setLoading(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Authentication Error', 'Unable to determine account owner');
+        return;
+      }
+
+      const paymentsSnapshot = await getDocs(
+        query(collection(db, 'payments'), where('ownerId', '==', ownerId))
+      );
+
+      if (paymentsSnapshot.empty) {
+        showAlert('No Payments', 'You have no payments to export.');
+        return;
+      }
+
+      // Preload clients for account number mapping
+      const clientsSnapshot = await getDocs(
+        query(collection(db, 'clients'), where('ownerId', '==', ownerId))
+      );
+      const clientMap = new Map<string, any>();
+      clientsSnapshot.forEach((doc) => clientMap.set(doc.id, doc.data()));
+
+      const rows: any[] = [];
+      paymentsSnapshot.forEach((docSnap) => {
+        const payment: any = docSnap.data();
+        const clientData: any = clientMap.get(payment.clientId) || {};
+        const accountNumber = clientData.accountNumber || '';
+        const date = payment.date || '';
+        let typeStr = payment.method || 'other';
+        // Normalize method to match import expectations (capitalize first letter)
+        typeStr = typeStr.replace('_', ' ');
+        typeStr = typeStr.charAt(0).toUpperCase() + typeStr.slice(1);
+
+        rows.push({
+          'Account Number': accountNumber,
+          'Date': date,
+          'Amount (£)': payment.amount ?? '',
+          'Type': typeStr,
+          'Notes': payment.notes || '',
+        });
+      });
+
+      const csv = Papa.unparse(rows);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `payments-${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}payments-${Date.now()}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        try {
+          // @ts-ignore
+          const Sharing = await import('expo-sharing');
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'text/csv',
+              dialogTitle: 'Share Payments CSV',
+            });
+          } else {
+            showAlert('Exported', `CSV saved to ${fileUri}`);
+          }
+        } catch (_) {
+          showAlert('Exported', `CSV saved to ${fileUri}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting payments:', error);
+      showAlert('Export Error', 'Failed to export payments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImport = async () => {
     if (Platform.OS === 'web') {
       // Use native file input for better browser compatibility
@@ -2295,7 +2381,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Export Data</ThemedText>
           <ThemedText style={styles.sectionDescription}>
-            Export your client list to a CSV file
+            Export your data to CSV files
           </ThemedText>
           <StyledButton
             title="Export Clients"
@@ -2305,6 +2391,11 @@ export default function SettingsScreen() {
           <StyledButton
             title="Export Completed Jobs"
             onPress={handleExportCompletedJobs}
+            disabled={loading}
+          />
+          <StyledButton
+            title="Export Payments"
+            onPress={handleExportPayments}
             disabled={loading}
           />
         </View>
