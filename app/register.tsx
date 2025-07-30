@@ -39,12 +39,18 @@ export default function RegisterScreen() {
       await sendEmailVerification(user);
 
       // Create a user document in Firestore
+      const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
       const userData: any = {
         id: user.uid,
         email: user.email,
         name: name.trim(),
         contactNumber: contactNumber.trim(),
         createdAt: new Date().toISOString(),
+        // Default subscription fields (also set by backend, but ensures immediate availability)
+        subscriptionTier: user.uid === DEVELOPER_UID ? 'exempt' : 'free',
+        subscriptionStatus: user.uid === DEVELOPER_UID ? 'exempt' : 'active',
+        clientLimit: user.uid === DEVELOPER_UID ? null : 20,
+        isExempt: user.uid === DEVELOPER_UID,
       };
 
       // Add address fields if provided
