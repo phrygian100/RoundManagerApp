@@ -68,6 +68,11 @@ export default function RunsheetWeekScreen() {
   // Day reset functionality
   const [resettingDay, setResettingDay] = useState<string | null>(null);
 
+  // Summary modal for day completion
+  const [summaryVisible, setSummaryVisible] = useState(false);
+  const [summaryTotal, setSummaryTotal] = useState(0);
+  const [summaryDDJobs, setSummaryDDJobs] = useState<(Job & { client: Client | null })[]>([]);
+
   // GoCardless payment modal
   const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
     visible: boolean;
@@ -1086,6 +1091,13 @@ www.tgmwindowcleaning.co.uk`;
 
       // Process GoCardless payments for completed jobs
       await processGoCardlessPayments(dayJobs, dayTitle);
+
+      // Prepare and show summary modal
+      const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
+      const ddJobs = dayJobs.filter(j => j.gocardlessEnabled && j.gocardlessCustomerId);
+      setSummaryTotal(totalValue);
+      setSummaryDDJobs(ddJobs as any);
+      setSummaryVisible(true);
     } catch (error) {
       console.error('Error completing day:', error);
       Alert.alert('Error', 'Failed to complete day. Please try again.');
@@ -1250,10 +1262,10 @@ www.tgmwindowcleaning.co.uk`;
           message += `\n\n${apiErrors.length} payment(s) failed: ${apiErrors.join(', ')}`;
         }
 
-        Alert.alert('Day Complete', message);
+        console.log('Day complete summary', message);
       } else {
         console.log('No GoCardless payments to process');
-        Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}`);
+        console.log('Day complete (no DD payments)');
       }
 
     } catch (error) {
@@ -1843,6 +1855,38 @@ www.tgmwindowcleaning.co.uk`;
             style={{ flex: 1 }}
             contentContainerStyle={{ flexGrow: 1 }}
           />
+        )}
+        {summaryVisible && (
+          <Modal
+            visible={summaryVisible}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setSummaryVisible(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.summaryBox}>
+                <Text style={styles.summaryTitle}>Day Complete Summary</Text>
+                <Text style={styles.summaryTotal}>Total value: £{summaryTotal.toFixed(2)}</Text>
+                {summaryDDJobs.length > 0 ? (
+                  <>
+                    <Text style={styles.summarySub}>Direct-Debit Jobs ({summaryDDJobs.length})</Text>
+                    <ScrollView style={{ maxHeight: 200, width: '100%' }}>
+                      {summaryDDJobs.map((job, idx) => (
+                        <Text key={idx} style={styles.summaryLine}>
+                          {(job.client?.name || 'Client')} — £{(job.price || 0).toFixed(2)}
+                        </Text>
+                      ))}
+                    </ScrollView>
+                  </>
+                ) : (
+                  <Text style={styles.summaryLine}>No direct-debit jobs today.</Text>
+                )}
+                <Pressable style={styles.summaryClose} onPress={() => setSummaryVisible(false)}>
+                  <Text style={styles.summaryCloseTxt}>Close</Text>
+                </Pressable>
+              </View>
+            </View>
+          </Modal>
         )}
         {showTimePicker && timePickerJob && (
           <TimePickerModal
@@ -2621,8 +2665,55 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   resetDayButtonDisabled: {
-    backgroundColor: '#ccc',
-    opacity: 0.7,
+  backgroundColor: '#ccc',
+  opacity: 0.7,
+  },
+  summaryBox: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '80%',
+    maxWidth: 350,
+    alignItems: 'center',
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  summaryTotal: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  summarySub: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 10,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+  },
+  summaryLine: {
+    fontSize: 14,
+    marginVertical: 2,
+    alignSelf: 'flex-start',
+  },
+  summaryClose: {
+    marginTop: 20,
+    backgroundColor: '#007AFF',
+    borderRadius: 6,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  summaryCloseTxt: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   resetDayButtonText: {
     color: '#fff',
@@ -2655,12 +2746,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 18,
     lineHeight: 20,
-  },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   notesModalContent: {
     backgroundColor: '#fff',
