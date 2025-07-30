@@ -1,5 +1,5 @@
 import { getAuth } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { collectionGroup, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
 import { db } from './firebase';
 
 export type UserSession = {
@@ -54,10 +54,33 @@ export async function getUserSession(): Promise<UserSession | null> {
       perms = {};
     }
   } else {
-    // Owner of their own account
+    // Owner of their own account OR potential legacy member without accountId
     isOwner = true;
     perms = userData.perms || { viewClients: true, viewRunsheet: true, viewPayments: false };
     accountId = user.uid;
+
+    // 🔄 Legacy fallback: if accountId equals user.uid we might be dealing with a historical member record
+    try {
+      const memberQuery = query(
+        collectionGroup(db, 'members'),
+        where('uid', '==', user.uid),
+        where('status', '==', 'active'),
+        limit(1)
+      );
+      const memberSnap = await getDocs(memberQuery);
+      if (!memberSnap.empty) {
+        const memberDoc = memberSnap.docs[0];
+        const legacyAccountId = memberDoc.ref.parent.parent?.id;
+        if (legacyAccountId) {
+          accountId = legacyAccountId;
+          const memberData = memberDoc.data() as MemberData;
+          isOwner = memberData.role === 'owner';
+          perms = memberData.perms || perms;
+        }
+      }
+    } catch (err) {
+      console.warn('⚠️ Fallback member record lookup failed:', err);
+    }
   }
 
   return {
