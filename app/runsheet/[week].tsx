@@ -9,7 +9,7 @@ import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platf
 import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
-import { getDataOwnerId } from '../../core/session';
+import { getDataOwnerId, getUserSession } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
 import { formatAuditDescription, logAction } from '../../services/auditService';
 import { GoCardlessService } from '../../services/gocardlessService';
@@ -75,6 +75,15 @@ export default function RunsheetWeekScreen() {
   }>({ visible: false, job: null });
 
   const router = useRouter();
+
+  // Owner check
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const session = await getUserSession();
+      setIsOwner(session?.isOwner ?? false);
+    })();
+  }, []);
 
   // Helper functions
   const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
@@ -523,7 +532,7 @@ export default function RunsheetWeekScreen() {
     );
     setLoading(false);
 
-    // Check if this was the last incomplete job for today
+    /* Removed: Auto prompt to complete day after last job
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
@@ -531,15 +540,8 @@ export default function RunsheetWeekScreen() {
       const allCompleted = todaySection.data.filter(j => !(j as any).__type && !isQuoteJob(j) && !isNoteJob(j)).every(job =>
         job.id === jobId ? !isCompleted : job.status === 'completed'
       );
-      if (allCompleted) {
-        Alert.alert(
-          'Mark Day Complete?',
-          'You have completed all jobs for today. Would you like to mark your day as complete?',
-          [
-            { text: 'No', style: 'cancel' },
-            { text: 'Yes', onPress: () => handleDayComplete(todaySection.title) },
-          ]
-        );
+
+
       }
     }
   };
@@ -1045,6 +1047,10 @@ www.tgmwindowcleaning.co.uk`;
   };
 
   const handleDayComplete = async (dayTitle: string) => {
+    if (!isOwner) {
+      Alert.alert('Permission denied', 'Only the account owner can mark a day complete.');
+      return;
+    }
     // Only include real jobs (exclude vehicle blocks, note jobs, quote jobs, or any without an id)
     const dayJobs = (sections.find(section => section.title === dayTitle)?.data || []).filter(job => job && job.id && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job));
     
@@ -1755,7 +1761,7 @@ www.tgmwindowcleaning.co.uk`;
             renderSectionHeader={({ section: { title, data } }) => {
               const dayIsPast = isDayInPast(title);
               const dayIsCompleted = completedDays.includes(title);
-              const showDayCompleteButton = isDayComplete(title) && !dayIsCompleted && !dayIsPast;
+              const showDayCompleteButton = isOwner && isDayComplete(title) && !dayIsCompleted && !dayIsPast;
 
               // Debug logging
               console.log(`Section header for ${title}:`, {
