@@ -2377,7 +2377,8 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* Export Section */}
+        {isOwner && (
+        <> {/* Export Section */}
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Export Data</ThemedText>
           <ThemedText style={styles.sectionDescription}>
@@ -2399,6 +2400,8 @@ export default function SettingsScreen() {
             disabled={loading}
           />
         </View>
+        </>
+        )}
 
         {/* Import Section */}
         <View style={styles.section}>
