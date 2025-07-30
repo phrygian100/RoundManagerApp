@@ -27,6 +27,10 @@ export type AuditActionType =
   | 'member_permissions_changed'
   | 'member_daily_rate_changed'
   | 'job_created'
+  | 'job_price_changed'
+  | 'job_deleted'
+  | 'job_completed'
+  | 'runsheet_note_added'
   | 'recurring_service_added'
   | 'gocardless_payments_processed';
 

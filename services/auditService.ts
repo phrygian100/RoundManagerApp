@@ -237,6 +237,14 @@ export function formatAuditDescription(
       return `Changed member daily rate${entityDisplay}`;
     case 'job_created':
       return `Added one-time job${entityDisplay}`;
+    case 'job_price_changed':
+      return `Changed job price${entityDisplay}`;
+    case 'job_deleted':
+      return `Deleted job${entityDisplay}`;
+    case 'job_completed':
+      return `Marked job complete${entityDisplay}`;
+    case 'runsheet_note_added':
+      return `Added note to runsheet${entityDisplay}`;
     case 'recurring_service_added':
       return `Added recurring service${entityDisplay}`;
     case 'gocardless_payments_processed':

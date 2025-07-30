@@ -537,6 +537,15 @@ export default function RunsheetWeekScreen() {
     );
     setLoading(false);
 
+    // 🔍 Audit log for marking job complete
+    if (!isCompleted) {
+      await logAction(
+        'job_completed',
+        'job',
+        jobId,
+        formatAuditDescription('job_completed')
+      );
+    }
 
     /* auto prompt removed */
   };
@@ -744,9 +753,17 @@ www.tgmwindowcleaning.co.uk`;
   const handleDeleteJob = (jobId: string) => {
     if (Platform.OS === 'web') {
       if (window.confirm('Are you sure you want to permanently delete this job?')) {
-        deleteDoc(doc(db, 'jobs', jobId)).then(() => {
+        deleteDoc(doc(db, 'jobs', jobId)).then(async () => {
           setJobs((prev) => prev.filter((job) => job.id !== jobId));
           setActionSheetJob(null);
+
+          // 🔍 Audit log for job deletion (web)
+          await logAction(
+            'job_deleted',
+            'job',
+            jobId,
+            formatAuditDescription('job_deleted')
+          );
         });
       }
     } else {
@@ -762,6 +779,14 @@ www.tgmwindowcleaning.co.uk`;
               await deleteDoc(doc(db, 'jobs', jobId));
               setJobs((prev) => prev.filter((job) => job.id !== jobId));
               setActionSheetJob(null);
+
+              // 🔍 Audit log for job deletion (mobile)
+              await logAction(
+                'job_deleted',
+                'job',
+                jobId,
+                formatAuditDescription('job_deleted')
+              );
             },
           },
         ]
@@ -850,6 +875,14 @@ www.tgmwindowcleaning.co.uk`;
         hasCustomPrice: true 
       });
 
+      // 🔍 Audit log for price change
+      await logAction(
+        'job_price_changed',
+        'job',
+        priceEditJob.id,
+        formatAuditDescription('job_price_changed', `${newPrice.toFixed(2)}`)
+      );
+
       // Update local state
       setJobs(prevJobs =>
         prevJobs.map(job =>
@@ -906,6 +939,14 @@ www.tgmwindowcleaning.co.uk`;
       // Create the note in Firestore and capture the real ID
       const docRef = await addDoc(collection(db, 'jobs'), noteJobData);
       const realJobId = docRef.id; // ✅ Capture real Firestore ID
+
+      // 🔍 Audit log for note addition
+      await logAction(
+        'runsheet_note_added',
+        'job',
+        realJobId,
+        formatAuditDescription('runsheet_note_added', addNoteText.trim())
+      );
       
       // Add the note job to the current jobs list immediately with real ID
       const noteJobWithClient = {
