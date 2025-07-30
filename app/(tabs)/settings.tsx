@@ -1,5 +1,6 @@
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { getAuth } from 'firebase/auth';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
@@ -449,6 +450,124 @@ export default function SettingsScreen() {
       })();
     }, [])
   );
+
+  const handleExportClients = async () => {
+    try {
+      setLoading(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        showAlert('Authentication Error', 'Unable to determine account owner');
+        return;
+      }
+
+      const clientsSnapshot = await getDocs(
+        query(collection(db, 'clients'), where('ownerId', '==', ownerId))
+      );
+
+      if (clientsSnapshot.empty) {
+        showAlert('No Clients', 'You have no clients to export.');
+        return;
+      }
+
+      const rows: any[] = [];
+
+      clientsSnapshot.forEach((docSnap) => {
+        const data: any = docSnap.data();
+
+        // Base row without additional service fields
+        const baseRow: any = {
+          'Name': data.name || '',
+          'Address Line 1': data.address1 || '',
+          'Town': data.town || '',
+          'Postcode': data.postcode || '',
+          'Email': data.email || '',
+          'Mobile Number': data.mobileNumber || '',
+          'Quote (£)': data.quote ?? '',
+          'Account Number': data.accountNumber || '',
+          'Round Order': data.roundOrderNumber ?? '',
+          'Visit Frequency': data.frequency ?? '',
+          'Next Visit': data.nextVisit || '',
+          'Starting Balance (£)': data.startingBalance ?? '',
+          'Status': data.status || '',
+          'Runsheet Notes': data.runsheetNotes || '',
+          'Account Notes': data.accountNotes
+            ? (data.accountNotes as any[])
+                .map((n) => `${n.date} - ${n.author}: ${n.text}`)
+                .join(' | ')
+            : data.notes || '',
+          'GoCardless Customer': data.gocardlessCustomerId ? 'Yes' : 'No',
+        };
+
+        const additionalServices: any[] = data.additionalServices || [];
+
+        if (additionalServices.length > 0) {
+          // One row per additional service
+          additionalServices.forEach((svc) => {
+            rows.push({
+              ...baseRow,
+              'Additional Service ID': svc.id,
+              'Additional Service Type': svc.serviceType,
+              'Additional Service Frequency': svc.frequency,
+              'Additional Service Price (£)': svc.price,
+              'Additional Service Next Visit': svc.nextVisit,
+              'Additional Service Active': svc.isActive ? 'Yes' : 'No',
+            });
+          });
+        } else {
+          // No additional services – push base row with blanks
+          rows.push({
+            ...baseRow,
+            'Additional Service ID': '',
+            'Additional Service Type': '',
+            'Additional Service Frequency': '',
+            'Additional Service Price (£)': '',
+            'Additional Service Next Visit': '',
+            'Additional Service Active': '',
+          });
+        }
+      });
+
+      const csv = Papa.unparse(rows);
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `clients-${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } else {
+        const fileUri = `${FileSystem.documentDirectory}clients-${Date.now()}.csv`;
+        await FileSystem.writeAsStringAsync(fileUri, csv, {
+          encoding: FileSystem.EncodingType.UTF8,
+        });
+
+        try {
+          // @ts-ignore
+          const Sharing = await import('expo-sharing');
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(fileUri, {
+              mimeType: 'text/csv',
+              dialogTitle: 'Share Clients CSV',
+            });
+          } else {
+            showAlert('Exported', `CSV saved to ${fileUri}`);
+          }
+        } catch (err) {
+          // expo-sharing might not be installed on some platforms
+          showAlert('Exported', `CSV saved to ${fileUri}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error exporting clients:', error);
+      showAlert('Export Error', 'Failed to export clients. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleImport = async () => {
     if (Platform.OS === 'web') {
@@ -2091,6 +2210,19 @@ export default function SettingsScreen() {
               onPress={handleManageBilling}
             />
           )}
+        </View>
+
+        {/* Export Section */}
+        <View style={styles.section}>
+          <ThemedText style={styles.sectionTitle}>Export Data</ThemedText>
+          <ThemedText style={styles.sectionDescription}>
+            Export your client list to a CSV file
+          </ThemedText>
+          <StyledButton
+            title="Export Clients"
+            onPress={handleExportClients}
+            disabled={loading}
+          />
         </View>
 
         {/* Import Section */}
