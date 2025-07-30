@@ -532,18 +532,8 @@ export default function RunsheetWeekScreen() {
     );
     setLoading(false);
 
-    /* Removed: Auto prompt to complete day after last job
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
-    if (todaySection) {
-      const allCompleted = todaySection.data.filter(j => !(j as any).__type && !isQuoteJob(j) && !isNoteJob(j)).every(job =>
-        job.id === jobId ? !isCompleted : job.status === 'completed'
-      );
 
-
-      }
-    }
+    /* auto prompt removed */
   };
 
   const handleDeferJob = (job: Job & { client: Client | null }) => {
