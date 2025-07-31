@@ -49,10 +49,10 @@ export default function FeatureTourPage() {
       <div className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-            Powerful Features for Your Cleaning Business
+            Powerful Tools for Window Cleaners
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Everything you need to manage your cleaning rounds efficiently. From smart scheduling to automated payments, 
+            Everything you need to manage your rounds efficiently. From smart scheduling to automated payments, 
             Guvnor has all the tools to grow your business.
           </p>
           <Link 
@@ -77,11 +77,11 @@ export default function FeatureTourPage() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                   </svg>
                 </div>
-                <h3 className="text-2xl font-bold text-gray-900 ml-4">Professional Quoting</h3>
+                <h3 className="text-2xl font-bold text-gray-900 ml-4">Professional Quoting Process</h3>
               </div>
               <p className="text-gray-600 mb-4">
-                Create professional quotes quickly and easily. Generate detailed estimates with itemized services, 
-                pricing breakdowns, and professional branding to win more customers.
+                Create and save quotes quickly and easily. Quotes become customer accounts effortlessly. 
+              
               </p>
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-center">
@@ -100,7 +100,7 @@ export default function FeatureTourPage() {
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Digital quote delivery
+                  Automatic client account generation
                 </li>
               </ul>
             </div>
@@ -116,15 +116,15 @@ export default function FeatureTourPage() {
                 <h3 className="text-2xl font-bold text-gray-900 ml-4">Smart Round Order Manager</h3>
               </div>
               <p className="text-gray-600 mb-4">
-                Optimize your cleaning routes automatically. Our intelligent system organizes your clients based on location, 
-                frequency, and preferences to maximize efficiency and minimize travel time.
+                Optimise your route with round order manager. No unnecessary miles. 
+              
               </p>
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Automatic route optimization
+                  Route optimisation
                 </li>
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -152,8 +152,8 @@ export default function FeatureTourPage() {
                 <h3 className="text-2xl font-bold text-gray-900 ml-4">Automated ETA Messaging</h3>
               </div>
               <p className="text-gray-600 mb-4">
-                Keep customers informed automatically. Send ETA updates and arrival notifications from your own mobile number, 
-                ensuring customers are always in the loop without any manual effort.
+                Keep customers informed automatically. Send ETA messages automatically from your own mobile number, 
+                ensuring customers are always in the loop without much pain.
               </p>
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-center">
@@ -225,14 +225,14 @@ export default function FeatureTourPage() {
               </div>
               <p className="text-gray-600 mb-4">
                 Plan your future workload intelligently. Set your target daily turnover and availability preferences, 
-                and let Guvnor automatically plan optimized runsheets that maximize your earning potential.
+                and let Guvnor automatically plan optimised runsheets that maximize your earning potential.
               </p>
               <ul className="space-y-2 text-gray-600">
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Target turnover optimization
+                  Target turnover optimisation
                 </li>
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -244,7 +244,7 @@ export default function FeatureTourPage() {
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Future runsheet automation
+                  Runsheet automation
                 </li>
               </ul>
             </div>
@@ -304,7 +304,7 @@ export default function FeatureTourPage() {
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Automated payment reminders
+                  Automated customer account summaries for chasing payment.
                 </li>
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,7 +332,7 @@ export default function FeatureTourPage() {
             Ready to Transform Your Cleaning Business?
           </h2>
           <p className="text-xl text-indigo-200 mb-8">
-            Join thousands of cleaning professionals who have streamlined their operations with Guvnor
+            Join Guvnor and grow your business.
           </p>
           <div className="space-y-4 sm:space-y-0 sm:space-x-4 sm:flex sm:justify-center">
             <Link 
