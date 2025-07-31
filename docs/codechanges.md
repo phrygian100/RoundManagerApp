@@ -1,3 +1,12 @@
+### (Date: 2025-07-31) – Fix Feature Tour page not showing in production
+
+1. `vercel.json`
+   • Added rewrite rule mapping `/feature-tour` to `/_marketing/feature-tour/index.html` so the Feature Tour marketing page loads correctly on https://www.guvnor.app/feature-tour.
+
+2. `scripts/merge-builds.js`
+   • Added `'feature-tour'` to the list of routes validated after the marketing build is merged to ensure the page is present.
+
+
 
 ### (Date: 2025-01-17) – Added Feature Tour Marketing Page
 

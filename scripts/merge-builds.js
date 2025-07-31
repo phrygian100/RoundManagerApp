@@ -36,7 +36,7 @@ try {
   }
 
   // Verify marketing pages exist (Next.js App Router creates /route/index.html)
-  const routes = ['home', 'pricing', 'about', 'contact', 'privacy-policy', 'terms'];
+  const routes = ['home', 'pricing', 'about', 'contact', 'privacy-policy', 'terms', 'feature-tour'];
   
   for (const route of routes) {
     const routeDir = path.join(marketingDistDir, route);

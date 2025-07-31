@@ -15,6 +15,10 @@
       "destination": "/_marketing/about/index.html"
     },
     {
+      "source": "/feature-tour",
+      "destination": "/_marketing/feature-tour/index.html"
+    },
+    {
       "source": "/contact",
       "destination": "/_marketing/contact/index.html"
     },
