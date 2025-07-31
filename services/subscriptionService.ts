@@ -15,6 +15,7 @@ export interface EffectiveSubscription {
   clientLimit: number | null; // null = unlimited
   canCreateMembers: boolean;
   isExempt: boolean;
+  renewalDate?: string | null; // ISO date string for next renewal
 }
 
 /**
@@ -62,12 +63,14 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
         clientLimit: null,
         canCreateMembers: true,
         isExempt: true,
+        renewalDate: null,
       };
     }
 
     // Default to free tier if not set
     const tier = userData.subscriptionTier || 'free';
     const status = userData.subscriptionStatus || 'active';
+    const renewalDate = userData.subscriptionRenewalDate || null;
 
     return {
       tier,
@@ -75,6 +78,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       clientLimit: tier === 'free' ? 20 : null,
       canCreateMembers: tier === 'premium' || tier === 'exempt',
       isExempt: false,
+      renewalDate,
     };
   } catch (error) {
     console.error('Error getting effective subscription:', error);
@@ -85,6 +89,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       clientLimit: 20,
       canCreateMembers: false,
       isExempt: false,
+      renewalDate: null,
     };
   }
 }

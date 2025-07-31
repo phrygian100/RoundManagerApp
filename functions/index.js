@@ -791,7 +791,10 @@ exports.createCheckoutSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }, asyn
 });
 
 // Handle Stripe webhooks
-exports.stripeWebhook = onRequest({ secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET] }, async (req, res) => {
+exports.stripeWebhook = onRequest({ 
+  secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET],
+  cors: true
+}, async (req, res) => {
   console.log('🎣 [WEBHOOK DEBUG] Stripe webhook called');
   
   // Initialize Stripe inside function with safe config handling
@@ -870,22 +873,26 @@ exports.stripeWebhook = onRequest({ secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_
         
         let tier = 'free';
         let status = 'active';
+        let renewalDate = null;
         
         if (subscription.status === 'active') {
           tier = 'premium';
           status = 'active';
+          // Convert Stripe timestamp to ISO string
+          renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
         } else if (subscription.status === 'canceled') {
           tier = 'free';
           status = 'canceled';
         } else if (subscription.status === 'past_due') {
           tier = 'premium'; // Keep premium during grace period
           status = 'past_due';
+          renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
         } else if (subscription.status === 'incomplete' || subscription.status === 'incomplete_expired') {
           tier = 'free';
           status = 'canceled';
         }
         
-        await updateUserSubscription(db, userId, tier, status, subscription.id);
+        await updateUserSubscription(db, userId, tier, status, subscription.id, renewalDate);
         break;
       }
       
@@ -930,7 +937,7 @@ exports.stripeWebhook = onRequest({ secrets: [STRIPE_SECRET_KEY, STRIPE_WEBHOOK_
 });
 
 // Helper function to update user subscription
-async function updateUserSubscription(db, userId, tier, status, subscriptionId) {
+async function updateUserSubscription(db, userId, tier, status, subscriptionId, renewalDate = null) {
   try {
     const updates = {
       subscriptionTier: tier,
@@ -942,6 +949,13 @@ async function updateUserSubscription(db, userId, tier, status, subscriptionId) 
     
     if (subscriptionId) {
       updates.stripeSubscriptionId = subscriptionId;
+    }
+    
+    if (renewalDate) {
+      updates.subscriptionRenewalDate = renewalDate;
+    } else if (tier === 'free') {
+      // Clear renewal date for free users
+      updates.subscriptionRenewalDate = null;
     }
     
     await db.collection('users').doc(userId).update(updates);

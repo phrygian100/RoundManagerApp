@@ -2349,6 +2349,15 @@ export default function SettingsScreen() {
                  subscription.tier === 'premium' ? 'Unlimited clients + team members' :
                  'Unlimited access'}
               </ThemedText>
+              {subscription.tier === 'premium' && subscription.renewalDate && (
+                <ThemedText style={styles.subscriptionRenewal}>
+                  Next renewal: {new Date(subscription.renewalDate).toLocaleDateString('en-GB', {
+                    day: 'numeric',
+                    month: 'long', 
+                    year: 'numeric'
+                  })}
+                </ThemedText>
+              )}
               {subscription.clientLimit && (
                 <ThemedText style={styles.subscriptionLimit}>
                   Client limit: {subscription.clientLimit}
@@ -2854,6 +2863,12 @@ const styles = StyleSheet.create({
   subscriptionDescription: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 4,
+  },
+  subscriptionRenewal: {
+    fontSize: 13,
+    color: '#4f46e5',
+    fontWeight: '500',
     marginBottom: 4,
   },
   subscriptionLimit: {
