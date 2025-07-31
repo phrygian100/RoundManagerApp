@@ -24,6 +24,9 @@ export default function AboutPage() {
                 <Link href="/home" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
                   Home
                 </Link>
+                <Link href="/feature-tour" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
+                  Features
+                </Link>
                 <Link href="/pricing" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
                   Pricing
                 </Link>
@@ -240,8 +243,8 @@ export default function AboutPage() {
               <div>
                 <h4 className="font-semibold mb-4">Product</h4>
                 <ul className="space-y-2 text-gray-400">
+                  <li><Link href="/feature-tour" className="hover:text-white">Features</Link></li>
                   <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
-                  <li><Link href="/home" className="hover:text-white">Features</Link></li>
                 </ul>
               </div>
               <div>

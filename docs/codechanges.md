@@ -1,4 +1,19 @@
 
+### (Date: 2025-01-17) – Added Feature Tour Marketing Page
+
+1. `web/src/app/feature-tour/page.tsx`
+   • Created comprehensive Feature Tour page showcasing all Guvnor features
+   • Features listed: Quoting, Smart Round Order Manager, Automated ETA messaging, GoCardless Integration, Smart planning, Team members, Solutions for not paying customers
+   • Implemented responsive design with feature cards and professional styling
+   • Added call-to-action sections linking to sign-up and pricing pages
+   • Follows same design pattern as existing marketing pages
+
+2. Navigation Updates (all web pages)
+   • Updated navigation menus to include "Features" link pointing to `/feature-tour`
+   • Modified pages: `web/src/app/pricing/page.tsx`, `web/src/app/about/page.tsx`, `web/src/app/contact/page.tsx`, `web/src/app/home/page.tsx`
+   • Updated footer links in all pages to point to feature tour instead of home page
+   • Consistent navigation order: Home, Features, Pricing, About, Contact, Sign In
+
 ### (Date: 2025-07-30) – Added Payments CSV Export
 
 1. `app/(tabs)/settings.tsx`
@@ -39,3 +54,21 @@
      6. Enter "allUsers" as principal, select "Cloud Run Invoker" role
      7. Click Save
    • This allows Stripe webhooks to invoke the function without authentication
+
+### (Date: 2025-07-31) – Added Subscription Renewal Date Display
+
+1. `functions/index.js`
+   • Updated `updateUserSubscription` helper to accept and store `renewalDate` parameter
+   • Modified subscription webhook handlers to extract `current_period_end` from Stripe events
+   • Convert Stripe timestamp to ISO string and store as `subscriptionRenewalDate` in Firestore
+
+2. `services/subscriptionService.ts`
+   • Added `renewalDate` field to `EffectiveSubscription` interface
+   • Updated `getEffectiveSubscription` function to return renewal date from user data
+   • Added renewal date to all return statements (including fallbacks)
+
+3. `app/(tabs)/settings.tsx`
+   • Added renewal date display for premium subscriptions in subscription card
+   • Shows date in format: "Next renewal: 15 August 2025"
+   • Added `subscriptionRenewal` style for formatting
+   • Only displays for premium tier when renewal date is available
