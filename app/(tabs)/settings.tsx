@@ -123,7 +123,7 @@ export default function SettingsScreen() {
   const [savingApiToken, setSavingApiToken] = useState(false);
 
   // Updated required fields - made Email optional, Mobile Number optional for CSV import  
-  const requiredFields = ['Address Line 1','Name','Quote (£)','Account Number','Round Order','Visit Frequency','Starting Date'];
+  const requiredFields = ['Address Line 1','Name','Quote (£)','Visit Frequency','Starting Date'];
 
   // Check client limit based on subscription
   const checkClientLimit = async () => {
@@ -795,7 +795,113 @@ export default function SettingsScreen() {
               }
             });
 
-            // Check subscription limits before confirming import
+            // Auto-generate account numbers for missing values
+            let autoAssignedCount = 0;
+            let highestAccountNum = 0;
+            const usedAccountNumbers = new Set<string>();
+
+            // Reserve any account numbers already in the CSV
+            validRows.forEach(r => {
+              const raw = (r as any)['Account Number']?.toString().trim();
+              if (raw) {
+                const clean = raw.replace(/^RWC/i, '').trim();
+                const formatted = `RWC${clean}`;
+                usedAccountNumbers.add(formatted.toUpperCase());
+                const num = parseInt(clean, 10);
+                if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+              }
+            });
+
+            try {
+              const ownerIdForAcc = await getDataOwnerId();
+              if (ownerIdForAcc) {
+                const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForAcc)));
+                clientSnap.forEach(docSnap => {
+                  const acc = docSnap.data().accountNumber;
+                  if (acc) {
+                    usedAccountNumbers.add(String(acc).toUpperCase());
+                    const num = typeof acc === 'string' ? parseInt(acc.replace(/^RWC/i, ''), 10) : Number(acc);
+                    if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+                  }
+                });
+              }
+            } catch (e) {
+              console.error('Error loading existing account numbers', e);
+            }
+
+            let nextAccountNumber = highestAccountNum + 1;
+            // Assign numbers to rows lacking them
+            validRows.forEach(r => {
+              let acc = (r as any)['Account Number']?.toString().trim();
+              if (!acc) {
+                while (usedAccountNumbers.has(`RWC${nextAccountNumber}`.toUpperCase())) {
+                  nextAccountNumber++;
+                }
+                acc = `RWC${nextAccountNumber}`;
+                (r as any)['Account Number'] = acc;
+                usedAccountNumbers.add(acc.toUpperCase());
+                nextAccountNumber++;
+                autoAssignedCount++;
+              } else {
+                const clean = acc.replace(/^RWC/i, '').trim();
+                (r as any)['Account Number'] = `RWC${clean}`;
+              }
+            });
+
+            // Auto-generate account numbers for missing values
+          let autoAssignedCount = 0;
+          let highestAccountNum = 0;
+          const usedAccountNumbers = new Set<string>();
+
+          // Reserve any account numbers already in the CSV
+          validRows.forEach(r => {
+            const raw = (r as any)['Account Number']?.toString().trim();
+            if (raw) {
+              const clean = raw.replace(/^RWC/i, '').trim();
+              const formatted = `RWC${clean}`;
+              usedAccountNumbers.add(formatted.toUpperCase());
+              const num = parseInt(clean, 10);
+              if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+            }
+          });
+
+          try {
+            const ownerIdForAcc = await getDataOwnerId();
+            if (ownerIdForAcc) {
+              const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForAcc)));
+              clientSnap.forEach(docSnap => {
+                const acc = docSnap.data().accountNumber;
+                if (acc) {
+                  usedAccountNumbers.add(String(acc).toUpperCase());
+                  const num = typeof acc === 'string' ? parseInt(acc.replace(/^RWC/i, ''), 10) : Number(acc);
+                  if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+                }
+              });
+            }
+          } catch (e) {
+            console.error('Error loading existing account numbers', e);
+          }
+
+          let nextAccountNumber = highestAccountNum + 1;
+          // Assign numbers to rows lacking them
+          validRows.forEach(r => {
+            let acc = (r as any)['Account Number']?.toString().trim();
+            if (!acc) {
+              while (usedAccountNumbers.has(`RWC${nextAccountNumber}`.toUpperCase())) {
+                nextAccountNumber++;
+              }
+              acc = `RWC${nextAccountNumber}`;
+              (r as any)['Account Number'] = acc;
+              usedAccountNumbers.add(acc.toUpperCase());
+              nextAccountNumber++;
+              autoAssignedCount++;
+            } else {
+              const clean = acc.replace(/^RWC/i, '').trim();
+              (r as any)['Account Number'] = `RWC${clean}`;
+            }
+          });
+
+          // Check subscription limits before confirming import
             try {
               const clientLimitCheck = await checkClientLimit();
               if (!clientLimitCheck.canAdd) {
