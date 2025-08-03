@@ -849,57 +849,7 @@ export default function SettingsScreen() {
               }
             });
 
-            // duplicate block already handled above
-
-          // Reserve any account numbers already in the CSV
-          validRows.forEach(r => {
-            const raw = (r as any)['Account Number']?.toString().trim();
-            if (raw) {
-              const clean = raw.replace(/^RWC/i, '').trim();
-              const formatted = `RWC${clean}`;
-              usedAccountNumbers.add(formatted.toUpperCase());
-              const num = parseInt(clean, 10);
-              if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
-            }
-          });
-
-          try {
-            const ownerIdForAcc = await getDataOwnerId();
-            if (ownerIdForAcc) {
-              const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForAcc)));
-              clientSnap.forEach(docSnap => {
-                const acc = docSnap.data().accountNumber;
-                if (acc) {
-                  usedAccountNumbers.add(String(acc).toUpperCase());
-                  const num = typeof acc === 'string' ? parseInt(acc.replace(/^RWC/i, ''), 10) : Number(acc);
-                  if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
-                }
-              });
-            }
-          } catch (e) {
-            console.error('Error loading existing account numbers', e);
-          }
-
-          let nextAccountNumber = highestAccountNum + 1;
-          // Assign numbers to rows lacking them
-          validRows.forEach(r => {
-            let acc = (r as any)['Account Number']?.toString().trim();
-            if (!acc) {
-              while (usedAccountNumbers.has(`RWC${nextAccountNumber}`.toUpperCase())) {
-                nextAccountNumber++;
-              }
-              acc = `RWC${nextAccountNumber}`;
-              (r as any)['Account Number'] = acc;
-              usedAccountNumbers.add(acc.toUpperCase());
-              nextAccountNumber++;
-              autoAssignedAccCount++;
-            } else {
-              const clean = acc.replace(/^RWC/i, '').trim();
-              (r as any)['Account Number'] = `RWC${clean}`;
-            }
-          });
-
-          // Check subscription limits before confirming import
+            // Check subscription limits before confirming import
             try {
               const clientLimitCheck = await checkClientLimit();
               if (!clientLimitCheck.canAdd) {
