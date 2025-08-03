@@ -16,6 +16,7 @@ export type User = {
   businessName?: string; // Required for owners
   bankSortCode?: string;
   bankAccountNumber?: string;
+  businessWebsite?: string; // Optional business website URL
   
   // Subscription fields
   subscriptionTier?: 'free' | 'premium' | 'exempt';

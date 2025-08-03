@@ -112,7 +112,8 @@ export default function SettingsScreen() {
   const [bankInfoForm, setBankInfoForm] = useState({
     businessName: '',
     bankSortCode: '',
-    bankAccountNumber: ''
+    bankAccountNumber: '',
+    businessWebsite: ''
   });
   const [savingBankInfo, setSavingBankInfo] = useState(false);
 
@@ -276,7 +277,8 @@ export default function SettingsScreen() {
           setBankInfoForm({
             businessName: userProfile.businessName || '',
             bankSortCode: userProfile.bankSortCode || '',
-            bankAccountNumber: userProfile.bankAccountNumber || ''
+            bankAccountNumber: userProfile.bankAccountNumber || '',
+            businessWebsite: userProfile.businessWebsite || '',
           });
         }
       }
@@ -304,6 +306,7 @@ export default function SettingsScreen() {
         businessName: bankInfoForm.businessName.trim(),
         bankSortCode: bankInfoForm.bankSortCode.trim(),
         bankAccountNumber: bankInfoForm.bankAccountNumber.trim(),
+        businessWebsite: bankInfoForm.businessWebsite.trim(),
       });
 
       Alert.alert('Success', 'Bank and business information updated successfully.');
@@ -2730,6 +2733,13 @@ export default function SettingsScreen() {
               placeholder="Business Name *"
               value={bankInfoForm.businessName}
               onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, businessName: text }))}
+            />
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Business Website"
+              value={bankInfoForm.businessWebsite}
+              onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, businessWebsite: text }))}
             />
             
             <TextInput

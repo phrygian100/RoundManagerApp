@@ -1,3 +1,13 @@
+### (Date: 2025-08-03) – Added Business Website field to Bank & Business Info Modal
+
+1. `app/(tabs)/settings.tsx`
+   • Added `businessWebsite` field to bank info form state, load and save functions, and modal UI.
+   
+2. `types/models.ts`
+   • Added `businessWebsite` optional string property to `User` type.
+
+---
+
 ### (Date: 2025-07-31) – Fix Feature Tour page not showing in production
 
 1. `vercel.json`
