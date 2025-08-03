@@ -798,8 +798,8 @@ export default function SettingsScreen() {
             // Auto-generate missing account and round order numbers
             let autoAssignedAccCount = 0;
             let autoAssignedRoundCount = 0;
-            // duplicate decl removed
-            // duplicate decl removed
+            let highestAccountNum = 0;
+            const usedAccountNumbers = new Set<string>();
 
             // Reserve any account numbers already in the CSV
             validRows.forEach(r => {
@@ -846,6 +846,58 @@ export default function SettingsScreen() {
               } else {
                 const clean = acc.replace(/^RWC/i, '').trim();
                 (r as any)['Account Number'] = `RWC${clean}`;
+              }
+            });
+
+            // Auto-generate round order numbers for missing values
+            let highestRoundOrder = 0;
+            const usedRoundOrders = new Set<number>();
+
+            // Reserve any round orders already in the CSV
+            validRows.forEach(r => {
+              const raw = (r as any)['Round Order']?.toString().trim();
+              if (raw) {
+                const num = parseInt(raw, 10);
+                if (!isNaN(num) && num > 0) {
+                  usedRoundOrders.add(num);
+                  if (num > highestRoundOrder) highestRoundOrder = num;
+                }
+              }
+            });
+
+            try {
+              const ownerIdForRound = await getDataOwnerId();
+              if (ownerIdForRound) {
+                const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForRound)));
+                clientSnap.forEach(docSnap => {
+                  const roundOrder = docSnap.data().roundOrderNumber;
+                  if (typeof roundOrder === 'number' && roundOrder > 0) {
+                    usedRoundOrders.add(roundOrder);
+                    if (roundOrder > highestRoundOrder) highestRoundOrder = roundOrder;
+                  }
+                });
+              }
+            } catch (e) {
+              console.error('Error loading existing round order numbers', e);
+            }
+
+            let nextRoundOrder = highestRoundOrder + 1;
+            // Assign round orders to rows lacking them
+            validRows.forEach(r => {
+              let roundOrder = (r as any)['Round Order']?.toString().trim();
+              if (!roundOrder) {
+                while (usedRoundOrders.has(nextRoundOrder)) {
+                  nextRoundOrder++;
+                }
+                (r as any)['Round Order'] = nextRoundOrder;
+                usedRoundOrders.add(nextRoundOrder);
+                nextRoundOrder++;
+                autoAssignedRoundCount++;
+              } else {
+                const num = parseInt(roundOrder, 10);
+                if (!isNaN(num) && num > 0) {
+                  (r as any)['Round Order'] = num;
+                }
               }
             });
 
@@ -1031,6 +1083,12 @@ export default function SettingsScreen() {
             }
 
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+            if (autoAssignedAccCount > 0) {
+              message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
+            }
+            if (autoAssignedRoundCount > 0) {
+              message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
+            }
             if (skipped.length > 0) {
               message += `\n\nSkipped ${skipped.length} rows:`;
               skipped.forEach((s, idx) => {
@@ -1087,221 +1145,109 @@ export default function SettingsScreen() {
           }
         });
 
-        // Check subscription limits before confirming import
+        // Auto-generate missing account and round order numbers
+        let autoAssignedAccCount = 0;
+        let autoAssignedRoundCount = 0;
+        let highestAccountNum = 0;
+        const usedAccountNumbers = new Set<string>();
+
+        // Reserve any account numbers already in the CSV
+        validRows.forEach(r => {
+          const raw = (r as any)['Account Number']?.toString().trim();
+          if (raw) {
+            const clean = raw.replace(/^RWC/i, '').trim();
+            const formatted = `RWC${clean}`;
+            usedAccountNumbers.add(formatted.toUpperCase());
+            const num = parseInt(clean, 10);
+            if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+          }
+        });
+
         try {
-          const clientLimitCheck = await checkClientLimit();
-          if (!clientLimitCheck.canAdd) {
-            const message = clientLimitCheck.limit 
-              ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients.`
-              : 'Unable to add more clients at this time.';
-            
-            showAlert('Client Limit Reached', message);
-            return;
+          const ownerIdForAcc = await getDataOwnerId();
+          if (ownerIdForAcc) {
+            const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForAcc)));
+            clientSnap.forEach(docSnap => {
+              const acc = docSnap.data().accountNumber;
+              if (acc) {
+                usedAccountNumbers.add(String(acc).toUpperCase());
+                const num = typeof acc === 'string' ? parseInt(acc.replace(/^RWC/i, ''), 10) : Number(acc);
+                if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+              }
+            });
           }
-
-          // Calculate how many clients can actually be imported
-          const availableSlots = clientLimitCheck.limit ? Math.max(0, clientLimitCheck.limit - clientLimitCheck.currentCount) : validRows.length;
-          const canImportCount = Math.min(validRows.length, availableSlots);
-          const willSkipDueToLimit = validRows.length - canImportCount;
-
-          let confirmMessage = `This will create ${canImportCount} clients (skipping ${skipped.length} invalid rows)`;
-          if (willSkipDueToLimit > 0) {
-            confirmMessage += ` and ${willSkipDueToLimit} additional clients due to your subscription limit`;
-          }
-          confirmMessage += '. Continue?';
-
-          // Confirm import
-          const proceed = await showConfirm('Confirm Import', confirmMessage);
-          if (!proceed) {
-            return;
-          }
-        } catch (error) {
-          console.error('Error checking client limit:', error);
-          showAlert('Error', 'Unable to verify subscription status. Please try again.');
-          return;
+        } catch (e) {
+          console.error('Error loading existing account numbers', e);
         }
 
-        let imported = 0;
-        let limitReached = false;
-        
-        for (let i = 0; i < validRows.length; i++) {
-          const row = validRows[i];
-          
-          // Process visit frequency - support any number or 'one-off'
-          let frequency: number | string = 'one-off';
-          const frequencyValue = (row as any)['Visit Frequency']?.toString().trim();
-          if (frequencyValue) {
-            if (frequencyValue.toLowerCase() === 'one-off' || frequencyValue.toLowerCase() === 'one off') {
-              frequency = 'one-off';
-            } else {
-              const numFreq = Number(frequencyValue);
-              if (!isNaN(numFreq) && numFreq > 0) {
-                frequency = numFreq;
-              }
+        let nextAccountNumber = highestAccountNum + 1;
+        // Assign numbers to rows lacking them
+        validRows.forEach(r => {
+          let acc = (r as any)['Account Number']?.toString().trim();
+          if (!acc) {
+            while (usedAccountNumbers.has(`RWC${nextAccountNumber}`.toUpperCase())) {
+              nextAccountNumber++;
             }
-          }
-
-          // Add RWC prefix to account number if not already present
-          let accountNumber = (row as any)['Account Number']?.toString().trim();
-          if (accountNumber) {
-            // Remove any existing RWC prefix first to prevent duplicates
-            const cleanAccountNumber = accountNumber.replace(/^RWC/i, '').trim();
-            accountNumber = `RWC${cleanAccountNumber}`;
-          }
-
-          const clientData: any = {
-            name: (row as any)['Name']?.trim(),
-            address1: (row as any)['Address Line 1']?.trim(),
-            town: (row as any)['Town']?.trim(),
-            postcode: (row as any)['Postcode']?.trim(),
-            // For backward compatibility, also store combined address
-            address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
-            mobileNumber: formatMobileNumber((row as any)['Mobile Number']?.toString().trim() || ''),
-            quote: 0,
-            frequency: frequency,
-            nextVisit: '',
-            roundOrderNumber: Number((row as any)['Round Order']) || i + 1,
-            email: (row as any)['Email']?.trim() || '',
-            source: (row as any)['Source']?.trim() || '',
-            startingBalance: Number((row as any)['Starting Balance'] || 0),
-            accountNumber: accountNumber || '',
-            runsheetNotes: (row as any)['Runsheet Note']?.trim() || '',
-          };
-
-          const quoteString = (row as any)['Quote (£)']?.toString().trim();
-          if (quoteString) {
-            const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
-            clientData.quote = parseFloat(sanitizedQuote) || 0;
-          }
-
-          const nextDueString = (row as any)['Starting Date']?.toString().trim();
-          if (nextDueString) {
-            const parts = nextDueString.split('/');
-            if (parts.length === 3) {
-              const [day, month, year] = parts;
-              if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
-                clientData.nextVisit = `${year}-${month}-${day}`;
-              }
-            } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
-              clientData.nextVisit = nextDueString;
-            }
-          }
-
-          // Process account notes
-          const accountNotesText = (row as any)['Account notes']?.trim();
-          if (accountNotesText) {
-            const accountNote = {
-              id: Date.now().toString() + '_' + i,
-              date: new Date().toISOString(),
-              author: 'CSV Import',
-              authorId: 'system',
-              text: accountNotesText
-            };
-            clientData.accountNotes = [accountNote];
-          }
-
-          if (clientData.name && clientData.address1 && clientData.nextVisit) {
-            // Check limit before each client creation to prevent exceeding limits during batch import
-            if (!limitReached) {
-              try {
-                const currentLimitCheck = await checkClientLimit();
-                if (!currentLimitCheck.canAdd) {
-                  limitReached = true;
-                  const message = currentLimitCheck.limit 
-                    ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\nUpgrade to Premium for unlimited clients.`
-                    : 'Unable to add more clients at this time.';
-                
-                  showAlert('Client Limit Reached', message);
-                  // Skip remaining clients due to limit
-                  for (let j = i; j < validRows.length; j++) {
-                    skipped.push(validRows[j]);
-                  }
-                  break;
-                }
-              } catch (error) {
-                console.error('Error checking client limit during import:', error);
-                showAlert('Error', 'Unable to verify subscription status. Skipping remaining clients.');
-                // Skip remaining clients due to error
-                for (let j = i; j < validRows.length; j++) {
-                  skipped.push(validRows[j]);
-                }
-                break;
-              }
-            }
-
-            if (limitReached) {
-              skipped.push(row);
-              continue;
-            }
-
-            const ownerId = await getDataOwnerId();
-            if (!ownerId) {
-              showAlert('Error', 'Could not determine account owner. Please log in again.');
-              skipped.push(row);
-              continue;
-            }
-            try {
-              await addDoc(collection(db, 'clients'), {
-                ...clientData,
-                dateAdded: new Date().toISOString(),
-                status: 'active',
-                ownerId,
-              });
-              imported++;
-            } catch (e) {
-              console.error('Firestore write error:', e, 'for row:', row);
-              skipped.push(row);
-            }
+            acc = `RWC${nextAccountNumber}`;
+            (r as any)['Account Number'] = acc;
+            usedAccountNumbers.add(acc.toUpperCase());
+            nextAccountNumber++;
+            autoAssignedAccCount++;
           } else {
-              skipped.push(row);
+            const clean = acc.replace(/^RWC/i, '').trim();
+            (r as any)['Account Number'] = `RWC${clean}`;
           }
-        }
+        });
 
-        // Generate jobs for the newly imported clients
+        // Auto-generate round order numbers for missing values
+        let highestRoundOrder = 0;
+        const usedRoundOrders = new Set<number>();
+
+        // Reserve any round orders already in the CSV
+        validRows.forEach(r => {
+          const raw = (r as any)['Round Order']?.toString().trim();
+          if (raw) {
+            const num = parseInt(raw, 10);
+            if (!isNaN(num) && num > 0) {
+              usedRoundOrders.add(num);
+              if (num > highestRoundOrder) highestRoundOrder = num;
+            }
+          }
+        });
+
         try {
-          console.log('[IMPORT] Generating recurring jobs for newly imported clients');
-          await generateRecurringJobs();
-        } catch (err) {
-          console.error('[IMPORT] generateRecurringJobs failed', err);
-        }
-
-        let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
-        if (skipped.length > 0) {
-          console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
-          console.log('[DEBUG] Skipped array:', skipped);
-          message += `\n\nSkipped ${skipped.length} rows:`;
-          skipped.forEach((s, idx) => {
-            if (idx < 5) { // Limit to first 5 for readability
-              console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
-              message += `\n• ${s.identifier}: ${s.reason}`;
-            }
-          });
-          if (skipped.length > 5) {
-            message += `\n• ... and ${skipped.length - 5} more`;
+          const ownerIdForRound = await getDataOwnerId();
+          if (ownerIdForRound) {
+            const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForRound)));
+            clientSnap.forEach(docSnap => {
+              const roundOrder = docSnap.data().roundOrderNumber;
+              if (typeof roundOrder === 'number' && roundOrder > 0) {
+                usedRoundOrders.add(roundOrder);
+                if (roundOrder > highestRoundOrder) highestRoundOrder = roundOrder;
+              }
+            });
           }
-          console.log('[DEBUG] Final message:', message);
-          console.log('Skipped rows:', skipped);
+        } catch (e) {
+          console.error('Error loading existing round order numbers', e);
         }
-        showAlert('Import Result', message);
 
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const response = await fetch(file.uri);
-        const ab = await response.arrayBuffer();
-        const workbook = XLSX.read(ab, { type: 'array' });
-        const sheetName = workbook.SheetNames[0];
-        let rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
-
-        // Validate rows
-        const validRows: any[] = [];
-        const skipped: any[] = [];
-        rows.forEach((r, index) => {
-          // Check required fields
-          const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
-          if (missing.length) {
-            const rowIdentifier = (r as any)['Name'] || (r as any)['Account Number'] || `Row ${index + 2}`; // +2 because of header row
-            skipped.push({ row: r, reason: 'Missing '+missing.join(','), identifier: rowIdentifier });
+        let nextRoundOrder = highestRoundOrder + 1;
+        // Assign round orders to rows lacking them
+        validRows.forEach(r => {
+          let roundOrder = (r as any)['Round Order']?.toString().trim();
+          if (!roundOrder) {
+            while (usedRoundOrders.has(nextRoundOrder)) {
+              nextRoundOrder++;
+            }
+            (r as any)['Round Order'] = nextRoundOrder;
+            usedRoundOrders.add(nextRoundOrder);
+            nextRoundOrder++;
+            autoAssignedRoundCount++;
           } else {
-            validRows.push(r);
+            const num = parseInt(roundOrder, 10);
+            if (!isNaN(num) && num > 0) {
+              (r as any)['Round Order'] = num;
+            }
           }
         });
 
@@ -1484,6 +1430,342 @@ export default function SettingsScreen() {
         }
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+        if (autoAssignedAccCount > 0) {
+          message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
+        }
+        if (autoAssignedRoundCount > 0) {
+          message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
+        }
+        if (skipped.length > 0) {
+          console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
+          console.log('[DEBUG] Skipped array:', skipped);
+          message += `\n\nSkipped ${skipped.length} rows:`;
+          skipped.forEach((s, idx) => {
+            if (idx < 5) { // Limit to first 5 for readability
+              console.log(`[DEBUG] Adding row ${idx + 1}: ${s.identifier}: ${s.reason}`);
+              message += `\n• ${s.identifier}: ${s.reason}`;
+            }
+          });
+          if (skipped.length > 5) {
+            message += `\n• ... and ${skipped.length - 5} more`;
+          }
+          console.log('[DEBUG] Final message:', message);
+          console.log('Skipped rows:', skipped);
+        }
+        showAlert('Import Result', message);
+
+      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const response = await fetch(file.uri);
+        const ab = await response.arrayBuffer();
+        const workbook = XLSX.read(ab, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        let rows: any[] = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+        // Validate rows
+        const validRows: any[] = [];
+        const skipped: any[] = [];
+        rows.forEach((r, index) => {
+          // Check required fields
+          const missing = requiredFields.filter(f => !(r as any)[f] || String((r as any)[f]).trim()==='');
+          if (missing.length) {
+            const rowIdentifier = (r as any)['Name'] || (r as any)['Account Number'] || `Row ${index + 2}`; // +2 because of header row
+            skipped.push({ row: r, reason: 'Missing '+missing.join(','), identifier: rowIdentifier });
+          } else {
+            validRows.push(r);
+          }
+        });
+
+        // Auto-generate missing account and round order numbers
+        let autoAssignedAccCount = 0;
+        let autoAssignedRoundCount = 0;
+        let highestAccountNum = 0;
+        const usedAccountNumbers = new Set<string>();
+
+        // Reserve any account numbers already in the CSV
+        validRows.forEach(r => {
+          const raw = (r as any)['Account Number']?.toString().trim();
+          if (raw) {
+            const clean = raw.replace(/^RWC/i, '').trim();
+            const formatted = `RWC${clean}`;
+            usedAccountNumbers.add(formatted.toUpperCase());
+            const num = parseInt(clean, 10);
+            if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+          }
+        });
+
+        try {
+          const ownerIdForAcc = await getDataOwnerId();
+          if (ownerIdForAcc) {
+            const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForAcc)));
+            clientSnap.forEach(docSnap => {
+              const acc = docSnap.data().accountNumber;
+              if (acc) {
+                usedAccountNumbers.add(String(acc).toUpperCase());
+                const num = typeof acc === 'string' ? parseInt(acc.replace(/^RWC/i, ''), 10) : Number(acc);
+                if (!isNaN(num) && num > highestAccountNum) highestAccountNum = num;
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Error loading existing account numbers', e);
+        }
+
+        let nextAccountNumber = highestAccountNum + 1;
+        // Assign numbers to rows lacking them
+        validRows.forEach(r => {
+          let acc = (r as any)['Account Number']?.toString().trim();
+          if (!acc) {
+            while (usedAccountNumbers.has(`RWC${nextAccountNumber}`.toUpperCase())) {
+              nextAccountNumber++;
+            }
+            acc = `RWC${nextAccountNumber}`;
+            (r as any)['Account Number'] = acc;
+            usedAccountNumbers.add(acc.toUpperCase());
+            nextAccountNumber++;
+            autoAssignedAccCount++;
+          } else {
+            const clean = acc.replace(/^RWC/i, '').trim();
+            (r as any)['Account Number'] = `RWC${clean}`;
+          }
+        });
+
+        // Auto-generate round order numbers for missing values
+        let highestRoundOrder = 0;
+        const usedRoundOrders = new Set<number>();
+
+        // Reserve any round orders already in the CSV
+        validRows.forEach(r => {
+          const raw = (r as any)['Round Order']?.toString().trim();
+          if (raw) {
+            const num = parseInt(raw, 10);
+            if (!isNaN(num) && num > 0) {
+              usedRoundOrders.add(num);
+              if (num > highestRoundOrder) highestRoundOrder = num;
+            }
+          }
+        });
+
+        try {
+          const ownerIdForRound = await getDataOwnerId();
+          if (ownerIdForRound) {
+            const clientSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerIdForRound)));
+            clientSnap.forEach(docSnap => {
+              const roundOrder = docSnap.data().roundOrderNumber;
+              if (typeof roundOrder === 'number' && roundOrder > 0) {
+                usedRoundOrders.add(roundOrder);
+                if (roundOrder > highestRoundOrder) highestRoundOrder = roundOrder;
+              }
+            });
+          }
+        } catch (e) {
+          console.error('Error loading existing round order numbers', e);
+        }
+
+        let nextRoundOrder = highestRoundOrder + 1;
+        // Assign round orders to rows lacking them
+        validRows.forEach(r => {
+          let roundOrder = (r as any)['Round Order']?.toString().trim();
+          if (!roundOrder) {
+            while (usedRoundOrders.has(nextRoundOrder)) {
+              nextRoundOrder++;
+            }
+            (r as any)['Round Order'] = nextRoundOrder;
+            usedRoundOrders.add(nextRoundOrder);
+            nextRoundOrder++;
+            autoAssignedRoundCount++;
+          } else {
+            const num = parseInt(roundOrder, 10);
+            if (!isNaN(num) && num > 0) {
+              (r as any)['Round Order'] = num;
+            }
+          }
+        });
+
+        // Check subscription limits before confirming import
+        try {
+          const clientLimitCheck = await checkClientLimit();
+          if (!clientLimitCheck.canAdd) {
+            const message = clientLimitCheck.limit 
+              ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\nUpgrade to Premium for unlimited clients.`
+              : 'Unable to add more clients at this time.';
+            
+            showAlert('Client Limit Reached', message);
+            return;
+          }
+
+          // Calculate how many clients can actually be imported
+          const availableSlots = clientLimitCheck.limit ? Math.max(0, clientLimitCheck.limit - clientLimitCheck.currentCount) : validRows.length;
+          const canImportCount = Math.min(validRows.length, availableSlots);
+          const willSkipDueToLimit = validRows.length - canImportCount;
+
+          let confirmMessage = `This will create ${canImportCount} clients (skipping ${skipped.length} invalid rows)`;
+          if (willSkipDueToLimit > 0) {
+            confirmMessage += ` and ${willSkipDueToLimit} additional clients due to your subscription limit`;
+          }
+          confirmMessage += '. Continue?';
+
+          // Confirm import
+          const proceed = await showConfirm('Confirm Import', confirmMessage);
+          if (!proceed) {
+            return;
+          }
+        } catch (error) {
+          console.error('Error checking client limit:', error);
+          showAlert('Error', 'Unable to verify subscription status. Please try again.');
+          return;
+        }
+
+        let imported = 0;
+        let limitReached = false;
+        
+        for (let i = 0; i < validRows.length; i++) {
+          const row = validRows[i];
+          
+          // Process visit frequency - support any number or 'one-off'
+          let frequency: number | string = 'one-off';
+          const frequencyValue = (row as any)['Visit Frequency']?.toString().trim();
+          if (frequencyValue) {
+            if (frequencyValue.toLowerCase() === 'one-off' || frequencyValue.toLowerCase() === 'one off') {
+              frequency = 'one-off';
+            } else {
+              const numFreq = Number(frequencyValue);
+              if (!isNaN(numFreq) && numFreq > 0) {
+                frequency = numFreq;
+              }
+            }
+          }
+
+          // Add RWC prefix to account number if not already present
+          let accountNumber = (row as any)['Account Number']?.toString().trim();
+          if (accountNumber) {
+            // Remove any existing RWC prefix first to prevent duplicates
+            const cleanAccountNumber = accountNumber.replace(/^RWC/i, '').trim();
+            accountNumber = `RWC${cleanAccountNumber}`;
+          }
+
+          const clientData: any = {
+            name: (row as any)['Name']?.trim(),
+            address1: (row as any)['Address Line 1']?.trim(),
+            town: (row as any)['Town']?.trim(),
+            postcode: (row as any)['Postcode']?.trim(),
+            // For backward compatibility, also store combined address
+            address: `${(row as any)['Address Line 1']?.trim() || ''}, ${(row as any)['Town']?.trim() || ''}, ${(row as any)['Postcode']?.trim() || ''}`,
+            mobileNumber: formatMobileNumber((row as any)['Mobile Number']?.toString().trim() || ''),
+            quote: 0,
+            frequency: frequency,
+            nextVisit: '',
+            roundOrderNumber: Number((row as any)['Round Order']) || i + 1,
+            email: (row as any)['Email']?.trim() || '',
+            source: (row as any)['Source']?.trim() || '',
+            startingBalance: Number((row as any)['Starting Balance'] || 0),
+            accountNumber: accountNumber || '',
+            runsheetNotes: (row as any)['Runsheet Note']?.trim() || '',
+          };
+
+          const quoteString = (row as any)['Quote (£)']?.toString().trim();
+          if (quoteString) {
+            const sanitizedQuote = quoteString.replace(/[^0-9.-]+/g, '');
+            clientData.quote = parseFloat(sanitizedQuote) || 0;
+          }
+
+          const nextDueString = (row as any)['Starting Date']?.toString().trim();
+          if (nextDueString) {
+            const parts = nextDueString.split('/');
+            if (parts.length === 3) {
+              const [day, month, year] = parts;
+              if (day && month && year && day.length === 2 && month.length === 2 && year.length === 4) {
+                clientData.nextVisit = `${year}-${month}-${day}`;
+              }
+            } else if (nextDueString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              clientData.nextVisit = nextDueString;
+            }
+          }
+
+          // Process account notes
+          const accountNotesText = (row as any)['Account notes']?.trim();
+          if (accountNotesText) {
+            const accountNote = {
+              id: Date.now().toString() + '_' + i,
+              date: new Date().toISOString(),
+              author: 'CSV Import',
+              authorId: 'system',
+              text: accountNotesText
+            };
+            clientData.accountNotes = [accountNote];
+          }
+
+          if (clientData.name && clientData.address1 && clientData.nextVisit) {
+            // Check limit before each client creation to prevent exceeding limits during batch import
+            if (!limitReached) {
+              try {
+                const currentLimitCheck = await checkClientLimit();
+                if (!currentLimitCheck.canAdd) {
+                  limitReached = true;
+                  const message = currentLimitCheck.limit 
+                    ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\nUpgrade to Premium for unlimited clients.`
+                    : 'Unable to add more clients at this time.';
+                
+                  showAlert('Client Limit Reached', message);
+                  // Skip remaining clients due to limit
+                  for (let j = i; j < validRows.length; j++) {
+                    skipped.push(validRows[j]);
+                  }
+                  break;
+                }
+              } catch (error) {
+                console.error('Error checking client limit during import:', error);
+                showAlert('Error', 'Unable to verify subscription status. Skipping remaining clients.');
+                // Skip remaining clients due to error
+                for (let j = i; j < validRows.length; j++) {
+                  skipped.push(validRows[j]);
+                }
+                break;
+              }
+            }
+
+            if (limitReached) {
+              skipped.push(row);
+              continue;
+            }
+
+            const ownerId = await getDataOwnerId();
+            if (!ownerId) {
+              showAlert('Error', 'Could not determine account owner. Please log in again.');
+              skipped.push(row);
+              continue;
+            }
+            try {
+              await addDoc(collection(db, 'clients'), {
+                ...clientData,
+                dateAdded: new Date().toISOString(),
+                status: 'active',
+                ownerId,
+              });
+              imported++;
+            } catch (e) {
+              console.error('Firestore write error:', e, 'for row:', row);
+              skipped.push(row);
+            }
+          } else {
+              skipped.push(row);
+          }
+        }
+
+        // Generate jobs for the newly imported clients
+        try {
+          console.log('[IMPORT] Generating recurring jobs for newly imported clients');
+          await generateRecurringJobs();
+        } catch (err) {
+          console.error('[IMPORT] generateRecurringJobs failed', err);
+        }
+
+        let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
+        if (autoAssignedAccCount > 0) {
+          message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
+        }
+        if (autoAssignedRoundCount > 0) {
+          message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
+        }
         if (skipped.length > 0) {
           message += `\n\nSkipped ${skipped.length} rows:`;
           skipped.forEach((s, idx) => {

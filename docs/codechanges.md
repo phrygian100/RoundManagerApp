@@ -83,6 +83,30 @@
      7. Click Save
    • This allows Stripe webhooks to invoke the function without authentication
 
+### (Date: 2025-01-19) – CSV Import Auto-Assignment for Account Numbers and Round Orders
+
+1. `app/(tabs)/settings.tsx`
+   • Removed "Account Number" and "Round Order" from `requiredFields` array - blank values no longer cause import failures
+   • Added auto-generation logic for missing account numbers:
+     - Scans existing clients and CSV rows to find highest RWC number
+     - Assigns sequential RWC### values to blank entries
+     - Prevents duplicates by maintaining a Set of used numbers
+   • Added auto-generation logic for missing round order numbers:
+     - Finds highest existing round order from clients and CSV
+     - Assigns sequential integers (1, 2, 3...) to blank entries
+     - Tracks usage to avoid conflicts
+   • Enhanced success messages to show auto-assignment counts:
+     - "Auto-assigned account numbers: N." when N > 0
+     - "Auto-assigned round order numbers: N." when N > 0
+   • Applied consistent logic across all import paths:
+     - Web CSV import
+     - Mobile CSV import  
+     - Mobile Excel (.xlsx/.xls) import
+
+**Impact:** Users can now import client CSVs with blank account numbers and/or round orders. The system automatically assigns unique, sequential values while preserving any existing numbers specified in the CSV. This eliminates the need to manually fill these columns before import.
+
+---
+
 ### (Date: 2025-07-31) – Added Subscription Renewal Date Display
 
 1. `functions/index.js`
