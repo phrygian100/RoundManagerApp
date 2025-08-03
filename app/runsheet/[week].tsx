@@ -18,9 +18,10 @@ import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { checkClientLimit } from '../../services/subscriptionService';
+import { getUserProfile } from '../../services/userService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
-import type { Job } from '../../types/models';
+import type { Job, User } from '../../types/models';
 import { getJobAccountDisplay } from '../../utils/jobDisplay';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -79,14 +80,21 @@ export default function RunsheetWeekScreen() {
     job: Job & { client: Client | null } | null;
   }>({ visible: false, job: null });
 
+  const [userProfile, setUserProfile] = useState<User | null>(null);
+
   const router = useRouter();
 
-  // Owner check
+  // Owner & user profile
   const [isOwner, setIsOwner] = useState(false);
   useEffect(() => {
     (async () => {
       const session = await getUserSession();
       setIsOwner(session?.isOwner ?? false);
+
+      if (session) {
+        const profile = await getUserProfile(session.accountId);
+        setUserProfile(profile);
+      }
     })();
   }, []);
 
@@ -714,6 +722,10 @@ export default function RunsheetWeekScreen() {
       ? `Roughly estimated time of arrival:\n${jobEta}` 
       : 'We will be with you as soon as possible tomorrow.';
 
+    // Build dynamic sign-off
+    const signOffParts = ['Many thanks.', userProfile?.name, userProfile?.businessName, userProfile?.businessWebsite].filter(Boolean);
+    const signOff = signOffParts.join('\n');
+
     let template: string;
     
     if (isQuoteJob(job)) {
@@ -724,9 +736,7 @@ Courtesy message to let you know we'll be over to quote tomorrow at ${address}.
 ${etaText}
 if you can't be home and access is available around the property, we will leave you a written quote.
 
-Many thanks,
-Travis
-www.tgmwindowcleaning.co.uk`;
+${signOff}`;
     } else {
       // Service job template
       const serviceType = getServiceTypeDisplay(job.serviceId || 'Window cleaning');
@@ -735,9 +745,7 @@ www.tgmwindowcleaning.co.uk`;
 Courtesy message to let you know ${serviceType} is due tomorrow at ${address}.
 ${etaText}
 
-Many thanks,
-Travis
-www.tgmwindowcleaning.co.uk`;
+${signOff}`;
     }
 
     let smsUrl = '';

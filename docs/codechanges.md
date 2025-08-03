@@ -1,3 +1,12 @@
+### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
+
+1. `app/runsheet/[week].tsx`
+   • Added `getUserProfile` import, `userProfile` state, and fetch logic.
+   • Introduced dynamic `signOff` built from profile name, business name, and website.
+   • Templates now reference `${signOff}` instead of hard-coded lines.
+
+---
+
 ### (Date: 2025-08-03) – Added Business Website field to Bank & Business Info Modal
 
 1. `app/(tabs)/settings.tsx`
