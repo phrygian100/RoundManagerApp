@@ -795,10 +795,11 @@ export default function SettingsScreen() {
               }
             });
 
-            // Auto-generate account numbers for missing values
-            let autoAssignedCount = 0;
-            let highestAccountNum = 0;
-            const usedAccountNumbers = new Set<string>();
+            // Auto-generate missing account and round order numbers
+            let autoAssignedAccCount = 0;
+            let autoAssignedRoundCount = 0;
+            // duplicate decl removed
+            // duplicate decl removed
 
             // Reserve any account numbers already in the CSV
             validRows.forEach(r => {
@@ -841,17 +842,14 @@ export default function SettingsScreen() {
                 (r as any)['Account Number'] = acc;
                 usedAccountNumbers.add(acc.toUpperCase());
                 nextAccountNumber++;
-                autoAssignedCount++;
+                autoAssignedAccCount++;
               } else {
                 const clean = acc.replace(/^RWC/i, '').trim();
                 (r as any)['Account Number'] = `RWC${clean}`;
               }
             });
 
-            // Auto-generate account numbers for missing values
-          let autoAssignedCount = 0;
-          let highestAccountNum = 0;
-          const usedAccountNumbers = new Set<string>();
+            // duplicate block already handled above
 
           // Reserve any account numbers already in the CSV
           validRows.forEach(r => {
@@ -894,7 +892,7 @@ export default function SettingsScreen() {
               (r as any)['Account Number'] = acc;
               usedAccountNumbers.add(acc.toUpperCase());
               nextAccountNumber++;
-              autoAssignedCount++;
+              autoAssignedAccCount++;
             } else {
               const clean = acc.replace(/^RWC/i, '').trim();
               (r as any)['Account Number'] = `RWC${clean}`;
