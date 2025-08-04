@@ -796,8 +796,8 @@ export default function SettingsScreen() {
             });
 
             // Auto-generate missing account and round order numbers
-            let clientsAutoAssignedAccCount = 0;
-            let clientsAutoAssignedRoundCount = 0;
+            let autoAssignedAccCount = 0;
+            let autoAssignedRoundCount = 0;
             let highestAccountNum = 0;
             const usedAccountNumbers = new Set<string>();
 
@@ -842,7 +842,7 @@ export default function SettingsScreen() {
                 (r as any)['Account Number'] = acc;
                 usedAccountNumbers.add(acc.toUpperCase());
                 nextAccountNumber++;
-                clientsAutoAssignedAccCount++;
+                autoAssignedAccCount++;
               } else {
                 const clean = acc.replace(/^RWC/i, '').trim();
                 (r as any)['Account Number'] = `RWC${clean}`;
@@ -892,7 +892,7 @@ export default function SettingsScreen() {
                 (r as any)['Round Order'] = nextRoundOrder;
                 usedRoundOrders.add(nextRoundOrder);
                 nextRoundOrder++;
-                clientsAutoAssignedRoundCount++;
+                autoAssignedRoundCount++;
               } else {
                 const num = parseInt(roundOrder, 10);
                 if (!isNaN(num) && num > 0) {
@@ -1083,11 +1083,11 @@ export default function SettingsScreen() {
             }
 
             let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
-            if (clientsAutoAssignedAccCount > 0) {
-              message += `\nAuto-assigned account numbers: ${clientsAutoAssignedAccCount}.`;
+            if (autoAssignedAccCount > 0) {
+              message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
             }
-            if (clientsAutoAssignedRoundCount > 0) {
-              message += `\nAuto-assigned round order numbers: ${clientsAutoAssignedRoundCount}.`;
+            if (autoAssignedRoundCount > 0) {
+              message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
             }
             if (skipped.length > 0) {
               message += `\n\nSkipped ${skipped.length} rows:`;
@@ -1146,8 +1146,8 @@ export default function SettingsScreen() {
         });
 
         // Auto-generate missing account and round order numbers
-        let paymentsAutoAssignedAccCount = 0;
-        let paymentsAutoAssignedRoundCount = 0;
+        let autoAssignedAccCount = 0;
+        let autoAssignedRoundCount = 0;
         let highestAccountNum = 0;
         const usedAccountNumbers = new Set<string>();
 
@@ -1192,7 +1192,7 @@ export default function SettingsScreen() {
             (r as any)['Account Number'] = acc;
             usedAccountNumbers.add(acc.toUpperCase());
             nextAccountNumber++;
-            paymentsAutoAssignedAccCount++;
+            autoAssignedAccCount++;
           } else {
             const clean = acc.replace(/^RWC/i, '').trim();
             (r as any)['Account Number'] = `RWC${clean}`;
@@ -1242,7 +1242,7 @@ export default function SettingsScreen() {
             (r as any)['Round Order'] = nextRoundOrder;
             usedRoundOrders.add(nextRoundOrder);
             nextRoundOrder++;
-            paymentsAutoAssignedRoundCount++;
+            autoAssignedRoundCount++;
           } else {
             const num = parseInt(roundOrder, 10);
             if (!isNaN(num) && num > 0) {
@@ -1430,12 +1430,12 @@ export default function SettingsScreen() {
         }
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
-        if (paymentsAutoAssignedAccCount > 0) {
-              message += `\nAuto-assigned account numbers: ${paymentsAutoAssignedAccCount}.`;
-            }
-            if (paymentsAutoAssignedRoundCount > 0) {
-              message += `\nAuto-assigned round order numbers: ${paymentsAutoAssignedRoundCount}.`;
-            }
+        if (autoAssignedAccCount > 0) {
+          message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
+        }
+        if (autoAssignedRoundCount > 0) {
+          message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
+        }
         if (skipped.length > 0) {
           console.log('[DEBUG] Building detailed error message for', skipped.length, 'skipped rows');
           console.log('[DEBUG] Skipped array:', skipped);
@@ -1476,8 +1476,8 @@ export default function SettingsScreen() {
         });
 
         // Auto-generate missing account and round order numbers
-        let paymentsAutoAssignedAccCount = 0;
-        let paymentsAutoAssignedRoundCount = 0;
+        let autoAssignedAccCount = 0;
+        let autoAssignedRoundCount = 0;
         let highestAccountNum = 0;
         const usedAccountNumbers = new Set<string>();
 
@@ -1522,7 +1522,7 @@ export default function SettingsScreen() {
             (r as any)['Account Number'] = acc;
             usedAccountNumbers.add(acc.toUpperCase());
             nextAccountNumber++;
-            paymentsAutoAssignedAccCount++;
+            autoAssignedAccCount++;
           } else {
             const clean = acc.replace(/^RWC/i, '').trim();
             (r as any)['Account Number'] = `RWC${clean}`;
@@ -1572,7 +1572,7 @@ export default function SettingsScreen() {
             (r as any)['Round Order'] = nextRoundOrder;
             usedRoundOrders.add(nextRoundOrder);
             nextRoundOrder++;
-            paymentsAutoAssignedRoundCount++;
+            autoAssignedRoundCount++;
           } else {
             const num = parseInt(roundOrder, 10);
             if (!isNaN(num) && num > 0) {
@@ -1760,12 +1760,12 @@ export default function SettingsScreen() {
         }
 
         let message = `Import Complete!\n\nSuccessfully imported: ${imported} clients.`;
-        if (paymentsAutoAssignedAccCount > 0) {
-              message += `\nAuto-assigned account numbers: ${paymentsAutoAssignedAccCount}.`;
-            }
-            if (paymentsAutoAssignedRoundCount > 0) {
-              message += `\nAuto-assigned round order numbers: ${paymentsAutoAssignedRoundCount}.`;
-            }
+        if (autoAssignedAccCount > 0) {
+          message += `\nAuto-assigned account numbers: ${autoAssignedAccCount}.`;
+        }
+        if (autoAssignedRoundCount > 0) {
+          message += `\nAuto-assigned round order numbers: ${autoAssignedRoundCount}.`;
+        }
         if (skipped.length > 0) {
           message += `\n\nSkipped ${skipped.length} rows:`;
           skipped.forEach((s, idx) => {

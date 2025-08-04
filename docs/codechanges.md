@@ -1,15 +1,3 @@
-### (Date: 2025-01-17) – Fixed Duplicate Variable Declaration Build Error
-
-1. `app/(tabs)/settings.tsx`
-   • Fixed duplicate variable declarations causing Vercel build failures
-   • Renamed `autoAssignedAccCount` and `autoAssignedRoundCount` variables to be unique across different import functions:
-     - `handleImport` (clients): `clientsAutoAssignedAccCount`, `clientsAutoAssignedRoundCount`
-     - `handleImportPayments` and `handleImportCompletedJobs`: `paymentsAutoAssignedAccCount`, `paymentsAutoAssignedRoundCount`
-   • Updated all variable references and string interpolations to use new unique names
-   • Resolved SyntaxError: "Identifier 'autoAssignedCount' has already been declared" error
-
----
-
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 
 1. `app/runsheet/[week].tsx`
