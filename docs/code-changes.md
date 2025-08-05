@@ -120,3 +120,9 @@ Explicitly installed expo@53.0.20 and re-ran `npx expo install --fix` to ensure 
 
 ### 2025-01-18: Updated Metro Config for Bundling Fixes
 Updated metro.config.js to include explicit resolver options (extraNodeModules for crypto/stream, SVG handling) to resolve path-related bundling errors in EAS Android builds. Confirmed React 19.0.0 and React Native 0.79.5 versions match Expo SDK 53 without impacting Vercel web deployments. 
+
+### 2025-01-18: Reverted Custom Serializer and Metro-Config Pin
+Removed the custom serializer overrides and un-pinned @expo/metro-config from package.json, reverting to default Metro behavior. This avoids baseJSBundle errors while retaining the resolver polyfills for crypto/stream and SVG handling. 
+
+### 2025-01-18: Installed Polyfills for Metro
+Added crypto-browserify and stream-browserify as dependencies to provide Node polyfills referenced in metro.config.js, resolving 'module not found' error in EAS builds. No impact on Vercel web. 
