@@ -102,3 +102,21 @@ Added defensive programming and fallback mechanisms to the activity log system t
 **Priority**: MEDIUM - Improves reliability and debugging capabilities while maintaining performance
 
 --- 
+
+### 2025-01-18: Downgraded React Native
+Additionally downgraded react-native from 0.79.5 to 0.75.4 to match Expo SDK 53's compatible version, resolving peer dependency conflicts with React 18.2.0 and fixing EAS build bundling errors. 
+
+### 2025-01-18: Used legacy-peer-deps
+Ran `npm install --legacy-peer-deps` to resolve remaining dependency conflicts after version downgrades, allowing installation despite peer version mismatches for optional dependencies like react-native-windows. 
+
+### 2025-01-18: Fixed Dependencies with Expo
+Ran `npx expo install --fix` to automatically align all dependency versions with Expo SDK 53 requirements, resolving version conflicts, and fixing the Metro bundler module error. 
+
+### 2025-01-18: Aligned Dependencies with Expo SDK 53
+Ran `npx expo install --fix` to automatically update React to 19.0.0, react-dom to 19.0.0, and react-native to 0.79.5, matching Expo SDK 53 expectations and resolving bundling conflicts without impacting Vercel web builds. 
+
+### 2025-01-18: Explicit Expo Install and Re-Fix
+Explicitly installed expo@53.0.20 and re-ran `npx expo install --fix` to ensure dependency alignment for SDK 53, addressing build issues without affecting web/Vercel compatibility. 
+
+### 2025-01-18: Updated Metro Config for Bundling Fixes
+Updated metro.config.js to include explicit resolver options (extraNodeModules for crypto/stream, SVG handling) to resolve path-related bundling errors in EAS Android builds. Confirmed React 19.0.0 and React Native 0.79.5 versions match Expo SDK 53 without impacting Vercel web deployments. 
