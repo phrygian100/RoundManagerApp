@@ -19,7 +19,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_ROUTER_IMPORT_MODE": "static"
+        "EXPO_ROUTER_IMPORT_MODE": "static",
+        "EXPO_USE_CLASSIC_BUNDLE": "1"
       }
     }
   },

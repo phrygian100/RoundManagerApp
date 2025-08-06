@@ -110,6 +110,9 @@ Additionally downgraded react-native from 0.79.5 to 0.75.4 to match Expo SDK 53'
 Ran `npm install --legacy-peer-deps` to resolve remaining dependency conflicts after version downgrades, allowing installation despite peer version mismatches for optional dependencies like react-native-windows. 
 
 ### 2025-01-18: Fixed Dependencies with Expo
+
+### 2025-01-18: Disabled Eager Bundling for EAS
+Added EXPO_USE_CLASSIC_BUNDLE=1 to EAS production environment to force classic bundling mode instead of eager evaluation, which was causing build failures in the Bundle JavaScript phase.
 Ran `npx expo install --fix` to automatically align all dependency versions with Expo SDK 53 requirements, resolving version conflicts, and fixing the Metro bundler module error. 
 
 ### 2025-01-18: Aligned Dependencies with Expo SDK 53
