@@ -124,5 +124,5 @@ Updated metro.config.js to include explicit resolver options (extraNodeModules f
 ### 2025-01-18: Reverted Custom Serializer and Metro-Config Pin
 Removed the custom serializer overrides and un-pinned @expo/metro-config from package.json, reverting to default Metro behavior. This avoids baseJSBundle errors while retaining the resolver polyfills for crypto/stream and SVG handling. 
 
-### 2025-01-18: Installed Polyfills for Metro
-Added crypto-browserify and stream-browserify as dependencies to provide Node polyfills referenced in metro.config.js, resolving 'module not found' error in EAS builds. No impact on Vercel web. 
+### 2025-01-18: Installed Polyfills for Metro & Static Router Chunking
+Added crypto-browserify and stream-browserify as optional polyfills (resolved only if installed). Metro config now guards `require.resolve` calls with try/catch so EAS can load the config before `npm ci`. Also set `EXPO_ROUTER_IMPORT_MODE=static` in the production build profile to disable chunk splitting that caused the undefined-chunk assertion. 

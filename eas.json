@@ -17,6 +17,9 @@
     "production": {
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_ROUTER_IMPORT_MODE": "static"
       }
     }
   },

@@ -8,12 +8,17 @@ defaultConfig.resolver.sourceExts.push('cjs');
 // Disable package exports to avoid module resolution issues
 defaultConfig.resolver.unstable_enablePackageExports = false;
 
-// Add explicit resolver options to handle path issues
-defaultConfig.resolver.extraNodeModules = {
-  crypto: require.resolve('crypto-browserify'),
-  stream: require.resolve('stream-browserify'),
-  // Add more if needed for your deps
-};
+// Add explicit resolver options to handle Node core modules in RN. These `require.resolve` calls
+// run inside EAS *before* npm ci installs packages, so wrap them in try/catch.
+const extraNodeModules = {};
+try { extraNodeModules.crypto = require.resolve('crypto-browserify'); } catch {}
+try { extraNodeModules.stream = require.resolve('stream-browserify'); } catch {}
+if (Object.keys(extraNodeModules).length) {
+  defaultConfig.resolver.extraNodeModules = {
+    ...(defaultConfig.resolver.extraNodeModules || {}),
+    ...extraNodeModules,
+  };
+}
 defaultConfig.resolver.assetExts = defaultConfig.resolver.assetExts.filter(ext => ext !== 'svg');
 defaultConfig.resolver.sourceExts = [...defaultConfig.resolver.sourceExts, 'svg'];
 
