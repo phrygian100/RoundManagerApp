@@ -20,7 +20,9 @@
       },
       "env": {
         "EXPO_ROUTER_IMPORT_MODE": "static",
-        "EXPO_USE_CLASSIC_BUNDLE": "1"
+        "EXPO_USE_CLASSIC_BUNDLE": "1",
+        "EXPO_PUBLIC_METRO_BUNDLER_WORKER_THREADS": "1",
+        "EXPO_PUBLIC_METRO_CACHE_DISABLED": "1"
       }
     }
   },

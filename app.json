@@ -53,7 +53,9 @@
     ],
     "extra": {
       "firebase": {},
-      "router": {},
+      "router": {
+        "disableHardwareBack": true
+      },
       "eas": {
         "projectId": "fb9540c5-f865-437c-af65-3f7b33779b5a"
       }

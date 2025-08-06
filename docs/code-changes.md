@@ -111,6 +111,12 @@ Ran `npm install --legacy-peer-deps` to resolve remaining dependency conflicts a
 
 ### 2025-01-18: Fixed Dependencies with Expo
 
+### 2025-01-18: Updated Metro Bundler Configuration
+Modified Metro bundler settings to resolve chunk resolution errors:
+1. Disabled Metro worker threads and caching to prevent race conditions
+2. Added explicit router configuration in app.json
+3. Kept classic bundle mode and static import mode
+
 ### 2025-01-18: Disabled Eager Bundling for EAS
 Added EXPO_USE_CLASSIC_BUNDLE=1 to EAS production environment to force classic bundling mode instead of eager evaluation, which was causing build failures in the Bundle JavaScript phase.
 Ran `npx expo install --fix` to automatically align all dependency versions with Expo SDK 53 requirements, resolving version conflicts, and fixing the Metro bundler module error. 
