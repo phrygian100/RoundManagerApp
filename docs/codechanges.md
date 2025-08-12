@@ -124,3 +124,23 @@
    • Shows date in format: "Next renewal: 15 August 2025"
    • Added `subscriptionRenewal` style for formatting
    • Only displays for premium tier when renewal date is available
+
+---
+
+### (Date: 2025-08-12) – Stabilize Android EAS Build
+
+1. `package.json`
+   • Removed `@supabase/supabase-js`, `crypto-browserify`, `stream-browserify`, `firebase-functions`, `gocardless`, and `stripe` from app dependencies to eliminate Node/server-only modules and Supabase usage per project rules.
+   • These packages are either unused in the client app or belong on the server (Cloud Functions already use their own `functions/package.json`).
+
+2. `app.json`
+   • Set `newArchEnabled` to `false` to avoid New Architecture incompatibilities on Android for SDK 53 + current native modules.
+
+3. `metro.config.js`
+   • Removed Node polyfill injection and kept Metro near defaults; this prevents brittle module resolution on EAS Android.
+
+Rationale:
+• Previous build issues were caused by version/config mismatches and Node polyfills introduced to support Supabase/Node libs. Supabase is no longer used. Removing those and disabling New Arch stabilizes Android bundling without impacting web or iOS.
+
+Impact:
+• Expo start/bundle should succeed locally; Android EAS builds should progress past JS bundling phase. Cloud Functions continue to use Stripe in `functions/` where appropriate.
