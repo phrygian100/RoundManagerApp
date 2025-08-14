@@ -144,3 +144,21 @@ Rationale:
 
 Impact:
 • Expo start/bundle should succeed locally; Android EAS builds should progress past JS bundling phase. Cloud Functions continue to use Stripe in `functions/` where appropriate.
+
+Dev workflow note:
+• Added `cross-env`-backed start scripts (`start`, `start:clean`, `android`, `android:clean`) to enforce classic bundling and static router imports during local dev to avoid Metro serializer errors on Android.
+
+Follow-up:
+• Pinned `@expo/metro-config` to 0.20.12 to pick up fixes in Expo’s serializer fork that impact `getModuleParams`/chunk path computation. For EAS, we no longer override the serializer in `metro.config.js` to ensure the format expected by the CLI (removed experimental serializer options and gating the override behind `METRO_UPSTREAM_SERIALIZER=1` for local only).
+
+---
+
+### (Date: 2025-08-12) – Firebase Config Fallback + Remove Legacy Env File
+
+1. `core/firebase.ts`
+   • Reads Firebase config in this order now: `EXPO_PUBLIC_*` env vars → `Constants.expoConfig.extra.firebase` (from `app.config.ts`/`app.json`) → `FIREBASE_CONFIG` from `config.ts`.
+   • Prevents dev crashes when `EXPO_PUBLIC_*` vars aren’t set locally.
+
+2. Repo hygiene
+   • Removed `ServiceKey.env.local` (contained legacy Supabase service role key). Supabase is no longer used.
+   • Recommendation: keep this filename in `.gitignore` going forward; rotate the exposed key if it was real.

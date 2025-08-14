@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
@@ -7,13 +8,17 @@ let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
 
+// Prefer EXPO_PUBLIC_* env vars; fall back to app config extra.firebase; then to FIREBASE_CONFIG
+const extraFirebase: Partial<Record<string, string>> =
+  ((Constants?.expoConfig as any)?.extra?.firebase as any) || {};
+
 const firebaseConfig = {
-  apiKey:             process.env.EXPO_PUBLIC_FIREBASE_API_KEY          ?? FIREBASE_CONFIG.apiKey,
-  authDomain:         process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN      ?? FIREBASE_CONFIG.authDomain,
-  projectId:          process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID       ?? FIREBASE_CONFIG.projectId,
-  storageBucket:      process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET   ?? FIREBASE_CONFIG.storageBucket,
-  messagingSenderId:  process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ?? FIREBASE_CONFIG.messagingSenderId,
-  appId:              process.env.EXPO_PUBLIC_FIREBASE_APP_ID           ?? FIREBASE_CONFIG.appId,
+  apiKey:             process.env.EXPO_PUBLIC_FIREBASE_API_KEY          || (extraFirebase.apiKey as string)          || FIREBASE_CONFIG.apiKey,
+  authDomain:         process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN      || (extraFirebase.authDomain as string)      || FIREBASE_CONFIG.authDomain,
+  projectId:          process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID       || (extraFirebase.projectId as string)       || FIREBASE_CONFIG.projectId,
+  storageBucket:      process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET   || (extraFirebase.storageBucket as string)   || FIREBASE_CONFIG.storageBucket,
+  messagingSenderId:  process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || (extraFirebase.messagingSenderId as string) || FIREBASE_CONFIG.messagingSenderId,
+  appId:              process.env.EXPO_PUBLIC_FIREBASE_APP_ID           || (extraFirebase.appId as string)           || FIREBASE_CONFIG.appId,
 };
 
 // Debug logging for Firebase config
@@ -22,6 +27,7 @@ console.log('Firebase Config Debug:', {
   authDomain: firebaseConfig.authDomain,
   projectId: firebaseConfig.projectId,
   envApiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY ? 'set' : 'not set',
+  fromExtra: !!extraFirebase && Object.keys(extraFirebase).length > 0,
 });
 
 const requiredKeys = [

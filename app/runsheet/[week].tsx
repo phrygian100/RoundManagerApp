@@ -73,6 +73,12 @@ export default function RunsheetWeekScreen() {
   const [summaryVisible, setSummaryVisible] = useState(false);
   const [summaryTotal, setSummaryTotal] = useState(0);
   const [summaryDDJobs, setSummaryDDJobs] = useState<(Job & { client: Client | null })[]>([]);
+  // Track per-job completion order and out-of-order swap proposals (per day)
+  const [completionSeq, setCompletionSeq] = useState(0);
+  const [completionMap, setCompletionMap] = useState<Record<string, number>>({});
+  const [swapProposalsByDay, setSwapProposalsByDay] = useState<Record<string, Array<{ jobId: string; swapWithJobId: string }>>>({});
+  const [summarySwapChoices, setSummarySwapChoices] = useState<Array<{ jobId: string; swapWithJobId: string; selected: boolean }>>([]);
+  const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
 
   // GoCardless payment modal
   const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
@@ -535,7 +541,7 @@ export default function RunsheetWeekScreen() {
     };
   });
 
-  const handleComplete = async (jobId: string, isCompleted: boolean) => {
+  const handleComplete = async (jobId: string, isCompleted: boolean, section?: any) => {
     setLoading(true);
     await updateJobStatus(jobId, isCompleted ? 'pending' : 'completed');
     setJobs((prev) =>
@@ -553,6 +559,68 @@ export default function RunsheetWeekScreen() {
         jobId,
         formatAuditDescription('job_completed')
       );
+
+      // Record completion sequence and detect out-of-order within the current vehicle block (for today only)
+      try {
+        // Resolve job and section for context
+        const job = jobs.find(j => j.id === jobId);
+        if (!job) return;
+        const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (!jobDate || jobDate.toDateString() !== today.toDateString()) return; // only track for today
+        if (!section) return; // need section data to establish per-vehicle order
+        // Find vehicle block bounds
+        const data = section.data || [];
+        const jobIndex = data.findIndex((d: any) => d && d.id === jobId);
+        if (jobIndex < 0) return;
+        let vehicleStartIndex = 0;
+        for (let i = jobIndex - 1; i >= 0; i--) {
+          const prevItem = data[i];
+          if (prevItem && (prevItem as any).__type === 'vehicle') {
+            vehicleStartIndex = i + 1;
+            break;
+          }
+        }
+        let vehicleEndIndex = data.length;
+        for (let i = jobIndex + 1; i < data.length; i++) {
+          const nextItem = data[i];
+          if (nextItem && (nextItem as any).__type === 'vehicle') {
+            vehicleEndIndex = i;
+            break;
+          }
+        }
+        // Build the current vehicle's display order: filter to real jobs (exclude vehicle headers, notes, quotes)
+        const vehicleJobs = data.slice(vehicleStartIndex, vehicleEndIndex)
+          .filter((x: any) => x && !(x as any).__type && !isNoteJob(x) && !isQuoteJob(x));
+        // Update completion map with sequence number
+        setCompletionSeq(prev => prev + 1);
+        setCompletionMap(prev => ({ ...prev, [jobId]: (prev[jobId] ?? completionSeq + 1) }));
+        // Detect if this completion is out of order within vehicle: any earlier display job completed later than this one
+        const currentSeq = (completionMap[jobId] ?? completionSeq + 1);
+        const aheadJobs = vehicleJobs.slice(0, vehicleJobs.findIndex((x: any) => x.id === jobId));
+        const firstAheadIncompleteOrNotCompletedFirst = aheadJobs.find((x: any) => {
+          if (x.status === 'completed') {
+            const seq = completionMap[x.id];
+            return typeof seq === 'number' && seq > currentSeq; // completed after this one
+          }
+          // not completed yet but is above, so this is out of order relative to the next expected job
+          return true;
+        });
+        if (firstAheadIncompleteOrNotCompletedFirst) {
+          const nextExpected = firstAheadIncompleteOrNotCompletedFirst;
+          const dayTitle = section.title;
+          setSwapProposalsByDay(prev => {
+            const existing = prev[dayTitle] || [];
+            // Avoid duplicates
+            const exists = existing.some(p => (p.jobId === jobId && p.swapWithJobId === nextExpected.id) || (p.jobId === nextExpected.id && p.swapWithJobId === jobId));
+            if (exists) return prev;
+            return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: nextExpected.id }] };
+          });
+        }
+      } catch (e) {
+        console.warn('Completion order tracking failed:', e);
+      }
     }
 
     /* auto prompt removed */
@@ -1141,11 +1209,12 @@ ${signOff}`;
       // Process GoCardless payments for completed jobs
       await processGoCardlessPayments(dayJobs, dayTitle);
 
-      // Prepare and show summary modal
+      // Prepare and show summary modal (also attach swap proposals if any)
       const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
       const ddJobs = dayJobs.filter(j => j.gocardlessEnabled && j.gocardlessCustomerId);
       setSummaryTotal(totalValue);
       setSummaryDDJobs(ddJobs as any);
+      setSummaryDayTitle(dayTitle);
       setSummaryVisible(true);
     } catch (error) {
       console.error('Error completing day:', error);
@@ -1547,8 +1616,8 @@ ${signOff}`;
     // Determine if this job is for today
     const isToday = jobDate && jobDate.toDateString() === today.toDateString();
     const isFutureDay = jobDate && jobDate > today;
-    // Only show complete button for the first incomplete job within this vehicle on today, if today is not marked complete
-    const showCompleteButton = isCurrentWeek && isToday && index === firstIncompleteIndex && !isCompleted && !isDayCompleted;
+    // Allow completing any job for today within this vehicle (quotes are handled separately)
+    const showCompleteButton = isCurrentWeek && isToday && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
     // Define predefined service types
     const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'];
@@ -1664,13 +1733,13 @@ ${signOff}`;
           <Pressable onPress={() => showPickerForJob(item, section, index)} style={styles.etaButton}>
             <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
           </Pressable>
-          {showCompleteButton && (
-            <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
+            {showCompleteButton && (
+            <Pressable onPress={() => handleComplete(item.id, isCompleted, section)} style={styles.completeButton}>
               <Text style={styles.completeButtonText}>Complete?</Text>
             </Pressable>
           )}
           {showUndoButton && (
-            <Pressable onPress={() => handleComplete(item.id, isCompleted)} style={styles.completeButton}>
+            <Pressable onPress={() => handleComplete(item.id, isCompleted, section)} style={styles.completeButton}>
               <Text style={styles.completeButtonText}>Undo</Text>
             </Pressable>
           )}
@@ -1916,6 +1985,26 @@ ${signOff}`;
               <View style={styles.summaryBox}>
                 <Text style={styles.summaryTitle}>Day Complete Summary</Text>
                 <Text style={styles.summaryTotal}>Total value: £{summaryTotal.toFixed(2)}</Text>
+                {summaryDayTitle && (swapProposalsByDay[summaryDayTitle]?.length || 0) > 0 && (
+                  <>
+                    <Text style={styles.summarySub}>Out-of-order jobs detected</Text>
+                    <ScrollView style={{ maxHeight: 200, width: '100%', marginBottom: 8 }}>
+                      {summarySwapChoices.map((p, idx) => {
+                        const a = jobs.find(j => j.id === p.jobId);
+                        const b = jobs.find(j => j.id === p.swapWithJobId);
+                        const aName = a?.client?.name || 'Client A';
+                        const bName = b?.client?.name || 'Client B';
+                        return (
+                          <Pressable key={idx} onPress={() => setSummarySwapChoices(prev => prev.map((x, i) => i === idx ? { ...x, selected: !x.selected } : x))}>
+                            <Text style={styles.summaryLine}>
+                              [{p.selected ? '✓' : ' '}] Swap {aName} with {bName}?
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </ScrollView>
+                  </>
+                )}
                 {summaryDDJobs.length > 0 ? (
                   <>
                     <Text style={styles.summarySub}>Direct-Debit Jobs ({summaryDDJobs.length})</Text>
@@ -1930,9 +2019,57 @@ ${signOff}`;
                 ) : (
                   <Text style={styles.summaryLine}>No direct-debit jobs today.</Text>
                 )}
-                <Pressable style={styles.summaryClose} onPress={() => setSummaryVisible(false)}>
-                  <Text style={styles.summaryCloseTxt}>Close</Text>
-                </Pressable>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                  <Pressable
+                    style={[styles.summaryClose, { backgroundColor: '#2e7d32' }]}
+                    onPress={async () => {
+                      try {
+                        // Apply selected swaps by updating client roundOrderNumber pairs
+                        const selected = summarySwapChoices.filter(p => p.selected);
+                        for (const p of selected) {
+                          const jobA = jobs.find(j => j.id === p.jobId);
+                          const jobB = jobs.find(j => j.id === p.swapWithJobId);
+                          if (!jobA?.client || !jobB?.client) continue;
+                          const newA = jobB.client.roundOrderNumber;
+                          const newB = jobA.client.roundOrderNumber;
+                          await Promise.all([
+                            updateDoc(doc(db, 'clients', jobA.client.id), { roundOrderNumber: newA }),
+                            updateDoc(doc(db, 'clients', jobB.client.id), { roundOrderNumber: newB }),
+                          ]);
+                          setJobs(prev => prev.map(j => {
+                            if (j.id === jobA.id && j.client) return { ...j, client: { ...j.client, roundOrderNumber: newA } };
+                            if (j.id === jobB.id && j.client) return { ...j, client: { ...j.client, roundOrderNumber: newB } };
+                            return j;
+                          }));
+                        }
+                      } catch (e) {
+                        console.warn('Failed to apply swaps:', e);
+                      } finally {
+                        setSummaryVisible(false);
+                        setSummarySwapChoices([]);
+                        if (summaryDayTitle) {
+                          setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
+                        }
+                        setSummaryDayTitle(null);
+                      }
+                    }}
+                  >
+                    <Text style={styles.summaryCloseTxt}>Confirm</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.summaryClose}
+                    onPress={() => {
+                      setSummaryVisible(false);
+                      setSummarySwapChoices([]);
+                      if (summaryDayTitle) {
+                        setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
+                      }
+                      setSummaryDayTitle(null);
+                    }}
+                  >
+                    <Text style={styles.summaryCloseTxt}>Close</Text>
+                  </Pressable>
+                </View>
               </View>
             </View>
           </Modal>

@@ -8,21 +8,37 @@
       "developmentClient": true,
       "distribution": "internal"
     },
-    "preview": {
+    "internal": {
       "distribution": "internal",
-      "android": {
-        "buildType": "apk"
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_ROUTER_IMPORT_MODE": "sync",
+        "EXPO_USE_CLASSIC_BUNDLE": "1",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDGogz3xR5r-a3z6uheoljDDLYmkx41tXo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "roundmanagerapp.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "roundmanagerapp",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "roundmanagerapp.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1049000869926",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1049000869926:web:dbd1ff76e097cae72526e7"
       }
+    },
+    "preview": {
+      "developmentClient": true,
+      "env": { "EXPO_ROUTER_IMPORT_MODE": "sync" }
     },
     "production": {
       "android": {
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_ROUTER_IMPORT_MODE": "static",
+        "EXPO_ROUTER_IMPORT_MODE": "sync",
         "EXPO_USE_CLASSIC_BUNDLE": "1",
-        "EXPO_PUBLIC_METRO_BUNDLER_WORKER_THREADS": "1",
-        "EXPO_PUBLIC_METRO_CACHE_DISABLED": "1"
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyDGogz3xR5r-a3z6uheoljDDLYmkx41tXo",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "roundmanagerapp.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "roundmanagerapp",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "roundmanagerapp.appspot.com",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1049000869926",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1049000869926:web:dbd1ff76e097cae72526e7"
       }
     }
   },
