@@ -1,3 +1,4 @@
+- Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 
 1. `app/runsheet/[week].tsx`

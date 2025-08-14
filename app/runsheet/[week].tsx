@@ -1618,7 +1618,7 @@ ${signOff}`;
     const isFutureDay = jobDate && jobDate > today;
     // Allow completing any job for today within this vehicle (quotes are handled separately)
     const showCompleteButton = isCurrentWeek && isToday && !isCompleted && !isDayCompleted;
-    const showUndoButton = isCurrentWeek && isCompleted && !isDayCompleted;
+    const showUndoButton = isCurrentWeek && isCompleted && isToday && !isDayCompleted;
     // Define predefined service types
     const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'];
     const predefinedAdditionalServices: string[] = []; // Add any predefined additional services here if needed
@@ -2051,6 +2051,9 @@ ${signOff}`;
                           setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
                         }
                         setSummaryDayTitle(null);
+                        // Clear completion tracking after finishing the day
+                        setCompletionMap({});
+                        setCompletionSeq(0);
                       }
                     }}
                   >
@@ -2065,6 +2068,9 @@ ${signOff}`;
                         setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
                       }
                       setSummaryDayTitle(null);
+                      // Clear completion tracking after finishing the day
+                      setCompletionMap({});
+                      setCompletionSeq(0);
                     }}
                   >
                     <Text style={styles.summaryCloseTxt}>Close</Text>
