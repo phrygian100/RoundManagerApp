@@ -161,5 +161,15 @@ Follow-up:
    • Prevents dev crashes when `EXPO_PUBLIC_*` vars aren’t set locally.
 
 2. Repo hygiene
-   • Removed `ServiceKey.env.local` (contained legacy Supabase service role key). Supabase is no longer used.
-   • Recommendation: keep this filename in `.gitignore` going forward; rotate the exposed key if it was real.
+• Removed `ServiceKey.env.local` (contained legacy Supabase service role key). Supabase is no longer used.
+• Recommendation: keep this filename in `.gitignore` going forward; rotate the exposed key if it was real.
+
+---
+
+### (Date: 2025-08-13) – Fix Android release crash-on-launch
+
+1. `app.json`
+   • Set `newArchEnabled` back to `false` for release builds to avoid native crash at startup observed on the internal APK. Reanimated Babel plugin remains enabled for release.
+
+Context:
+• Dev client ran, but standalone APK crashed immediately on some devices. Disabling New Architecture stabilizes the release binary without affecting web.

@@ -3,7 +3,9 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { getApp } from 'firebase/app';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
@@ -1211,7 +1213,11 @@ ${signOff}`;
 
       // Prepare and show summary modal (also attach swap proposals if any)
       const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
-      const ddJobs = dayJobs.filter(j => j.gocardlessEnabled && j.gocardlessCustomerId);
+      const ddJobs = dayJobs.filter(j => {
+        const enabled = (j as any).gocardlessEnabled ?? (j as any).client?.gocardlessEnabled ?? false;
+        const customerId = (j as any).gocardlessCustomerId ?? (j as any).client?.gocardlessCustomerId;
+        return !!enabled && !!customerId;
+      });
       setSummaryTotal(totalValue);
       setSummaryDDJobs(ddJobs as any);
       setSummaryDayTitle(dayTitle);
@@ -1250,26 +1256,27 @@ ${signOff}`;
         return;
       }
 
-      // Create GoCardless service instance
-      const gocardlessService = new GoCardlessService(apiToken);
-
-      // Group jobs by client for GoCardless API calls
+      // Group jobs by client for GoCardless API calls (use job OR client settings)
       const gocardlessJobsByClient = new Map<string, Array<{ price: number; gocardlessCustomerId: string }>>();
       
       dayJobs.forEach(job => {
-        if (job.gocardlessEnabled && job.gocardlessCustomerId) {
+        const enabled = (job as any).gocardlessEnabled ?? (job as any).client?.gocardlessEnabled ?? false;
+        const customerId = (job as any).gocardlessCustomerId ?? (job as any).client?.gocardlessCustomerId;
+        if (enabled && customerId) {
           if (!gocardlessJobsByClient.has(job.clientId)) {
             gocardlessJobsByClient.set(job.clientId, []);
           }
           gocardlessJobsByClient.get(job.clientId)!.push({
             price: job.price,
-            gocardlessCustomerId: job.gocardlessCustomerId
+            gocardlessCustomerId: customerId
           });
         }
       });
 
       if (gocardlessJobsByClient.size > 0) {
-        // Create actual GoCardless API payments FIRST
+        // Use Cloud Function to avoid CORS on web
+        const functions = getFunctions(getApp());
+        const createGoCardlessPayment = httpsCallable(functions, 'createGoCardlessPayment');
         const completionDate = format(new Date(), 'yyyy-MM-dd');
         const apiErrors: string[] = [];
         let apiPaymentsCreated = 0;
@@ -1277,77 +1284,38 @@ ${signOff}`;
 
         for (const [clientId, jobs] of gocardlessJobsByClient) {
           try {
-            const totalAmount = jobs.reduce((sum, job) => sum + job.price, 0);
+            const totalAmount = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
             const firstJob = jobs[0];
+            const serviceDate = format(new Date(), 'ddMMyyyy');
+            const description = `Window cleaning ${serviceDate}`;
 
-            // Get the full job data for this client to create description
-            const clientJobs = dayJobs.filter(job => job.clientId === clientId && job.gocardlessEnabled);
-            const firstFullJob = clientJobs[0];
-            
-            // Create description with service type and date
-            const serviceDate = format(new Date(firstFullJob.scheduledTime), 'ddMMyyyy');
-            const serviceTypes = [...new Set(clientJobs.map(job => job.serviceId || 'Window cleaning'))];
-            const serviceDescription = serviceTypes.length === 1 ? serviceTypes[0] : 'Multiple services';
-            const description = `${serviceDescription} ${serviceDate}`;
-
-            const paymentRequest = {
+            const payload = {
               amount: totalAmount,
               currency: 'GBP',
               customerId: firstJob.gocardlessCustomerId,
-              description: description,
+              description,
               reference: `DD-${completionDate}-${clientId}`
-            };
+            } as any;
 
-            const response = await gocardlessService.createPayment(paymentRequest);
-            console.log(`GoCardless payment created for client ${clientId}:`, response.id);
-            apiPaymentsCreated++;
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-            console.error(`Failed to create GoCardless payment for client ${clientId}:`, errorMessage);
-            apiErrors.push(`Client ${clientId}: ${errorMessage}`);
-            failedPayments.push({ clientId, error: errorMessage });
-          }
-        }
-
-        // Show warning if any API payments failed
-        if (failedPayments.length > 0) {
-          const warningMessage = `Some GoCardless payments failed. You'll see details for each failed payment.\n\n${failedPayments.length} payment(s) failed to process.`;
-          
-          if (Platform.OS === 'web') {
-            window.alert(warningMessage);
-          } else {
-            await new Promise<void>((resolve) => {
-              Alert.alert('GoCardless Payment Warning', warningMessage, [
-                { text: 'Continue', onPress: () => resolve() }
-              ]);
-            });
-          }
-
-          // Show individual error for each failed payment
-          for (const failedPayment of failedPayments) {
-            const errorMessage = `GoCardless API payment failed for client ${failedPayment.clientId}:\n\n${failedPayment.error}`;
-            
-            if (Platform.OS === 'web') {
-              window.alert(errorMessage);
+            const result: any = await createGoCardlessPayment(payload);
+            if (result?.data?.success) {
+              apiPaymentsCreated++;
             } else {
-              await new Promise<void>((resolve) => {
-                Alert.alert('Payment Failed', errorMessage, [
-                  { text: 'OK', onPress: () => resolve() }
-                ]);
-              });
+              throw new Error(result?.data?.message || 'Unknown error');
             }
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            console.error('Failed to create GoCardless payment for client', clientId, msg);
+            apiErrors.push(msg);
+            failedPayments.push({ clientId, error: msg });
           }
         }
 
-        // Create local payments for successful API payments
+        // Mirror to local payments
         let localPaymentsCreated = 0;
         if (apiPaymentsCreated > 0) {
-          const completionDate = format(new Date(), 'yyyy-MM-dd');
           const paymentResult = await createGoCardlessPaymentsForDay(dayJobs, completionDate);
           localPaymentsCreated = paymentResult.paymentsCreated;
-          console.log(`Created ${localPaymentsCreated} GoCardless payments in app`);
-          
-          // Log the GoCardless payment processing
           await logAction(
             'gocardless_payments_processed',
             'payment',
@@ -1356,7 +1324,6 @@ ${signOff}`;
           );
         }
 
-        // Log failed payments to audit trail
         if (failedPayments.length > 0) {
           for (const failedPayment of failedPayments) {
             await logAction(
@@ -1368,22 +1335,16 @@ ${signOff}`;
           }
         }
 
-        // Show results to user
-        let message = `${dayJobs.length} jobs marked as completed for ${dayTitle}`;
-        if (localPaymentsCreated > 0) {
-          message += `\n\n${localPaymentsCreated} direct debit payment(s) created in app`;
-        }
-        if (apiPaymentsCreated > 0) {
-          message += `\n\n${apiPaymentsCreated} direct debit(s) raised in GoCardless`;
-        }
         if (apiErrors.length > 0) {
-          message += `\n\n${apiErrors.length} payment(s) failed: ${apiErrors.join(', ')}`;
+          const msg = `Some direct debit payments failed to initiate (created: ${apiPaymentsCreated}). Errors: \n- ${apiErrors.join('\n- ')}`;
+          if (Platform.OS === 'web') {
+            window.alert(msg);
+          } else {
+            Alert.alert('GoCardless Payment Issues', msg);
+          }
         }
-
-        console.log('Day complete summary', message);
       } else {
         console.log('No GoCardless payments to process');
-        console.log('Day complete (no DD payments)');
       }
 
     } catch (error) {
