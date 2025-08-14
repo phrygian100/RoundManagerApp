@@ -6,6 +6,10 @@
   - Draft auto-loads when the modal becomes visible and auto-saves on field changes; cleared upon successful completion.
   - No changes to web-specific code paths; compatible with both mobile and web.
 
+- Debounced auth redirect to login to prevent late redirect glitches during brief token refresh.
+  - File: `app/_layout.tsx`
+  - Increased debounce window to 5s to cover slower token/claims refreshes after login; still cleared once authenticated.
+
 - Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 

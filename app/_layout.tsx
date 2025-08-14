@@ -13,6 +13,7 @@ function AppContent() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { clearQuoteData } = useQuoteToClient();
   const previousUserRef = useRef<User | null>(null);
+  const loginRedirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Set up auth listener only once
   useEffect(() => {
@@ -50,11 +51,34 @@ function AppContent() {
     
     if (!loggedIn) {
       console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
-      if (!unauthAllowed.some(p => pathname.startsWith(p))) {
-        console.log('🔑 Redirecting to login from:', pathname);
-        router.replace('/login');
+      // Avoid abrupt redirects if we previously had a user (e.g., during brief token refresh)
+      const previouslyHadUser = !!previousUserRef.current;
+      const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p));
+
+      if (shouldRedirectToLogin) {
+        if (previouslyHadUser) {
+          // Debounce redirect – give auth a moment to settle
+          if (!loginRedirectTimeoutRef.current) {
+            loginRedirectTimeoutRef.current = setTimeout(() => {
+              // Only redirect if still not logged in
+              if (!auth.currentUser) {
+                console.log('🔑 Debounced redirecting to login from:', pathname);
+                router.replace('/login');
+              }
+              loginRedirectTimeoutRef.current = null;
+            }, 5000);
+          }
+        } else {
+          console.log('🔑 Redirecting to login from:', pathname);
+          router.replace('/login');
+        }
       }
     } else {
+      // Clear any pending debounced login redirect once authenticated
+      if (loginRedirectTimeoutRef.current) {
+        clearTimeout(loginRedirectTimeoutRef.current);
+        loginRedirectTimeoutRef.current = null;
+      }
       console.log('🔑 Logged in, checking redirect rules for:', pathname);
       // Don't redirect if we're in a password reset flow
       if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
