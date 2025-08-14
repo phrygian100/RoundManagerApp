@@ -1,18 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
-  Button,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Alert,
+    Button,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -54,6 +55,52 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   
   const [saving, setSaving] = useState(false);
+
+  // Persist draft state so a brief remount does not lose progress
+  const draftKey = useMemo(() => {
+    const uid = auth.currentUser?.uid;
+    return uid ? `firstTimeSetupDraft:${uid}` : null;
+  }, [auth.currentUser?.uid]);
+
+  // Load draft when modal becomes visible
+  useEffect(() => {
+    if (!visible || !draftKey) return;
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(draftKey);
+        if (!raw) return;
+        const draft = JSON.parse(raw);
+        if (typeof draft.step === 'number') setStep(draft.step);
+        if (typeof draft.hasInviteCode !== 'undefined') setHasInviteCode(draft.hasInviteCode);
+        if (draft.workingDays && typeof draft.workingDays === 'object') setWorkingDays(draft.workingDays);
+        if (typeof draft.vehicleNameOrReg === 'string') setVehicleNameOrReg(draft.vehicleNameOrReg);
+        if (typeof draft.dailyTurnoverLimit === 'string') setDailyTurnoverLimit(draft.dailyTurnoverLimit);
+        if (typeof draft.businessName === 'string') setBusinessName(draft.businessName);
+        if (typeof draft.bankSortCode === 'string') setBankSortCode(draft.bankSortCode);
+        if (typeof draft.bankAccountNumber === 'string') setBankAccountNumber(draft.bankAccountNumber);
+      } catch (e) {
+        console.warn('Failed to load first-time setup draft', e);
+      }
+    })();
+  }, [visible, draftKey]);
+
+  // Save draft whenever fields change while visible
+  useEffect(() => {
+    if (!visible || !draftKey) return;
+    const payload = JSON.stringify({
+      step,
+      hasInviteCode,
+      workingDays,
+      vehicleNameOrReg,
+      dailyTurnoverLimit,
+      businessName,
+      bankSortCode,
+      bankAccountNumber,
+    });
+    AsyncStorage.setItem(draftKey, payload).catch((e) =>
+      console.warn('Failed to save first-time setup draft', e)
+    );
+  }, [visible, draftKey, step, hasInviteCode, workingDays, vehicleNameOrReg, dailyTurnoverLimit, businessName, bankSortCode, bankAccountNumber]);
 
   const toggleDay = (day: string) => {
     setWorkingDays(prev => ({ ...prev, [day]: !prev[day] }));
@@ -173,6 +220,11 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
         'Your account has been configured successfully!'
       );
       
+      // Clear any saved draft now that setup is complete
+      if (draftKey) {
+        try { await AsyncStorage.removeItem(draftKey); } catch {}
+      }
+
       // Auto-navigate after a short delay
       setTimeout(() => {
         onComplete(false);

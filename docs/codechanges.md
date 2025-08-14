@@ -1,3 +1,11 @@
+## 2025-08-14
+
+- Implemented draft persistence for first-time setup to prevent data loss if the screen remounts shortly after login.
+  - File: `components/FirstTimeSetupModal.tsx`
+  - Added `@react-native-async-storage/async-storage` usage to save and restore form state per user (`firstTimeSetupDraft:<uid>`).
+  - Draft auto-loads when the modal becomes visible and auto-saves on field changes; cleared upon successful completion.
+  - No changes to web-specific code paths; compatible with both mobile and web.
+
 - Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 
@@ -173,3 +181,11 @@ Follow-up:
 
 Context:
 • Dev client ran, but standalone APK crashed immediately on some devices. Disabling New Architecture stabilizes the release binary without affecting web.
+
+---
+
+### (Date: 2025-08-13) – Add release-apk EAS profile
+
+1. `eas.json`
+   • Added `release-apk` profile to produce a standalone installable APK with conservative bundling and Firebase env baked in.
+   • Use: `npx eas build --platform android --profile release-apk --non-interactive`.
