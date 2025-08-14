@@ -14,8 +14,8 @@ import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
 
-type Client = BaseClient & { startingBalance?: number };
-type SortOption = 'address' | 'nextVisit' | 'roundOrder' | 'none' | 'balance' | 'accountNumber';
+ type Client = BaseClient & { startingBalance?: number };
+ type SortOption = 'address' | 'nextVisit' | 'roundOrder' | 'none' | 'balance' | 'accountNumber' | 'weeklyInterval';
 
 export default function ClientsScreen() {
   const router = useRouter();
@@ -240,6 +240,33 @@ export default function ClientsScreen() {
               const balanceA = clientBalances[a.id] ?? 0;
               const balanceB = clientBalances[b.id] ?? 0;
               return balanceA - balanceB; // Sorts from most debt to most credit
+            case 'weeklyInterval':
+              // Sort by main client frequency (weeks). Fallback to smallest active additional service interval.
+              const parseFrequency = (value: unknown): number => {
+                if (typeof value === 'number') return value;
+                if (typeof value === 'string') {
+                  const match = value.match(/\d+/);
+                  if (match) return parseInt(match[0], 10);
+                }
+                return Number.POSITIVE_INFINITY;
+              };
+
+              const getClientInterval = (client: Client): number => {
+                const primary = parseFrequency(client.frequency as unknown);
+                if (primary !== Number.POSITIVE_INFINITY) return primary;
+                if (Array.isArray(client.additionalServices) && client.additionalServices.length > 0) {
+                  const activeFrequencies = client.additionalServices
+                    .filter(s => s && (s as any).isActive !== false)
+                    .map(s => parseFrequency(s.frequency));
+                  const min = Math.min(...activeFrequencies);
+                  return isFinite(min) ? min : Number.POSITIVE_INFINITY;
+                }
+                return Number.POSITIVE_INFINITY;
+              };
+
+              const aInterval = getClientInterval(a);
+              const bInterval = getClientInterval(b);
+              return aInterval - bInterval;
             default:
               return 0;
           }
@@ -254,7 +281,7 @@ export default function ClientsScreen() {
   }, [searchQuery, clients, sortBy, clientBalances, nextVisits]);
 
   const handleSort = () => {
-    const sortOptions: SortOption[] = ['none', 'address', 'nextVisit', 'roundOrder', 'balance', 'accountNumber'];
+    const sortOptions: SortOption[] = ['none', 'address', 'nextVisit', 'roundOrder', 'balance', 'accountNumber', 'weeklyInterval'];
     const currentIndex = sortOptions.indexOf(sortBy);
     const nextIndex = (currentIndex + 1) % sortOptions.length;
     setSortBy(sortOptions[nextIndex]);
@@ -267,6 +294,7 @@ export default function ClientsScreen() {
       case 'nextVisit': return 'Next Visit';
       case 'roundOrder': return 'Round Order';
       case 'balance': return 'Balance';
+      case 'weeklyInterval': return 'Weekly Interval';
       default: return 'Sort';
     }
   };

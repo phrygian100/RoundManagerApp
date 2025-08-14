@@ -1,7 +1,8 @@
 import Constants from 'expo-constants';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
+import { Auth, getAuth, initializeAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
+import { Platform } from 'react-native';
 import { FIREBASE_CONFIG } from '../config';
 
 let app: FirebaseApp;
@@ -53,6 +54,16 @@ if (!getApps().length) {
   app = initializeApp(firebaseConfig);
 } else {
   app = getApp();
+}
+
+// Initialize Firebase Auth for React Native before calling getAuth
+// This registers the 'auth' component in RN and prevents "Component auth has not been registered yet"
+if (Platform.OS !== 'web') {
+  try {
+    initializeAuth(app);
+  } catch (_) {
+    // ignore if already initialized
+  }
 }
 
 // Initialize Firebase services

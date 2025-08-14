@@ -6,6 +6,12 @@
   - Draft auto-loads when the modal becomes visible and auto-saves on field changes; cleared upon successful completion.
   - No changes to web-specific code paths; compatible with both mobile and web.
 
+- Client list: Added sorting by weekly interval.
+  - File: `app/clients.tsx`
+  - New sort option key `weeklyInterval` included in the cycle list and label mapping.
+  - Comparator reads `client.frequency` (number or string) and falls back to the smallest active `additionalServices.frequency` when primary is missing; clients without intervals sort last.
+  - Preserves existing sort options and search/filter behavior for both mobile and web.
+
 - Debounced auth redirect to login to prevent late redirect glitches during brief token refresh.
   - File: `app/_layout.tsx`
   - Increased debounce window to 5s to cover slower token/claims refreshes after login; still cleared once authenticated.
@@ -193,3 +199,10 @@ Context:
 1. `eas.json`
    • Added `release-apk` profile to produce a standalone installable APK with conservative bundling and Firebase env baked in.
    • Use: `npx eas build --platform android --profile release-apk --non-interactive`.
+
+---
+
+### (Date: 2025-08-14) – Fix Android crash: initialize Firebase Auth on RN
+
+1. `core/firebase.ts`
+   • Call `initializeAuth(app)` on native before `getAuth(app)` so the `auth` component is registered (fixes "Component auth has not been registered yet").
