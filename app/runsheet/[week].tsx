@@ -81,6 +81,7 @@ export default function RunsheetWeekScreen() {
   const [swapProposalsByDay, setSwapProposalsByDay] = useState<Record<string, Array<{ jobId: string; swapWithJobId: string }>>>({});
   const [summarySwapChoices, setSummarySwapChoices] = useState<Array<{ jobId: string; swapWithJobId: string; selected: boolean }>>([]);
   const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
+  const [summaryProcessing, setSummaryProcessing] = useState<boolean>(false);
 
   // GoCardless payment modal
   const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
@@ -1208,20 +1209,26 @@ ${signOff}`;
         ownerId: ownerId     // Add ownerId for backward compatibility
       });
 
-      // Process GoCardless payments for completed jobs
-      await processGoCardlessPayments(dayJobs, dayTitle);
-
-      // Prepare and show summary modal (also attach swap proposals if any)
-      const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
-      const ddJobs = dayJobs.filter(j => {
-        const enabled = (j as any).gocardlessEnabled ?? (j as any).client?.gocardlessEnabled ?? false;
-        const customerId = (j as any).gocardlessCustomerId ?? (j as any).client?.gocardlessCustomerId;
-        return !!enabled && !!customerId;
-      });
-      setSummaryTotal(totalValue);
-      setSummaryDDJobs(ddJobs as any);
+      // Process GoCardless payments for completed jobs (non-blocking UI)
+      setSummaryProcessing(true);
       setSummaryDayTitle(dayTitle);
       setSummaryVisible(true);
+      // Defer heavy processing to next tick to avoid UI jank/modal delay
+      setTimeout(async () => {
+        try {
+          await processGoCardlessPayments(dayJobs, dayTitle);
+        } finally {
+          const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
+          const ddJobs = dayJobs.filter(j => {
+            const enabled = (j as any).gocardlessEnabled ?? (j as any).client?.gocardlessEnabled ?? false;
+            const customerId = (j as any).gocardlessCustomerId ?? (j as any).client?.gocardlessCustomerId;
+            return !!enabled && !!customerId;
+          });
+          setSummaryTotal(totalValue);
+          setSummaryDDJobs(ddJobs as any);
+          setSummaryProcessing(false);
+        }
+      }, 0);
     } catch (error) {
       console.error('Error completing day:', error);
       Alert.alert('Error', 'Failed to complete day. Please try again.');
@@ -1946,7 +1953,10 @@ ${signOff}`;
               <View style={styles.summaryBox}>
                 <Text style={styles.summaryTitle}>Day Complete Summary</Text>
                 <Text style={styles.summaryTotal}>Total value: £{summaryTotal.toFixed(2)}</Text>
-                {summaryDayTitle && (swapProposalsByDay[summaryDayTitle]?.length || 0) > 0 && (
+                {summaryProcessing && (
+                  <Text style={styles.summaryLine}>Processing payments…</Text>
+                )}
+                {summaryDayTitle && !summaryProcessing && (swapProposalsByDay[summaryDayTitle]?.length || 0) > 0 && (
                   <>
                     <Text style={styles.summarySub}>Out-of-order jobs detected</Text>
                     <ScrollView style={{ maxHeight: 200, width: '100%', marginBottom: 8 }}>
