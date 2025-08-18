@@ -10,12 +10,18 @@ export async function createPayment(payment: Omit<Payment, 'id' | 'createdAt' | 
   if (!ownerId) throw new Error('User not authenticated');
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
   const now = new Date().toISOString();
-  const paymentData = {
+  const paymentData: Record<string, unknown> = {
     ...payment,
     ownerId,
     createdAt: now,
     updatedAt: now,
   };
+  // Firestore does not allow undefined field values; remove them
+  Object.keys(paymentData).forEach((key) => {
+    if (paymentData[key] === undefined) {
+      delete paymentData[key];
+    }
+  });
   const docRef = await addDoc(paymentsRef, paymentData);
   return docRef.id;
 }

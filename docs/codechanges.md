@@ -1,6 +1,7 @@
 - 2025-08-18: Payments CSV import fix
   - Normalized client account numbers when building the account map in `app/(tabs)/settings.tsx` for both web and mobile flows (trim, ensure `RWC` prefix, uppercase).
   - This resolves failures when importing rows (notably 'cash' payments) due to mismatches caused by stored account numbers lacking the `RWC` prefix or containing whitespace/case differences.
+  - Also fixed a Firestore write error by removing undefined fields: importer now only includes `notes` when non-empty, and `createPayment()` strips undefined values before writing.
 
 ## 2025-08-14
 

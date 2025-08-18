@@ -1948,7 +1948,7 @@ export default function SettingsScreen() {
                   amount,
                   date: paymentDate,
                   method,
-                  notes: notes || undefined
+                  ...(notes ? { notes } : {})
                 });
                 imported++;
               } catch (e) {
@@ -2009,7 +2009,7 @@ export default function SettingsScreen() {
                   amount,
                   date: paymentDate,
                   method,
-                  notes: notes || undefined,
+                  ...(notes ? { notes } : {}),
                   // Import metadata
                   importDate: now,
                   importFilename: file.name,
@@ -2188,7 +2188,7 @@ export default function SettingsScreen() {
             amount,
             date: paymentDate,
             method,
-            notes: notes || undefined
+            ...(notes ? { notes } : {})
           });
           imported++;
         } catch (e) {
@@ -2248,7 +2248,7 @@ export default function SettingsScreen() {
             amount,
             date: paymentDate,
             method,
-            notes: notes || undefined,
+            ...(notes ? { notes } : {}),
             // Import metadata
             importDate: now,
             importFilename: file.name,
