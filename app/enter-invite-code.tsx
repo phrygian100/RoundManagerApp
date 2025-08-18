@@ -1,12 +1,11 @@
 // Invite code via Supabase removed. TODO: Implement Firebase invite code flow here.
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getAuth } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import { Button, StyleSheet, Text, TextInput, View } from 'react-native';
-import { db } from '../core/firebase';
+import { auth, db } from '../core/firebase';
 
 export default function EnterInviteCodeScreen() {
   const router = useRouter();
@@ -15,14 +14,12 @@ export default function EnterInviteCodeScreen() {
   const [inviteCode, setInviteCode] = useState(initialCode);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const auth = getAuth();
   const user = auth.currentUser;
 
   const handleAcceptInvite = async () => {
     setMessage('');
     setLoading(true);
     try {
-      const auth = getAuth();
       const user = auth.currentUser;
       if (!user) {
         setMessage('You must be logged in to accept an invite.');

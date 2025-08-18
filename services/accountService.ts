@@ -1,7 +1,6 @@
-import { getAuth } from 'firebase/auth';
 import { deleteDoc, doc, updateDoc } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import { db } from '../core/firebase';
+import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
 // Supabase invite-member/email flows removed. TODO: Implement with Firebase if needed.
 
@@ -82,7 +81,6 @@ export async function leaveTeamSelf(): Promise<void> {
   await refreshClaims();
   
   // Force token refresh to get new claims
-  const auth = getAuth();
   const currentUser = auth.currentUser;
   if (currentUser) {
     await currentUser.getIdToken(true);

@@ -1,6 +1,5 @@
-import { getAuth } from 'firebase/auth';
 import { collectionGroup, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
-import { db } from './firebase';
+import { auth, db } from './firebase';
 
 export type UserSession = {
   uid: string;
@@ -24,7 +23,6 @@ type MemberData = {
  * If the user is not authenticated it resolves to null.
  */
 export async function getUserSession(): Promise<UserSession | null> {
-  const auth = getAuth();
   const user = auth.currentUser;
   if (!user) return null;
 
@@ -95,7 +93,6 @@ export async function getUserSession(): Promise<UserSession | null> {
  * Returns the current Firebase Auth user UID, or null if not signed in.
  */
 export function getCurrentUserId(): string | null {
-  const auth = getAuth();
   return auth.currentUser ? auth.currentUser.uid : null;
 }
 

@@ -1,6 +1,5 @@
-import { getAuth } from 'firebase/auth';
 import { addDoc, collection, collectionGroup, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
-import { db } from '../core/firebase';
+import { auth, db } from '../core/firebase';
 import { getDataOwnerId, getUserSession } from '../core/session';
 import type { AuditActionType, AuditEntityType, AuditLog } from '../types/audit';
 
@@ -54,7 +53,6 @@ export async function logAction(
 ): Promise<void> {
   try {
     const session = await getUserSession();
-    const auth = getAuth();
     const currentUser = auth.currentUser;
     
     if (!session || !currentUser) {
@@ -117,7 +115,7 @@ export async function logAction(
       entityType, 
       entityId, 
       description,
-      userUid: getAuth().currentUser?.uid,
+      userUid: auth.currentUser?.uid,
       timestamp: new Date().toISOString()
     });
   }

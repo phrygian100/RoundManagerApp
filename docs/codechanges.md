@@ -6,6 +6,12 @@
   - Draft auto-loads when the modal becomes visible and auto-saves on field changes; cleared upon successful completion.
   - No changes to web-specific code paths; compatible with both mobile and web.
 
+- Payments list: Added method filters and sorting controls.
+  - File: `app/payments-list.tsx`
+  - New method filter chips for Cash, Direct Debit, and BACS (bank transfer). Multiple can be toggled; when any are active, list filters accordingly.
+  - New sort chips for Date and Amount; both sort descending (newest/largest first). Sorting applied after filtering and search.
+  - UI integrates with existing search input; works on web and mobile without breaking layouts.
+
 - Client list: Added sorting by weekly interval.
   - File: `app/clients.tsx`
   - New sort option key `weeklyInterval` included in the cycle list and label mapping.

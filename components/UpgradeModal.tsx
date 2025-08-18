@@ -8,7 +8,7 @@ import {
     StyleSheet,
     View,
 } from 'react-native';
-import { getAuth } from 'firebase/auth';
+import { auth } from '../core/firebase';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 
@@ -59,7 +59,6 @@ export default function UpgradeModal({
     
     try {
       // Get the current user's auth token
-      const auth = getAuth();
       const user = auth.currentUser;
       
       console.log('🔐 [DEBUG] Auth state:', {

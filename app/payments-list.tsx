@@ -25,6 +25,13 @@ export default function PaymentsListScreen() {
   const [payments, setPayments] = useState<(Payment & { client: Client | null })[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<(Payment & { client: Client | null })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  // Filters and sorting
+  const [methodFilters, setMethodFilters] = useState<{ cash: boolean; direct_debit: boolean; bank_transfer: boolean }>({
+    cash: false,
+    direct_debit: false,
+    bank_transfer: false,
+  });
+  const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const router = useRouter();
 
   useEffect(() => {
@@ -77,22 +84,30 @@ export default function PaymentsListScreen() {
     fetchPayments();
   }, []);
 
-  // Filter payments based on search query
+  // Filter and sort payments based on search query and filters
   useEffect(() => {
     if (!payments || payments.length === 0) {
       setFilteredPayments([]);
       return;
     }
 
-    if (searchQuery.trim() === '') {
-      setFilteredPayments(payments);
-      return;
-    }
+    const query = searchQuery.trim().toLowerCase();
+    const anyFilterSelected = methodFilters.cash || methodFilters.direct_debit || methodFilters.bank_transfer;
 
-    const query = searchQuery.toLowerCase();
     const filtered = payments.filter(payment => {
       const client = payment.client;
-      
+      // Method filters
+      if (anyFilterSelected) {
+        const method = payment.method;
+        const passesMethod =
+          (methodFilters.cash && method === 'cash') ||
+          (methodFilters.direct_debit && method === 'direct_debit') ||
+          (methodFilters.bank_transfer && method === 'bank_transfer');
+        if (!passesMethod) return false;
+      }
+
+      if (query === '') return true;
+
       // Search by client name
       if (client?.name?.toLowerCase().includes(query)) return true;
       
@@ -114,8 +129,21 @@ export default function PaymentsListScreen() {
       return false;
     });
 
-    setFilteredPayments(filtered);
-  }, [searchQuery, payments]);
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortBy === 'date') {
+        return new Date(b.date).getTime() - new Date(a.date).getTime(); // Desc by date
+      }
+      // amount
+      return b.amount - a.amount; // Desc by amount
+    });
+
+    setFilteredPayments(sorted);
+  }, [searchQuery, payments, methodFilters, sortBy]);
+
+  const toggleMethodFilter = (key: 'cash' | 'direct_debit' | 'bank_transfer') => {
+    setMethodFilters(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const renderPayment = ({ item }: { item: Payment & { client: Client | null } }) => {
     const client = item.client;
@@ -248,7 +276,7 @@ export default function PaymentsListScreen() {
         Total: £{calculatePaymentsTotal().toFixed(2)} ({filteredPayments.length} payments)
       </ThemedText>
       
-      {/* Search Input */}
+      {/* Search, Filters, Sort */}
       <View style={styles.searchRow}>
         <View style={styles.searchContainer}>
           <View style={styles.searchIcon}>
@@ -271,6 +299,45 @@ export default function PaymentsListScreen() {
               returnKeyType: 'search',
             })}
           />
+        </View>
+
+        {/* Method Filters */}
+        <View style={styles.filterRow}>
+          <Pressable
+            style={[styles.filterChip, methodFilters.cash && styles.filterChipActive]}
+            onPress={() => toggleMethodFilter('cash')}
+          >
+            <ThemedText style={[styles.filterChipText, methodFilters.cash && styles.filterChipTextActive]}>Cash</ThemedText>
+          </Pressable>
+          <Pressable
+            style={[styles.filterChip, methodFilters.direct_debit && styles.filterChipActive]}
+            onPress={() => toggleMethodFilter('direct_debit')}
+          >
+            <ThemedText style={[styles.filterChipText, methodFilters.direct_debit && styles.filterChipTextActive]}>Direct Debit</ThemedText>
+          </Pressable>
+          <Pressable
+            style={[styles.filterChip, methodFilters.bank_transfer && styles.filterChipActive]}
+            onPress={() => toggleMethodFilter('bank_transfer')}
+          >
+            <ThemedText style={[styles.filterChipText, methodFilters.bank_transfer && styles.filterChipTextActive]}>BACS</ThemedText>
+          </Pressable>
+        </View>
+
+        {/* Sort Controls */}
+        <View style={styles.sortRow}>
+          <ThemedText style={styles.sortLabel}>Sort by:</ThemedText>
+          <Pressable
+            style={[styles.sortChip, sortBy === 'date' && styles.sortChipActive]}
+            onPress={() => setSortBy('date')}
+          >
+            <ThemedText style={[styles.sortChipText, sortBy === 'date' && styles.sortChipTextActive]}>Date</ThemedText>
+          </Pressable>
+          <Pressable
+            style={[styles.sortChip, sortBy === 'amount' && styles.sortChipActive]}
+            onPress={() => setSortBy('amount')}
+          >
+            <ThemedText style={[styles.sortChipText, sortBy === 'amount' && styles.sortChipTextActive]}>Amount</ThemedText>
+          </Pressable>
         </View>
       </View>
       
@@ -374,6 +441,61 @@ const styles = StyleSheet.create({
   },
   searchRow: {
     marginBottom: 16,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  filterChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f8f8f8',
+  },
+  filterChipActive: {
+    backgroundColor: '#007AFF15',
+    borderColor: '#007AFF',
+  },
+  filterChipText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  filterChipTextActive: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  sortRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+  },
+  sortLabel: {
+    color: '#666',
+  },
+  sortChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    backgroundColor: '#f8f8f8',
+  },
+  sortChipActive: {
+    backgroundColor: '#007AFF15',
+    borderColor: '#007AFF',
+  },
+  sortChipText: {
+    color: '#333',
+    fontSize: 14,
+  },
+  sortChipTextActive: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   searchContainer: {
     flexDirection: 'row',

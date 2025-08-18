@@ -4,7 +4,6 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getAuth } from 'firebase/auth';
 import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
@@ -12,7 +11,7 @@ import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
-import { db } from '../../../core/firebase';
+import { auth, db } from '../../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../../core/session';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { updateClientGoCardlessSettings } from '../../../services/clientService';
@@ -1432,7 +1431,6 @@ export default function ClientDetailScreen() {
                   
                   try {
                     // Get current user info
-                    const auth = getAuth();
                     const user = auth.currentUser;
                     if (!user) {
                       Alert.alert('Error', 'You must be logged in to add notes');

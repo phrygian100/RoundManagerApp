@@ -2,7 +2,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
-import { getAuth } from 'firebase/auth';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -12,7 +11,7 @@ import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import UpgradeModal from '../../components/UpgradeModal';
-import { db } from '../../core/firebase';
+import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
@@ -179,7 +178,6 @@ export default function SettingsScreen() {
       // For web, redirect to customer portal
       if (Platform.OS === 'web') {
         // Get the current user's auth token
-        const auth = getAuth();
         const user = auth.currentUser;
         if (!user) {
           throw new Error('User not authenticated');

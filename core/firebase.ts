@@ -1,6 +1,6 @@
 import Constants from 'expo-constants';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth, initializeAuth } from 'firebase/auth';
+import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import { FIREBASE_CONFIG } from '../config';
@@ -56,18 +56,22 @@ if (!getApps().length) {
   app = getApp();
 }
 
-// Initialize Firebase Auth for React Native before calling getAuth
-// This registers the 'auth' component in RN and prevents "Component auth has not been registered yet"
+// Initialize Firebase services
 if (Platform.OS !== 'web') {
   try {
-    initializeAuth(app);
-  } catch (_) {
-    // ignore if already initialized
+    // Use the returned native Auth instance instead of calling getAuth on RN
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { initializeAuth, getReactNativePersistence } = require('firebase/auth/react-native');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
+  } catch (e) {
+    // Fallback if initializeAuth has already been called elsewhere
+    auth = getAuth(app);
   }
+} else {
+  auth = getAuth(app);
 }
-
-// Initialize Firebase services
-auth = getAuth(app);
 db = getFirestore(app);
 
 export { app, auth, db };
