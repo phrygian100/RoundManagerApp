@@ -1840,10 +1840,16 @@ export default function SettingsScreen() {
             const clientsSnapshot = await getDocs(clientsQuery);
             const accountToClientMap = new Map<string, string>();
             
+            // Normalize stored account numbers to avoid mismatches (trim, ensure RWC prefix, uppercase)
             clientsSnapshot.docs.forEach(doc => {
               const data = doc.data();
               if (data.accountNumber) {
-                accountToClientMap.set(data.accountNumber.toUpperCase(), doc.id);
+                let acc = String(data.accountNumber).trim();
+                if (!acc.toUpperCase().startsWith('RWC')) {
+                  acc = 'RWC' + acc;
+                }
+                const normalized = acc.trim().toUpperCase();
+                accountToClientMap.set(normalized, doc.id);
               }
             });
 
@@ -2088,10 +2094,16 @@ export default function SettingsScreen() {
       const clientsSnapshot = await getDocs(clientsQuery);
       const accountToClientMap = new Map<string, string>();
       
+      // Normalize stored account numbers to avoid mismatches (trim, ensure RWC prefix, uppercase)
       clientsSnapshot.docs.forEach(doc => {
         const data = doc.data();
         if (data.accountNumber) {
-          accountToClientMap.set(data.accountNumber.toUpperCase(), doc.id);
+          let acc = String(data.accountNumber).trim();
+          if (!acc.toUpperCase().startsWith('RWC')) {
+            acc = 'RWC' + acc;
+          }
+          const normalized = acc.trim().toUpperCase();
+          accountToClientMap.set(normalized, doc.id);
         }
       });
 
@@ -2328,10 +2340,16 @@ export default function SettingsScreen() {
             const clientsSnapshot = await getDocs(clientsQuery);
             const accountToClientMap = new Map<string, { id: string; address: string; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>();
             
+            // Normalize stored account numbers to avoid mismatches (trim, ensure RWC prefix, uppercase)
             clientsSnapshot.docs.forEach(doc => {
               const data = doc.data();
               if (data.accountNumber) {
-                accountToClientMap.set(data.accountNumber.toUpperCase(), {
+                let acc = String(data.accountNumber).trim();
+                if (!acc.toUpperCase().startsWith('RWC')) {
+                  acc = 'RWC' + acc;
+                }
+                const normalized = acc.trim().toUpperCase();
+                accountToClientMap.set(normalized, {
                   id: doc.id,
                   address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`,
                   gocardlessEnabled: data.gocardlessEnabled || false,
@@ -2498,10 +2516,16 @@ export default function SettingsScreen() {
         const clientsSnapshot = await getDocs(clientsQuery);
         const accountToClientMap = new Map<string, { id: string; address: string; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>();
         
+        // Normalize stored account numbers to avoid mismatches (trim, ensure RWC prefix, uppercase)
         clientsSnapshot.docs.forEach(doc => {
           const data = doc.data();
           if (data.accountNumber) {
-            accountToClientMap.set(data.accountNumber.toUpperCase(), {
+            let acc = String(data.accountNumber).trim();
+            if (!acc.toUpperCase().startsWith('RWC')) {
+              acc = 'RWC' + acc;
+            }
+            const normalized = acc.trim().toUpperCase();
+            accountToClientMap.set(normalized, {
               id: doc.id,
               address: data.address || `${data.address1 || ''}, ${data.town || ''}, ${data.postcode || ''}`,
               gocardlessEnabled: data.gocardlessEnabled || false,
