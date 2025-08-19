@@ -322,12 +322,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 260,
-    height: 70,
+    width: 520,
+    height: 140,
   },
   navLogoMobile: {
-    width: 220,
-    height: 60,
+    width: 440,
+    height: 120,
   },
   navLinks: {
     flexDirection: 'row',
@@ -426,13 +426,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 240,
-    height: 96,
+    width: 480,
+    height: 192,
     marginBottom: 16,
   },
   formLogoMobile: {
-    width: 180,
-    height: 72,
+    width: 360,
+    height: 144,
   },
   formTitle: {
     fontSize: 24,
@@ -575,13 +575,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLogo: {
-    width: 180,
-    height: 56,
+    width: 360,
+    height: 112,
     marginBottom: 16,
   },
   footerLogoMobile: {
-    width: 144,
-    height: 48,
+    width: 288,
+    height: 96,
   },
   footerDescription: {
     color: '#9ca3af',

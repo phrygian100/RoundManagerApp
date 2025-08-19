@@ -18,6 +18,9 @@
   - Tightened hero paddings and scaled headings/buttons with responsive Tailwind classes (`text-3xl sm:text-4xl md:text-6xl`, smaller button text/padding on mobile).
   - Lowered section paddings from `py-16` to `py-12` on mobile to reduce vertical whitespace.
   - Adjusted login screen (Expo web) with width-aware styles: nav logo 260×70 (desktop) / 220×60 (narrow web), card logo 240×96 (desktop) / 180×72 (narrow web), footer uses inverted logo at 180×56 (desktop) / 144×48 (narrow web).
+  - Update: Increased all logo sizes ~2× after review
+    - RN Web login: nav 520×140 desktop / 440×120 narrow web; card 480×192 desktop / 360×144 narrow web; footer 360×112 desktop / 288×96 narrow web.
+    - Marketing pages: nav logo heights `h-20 sm:h-24 md:h-32`.
 
 - Introduced service plan separation (no runtime behavior change yet; generation remains legacy until flag is enabled).
   - Added `types/servicePlan.ts` defining `ServicePlan` with `scheduleType`, `frequencyWeeks`, `startDate` (next future anchor), `lastServiceDate`, `price`, `isActive`.

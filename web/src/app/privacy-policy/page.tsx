@@ -19,9 +19,9 @@ export default function PrivacyPolicyPage() {
                 <Image
                   src="/logo_transparent.png"
                   alt="Guvnor Logo"
-                  width={192}
-                  height={64}
-                  className="h-10 sm:h-12 md:h-16 w-auto"
+                  width={384}
+                  height={128}
+                  className="h-20 sm:h-24 md:h-32 w-auto"
                 />
               </Link>
             </div>
