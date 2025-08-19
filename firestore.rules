@@ -60,6 +60,15 @@ service cloud.firestore {
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
+    // Service plans (new separated scheduling model)
+    match /servicePlans/{planId} {
+      // Allow list operations for signed in users - queries are filtered by ownerId
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
+    }
+
     match /payments/{paymentId} {
       // Allow list operations for signed in users - the query filter will handle access control
       allow list: if isSignedIn();
