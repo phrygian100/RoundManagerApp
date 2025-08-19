@@ -9,7 +9,7 @@
   - File: `app/(tabs)/index.tsx`
   - Added aspect-ratio + width detection using `useWindowDimensions()` to better distinguish desktop-like web views from mobile. Treats views as desktop when width ≥ 1024 and aspect ratio ≥ 1.6.
   - Increased buttons per row to 4 on desktop-like web; 3 for other web; 2 for native.
-  - Center-constrained each row on web (`maxWidth` based on button size) to avoid overly stretched layouts on ultrawide screens.
+  - Center-constrained each row on web and reduced tile max width on widescreen (200px) to prevent oversized tiles and overlap; rows compute exact max width from tile width + gaps.
   - Removed direct import of `OPENWEATHER_API_KEY`; now reads `EXPO_PUBLIC_OPENWEATHER_API_KEY` env var with safe fallback, resolving a linter error and aligning with current config approach.
 
 - Marketing site mobile sizing cleanup

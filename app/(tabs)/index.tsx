@@ -14,6 +14,7 @@ export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
   const aspectRatio = width > 0 && height > 0 ? width / height : 1;
   const isDesktopLike = Platform.OS === 'web' && width >= 1024 && aspectRatio >= 1.6;
+  const buttonMaxWidth = Platform.OS === 'web' ? (isDesktopLike ? 200 : 240) : 250;
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -380,6 +381,7 @@ export default function HomeScreen() {
 
   // Determine how many buttons per row based on aspect ratio and width
   const buttonsPerRow = isDesktopLike ? 4 : (Platform.OS === 'web' ? 3 : 2);
+  const rowMaxWidth = buttonsPerRow * buttonMaxWidth + (buttonsPerRow - 1) * 16; // includes horizontal margins
 
   // Split buttons into rows
   const rows: {
@@ -458,13 +460,13 @@ export default function HomeScreen() {
             key={rowIndex}
             style={[
               styles.row,
-              Platform.OS === 'web' && { maxWidth: buttonsPerRow * 280, alignSelf: 'center' }
+              Platform.OS === 'web' && { maxWidth: rowMaxWidth, alignSelf: 'center' }
             ]}
           >
             {row.map((btn, idx) => (
               <Pressable
                 key={idx}
-                style={[styles.button, btn.disabled && styles.buttonDisabled]}
+                style={[styles.button, Platform.OS === 'web' && { maxWidth: buttonMaxWidth }, btn.disabled && styles.buttonDisabled]}
                 onPress={btn.onPress}
                 disabled={btn.disabled}
               >
@@ -612,7 +614,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
-    paddingTop: 40,
+    paddingTop: 32,
   },
   row: {
     flexDirection: 'row',
