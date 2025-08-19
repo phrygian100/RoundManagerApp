@@ -40,12 +40,11 @@ export default function ManageServicesScreen() {
 		setLoading(true);
 		try {
 			const ownerId = await getDataOwnerId();
-			if (!ownerId) {
-				setPlans([]);
-				return;
-			}
-			const q = query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId), where('clientId', '==', clientId));
-			const snap = await getDocs(q);
+			// Do not early return when ownerId is not ready; fallback to clientId-only
+			const plansQuery = ownerId
+				? query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId), where('clientId', '==', clientId))
+				: query(collection(db, 'servicePlans'), where('clientId', '==', clientId));
+			const snap = await getDocs(plansQuery);
 			const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditablePlan[];
 			setPlans(data);
 
@@ -189,16 +188,19 @@ export default function ManageServicesScreen() {
 								<View style={[styles.planCard, { marginTop: 12 }]}> 
 									{(() => {
 										const rawFreq = (client as any).frequency;
-										const freqNum = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq).replace(/[^0-9]/g, ''), 10);
-										const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(freqNum);
-										if (!isRecurring) return null;
+										const parsed = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq || '').replace(/[^0-9]/g, ''), 10);
+										const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(parsed);
+										const hasWindowJobs = pendingJobs.some(j => (j.serviceId ? j.serviceId === 'window-cleaning' : true));
+										const hasNextVisit = !!(client as any).nextVisit;
+										if (!isRecurring && !hasWindowJobs && !hasNextVisit) return null;
 										const nextDate = getNextDateForService(undefined, (client as any).nextVisit);
+										const freqLabel = isNaN(parsed) ? '?' : parsed;
 										return (
 											<>
 												<ThemedText style={{ fontWeight: '600', marginBottom: 8 }}>Legacy schedule detected</ThemedText>
 												<View style={{ gap: 8 }}>
-													<ThemedText>window-cleaning every {freqNum} weeks — next service: {nextDate || 'N/A'}</ThemedText>
-													<Pressable style={[styles.dateButton, { alignSelf: 'flex-start' }]} onPress={() => handleConvertLegacy('window-cleaning', 'recurring', freqNum, nextDate || undefined, (client as any).quote)}>
+													<ThemedText>window-cleaning every {freqLabel} weeks — next service: {nextDate || 'N/A'}</ThemedText>
+													<Pressable style={[styles.dateButton, { alignSelf: 'flex-start' }]} onPress={() => handleConvertLegacy('window-cleaning', 'recurring', parsed, nextDate || undefined, (client as any).quote)}>
 														<ThemedText style={styles.dateButtonText}>Convert to editable plan</ThemedText>
 													</Pressable>
 												</View>
