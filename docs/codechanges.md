@@ -59,6 +59,10 @@
   - Increased debounce window to 5s to cover slower token/claims refreshes after login; still cleared once authenticated.
 
 - Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
+
+- Day Complete Summary modal: show loading state for direct-debit lookup
+  - File: `app/runsheet/[week].tsx`
+  - Changed conditional rendering so that while `summaryProcessing` is true, the modal displays "Looking up direct-debit jobs…" and does not prematurely show "No direct-debit jobs today." This prevents confusing flicker before GoCardless/job detection completes.
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 
 1. `app/runsheet/[week].tsx`

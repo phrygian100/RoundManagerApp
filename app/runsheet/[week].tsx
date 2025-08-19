@@ -1976,7 +1976,9 @@ ${signOff}`;
                     </ScrollView>
                   </>
                 )}
-                {summaryDDJobs.length > 0 ? (
+                {summaryProcessing ? (
+                  <Text style={styles.summaryLine}>Looking up direct-debit jobs…</Text>
+                ) : summaryDDJobs.length > 0 ? (
                   <>
                     <Text style={styles.summarySub}>Direct-Debit Jobs ({summaryDDJobs.length})</Text>
                     <ScrollView style={{ maxHeight: 200, width: '100%' }}>
