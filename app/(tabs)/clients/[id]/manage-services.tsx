@@ -39,43 +39,54 @@ export default function ManageServicesScreen() {
 		if (!clientId) return;
 		setLoading(true);
 		try {
-			const ownerId = await getDataOwnerId();
-			// Do not early return when ownerId is not ready; fallback to clientId-only
-			const plansQuery = ownerId
-				? query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId), where('clientId', '==', clientId))
-				: query(collection(db, 'servicePlans'), where('clientId', '==', clientId));
-			const snap = await getDocs(plansQuery);
-			const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditablePlan[];
-			setPlans(data);
-
-			// Fetch client for legacy schedule display
-			const clientSnap = await getDoc(doc(db, 'clients', clientId));
-			if (clientSnap.exists()) {
-				const c = { id: clientSnap.id, ...(clientSnap.data() as any) } as any;
-				setClient(c);
-				console.log('[ManageServices] client legacy fields', {
-					frequency: c.frequency,
-					nextVisit: c.nextVisit,
-					additionalServicesCount: Array.isArray(c.additionalServices) ? c.additionalServices.length : 0,
-				});
+			// 1) Attempt to load plans, but do not block legacy fetch if this fails
+			try {
+				const ownerId = await getDataOwnerId();
+				const plansQuery = ownerId
+					? query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId), where('clientId', '==', clientId))
+					: query(collection(db, 'servicePlans'), where('clientId', '==', clientId));
+				const snap = await getDocs(plansQuery);
+				const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditablePlan[];
+				setPlans(data);
+			} catch (plansErr) {
+				console.warn('Failed to load service plans', plansErr);
+				setPlans([]);
 			}
 
-			// Fetch pending jobs for next-date derivation
-			const jobsSnap = await getDocs(
-				query(
-					collection(db, 'jobs'),
-					where('clientId', '==', clientId),
-					where('status', 'in', ['pending', 'scheduled', 'in_progress'])
-				)
-			);
-			const jobs = jobsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-			setPendingJobs(jobs);
-			console.log('[ManageServices] pending jobs summary', {
-				count: jobs.length,
-				services: Array.from(new Set(jobs.map(j => j.serviceId))).slice(0, 10),
-			});
-		} catch (e) {
-			console.error('Failed to load service plans', e);
+			// 2) Fetch client regardless of plan fetch result
+			try {
+				const clientSnap = await getDoc(doc(db, 'clients', clientId));
+				if (clientSnap.exists()) {
+					const c = { id: clientSnap.id, ...(clientSnap.data() as any) } as any;
+					setClient(c);
+					console.log('[ManageServices] client legacy fields', {
+						frequency: c.frequency,
+						nextVisit: c.nextVisit,
+						additionalServicesCount: Array.isArray(c.additionalServices) ? c.additionalServices.length : 0,
+					});
+				}
+			} catch (clientErr) {
+				console.error('Failed to load client', clientErr);
+			}
+
+			// 3) Fetch pending jobs regardless
+			try {
+				const jobsSnap = await getDocs(
+					query(
+						collection(db, 'jobs'),
+						where('clientId', '==', clientId),
+						where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+					)
+				);
+				const jobs = jobsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+				setPendingJobs(jobs);
+				console.log('[ManageServices] pending jobs summary', {
+					count: jobs.length,
+					services: Array.from(new Set(jobs.map(j => j.serviceId))).slice(0, 10),
+				});
+			} catch (jobsErr) {
+				console.error('Failed to load pending jobs', jobsErr);
+			}
 		} finally {
 			setLoading(false);
 		}
