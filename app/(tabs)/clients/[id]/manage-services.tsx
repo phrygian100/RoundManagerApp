@@ -73,6 +73,48 @@ export default function ManageServicesScreen() {
 		loadPlans();
 	}, [loadPlans]);
 
+	// Helpers to derive legacy next date
+	const getNextDateForService = (serviceType?: string, fallback?: string): string | null => {
+		const today = new Date(); today.setHours(0,0,0,0);
+		let next: string | null = null;
+		pendingJobs.forEach(j => {
+			if (serviceType) {
+				if (j.serviceId !== serviceType) return;
+			} else {
+				// base window cleaning uses 'window-cleaning'
+				if (j.serviceId && j.serviceId !== 'window-cleaning') return;
+			}
+			if (!j.scheduledTime) return;
+			const d = new Date(j.scheduledTime);
+			if (d >= today) {
+				const iso = d.toISOString().split('T')[0];
+				if (!next || iso < next) next = iso;
+			}
+		});
+		return next || fallback || null;
+	};
+
+	const handleConvertLegacy = async (serviceType: string, scheduleType: 'recurring' | 'one_off', frequencyWeeks?: number, startDate?: string, price?: number) => {
+		try {
+			const ownerId = await getDataOwnerId();
+			if (!ownerId || !clientId) return;
+			const now = new Date().toISOString();
+			const base: any = { ownerId, clientId, serviceType, scheduleType, price: Number(price) || 25, isActive: true, lastServiceDate: null, createdAt: now, updatedAt: now };
+			if (scheduleType === 'recurring') {
+				base.frequencyWeeks = frequencyWeeks || 4;
+				base.startDate = startDate || format(new Date(), 'yyyy-MM-dd');
+			} else {
+				base.scheduledDate = startDate || format(new Date(), 'yyyy-MM-dd');
+			}
+			await addDoc(collection(db, 'servicePlans'), base);
+			await loadPlans();
+			Alert.alert('Success', 'Converted legacy service to a plan.');
+		} catch (e) {
+			console.error('convert legacy failed', e);
+			Alert.alert('Error', 'Could not convert legacy service.');
+		}
+	};
+
 	const handleCreate = async () => {
 		if (!clientId) return;
 		setCreating(true);
@@ -150,24 +192,16 @@ export default function ManageServicesScreen() {
 										const freqNum = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq).replace(/[^0-9]/g, ''), 10);
 										const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(freqNum);
 										if (!isRecurring) return null;
-										const today = new Date(); today.setHours(0,0,0,0);
-										let nextDate: string | null = null;
-										pendingJobs.forEach(j => {
-											if (j.serviceId && j.serviceId !== 'window-cleaning') return;
-											if (!j.scheduledTime) return;
-											const d = new Date(j.scheduledTime);
-											if (d >= today) {
-												const iso = d.toISOString().split('T')[0];
-												if (!nextDate || iso < nextDate) nextDate = iso;
-											}
-										});
-										if (!nextDate && (client as any).nextVisit) nextDate = (client as any).nextVisit;
+										const nextDate = getNextDateForService(undefined, (client as any).nextVisit);
 										return (
 											<>
-												<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy schedule detected</ThemedText>
-												<ThemedText>
-													window-cleaning every {freqNum} weeks — next service: {nextDate || 'N/A'}
-												</ThemedText>
+												<ThemedText style={{ fontWeight: '600', marginBottom: 8 }}>Legacy schedule detected</ThemedText>
+												<View style={{ gap: 8 }}>
+													<ThemedText>window-cleaning every {freqNum} weeks — next service: {nextDate || 'N/A'}</ThemedText>
+													<Pressable style={[styles.dateButton, { alignSelf: 'flex-start' }]} onPress={() => handleConvertLegacy('window-cleaning', 'recurring', freqNum, nextDate || undefined, (client as any).quote)}>
+														<ThemedText style={styles.dateButtonText}>Convert to editable plan</ThemedText>
+													</Pressable>
+												</View>
 											</>
 										);
 									})()}
@@ -175,22 +209,14 @@ export default function ManageServicesScreen() {
 										<View style={{ marginTop: 8 }}>
 											<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy additional services</ThemedText>
 											{(client as any).additionalServices.filter((s: any) => s.isActive).map((s: any) => {
-												const today = new Date(); today.setHours(0,0,0,0);
-												let nextDate: string | null = null;
-												pendingJobs.forEach(j => {
-													if (j.serviceId !== s.serviceType) return;
-													if (!j.scheduledTime) return;
-													const d = new Date(j.scheduledTime);
-													if (d >= today) {
-														const iso = d.toISOString().split('T')[0];
-														if (!nextDate || iso < nextDate) nextDate = iso;
-													}
-												});
-												if (!nextDate && s.nextVisit) nextDate = s.nextVisit;
+												const nextDate = getNextDateForService(s.serviceType, s.nextVisit);
 												return (
-													<ThemedText key={s.id}>
-														{s.serviceType} every {s.frequency} weeks — next service: {nextDate || 'N/A'}
-													</ThemedText>
+													<View key={s.id} style={{ marginBottom: 8 }}>
+														<ThemedText>{s.serviceType} every {s.frequency} weeks — next service: {nextDate || 'N/A'}</ThemedText>
+														<Pressable style={[styles.dateButton, { alignSelf: 'flex-start', marginTop: 4 }]} onPress={() => handleConvertLegacy(s.serviceType, 'recurring', s.frequency, nextDate || undefined, s.price)}>
+															<ThemedText style={styles.dateButtonText}>Convert to editable plan</ThemedText>
+														</Pressable>
+													</View>
 												);
 											})}
 										</View>
