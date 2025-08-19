@@ -2,7 +2,7 @@ import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { auth } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
@@ -13,6 +13,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isNarrowWeb = Platform.OS === 'web' && width <= 480;
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -112,7 +114,7 @@ export default function LoginScreen() {
           <Pressable onPress={() => handleNavigation('/home')} style={styles.logoContainer}>
             <Image 
               source={require('../assets/images/logo_transparent.png')} 
-              style={styles.navLogo}
+              style={[styles.navLogo, isNarrowWeb && styles.navLogoMobile]}
               resizeMode="contain"
             />
           </Pressable>
@@ -142,18 +144,18 @@ export default function LoginScreen() {
       {/* Main Content */}
       <View style={styles.mainContent}>
         <View style={styles.heroSection}>
-          <Text style={styles.heroTitle}>Welcome back to Guvnor</Text>
-          <Text style={styles.heroSubtitle}>
+          <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>Welcome back to Guvnor</Text>
+          <Text style={[styles.heroSubtitle, isNarrowWeb && styles.heroSubtitleMobile]}>
             Sign in to manage your cleaning rounds, clients, and payments
           </Text>
         </View>
 
         {/* Login Form Card */}
-        <View style={styles.loginCard}>
+        <View style={[styles.loginCard, isNarrowWeb && styles.loginCardMobile]}>
           <View style={styles.formHeader}>
             <Image 
               source={require('../assets/images/logo_transparent.png')} 
-              style={styles.formLogo}
+              style={[styles.formLogo, isNarrowWeb && styles.formLogoMobile]}
               resizeMode="contain"
             />
             <Text style={styles.formTitle}>Sign in to your account</Text>
@@ -323,6 +325,10 @@ const styles = StyleSheet.create({
     width: 675,
     height: 180,
   },
+  navLogoMobile: {
+    width: 160,
+    height: 42,
+  },
   navLinks: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -369,12 +375,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 16,
   },
+  heroTitleMobile: {
+    fontSize: 28,
+    marginBottom: 12,
+  },
   heroSubtitle: {
     fontSize: 20,
     color: '#6b7280',
     textAlign: 'center',
     maxWidth: 600,
     lineHeight: 28,
+  },
+  heroSubtitleMobile: {
+    fontSize: 16,
+    lineHeight: 22,
+    paddingHorizontal: 8,
   },
 
   // Login Card
@@ -402,6 +417,10 @@ const styles = StyleSheet.create({
       },
     }),
   },
+  loginCardMobile: {
+    padding: 20,
+    marginBottom: 32,
+  },
   formHeader: {
     alignItems: 'center',
     marginBottom: 32,
@@ -410,6 +429,10 @@ const styles = StyleSheet.create({
     width: 760,
     height: 304,
     marginBottom: 16,
+  },
+  formLogoMobile: {
+    width: 140,
+    height: 56,
   },
   formTitle: {
     fontSize: 24,

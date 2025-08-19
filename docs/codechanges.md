@@ -12,6 +12,13 @@
   - Center-constrained each row on web (`maxWidth` based on button size) to avoid overly stretched layouts on ultrawide screens.
   - Removed direct import of `OPENWEATHER_API_KEY`; now reads `EXPO_PUBLIC_OPENWEATHER_API_KEY` env var with safe fallback, resolving a linter error and aligning with current config approach.
 
+- Marketing site mobile sizing cleanup
+  - Files: `web/src/app/home/page.tsx`, `web/src/app/feature-tour/page.tsx`, `web/src/app/pricing/page.tsx`, `web/src/app/about/page.tsx`, `web/src/app/contact/page.tsx`, `web/src/app/privacy-policy/page.tsx`, `web/src/app/terms/page.tsx`, `app/login.tsx`
+  - Reduced logo size in nav on small screens (`h-12` on mobile, `h-24` on larger screens).
+  - Tightened hero paddings and scaled headings/buttons with responsive Tailwind classes (`text-3xl sm:text-4xl md:text-6xl`, smaller button text/padding on mobile).
+  - Lowered section paddings from `py-16` to `py-12` on mobile to reduce vertical whitespace.
+  - Adjusted login screen (Expo web) with width-aware styles: smaller logo, hero title/subtitle, and card padding when width ≤ 480px.
+
 - Introduced service plan separation (no runtime behavior change yet; generation remains legacy until flag is enabled).
   - Added `types/servicePlan.ts` defining `ServicePlan` with `scheduleType`, `frequencyWeeks`, `startDate` (next future anchor), `lastServiceDate`, `price`, `isActive`.
   - Added `services/servicePlanService.ts` with helpers:

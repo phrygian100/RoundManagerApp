@@ -13,9 +13,9 @@ export default function PricingPage() {
                 <Image
                   src="/logo_transparent.png"
                   alt="Guvnor Logo"
-                  width={288}
-                  height={96}
-                  className="h-24 w-auto"
+                  width={192}
+                  height={64}
+                  className="h-12 sm:h-24 w-auto"
                 />
               </Link>
             </div>
@@ -46,9 +46,9 @@ export default function PricingPage() {
       </nav>
 
       {/* Header */}
-      <div className="py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
             Simple, Transparent Pricing
           </h1>
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
