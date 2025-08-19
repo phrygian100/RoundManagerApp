@@ -35,7 +35,3 @@ export const config = {
     environment: "production"
   }
 }; 
-
-// OpenWeatherMap API Key – used on client for weather widget (optional)
-// Prefer EXPO/Next public env vars; empty string if unset
-export const OPENWEATHER_API_KEY = process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY || process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY || "";

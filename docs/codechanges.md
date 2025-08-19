@@ -41,12 +41,6 @@
   - File: `app/_layout.tsx`
   - Increased debounce window to 5s to cover slower token/claims refreshes after login; still cleared once authenticated.
 
-- Desktop dashboard responsiveness improvements.
-  - File: `app/(tabs)/index.tsx`
-  - Centered main content with a `maxWidth` wrapper and widened job progress card to avoid cramped appearance on large screens.
-  - Implemented responsive grid columns on web using window width: 2/3/4/5 columns at breakpoints 900/1280/1600.
-  - Ensures mobile layout remains unchanged; no logic or navigation changes.
-
 - Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
 ### (Date: 2025-08-03) – Dynamic Sign-off in ETA Messages
 
