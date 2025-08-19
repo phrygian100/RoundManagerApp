@@ -4,14 +4,16 @@ import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
-import { OPENWEATHER_API_KEY } from '../../config';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width, height } = useWindowDimensions();
+  const aspectRatio = width > 0 && height > 0 ? width / height : 1;
+  const isDesktopLike = Platform.OS === 'web' && width >= 1024 && aspectRatio >= 1.6;
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -81,7 +83,7 @@ export default function HomeScreen() {
       }
 
       // Use real OpenWeatherMap API
-      const API_KEY = OPENWEATHER_API_KEY || '6b74e8db380dbcdf9778b678b1a5f9fd'; // Temporary fallback
+      const API_KEY = (process.env.EXPO_PUBLIC_OPENWEATHER_API_KEY as string | undefined) || '6b74e8db380dbcdf9778b678b1a5f9fd'; // Temporary fallback
       if (API_KEY && API_KEY !== '') {
         try {
           // Try multiple location formats for better results
@@ -376,8 +378,8 @@ export default function HomeScreen() {
     }, [router])
   );
 
-  // Determine how many buttons per row: use 3 on web for wider screens
-  const buttonsPerRow = Platform.OS === 'web' ? 3 : 2;
+  // Determine how many buttons per row based on aspect ratio and width
+  const buttonsPerRow = isDesktopLike ? 4 : (Platform.OS === 'web' ? 3 : 2);
 
   // Split buttons into rows
   const rows: {
@@ -452,7 +454,13 @@ export default function HomeScreen() {
       {/* Main buttons grid */}
       <View style={styles.buttonsContainer}>
         {rows.map((row, rowIndex) => (
-          <View key={rowIndex} style={styles.row}>
+          <View
+            key={rowIndex}
+            style={[
+              styles.row,
+              Platform.OS === 'web' && { maxWidth: buttonsPerRow * 280, alignSelf: 'center' }
+            ]}
+          >
             {row.map((btn, idx) => (
               <Pressable
                 key={idx}

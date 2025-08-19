@@ -5,6 +5,13 @@
 
 ## 2025-08-19
 
+- Home screen responsive improvements (desktop widescreen)
+  - File: `app/(tabs)/index.tsx`
+  - Added aspect-ratio + width detection using `useWindowDimensions()` to better distinguish desktop-like web views from mobile. Treats views as desktop when width ≥ 1024 and aspect ratio ≥ 1.6.
+  - Increased buttons per row to 4 on desktop-like web; 3 for other web; 2 for native.
+  - Center-constrained each row on web (`maxWidth` based on button size) to avoid overly stretched layouts on ultrawide screens.
+  - Removed direct import of `OPENWEATHER_API_KEY`; now reads `EXPO_PUBLIC_OPENWEATHER_API_KEY` env var with safe fallback, resolving a linter error and aligning with current config approach.
+
 - Introduced service plan separation (no runtime behavior change yet; generation remains legacy until flag is enabled).
   - Added `types/servicePlan.ts` defining `ServicePlan` with `scheduleType`, `frequencyWeeks`, `startDate` (next future anchor), `lastServiceDate`, `price`, `isActive`.
   - Added `services/servicePlanService.ts` with helpers:
