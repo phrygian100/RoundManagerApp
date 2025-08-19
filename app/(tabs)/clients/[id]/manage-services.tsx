@@ -50,7 +50,15 @@ export default function ManageServicesScreen() {
 
 			// Fetch client for legacy schedule display
 			const clientSnap = await getDoc(doc(db, 'clients', clientId));
-			if (clientSnap.exists()) setClient({ id: clientSnap.id, ...(clientSnap.data() as any) });
+			if (clientSnap.exists()) {
+				const c = { id: clientSnap.id, ...(clientSnap.data() as any) } as any;
+				setClient(c);
+				console.log('[ManageServices] client legacy fields', {
+					frequency: c.frequency,
+					nextVisit: c.nextVisit,
+					additionalServicesCount: Array.isArray(c.additionalServices) ? c.additionalServices.length : 0,
+				});
+			}
 
 			// Fetch pending jobs for next-date derivation
 			const jobsSnap = await getDocs(
@@ -60,7 +68,12 @@ export default function ManageServicesScreen() {
 					where('status', 'in', ['pending', 'scheduled', 'in_progress'])
 				)
 			);
-			setPendingJobs(jobsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
+			const jobs = jobsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+			setPendingJobs(jobs);
+			console.log('[ManageServices] pending jobs summary', {
+				count: jobs.length,
+				services: Array.from(new Set(jobs.map(j => j.serviceId))).slice(0, 10),
+			});
 		} catch (e) {
 			console.error('Failed to load service plans', e);
 		} finally {
