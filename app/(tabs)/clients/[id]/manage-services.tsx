@@ -23,6 +23,7 @@ export default function ManageServicesScreen() {
 	const [client, setClient] = useState<Client | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [creating, setCreating] = useState(false);
+	const [pendingJobs, setPendingJobs] = useState<any[]>([]);
 
 	// New plan state
 	const [newServiceType, setNewServiceType] = useState('window-cleaning');
@@ -51,6 +52,16 @@ export default function ManageServicesScreen() {
 			// Fetch client for legacy schedule display
 			const clientSnap = await getDoc(doc(db, 'clients', clientId));
 			if (clientSnap.exists()) setClient({ id: clientSnap.id, ...(clientSnap.data() as any) });
+
+			// Fetch pending jobs for next-date derivation
+			const jobsSnap = await getDocs(
+				query(
+					collection(db, 'jobs'),
+					where('clientId', '==', clientId),
+					where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+				)
+			);
+			setPendingJobs(jobsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })));
 		} catch (e) {
 			console.error('Failed to load service plans', e);
 		} finally {
@@ -133,23 +144,55 @@ export default function ManageServicesScreen() {
 						<>
 							<ThemedText>No service plans found.</ThemedText>
 							{client && (
-								<View style={[styles.planCard, { marginTop: 12 }]}>
-									{client.frequency && client.frequency !== 'one-off' && client.nextVisit && (
-										<>
-											<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy schedule detected</ThemedText>
-											<ThemedText>
-												window-cleaning every {String(client.frequency)} weeks — next service: {client.nextVisit}
-											</ThemedText>
-										</>
-									)}
-									{Array.isArray(client.additionalServices) && client.additionalServices.length > 0 && (
+								<View style={[styles.planCard, { marginTop: 12 }]}> 
+									{(() => {
+										const rawFreq = (client as any).frequency;
+										const freqNum = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq).replace(/[^0-9]/g, ''), 10);
+										const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(freqNum);
+										if (!isRecurring) return null;
+										const today = new Date(); today.setHours(0,0,0,0);
+										let nextDate: string | null = null;
+										pendingJobs.forEach(j => {
+											if (j.serviceId && j.serviceId !== 'window-cleaning') return;
+											if (!j.scheduledTime) return;
+											const d = new Date(j.scheduledTime);
+											if (d >= today) {
+												const iso = d.toISOString().split('T')[0];
+												if (!nextDate || iso < nextDate) nextDate = iso;
+											}
+										});
+										if (!nextDate && (client as any).nextVisit) nextDate = (client as any).nextVisit;
+										return (
+											<>
+												<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy schedule detected</ThemedText>
+												<ThemedText>
+													window-cleaning every {freqNum} weeks — next service: {nextDate || 'N/A'}
+												</ThemedText>
+											</>
+										);
+									})()}
+									{Array.isArray((client as any).additionalServices) && (client as any).additionalServices.length > 0 && (
 										<View style={{ marginTop: 8 }}>
 											<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy additional services</ThemedText>
-											{client.additionalServices.filter(s => s.isActive).map(s => (
-												<ThemedText key={s.id}>
-													{s.serviceType} every {s.frequency} weeks — next service: {s.nextVisit}
-												</ThemedText>
-											))}
+											{(client as any).additionalServices.filter((s: any) => s.isActive).map((s: any) => {
+												const today = new Date(); today.setHours(0,0,0,0);
+												let nextDate: string | null = null;
+												pendingJobs.forEach(j => {
+													if (j.serviceId !== s.serviceType) return;
+													if (!j.scheduledTime) return;
+													const d = new Date(j.scheduledTime);
+													if (d >= today) {
+														const iso = d.toISOString().split('T')[0];
+														if (!nextDate || iso < nextDate) nextDate = iso;
+													}
+												});
+												if (!nextDate && s.nextVisit) nextDate = s.nextVisit;
+												return (
+													<ThemedText key={s.id}>
+														{s.serviceType} every {s.frequency} weeks — next service: {nextDate || 'N/A'}
+													</ThemedText>
+												);
+											})}
 										</View>
 									)}
 								</View>
