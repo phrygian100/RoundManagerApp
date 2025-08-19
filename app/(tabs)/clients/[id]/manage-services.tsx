@@ -2,13 +2,14 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
+import type { Client } from '../../../../types/client';
 import type { ServicePlan } from '../../../../types/servicePlan';
 
 type EditablePlan = ServicePlan & { _isEditing?: boolean };
@@ -19,6 +20,7 @@ export default function ManageServicesScreen() {
 	const clientId = typeof id === 'string' ? id : '';
 
 	const [plans, setPlans] = useState<EditablePlan[]>([]);
+	const [client, setClient] = useState<Client | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [creating, setCreating] = useState(false);
 
@@ -45,6 +47,10 @@ export default function ManageServicesScreen() {
 			const snap = await getDocs(q);
 			const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditablePlan[];
 			setPlans(data);
+
+			// Fetch client for legacy schedule display
+			const clientSnap = await getDoc(doc(db, 'clients', clientId));
+			if (clientSnap.exists()) setClient({ id: clientSnap.id, ...(clientSnap.data() as any) });
 		} catch (e) {
 			console.error('Failed to load service plans', e);
 		} finally {
@@ -124,7 +130,31 @@ export default function ManageServicesScreen() {
 					{loading ? (
 						<ThemedText>Loading...</ThemedText>
 					) : plans.length === 0 ? (
-						<ThemedText>No service plans found.</ThemedText>
+						<>
+							<ThemedText>No service plans found.</ThemedText>
+							{client && (
+								<View style={[styles.planCard, { marginTop: 12 }]}>
+									{client.frequency && client.frequency !== 'one-off' && client.nextVisit && (
+										<>
+											<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy schedule detected</ThemedText>
+											<ThemedText>
+												window-cleaning every {String(client.frequency)} weeks — next service: {client.nextVisit}
+											</ThemedText>
+										</>
+									)}
+									{Array.isArray(client.additionalServices) && client.additionalServices.length > 0 && (
+										<View style={{ marginTop: 8 }}>
+											<ThemedText style={{ fontWeight: '600', marginBottom: 4 }}>Legacy additional services</ThemedText>
+											{client.additionalServices.filter(s => s.isActive).map(s => (
+												<ThemedText key={s.id}>
+													{s.serviceType} every {s.frequency} weeks — next service: {s.nextVisit}
+												</ThemedText>
+											))}
+										</View>
+									)}
+								</View>
+							)}
+						</>
 					) : (
 						plans.map(plan => (
 							<View key={plan.id} style={styles.planCard}>
@@ -149,7 +179,7 @@ export default function ManageServicesScreen() {
 											/>
 										</View>
 										<View style={styles.planRow}>
-											<ThemedText style={styles.planLabel}>Next Anchor</ThemedText>
+											<ThemedText style={styles.planLabel}>Next Service</ThemedText>
 											{Platform.OS === 'web' ? (
 												<input
 													type="date"
@@ -168,18 +198,18 @@ export default function ManageServicesScreen() {
 															mode="date"
 															display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 															onChange={(_, selected) => {
-																setShowDatePickerKey(null);
-																if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') });
-															}}
-														/>
-													)}
-												</>
-											)}
+															setShowDatePickerKey(null);
+															if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') });
+														}}
+													/>
+												)}
+											</>
+										)}
 										</View>
 									</>
 								) : (
 									<View style={styles.planRow}>
-										<ThemedText style={styles.planLabel}>Scheduled Date</ThemedText>
+										<ThemedText style={styles.planLabel}>Next Service</ThemedText>
 										{Platform.OS === 'web' ? (
 											<input
 												type="date"
@@ -198,11 +228,11 @@ export default function ManageServicesScreen() {
 														mode="date"
 														display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 														onChange={(_, selected) => {
-															setShowDatePickerKey(null);
-															if (selected) updatePlan(plan.id, { scheduledDate: format(selected, 'yyyy-MM-dd') });
-														}}
-													/>
-												)}
+														setShowDatePickerKey(null);
+														if (selected) updatePlan(plan.id, { scheduledDate: format(selected, 'yyyy-MM-dd') });
+													}}
+												/>
+											)}
 											</>
 										)}
 									</View>
@@ -237,10 +267,10 @@ export default function ManageServicesScreen() {
 													mode="date"
 													display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 													onChange={(_, selected) => {
-														setShowDatePickerKey(null);
-														updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null });
-													}}
-												/>
+													setShowDatePickerKey(null);
+													updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null });
+												}}
+											/>
 											)}
 										</>
 									)}
@@ -275,7 +305,7 @@ export default function ManageServicesScreen() {
 								<TextInput style={styles.input} value={newFrequency} onChangeText={setNewFrequency} keyboardType="numeric" placeholder="4" />
 							</View>
 							<View style={styles.inputRow}>
-								<ThemedText style={styles.inputLabel}>Next Anchor</ThemedText>
+								<ThemedText style={styles.inputLabel}>Next Service</ThemedText>
 								{Platform.OS === 'web' ? (
 									<input type="date" value={newStartDate} onChange={e => setNewStartDate(e.target.value)} style={styles.webDateInput as any} />
 								) : (
@@ -292,7 +322,7 @@ export default function ManageServicesScreen() {
 						</>
 					) : (
 						<View style={styles.inputRow}>
-							<ThemedText style={styles.inputLabel}>Scheduled Date</ThemedText>
+							<ThemedText style={styles.inputLabel}>Next Service</ThemedText>
 							{Platform.OS === 'web' ? (
 								<input type="date" value={newScheduledDate} onChange={e => setNewScheduledDate(e.target.value)} style={styles.webDateInput as any} />
 							) : (

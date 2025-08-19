@@ -1,10 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
+import { addWeeks, format, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
@@ -23,11 +22,10 @@ export default function EditCustomerScreen() {
   const [address, setAddress] = useState(''); // For old address format
   const [accountNumber, setAccountNumber] = useState('');
   const [roundOrderNumber, setRoundOrderNumber] = useState('');
-  const [quote, setQuote] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
 
-  // Service routine state
+  // Legacy routine state (hidden in UI, kept for backward compatibility if needed)
   const [frequency, setFrequency] = useState('');
   const [nextVisit, setNextVisit] = useState('');
   const [weekOptions, setWeekOptions] = useState<string[]>([]);
@@ -35,7 +33,7 @@ export default function EditCustomerScreen() {
   // UI state
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [activeSection, setActiveSection] = useState<'details' | 'routine'>('details');
+  const [activeSection, setActiveSection] = useState<'details'>('details');
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
@@ -63,11 +61,10 @@ export default function EditCustomerScreen() {
           setAddress(data.address || '');
           setAccountNumber(data.accountNumber || '');
           setRoundOrderNumber(data.roundOrderNumber ? String(data.roundOrderNumber) : '');
-          setQuote(data.quote !== undefined ? String(data.quote) : '');
           setMobileNumber(data.mobileNumber || '');
           setEmail(data.email || '');
           
-          // Set service routine
+          // Legacy service routine (not shown in UI)
           setFrequency(data.frequency?.toString() || '');
           setNextVisit(data.nextVisit || '');
         }
@@ -80,17 +77,9 @@ export default function EditCustomerScreen() {
 
   const regenerateJobsForClient = async () => {
     if (typeof id !== 'string') return;
-    
     try {
-      console.log('Starting job regeneration for client:', id);
-      
-      // 1. Delete existing future jobs for this client
       const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        console.error('Could not determine owner ID');
-        throw new Error('Could not determine owner ID');
-      }
-      
+      if (!ownerId) throw new Error('Could not determine owner ID');
       const jobsRef = collection(db, 'jobs');
       const futureJobsQuery = query(
         jobsRef, 
@@ -98,23 +87,11 @@ export default function EditCustomerScreen() {
         where('ownerId', '==', ownerId),
         where('status', 'in', ['pending', 'scheduled', 'in_progress'])
       );
-      
       const futureJobsSnapshot = await getDocs(futureJobsQuery);
-      console.log('Found', futureJobsSnapshot.size, 'existing future jobs to delete');
-      
       const batch = writeBatch(db);
-      
-      futureJobsSnapshot.forEach((jobDoc) => {
-        batch.delete(jobDoc.ref);
-      });
-      
+      futureJobsSnapshot.forEach((jobDoc) => batch.delete(jobDoc.ref));
       await batch.commit();
-      console.log('Deleted existing future jobs');
-
-      // 2. Use the centralized job creation function
       const jobsCreated = await createJobsForClient(id, 8, false);
-      console.log('Successfully created', jobsCreated, 'new jobs');
-      
       return jobsCreated;
     } catch (error) {
       console.error('Error regenerating jobs:', error);
@@ -139,12 +116,11 @@ export default function EditCustomerScreen() {
           address: `${address1}, ${town}, ${postcode}`,
           accountNumber,
           roundOrderNumber: Number(roundOrderNumber),
-          quote: Number(quote),
           mobileNumber,
           email,
         };
 
-        // Add service routine data if provided
+        // Do not update legacy routine unless both are present
         if (frequency.trim() && nextVisit.trim()) {
           const frequencyNumber = Number(frequency);
           if (isNaN(frequencyNumber) || frequencyNumber <= 0) {
@@ -157,8 +133,6 @@ export default function EditCustomerScreen() {
         }
 
         await updateDoc(doc(db, 'clients', id), updateData);
-        
-        // Log the client edit action
         const clientAddress = `${address1}, ${town}, ${postcode}`;
         await logAction(
           'client_edited',
@@ -166,15 +140,13 @@ export default function EditCustomerScreen() {
           id,
           formatAuditDescription('client_edited', clientAddress)
         );
-        
-        // Regenerate jobs if service routine was updated
+
         if (frequency.trim() && nextVisit.trim()) {
           const jobsCreated = await regenerateJobsForClient();
           Alert.alert('Success', `Customer updated and ${jobsCreated} jobs regenerated!`);
         } else {
           Alert.alert('Success', 'Customer details updated!');
         }
-        
         router.back();
       } catch (error) {
         console.error('Error updating client:', error);
@@ -226,274 +198,149 @@ export default function EditCustomerScreen() {
           {/* Section Tabs */}
           <View style={styles.tabContainer}>
             <Pressable 
-              style={[styles.tab, activeSection === 'details' && styles.activeTab]} 
-              onPress={() => setActiveSection('details')}
+              style={[styles.tab, styles.activeTab]} 
+              onPress={() => {}}
             >
               <Ionicons 
                 name="person-outline" 
                 size={18} 
-                color={activeSection === 'details' ? '#fff' : '#666'} 
+                color={'#fff'} 
                 style={styles.tabIcon}
               />
-              <ThemedText style={[styles.tabText, activeSection === 'details' && styles.activeTabText]}>
+              <ThemedText style={[styles.tabText, styles.activeTabText]}>
                 Customer Details
-              </ThemedText>
-            </Pressable>
-            <Pressable 
-              style={[styles.tab, activeSection === 'routine' && styles.activeTab]} 
-              onPress={() => setActiveSection('routine')}
-            >
-              <Ionicons 
-                name="calendar-outline" 
-                size={18} 
-                color={activeSection === 'routine' ? '#fff' : '#666'} 
-                style={styles.tabIcon}
-              />
-              <ThemedText style={[styles.tabText, activeSection === 'routine' && styles.activeTabText]}>
-                Service Routine
               </ThemedText>
             </Pressable>
           </View>
 
           {/* Modal Body */}
           <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-            {activeSection === 'details' ? (
-              <View style={styles.section}>
-                {/* Basic Information */}
-                <View style={styles.sectionGroup}>
-                  <ThemedText style={styles.sectionTitle}>Basic Information</ThemedText>
-                  
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Customer Name *</ThemedText>
-                    <TextInput
-                      style={styles.input}
-                      value={name}
-                      onChangeText={setName}
-                      placeholder="Enter customer name"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Address Line 1</ThemedText>
-                    <TextInput
-                      style={styles.input}
-                      value={address1}
-                      onChangeText={setAddress1}
-                      placeholder="Street address"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-
-                  <View style={styles.inputRow}>
-                    <View style={[styles.inputGroup, { flex: 2 }]}>
-                      <ThemedText style={styles.inputLabel}>Town/City</ThemedText>
-                      <TextInput
-                        style={styles.input}
-                        value={town}
-                        onChangeText={setTown}
-                        placeholder="Town or city"
-                        placeholderTextColor="#999"
-                      />
-                    </View>
-                    <View style={[styles.inputGroup, { flex: 1 }]}>
-                      <ThemedText style={styles.inputLabel}>Postcode</ThemedText>
-                      <TextInput
-                        style={styles.input}
-                        value={postcode}
-                        onChangeText={setPostcode}
-                        placeholder="Postcode"
-                        placeholderTextColor="#999"
-                      />
-                    </View>
-                  </View>
-
-                  {address && (
-                    <View style={styles.inputGroup}>
-                      <ThemedText style={styles.inputLabel}>Legacy Address</ThemedText>
-                      <TextInput
-                        style={[styles.input, styles.legacyInput]}
-                        value={address}
-                        onChangeText={setAddress}
-                        placeholder="Legacy address format"
-                        placeholderTextColor="#999"
-                        editable={false}
-                      />
-                      <ThemedText style={styles.helperText}>This field is read-only and will be updated automatically</ThemedText>
-                    </View>
-                  )}
+            <View style={styles.section}>
+              {/* Basic Information */}
+              <View style={styles.sectionGroup}>
+                <ThemedText style={styles.sectionTitle}>Basic Information</ThemedText>
+                
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Customer Name *</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={name}
+                    onChangeText={setName}
+                    placeholder="Enter customer name"
+                    placeholderTextColor="#999"
+                  />
                 </View>
 
-                {/* Account Information */}
-                <View style={styles.sectionGroup}>
-                  <ThemedText style={styles.sectionTitle}>Account Information</ThemedText>
-                  
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Account Number</ThemedText>
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Address Line 1</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={address1}
+                    onChangeText={setAddress1}
+                    placeholder="Street address"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+
+                <View style={styles.inputRow}>
+                  <View style={[styles.inputGroup, { flex: 2 }]}>
+                    <ThemedText style={styles.inputLabel}>Town/City</ThemedText>
                     <TextInput
                       style={styles.input}
-                      value={accountNumber}
-                      onChangeText={setAccountNumber}
-                      placeholder="Account number"
+                      value={town}
+                      onChangeText={setTown}
+                      placeholder="Town or city"
                       placeholderTextColor="#999"
                     />
                   </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Round Order</ThemedText>
-                    <Pressable 
-                      style={styles.roundOrderButton} 
-                      onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}
-                    >
-                      <Ionicons name="list-outline" size={20} color="#007AFF" />
-                      <ThemedText style={styles.roundOrderButtonText}>
-                        Change Round Order (Currently: {roundOrderNumber || 'Not set'})
-                      </ThemedText>
-                      <Ionicons name="chevron-forward" size={20} color="#007AFF" />
-                    </Pressable>
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Quote Amount (£)</ThemedText>
+                  <View style={[styles.inputGroup, { flex: 1 }]}>
+                    <ThemedText style={styles.inputLabel}>Postcode</ThemedText>
                     <TextInput
                       style={styles.input}
-                      value={quote}
-                      onChangeText={setQuote}
-                      placeholder="0.00"
-                      keyboardType="numeric"
+                      value={postcode}
+                      onChangeText={setPostcode}
+                      placeholder="Postcode"
                       placeholderTextColor="#999"
                     />
                   </View>
                 </View>
 
-                {/* Contact Information */}
-                <View style={styles.sectionGroup}>
-                  <ThemedText style={styles.sectionTitle}>Contact Information</ThemedText>
-                  
+                {address && (
                   <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Mobile Number</ThemedText>
+                    <ThemedText style={styles.inputLabel}>Legacy Address</ThemedText>
                     <TextInput
-                      style={styles.input}
-                      value={mobileNumber}
-                      onChangeText={setMobileNumber}
-                      placeholder="Mobile number"
-                      keyboardType="phone-pad"
+                      style={[styles.input, styles.legacyInput]}
+                      value={address}
+                      onChangeText={setAddress}
+                      placeholder="Legacy address format"
                       placeholderTextColor="#999"
+                      editable={false}
                     />
+                    <ThemedText style={styles.helperText}>This field is read-only and will be updated automatically</ThemedText>
                   </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Email Address</ThemedText>
-                    <TextInput
-                      style={styles.input}
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="Email address"
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      placeholderTextColor="#999"
-                    />
-                  </View>
-                </View>
+                )}
               </View>
-            ) : (
-              <View style={styles.section}>
-                {/* Customer Summary */}
-                <View style={styles.sectionGroup}>
-                  <ThemedText style={styles.sectionTitle}>Customer Summary</ThemedText>
-                  
-                  <View style={styles.summaryCard}>
-                    <View style={styles.summaryRow}>
-                      <ThemedText style={styles.summaryLabel}>Name:</ThemedText>
-                      <ThemedText style={styles.summaryValue}>{name || 'No name'}</ThemedText>
-                    </View>
-                    <View style={styles.summaryRow}>
-                      <ThemedText style={styles.summaryLabel}>Address:</ThemedText>
-                      <ThemedText style={styles.summaryValue}>
-                        {address1 && town && postcode 
-                          ? `${address1}, ${town}, ${postcode}` 
-                          : address || 'No address'}
-                      </ThemedText>
-                    </View>
-                  </View>
+
+              {/* Account Information */}
+              <View style={styles.sectionGroup}>
+                <ThemedText style={styles.sectionTitle}>Account Information</ThemedText>
+                
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Account Number</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={accountNumber}
+                    onChangeText={setAccountNumber}
+                    placeholder="Account number"
+                    placeholderTextColor="#999"
+                  />
                 </View>
 
-                {/* Service Schedule */}
-                <View style={styles.sectionGroup}>
-                  <ThemedText style={styles.sectionTitle}>Service Schedule</ThemedText>
-                  
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Visit Frequency (weeks)</ThemedText>
-                    <TextInput
-                      style={styles.input}
-                      value={frequency}
-                      onChangeText={setFrequency}
-                      placeholder="e.g. 4"
-                      keyboardType="numeric"
-                      placeholderTextColor="#999"
-                    />
-                    <ThemedText style={styles.helperText}>How often should this customer be visited?</ThemedText>
-                  </View>
-
-                  <View style={styles.inputGroup}>
-                    <ThemedText style={styles.inputLabel}>Next Visit Date</ThemedText>
-                    {Platform.OS === 'web' ? (
-                      <input
-                        type="date"
-                        value={nextVisit}
-                        onChange={e => setNextVisit(e.target.value)}
-                        style={styles.webDateInput}
-                      />
-                    ) : (
-                      <>
-                        <Pressable
-                          style={styles.dateButton}
-                          onPress={() => setShowDatePicker(true)}
-                        >
-                          <Ionicons name="calendar-outline" size={20} color="#666" />
-                          <ThemedText style={styles.dateButtonText}>
-                            {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
-                          </ThemedText>
-                          <Ionicons name="chevron-down" size={20} color="#666" />
-                        </Pressable>
-                        {showDatePicker && (
-                          <DateTimePicker
-                            value={nextVisit ? parseISO(nextVisit) : new Date()}
-                            mode="date"
-                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                            minimumDate={new Date()}
-                            onChange={(event, selectedDate) => {
-                              console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
-                              
-                              if (Platform.OS === 'android') {
-                                setShowDatePicker(false);
-                                if (selectedDate) {
-                                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                                  console.log('Android: Setting nextVisit to:', formattedDate);
-                                  setNextVisit(formattedDate);
-                                }
-                              } else {
-                                if (event.type === 'set' && selectedDate) {
-                                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                                  console.log('iOS: Setting nextVisit to:', formattedDate);
-                                  setNextVisit(formattedDate);
-                                }
-                                if (event.type === 'dismissed') {
-                                  setShowDatePicker(false);
-                                }
-                              }
-                            }}
-                          />
-                        )}
-                      </>
-                    )}
-                    <ThemedText style={styles.helperText}>
-                      Setting a schedule will regenerate future jobs for this customer
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Round Order</ThemedText>
+                  <Pressable 
+                    style={styles.roundOrderButton} 
+                    onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}
+                  >
+                    <Ionicons name="list-outline" size={20} color="#007AFF" />
+                    <ThemedText style={styles.roundOrderButtonText}>
+                      Change Round Order (Currently: {roundOrderNumber || 'Not set'})
                     </ThemedText>
-                  </View>
+                    <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+                  </Pressable>
                 </View>
               </View>
-            )}
+
+              {/* Contact Information */}
+              <View style={styles.sectionGroup}>
+                <ThemedText style={styles.sectionTitle}>Contact Information</ThemedText>
+                
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Mobile Number</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={mobileNumber}
+                    onChangeText={setMobileNumber}
+                    placeholder="Mobile number"
+                    keyboardType="phone-pad"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Email Address</ThemedText>
+                  <TextInput
+                    style={styles.input}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Email address"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    placeholderTextColor="#999"
+                  />
+                </View>
+              </View>
+            </View>
           </ScrollView>
 
           {/* Modal Footer */}
