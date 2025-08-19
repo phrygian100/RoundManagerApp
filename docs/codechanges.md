@@ -3,6 +3,20 @@
   - This resolves failures when importing rows (notably 'cash' payments) due to mismatches caused by stored account numbers lacking the `RWC` prefix or containing whitespace/case differences.
   - Also fixed a Firestore write error by removing undefined fields: importer now only includes `notes` when non-empty, and `createPayment()` strips undefined values before writing.
 
+## 2025-08-19
+
+- Introduced service plan separation (no runtime behavior change yet; generation remains legacy until flag is enabled).
+  - Added `types/servicePlan.ts` defining `ServicePlan` with `scheduleType`, `frequencyWeeks`, `startDate` (next future anchor), `lastServiceDate`, `price`, `isActive`.
+  - Added `services/servicePlanService.ts` with helpers:
+    - `createServicePlan`, `getServicePlansForClient`, `getNextFutureAnchor` (rolls to next future date), `deactivatePlanIfPastLastService`.
+  - Added read-only migration audit: `scripts/audit-service-plans-migration.ts` to compute candidate anchors per client/service from pending jobs or rolled seeds.
+  - Updated `services/jobService.ts` `createJobsForClient` to support plan-based generation (dedup, respects `lastServiceDate`), gated by `shared/features.ts` flag `USE_SERVICE_PLANS_GENERATION` (currently false).
+  - No existing jobs modified; plan-based generator starts from the next future occurrence to preserve current planning.
+  - Added `app/(tabs)/clients/[id]/manage-services.tsx` screen to view and edit service plans (frequency, next anchor, price, last service date, active), and linked from client details with a "Manage Services" button. Compatible with web and mobile date inputs.
+  - Added scripts:
+    - `scripts/audit-service-plans-migration.js` (read-only audit)
+    - `scripts/migrate-service-plans.js` (idempotent write migration to create plans)
+
 ## 2025-08-14
 
 - Implemented draft persistence for first-time setup to prevent data loss if the screen remounts shortly after login.

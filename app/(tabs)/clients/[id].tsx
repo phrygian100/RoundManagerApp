@@ -852,6 +852,10 @@ export default function ClientDetailScreen() {
                     <Ionicons name="create-outline" size={20} color="#1976d2" />
                     <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
                   </Pressable>
+                  <Pressable style={styles.actionButton} onPress={() => router.push({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
+                    <Ionicons name="construct-outline" size={20} color="#1976d2" />
+                    <ThemedText style={styles.actionButtonText}>Manage Services</ThemedText>
+                  </Pressable>
                   <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
                     <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
                     <ThemedText style={styles.actionButtonText}>Add Service</ThemedText>
@@ -1023,6 +1027,10 @@ export default function ClientDetailScreen() {
                 <Pressable style={styles.actionButton} onPress={handleEditDetails}>
                   <Ionicons name="create-outline" size={20} color="#1976d2" />
                   <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
+                </Pressable>
+                <Pressable style={styles.actionButton} onPress={() => router.push({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
+                  <Ionicons name="construct-outline" size={20} color="#1976d2" />
+                  <ThemedText style={styles.actionButtonText}>Manage Services</ThemedText>
                 </Pressable>
                 <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
                   <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
