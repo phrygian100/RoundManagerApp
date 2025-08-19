@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import { OPENWEATHER_API_KEY } from '../../config';
 import { auth, db } from '../../core/firebase';
@@ -12,6 +12,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -376,8 +377,10 @@ export default function HomeScreen() {
     }, [router])
   );
 
-  // Determine how many buttons per row: use 3 on web for wider screens
-  const buttonsPerRow = Platform.OS === 'web' ? 3 : 2;
+  // Determine how many buttons per row responsively on web
+  const buttonsPerRow = Platform.OS === 'web'
+    ? (width >= 1600 ? 5 : width >= 1280 ? 4 : width >= 900 ? 3 : 2)
+    : 2;
 
   // Split buttons into rows
   const rows: {
@@ -399,6 +402,7 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.content}>
       {/* Header with settings gear icon */}
       <View style={styles.header}>
         <Pressable style={styles.settingsButton} onPress={() => handleNavigation('/settings')}>
@@ -478,6 +482,7 @@ export default function HomeScreen() {
           onComplete={handleFirstTimeSetupComplete} 
         />
       )}
+      </View>
     </View>
   );
 }
@@ -487,6 +492,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
     paddingTop: 40,
+  },
+  content: {
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -548,7 +558,7 @@ const styles = StyleSheet.create({
     padding: 20,
     margin: 8,
     width: '100%',
-    maxWidth: 320,
+    maxWidth: 600,
     alignSelf: 'center',
     // iOS shadow
     shadowColor: '#000',
@@ -605,6 +615,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 24,
     paddingTop: 40,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
   },
   row: {
     flexDirection: 'row',
