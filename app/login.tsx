@@ -14,7 +14,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { width } = useWindowDimensions();
-  const isNarrowWeb = Platform.OS === 'web' && width <= 480;
+  const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -244,8 +244,8 @@ export default function LoginScreen() {
         <View style={styles.footerContent}>
           <View style={styles.footerSection}>
             <Image 
-              source={require('../assets/images/logo_transparent.png')} 
-              style={styles.footerLogo}
+              source={require('../assets/images/logo_colourInverted.png')} 
+              style={[styles.footerLogo, isNarrowWeb && styles.footerLogoMobile]}
               resizeMode="contain"
             />
           </View>
@@ -322,12 +322,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 675,
-    height: 180,
+    width: 260,
+    height: 70,
   },
   navLogoMobile: {
-    width: 160,
-    height: 42,
+    width: 220,
+    height: 60,
   },
   navLinks: {
     flexDirection: 'row',
@@ -426,13 +426,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 760,
-    height: 304,
+    width: 240,
+    height: 96,
     marginBottom: 16,
   },
   formLogoMobile: {
-    width: 140,
-    height: 56,
+    width: 180,
+    height: 72,
   },
   formTitle: {
     fontSize: 24,
@@ -575,17 +575,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   footerLogo: {
-    width: 96,
-    height: 32,
+    width: 180,
+    height: 56,
     marginBottom: 16,
-    ...Platform.select({
-      web: {
-        filter: 'invert(1)',
-      },
-      default: {
-        tintColor: '#fff',
-      },
-    }),
+  },
+  footerLogoMobile: {
+    width: 144,
+    height: 48,
   },
   footerDescription: {
     color: '#9ca3af',

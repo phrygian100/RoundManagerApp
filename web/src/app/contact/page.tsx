@@ -17,7 +17,7 @@ export default function ContactPage() {
                   alt="Guvnor Logo"
                   width={192}
                   height={64}
-                  className="h-12 sm:h-24 w-auto"
+                  className="h-10 sm:h-12 md:h-16 w-auto"
                 />
               </Link>
             </div>
