@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDocs, limit, orderBy, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
@@ -11,6 +11,7 @@ import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
+import { getNextAccountNumber } from '../services/clientService';
 import { createJobsForClient } from '../services/jobService';
 import { checkClientLimit } from '../services/subscriptionService';
 
@@ -106,61 +107,13 @@ export default function AddClientScreen() {
     const fetchNextNumbers = async () => {
       try {
         console.log('Fetching next numbers...');
-        
-        // Fetch next account number
-        const ownerId = await getDataOwnerId();
-        let nextAccountNumber = 1;
-        try {
-          const q = query(
-            collection(db, 'clients'),
-            where('ownerId', '==', ownerId),
-            orderBy('accountNumber', 'desc'),
-            limit(1)
-          );
-          const qs = await getDocs(q);
-          if (!qs.empty) {
-            const highestClient = qs.docs[0].data();
-            const currentAccountNumber = highestClient.accountNumber;
-            
-            // Handle both string (RWC123) and numeric account numbers
-            if (typeof currentAccountNumber === 'string' && currentAccountNumber.toUpperCase().startsWith('RWC')) {
-              const numericPart = currentAccountNumber.replace(/^RWC/i, '');
-              const parsedNumber = parseInt(numericPart, 10);
-              nextAccountNumber = isNaN(parsedNumber) ? 1 : parsedNumber + 1;
-            } else if (typeof currentAccountNumber === 'number') {
-              nextAccountNumber = currentAccountNumber + 1;
-            } else {
-              nextAccountNumber = 1;
-            }
-          }
-        } catch (err) {
-          console.warn('Composite index missing for accountNumber query, falling back', err);
-          const qs = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
-          let highestNumber = 0;
-          qs.forEach(docSnap => {
-            const accountNumber = docSnap.data().accountNumber;
-            let numericValue = 0;
-            
-            // Handle both string (RWC123) and numeric account numbers
-            if (typeof accountNumber === 'string' && accountNumber.toUpperCase().startsWith('RWC')) {
-              const numericPart = accountNumber.replace(/^RWC/i, '');
-              numericValue = parseInt(numericPart, 10) || 0;
-            } else if (typeof accountNumber === 'number') {
-              numericValue = accountNumber;
-            }
-            
-            if (numericValue > highestNumber) {
-              highestNumber = numericValue;
-            }
-          });
-          nextAccountNumber = highestNumber + 1;
-        }
-        
+        const nextAccountNumber = await getNextAccountNumber();
         if (isMountedRef.current) {
           setAccountNumber(nextAccountNumber);
         }
 
         // Get total number of clients to determine round order behavior
+        const ownerId = await getDataOwnerId();
         const allClientsSnapshot = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
         const clientCount = allClientsSnapshot.size;
         console.log('Current client count:', clientCount);

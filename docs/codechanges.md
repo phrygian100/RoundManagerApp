@@ -34,6 +34,15 @@
     - `scripts/audit-service-plans-migration.js` (read-only audit)
     - `scripts/migrate-service-plans.js` (idempotent write migration to create plans)
 
+## 2025-08-23
+
+- Fix client account number allocation to use highest existing + 1
+  - Files: `services/clientService.ts`, `app/add-client.tsx`, `app/runsheet/[week].tsx`
+  - Added `getNextAccountNumber()` helper that scans current owner's clients, parses both numeric and `RWC###` formats, and returns max + 1.
+  - `AddClient` now uses this helper instead of ordering by `accountNumber`, avoiding lexicographic sorting issues and duplicate reuse like `RWC100`.
+  - Quote-to-client creation path in runsheet now assigns `accountNumber: RWC<next>` so all new clients receive a unique number consistently.
+  - CSV import paths already compute next numbers independently and were left unchanged.
+
 ## 2025-08-14
 
 - Implemented draft persistence for first-time setup to prevent data loss if the screen remounts shortly after login.

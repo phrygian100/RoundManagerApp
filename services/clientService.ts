@@ -207,3 +207,46 @@ export async function deleteAllClients(): Promise<{ deleted: number; error?: str
     return { deleted: 0, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 } 
+
+/**
+ * Compute the next unique client account number for the current owner.
+ * Scans all existing `clients` for this owner, supports both string (e.g. "RWC123")
+ * and numeric account number formats, and returns max + 1. Falls back to 1 when none exist.
+ */
+export async function getNextAccountNumber(): Promise<number> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) {
+    console.error('getNextAccountNumber: No owner ID found - authentication issue');
+    return 1;
+  }
+
+  try {
+    const clientsQuery = query(
+      collection(db, 'clients'),
+      where('ownerId', '==', ownerId)
+    );
+    const snapshot = await getDocs(clientsQuery);
+
+    let highestNumber = 0;
+    snapshot.forEach(docSnap => {
+      const acc = (docSnap.data() as any).accountNumber;
+      let numericValue = 0;
+
+      if (typeof acc === 'string') {
+        const prefixed = acc.toUpperCase().startsWith('RWC');
+        const numericPart = prefixed ? acc.replace(/^RWC/i, '') : acc;
+        const parsed = parseInt(String(numericPart).trim(), 10);
+        if (!isNaN(parsed)) numericValue = parsed;
+      } else if (typeof acc === 'number') {
+        numericValue = acc;
+      }
+
+      if (numericValue > highestNumber) highestNumber = numericValue;
+    });
+
+    return highestNumber + 1;
+  } catch (error) {
+    console.error('getNextAccountNumber: Failed to compute next account number', error);
+    return 1;
+  }
+}

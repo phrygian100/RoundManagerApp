@@ -14,6 +14,7 @@ import { db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { listMembers, MemberRecord } from '../../services/accountService';
 import { formatAuditDescription, logAction } from '../../services/auditService';
+import { getNextAccountNumber } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
@@ -2375,6 +2376,7 @@ ${signOff}`;
                   Alert.alert('Error', 'Could not determine account owner. Please log in again.');
                   return;
                 }
+                const nextAcc = await getNextAccountNumber();
                 const clientDoc = await addDoc(collection(db, 'clients'), {
                   name: job.name,
                   address: job.address,
@@ -2382,6 +2384,7 @@ ${signOff}`;
                   startDate: job.scheduledTime,
                   frequency: quoteForm.frequency,
                   quote: Number(quoteForm.cost),
+                  accountNumber: `RWC${nextAcc}`,
                   roundOrderNumber: Number(quoteForm.roundOrder),
                   ownerId,
                 });
