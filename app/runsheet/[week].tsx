@@ -1532,18 +1532,13 @@ ${signOff}`;
     }
 
     if ((item as any).__type === 'vehicle') {
-      // Count total vehicles in this day to determine if collapse button should be shown
-      const vehicleItemsInDay = section.data.filter((dataItem: any) => dataItem.__type === 'vehicle');
-      const shouldShowCollapseButton = vehicleItemsInDay.length > 1;
       const isCollapsed = collapsedVehicles.includes(item.id);
       
       return (
         <View style={{ paddingVertical: 4, backgroundColor: '#F0F0F0', flexDirection: 'row', alignItems: 'center' }}>
-          {shouldShowCollapseButton && (
-            <Pressable onPress={() => toggleVehicle(item.id)} style={{ marginRight: 8 }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{isCollapsed ? '+' : '-'}</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={() => toggleVehicle(item.id)} style={{ marginRight: 8 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{isCollapsed ? '+' : '-'}</Text>
+          </Pressable>
           <Text style={{ fontWeight: 'bold', flex: 1 }}>{item.name}</Text>
         </View>
       );

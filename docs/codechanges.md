@@ -60,6 +60,11 @@
 
 - Runsheet: Allow completing any job on the current day (per vehicle), track completion order per vehicle, and on day-complete show swap proposals for out-of-order completions. Quotes excluded. Confirming applies round-order swaps; closing skips. Clear completion tracking after day completion. Future-day jobs remain non-completable.
 
+- Runsheet vehicle headers: Restore +/- toggle visibility for single-vehicle days
+  - File: `app/runsheet/[week].tsx`
+  - Change: Always render the vehicle collapse/expand `Pressable` with `+/-` instead of hiding it when there is only one vehicle in the day. Previously it was gated behind a `shouldShowCollapseButton` condition requiring 2+ vehicles, which caused the +/- to disappear on single-vehicle days.
+  - Behavior: Users can collapse/expand the job list for a vehicle regardless of how many vehicles exist for that day. Web and mobile unaffected otherwise.
+
 - Day Complete Summary modal: show loading state for direct-debit lookup
   - File: `app/runsheet/[week].tsx`
   - Changed conditional rendering so that while `summaryProcessing` is true, the modal displays "Looking up direct-debit jobs…" and does not prematurely show "No direct-debit jobs today." This prevents confusing flicker before GoCardless/job detection completes.
