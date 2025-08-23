@@ -43,6 +43,12 @@
   - Quote-to-client creation path in runsheet now assigns `accountNumber: RWC<next>` so all new clients receive a unique number consistently.
   - CSV import paths already compute next numbers independently and were left unchanged.
 
+- Edit Customer: account number editing reliability and validation
+  - File: `app/(tabs)/clients/[id]/edit-customer.tsx`
+  - Added cross-platform alert helper to show messages on web (previously some Alerts were invisible on web).
+  - Normalizes entered account numbers to `RWC###` format and blocks duplicates for the current owner before saving.
+  - Keeps all other behavior unchanged; no impact on mobile.
+
 ## 2025-08-14
 
 - Implemented draft persistence for first-time setup to prevent data loss if the screen remounts shortly after login.

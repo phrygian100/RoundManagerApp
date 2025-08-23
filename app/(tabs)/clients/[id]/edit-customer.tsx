@@ -3,7 +3,7 @@ import { addWeeks, format, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
@@ -35,6 +35,26 @@ export default function EditCustomerScreen() {
   const [updating, setUpdating] = useState(false);
   const [activeSection, setActiveSection] = useState<'details'>('details');
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Cross-platform alert helper
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
+  const normalizeAccountNumber = (value: string): string => {
+    const trimmed = String(value || '').trim();
+    if (!trimmed) return '';
+    const withoutPrefix = trimmed.replace(/^RWC/i, '').trim();
+    const parsed = parseInt(withoutPrefix, 10);
+    if (!isNaN(parsed)) {
+      return `RWC${parsed}`;
+    }
+    return `RWC${withoutPrefix}`;
+  };
 
   useEffect(() => {
     const today = new Date();
@@ -100,21 +120,41 @@ export default function EditCustomerScreen() {
   };
 
   const handleSave = async () => {
-    if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a name.');
-      return;
-    }
-
     if (typeof id === 'string') {
       setUpdating(true);
       try {
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          showAlert('Error', 'Could not determine account owner. Please log in again.');
+          setUpdating(false);
+          return;
+        }
+
+        // Normalize account number and ensure uniqueness for this owner
+        const normalizedAccount = normalizeAccountNumber(accountNumber);
+        if (normalizedAccount) {
+          const dupSnap = await getDocs(
+            query(
+              collection(db, 'clients'),
+              where('ownerId', '==', ownerId),
+              where('accountNumber', '==', normalizedAccount)
+            )
+          );
+          const duplicateExists = dupSnap.docs.some(d => d.id !== id);
+          if (duplicateExists) {
+            showAlert('Duplicate Account Number', `The account number ${normalizedAccount} is already in use. Please choose another.`);
+            setUpdating(false);
+            return;
+          }
+        }
+
         const updateData: any = {
           name,
           address1,
           town,
           postcode,
           address: `${address1}, ${town}, ${postcode}`,
-          accountNumber,
+          accountNumber: normalizedAccount || accountNumber,
           roundOrderNumber: Number(roundOrderNumber),
           mobileNumber,
           email,
@@ -124,7 +164,7 @@ export default function EditCustomerScreen() {
         if (frequency.trim() && nextVisit.trim()) {
           const frequencyNumber = Number(frequency);
           if (isNaN(frequencyNumber) || frequencyNumber <= 0) {
-            Alert.alert('Error', 'Frequency must be a positive number.');
+            showAlert('Error', 'Frequency must be a positive number.');
             setUpdating(false);
             return;
           }
@@ -143,14 +183,14 @@ export default function EditCustomerScreen() {
 
         if (frequency.trim() && nextVisit.trim()) {
           const jobsCreated = await regenerateJobsForClient();
-          Alert.alert('Success', `Customer updated and ${jobsCreated} jobs regenerated!`);
+          showAlert('Success', `Customer updated and ${jobsCreated} jobs regenerated!`);
         } else {
-          Alert.alert('Success', 'Customer details updated!');
+          showAlert('Success', 'Customer details updated!');
         }
         router.back();
       } catch (error) {
         console.error('Error updating client:', error);
-        Alert.alert('Error', 'Failed to update client. Please try again.');
+        showAlert('Error', 'Failed to update client. Please try again.');
       } finally {
         setUpdating(false);
       }
