@@ -48,6 +48,7 @@
   - Added cross-platform alert helper to show messages on web (previously some Alerts were invisible on web).
   - Normalizes entered account numbers to `RWC###` format and blocks duplicates for the current owner before saving.
   - Keeps all other behavior unchanged; no impact on mobile.
+  - Relaxed legacy frequency validation: accepts numeric values (>0) or 'one-off'; otherwise skips updating frequency so unrelated edits (like account number) aren't blocked.
 
 ## 2025-08-14
 

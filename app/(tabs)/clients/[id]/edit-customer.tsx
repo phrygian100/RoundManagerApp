@@ -162,14 +162,25 @@ export default function EditCustomerScreen() {
 
         // Do not update legacy routine unless both are present
         if (frequency.trim() && nextVisit.trim()) {
-          const frequencyNumber = Number(frequency);
-          if (isNaN(frequencyNumber) || frequencyNumber <= 0) {
-            showAlert('Error', 'Frequency must be a positive number.');
-            setUpdating(false);
-            return;
+          const freq = frequency.trim();
+          const isNumeric = /^\d+$/.test(freq);
+          const isOneOff = /^one[- ]?off$/i.test(freq);
+
+          if (isNumeric) {
+            const frequencyNumber = Number(freq);
+            if (frequencyNumber <= 0) {
+              showAlert('Error', 'Frequency must be a positive number.');
+              setUpdating(false);
+              return;
+            }
+            updateData.frequency = frequencyNumber;
+            updateData.nextVisit = nextVisit;
+          } else if (isOneOff) {
+            updateData.frequency = 'one-off';
+            updateData.nextVisit = nextVisit;
+          } else {
+            // Unknown legacy value; skip updating frequency to avoid blocking unrelated edits
           }
-          updateData.frequency = frequencyNumber;
-          updateData.nextVisit = nextVisit;
         }
 
         await updateDoc(doc(db, 'clients', id), updateData);
