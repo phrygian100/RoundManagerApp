@@ -304,4 +304,11 @@ Context:
    • Uses platform-specific alert methods (window.alert for web, Alert.alert for mobile)
    • Fixed import path for jobService module (needed extra ../ for correct path resolution)
 
-This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms.
+5. **Permission issue fixes for regenerate schedule** - `app/(tabs)/clients/[id]/manage-services.tsx`
+   • Changed from batch delete to individual delete operations for better permission handling
+   • Added comprehensive error logging to help debug permission issues
+   • Enhanced error messages to show specific error details to users
+   • Added proper error handling for job creation failures
+   • Continues deleting other jobs even if one fails due to permissions
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling.
