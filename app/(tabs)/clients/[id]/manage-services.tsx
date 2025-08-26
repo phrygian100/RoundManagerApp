@@ -443,68 +443,85 @@ export default function ManageServicesScreen() {
 									<Pressable 
 										style={[styles.dateButton, { backgroundColor: '#ff9800', borderColor: '#f57c00' }]}
 										onPress={async () => {
-											Alert.alert(
-												'Regenerate Schedule',
-												'This will delete all pending jobs for this service and create new ones based on the current schedule. Continue?',
-												[
-													{ text: 'Cancel', style: 'cancel' },
-													{
-														text: 'Regenerate',
-														style: 'destructive',
-														onPress: async () => {
-															try {
-																const ownerId = await getDataOwnerId();
-																if (!ownerId) return;
-																
-																// Delete pending jobs for this service
-																const batch = writeBatch(db);
-																const jobsQuery = query(
-																	collection(db, 'jobs'),
-																	where('ownerId', '==', ownerId),
-																	where('clientId', '==', clientId),
-																	where('serviceId', '==', plan.serviceType),
-																	where('status', 'in', ['pending', 'scheduled'])
-																);
-																const jobsSnapshot = await getDocs(jobsQuery);
-																
-																let deletedCount = 0;
-																jobsSnapshot.forEach(jobDoc => {
-																	batch.delete(jobDoc.ref);
-																	deletedCount++;
-																});
-																
-																await batch.commit();
-																
-																// Generate new jobs based on current schedule
-																if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
-																	const { createJobsForServicePlan } = await import('../../../../services/jobService');
-																	await createJobsForServicePlan(plan, client, 8);
-																} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
-																	// Create single job for one-off service
-																	const jobData = {
-																		ownerId,
-																		clientId: clientId,
-																		providerId: 'test-provider-1',
-																		serviceId: plan.serviceType,
-																		propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
-																		scheduledTime: plan.scheduledDate + 'T09:00:00',
-																		status: 'pending' as const,
-																		price: Number(plan.price),
-																		paymentStatus: 'unpaid' as const,
-																	};
-																	await addDoc(collection(db, 'jobs'), jobData);
-																}
-																
-																Alert.alert('Success', `Deleted ${deletedCount} old jobs and regenerated schedule with new settings.`);
-																await loadPlans();
-															} catch (error) {
-																console.error('Failed to regenerate schedule:', error);
-																Alert.alert('Error', 'Failed to regenerate schedule.');
-															}
-														}
+											const performRegenerate = async () => {
+												try {
+													const ownerId = await getDataOwnerId();
+													if (!ownerId) return;
+													
+													// Delete pending jobs for this service
+													const batch = writeBatch(db);
+													const jobsQuery = query(
+														collection(db, 'jobs'),
+														where('ownerId', '==', ownerId),
+														where('clientId', '==', clientId),
+														where('serviceId', '==', plan.serviceType),
+														where('status', 'in', ['pending', 'scheduled'])
+													);
+													const jobsSnapshot = await getDocs(jobsQuery);
+													
+													let deletedCount = 0;
+													jobsSnapshot.forEach(jobDoc => {
+														batch.delete(jobDoc.ref);
+														deletedCount++;
+													});
+													
+													await batch.commit();
+													
+													// Generate new jobs based on current schedule
+													if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
+														const { createJobsForServicePlan } = await import('../../../../services/jobService');
+														await createJobsForServicePlan(plan, client, 8);
+													} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
+														// Create single job for one-off service
+														const jobData = {
+															ownerId,
+															clientId: clientId,
+															providerId: 'test-provider-1',
+															serviceId: plan.serviceType,
+															propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
+															scheduledTime: plan.scheduledDate + 'T09:00:00',
+															status: 'pending' as const,
+															price: Number(plan.price),
+															paymentStatus: 'unpaid' as const,
+														};
+														await addDoc(collection(db, 'jobs'), jobData);
 													}
-												]
-											);
+													
+													if (Platform.OS === 'web') {
+														alert(`Success! Deleted ${deletedCount} old jobs and regenerated schedule with new settings.`);
+													} else {
+														Alert.alert('Success', `Deleted ${deletedCount} old jobs and regenerated schedule with new settings.`);
+													}
+													await loadPlans();
+												} catch (error) {
+													console.error('Failed to regenerate schedule:', error);
+													if (Platform.OS === 'web') {
+														alert('Failed to regenerate schedule. Please check the console for details.');
+													} else {
+														Alert.alert('Error', 'Failed to regenerate schedule.');
+													}
+												}
+											};
+											
+											// Show confirmation dialog
+											if (Platform.OS === 'web') {
+												if (window.confirm('This will delete all pending jobs for this service and create new ones based on the current schedule. Continue?')) {
+													await performRegenerate();
+												}
+											} else {
+												Alert.alert(
+													'Regenerate Schedule',
+													'This will delete all pending jobs for this service and create new ones based on the current schedule. Continue?',
+													[
+														{ text: 'Cancel', style: 'cancel' },
+														{
+															text: 'Regenerate',
+															style: 'destructive',
+															onPress: performRegenerate
+														}
+													]
+												);
+											}
 										}}
 									>
 										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Regenerate Schedule</ThemedText>
