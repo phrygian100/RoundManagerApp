@@ -298,4 +298,10 @@ Context:
    • Handles proper date calculations, respects lastServiceDate, and avoids duplicates
    • Uses batch operations for efficient job creation
 
-This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes.
+4. **Web platform compatibility fixes** - `app/(tabs)/clients/[id]/manage-services.tsx`
+   • Fixed regenerate button not working on web platform
+   • Replaced Alert.alert with window.confirm for web confirmation dialogs
+   • Uses platform-specific alert methods (window.alert for web, Alert.alert for mobile)
+   • Fixed import path for jobService module (needed extra ../ for correct path resolution)
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms.
