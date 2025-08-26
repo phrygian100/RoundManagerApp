@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
@@ -446,10 +446,19 @@ export default function ManageServicesScreen() {
 											const performRegenerate = async () => {
 												try {
 													const ownerId = await getDataOwnerId();
-													if (!ownerId) return;
+													if (!ownerId) {
+														console.error('No owner ID found');
+														if (Platform.OS === 'web') {
+															alert('Unable to determine account owner. Please try logging out and back in.');
+														} else {
+															Alert.alert('Error', 'Unable to determine account owner. Please try logging out and back in.');
+														}
+														return;
+													}
+													
+													console.log('Starting regenerate for service:', plan.serviceType, 'with ownerId:', ownerId);
 													
 													// Delete pending jobs for this service
-													const batch = writeBatch(db);
 													const jobsQuery = query(
 														collection(db, 'jobs'),
 														where('ownerId', '==', ownerId),
@@ -459,32 +468,54 @@ export default function ManageServicesScreen() {
 													);
 													const jobsSnapshot = await getDocs(jobsQuery);
 													
-													let deletedCount = 0;
-													jobsSnapshot.forEach(jobDoc => {
-														batch.delete(jobDoc.ref);
-														deletedCount++;
-													});
+													console.log('Found', jobsSnapshot.size, 'jobs to delete');
 													
-													await batch.commit();
+													// Delete jobs one by one instead of batch to handle permission issues better
+													let deletedCount = 0;
+													
+													for (const jobDoc of jobsSnapshot.docs) {
+														try {
+															const jobData = jobDoc.data();
+															console.log('Deleting job:', jobDoc.id, 'with ownerId:', jobData.ownerId);
+															
+															// Delete directly instead of using batch
+															await deleteDoc(jobDoc.ref);
+															deletedCount++;
+														} catch (deleteError) {
+															console.error('Failed to delete job:', jobDoc.id, deleteError);
+															// Continue with other deletions even if one fails
+														}
+													}
+													
+													console.log('Successfully deleted', deletedCount, 'jobs');
 													
 													// Generate new jobs based on current schedule
-													if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
-														const { createJobsForServicePlan } = await import('../../../../services/jobService');
-														await createJobsForServicePlan(plan, client, 8);
-													} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
-														// Create single job for one-off service
-														const jobData = {
-															ownerId,
-															clientId: clientId,
-															providerId: 'test-provider-1',
-															serviceId: plan.serviceType,
-															propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
-															scheduledTime: plan.scheduledDate + 'T09:00:00',
-															status: 'pending' as const,
-															price: Number(plan.price),
-															paymentStatus: 'unpaid' as const,
-														};
-														await addDoc(collection(db, 'jobs'), jobData);
+													try {
+														if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
+															console.log('Creating recurring jobs for plan:', plan);
+															const { createJobsForServicePlan } = await import('../../../../services/jobService');
+															const jobsCreated = await createJobsForServicePlan(plan, client, 8);
+															console.log('Created', jobsCreated, 'new jobs');
+														} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
+															console.log('Creating one-off job for plan:', plan);
+															// Create single job for one-off service
+															const jobData = {
+																ownerId,
+																clientId: clientId,
+																providerId: 'test-provider-1',
+																serviceId: plan.serviceType,
+																propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
+																scheduledTime: plan.scheduledDate + 'T09:00:00',
+																status: 'pending' as const,
+																price: Number(plan.price),
+																paymentStatus: 'unpaid' as const,
+															};
+															await addDoc(collection(db, 'jobs'), jobData);
+															console.log('Created one-off job');
+														}
+													} catch (createError) {
+														console.error('Failed to create new jobs:', createError);
+														throw new Error(`Failed to create new jobs: ${createError.message}`);
 													}
 													
 													if (Platform.OS === 'web') {
@@ -493,12 +524,14 @@ export default function ManageServicesScreen() {
 														Alert.alert('Success', `Deleted ${deletedCount} old jobs and regenerated schedule with new settings.`);
 													}
 													await loadPlans();
-												} catch (error) {
+												} catch (error: any) {
 													console.error('Failed to regenerate schedule:', error);
+													const errorMessage = error?.message || 'Unknown error occurred';
+													
 													if (Platform.OS === 'web') {
-														alert('Failed to regenerate schedule. Please check the console for details.');
+														alert(`Failed to regenerate schedule: ${errorMessage}\n\nPlease check the browser console for more details.`);
 													} else {
-														Alert.alert('Error', 'Failed to regenerate schedule.');
+														Alert.alert('Error', `Failed to regenerate schedule: ${errorMessage}`);
 													}
 												}
 											};
