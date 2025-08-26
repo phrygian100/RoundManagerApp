@@ -511,6 +511,81 @@ export async function generateRecurringJobs() {
 /**
  * Creates jobs for additional recurring services for a specific client
  */
+export async function createJobsForServicePlan(plan: ServicePlan, client: Client, weeksAhead: number = 8): Promise<number> {
+  if (!plan.isActive || plan.scheduleType !== 'recurring' || !plan.frequencyWeeks || !plan.startDate) {
+    return 0;
+  }
+  
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return 0;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  let visitDate = parseISO(plan.startDate);
+  visitDate.setHours(0, 0, 0, 0);
+  
+  // If the start date is in the past, calculate the next occurrence
+  while (visitDate < today) {
+    visitDate = addWeeks(visitDate, plan.frequencyWeeks);
+  }
+  
+  const jobsToCreate = [];
+  const maxDate = addWeeks(today, weeksAhead);
+  
+  while (visitDate <= maxDate) {
+    // Respect lastServiceDate
+    if (plan.lastServiceDate && visitDate > parseISO(plan.lastServiceDate)) break;
+    
+    const weekStr = format(visitDate, 'yyyy-MM-dd');
+    
+    // Check if job already exists for this date/service
+    const existingJobsQuery = query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', client.id),
+      where('serviceId', '==', plan.serviceType),
+      where('scheduledTime', '>=', weekStr + 'T00:00:00'),
+      where('scheduledTime', '<=', weekStr + 'T23:59:59')
+    );
+    const existingJobs = await getDocs(existingJobsQuery);
+    
+    if (existingJobs.empty) {
+      jobsToCreate.push({
+        ownerId,
+        clientId: client.id,
+        providerId: 'test-provider-1',
+        serviceId: plan.serviceType,
+        propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+        scheduledTime: weekStr + 'T09:00:00',
+        status: 'pending' as const,
+        price: Number(plan.price),
+        paymentStatus: 'unpaid' as const,
+        gocardlessEnabled: client.gocardlessEnabled || false,
+        gocardlessCustomerId: client.gocardlessCustomerId,
+      });
+    }
+    
+    visitDate = addWeeks(visitDate, plan.frequencyWeeks);
+  }
+  
+  // Create jobs in batch
+  if (jobsToCreate.length > 0) {
+    const batch = writeBatch(db);
+    jobsToCreate.forEach(jobData => {
+      // Remove undefined gocardlessCustomerId if not present
+      if (!jobData.gocardlessCustomerId) {
+        delete (jobData as any).gocardlessCustomerId;
+      }
+      const docRef = doc(collection(db, JOBS_COLLECTION));
+      batch.set(docRef, jobData);
+    });
+    await batch.commit();
+  }
+  
+  return jobsToCreate.length;
+}
+
 export async function createJobsForAdditionalServices(clientId: string, maxWeeks: number = 8): Promise<number> {
   try {
     const client = await getClientById(clientId);

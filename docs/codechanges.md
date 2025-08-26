@@ -276,7 +276,7 @@ Context:
 
 ---
 
-### (Date: 2025-08-26) – Fix service plan changes not reflecting in Client Details
+### (Date: 2025-08-26) – Fix service plan changes not reflecting in Client Details and Service Schedule
 
 1. **Client Details page update** - `app/(tabs)/clients/[id].tsx`
    • Added fetching of service plans from `servicePlans` collection in `fetchClient` function
@@ -289,6 +289,13 @@ Context:
    • Added visual confirmation when changes are saved (green toast notification)
    • Added field name tracking to show which field was saved in the confirmation message
    • Improved user feedback by showing "✓ [Field] saved" message for 2 seconds after each update
-   • All changes are still saved immediately to Firestore with `updateDoc`
+   • When price changes, automatically updates all pending jobs for that service (except jobs with custom prices)
+   • Added "Regenerate Schedule" button for each service plan to delete old jobs and create new ones with updated settings
+   • All changes are saved immediately to Firestore using batch writes for consistency
 
-This ensures that changes made in the Manage Services page are immediately reflected when navigating back to the Client Details page, providing a consistent and up-to-date view of service information across the application.
+3. **Job Service updates** - `services/jobService.ts`
+   • Added `createJobsForServicePlan` function to generate jobs for a specific service plan
+   • Handles proper date calculations, respects lastServiceDate, and avoids duplicates
+   • Uses batch operations for efficient job creation
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes.

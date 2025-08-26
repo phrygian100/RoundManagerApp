@@ -2,7 +2,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
@@ -185,7 +185,53 @@ export default function ManageServicesScreen() {
 
 	const updatePlan = async (planId: string, updates: Record<string, any>, fieldName?: string) => {
 		try {
-			await updateDoc(doc(db, 'servicePlans', planId), { ...updates, updatedAt: new Date().toISOString() });
+			// Find the plan being updated
+			const plan = plans.find(p => p.id === planId);
+			if (!plan) return;
+			
+			const batch = writeBatch(db);
+			
+			// Update the service plan
+			const planRef = doc(db, 'servicePlans', planId);
+			batch.update(planRef, { ...updates, updatedAt: new Date().toISOString() });
+			
+			// If price changed, update all pending jobs for this service
+			if ('price' in updates && updates.price !== plan.price) {
+				const ownerId = await getDataOwnerId();
+				if (ownerId) {
+					const jobsQuery = query(
+						collection(db, 'jobs'),
+						where('ownerId', '==', ownerId),
+						where('clientId', '==', clientId),
+						where('serviceId', '==', plan.serviceType),
+						where('status', 'in', ['pending', 'scheduled'])
+					);
+					const jobsSnapshot = await getDocs(jobsQuery);
+					
+					jobsSnapshot.forEach(jobDoc => {
+						const jobData = jobDoc.data();
+						// Only update if the job doesn't have a custom price
+						if (!jobData.hasCustomPrice) {
+							batch.update(jobDoc.ref, { price: Number(updates.price) });
+						}
+					});
+					
+					console.log(`Updating ${jobsSnapshot.size} pending jobs with new price`);
+				}
+			}
+			
+			// If schedule changed (frequency or dates), offer to regenerate jobs
+			if (('frequencyWeeks' in updates && updates.frequencyWeeks !== plan.frequencyWeeks) ||
+			    ('startDate' in updates && updates.startDate !== plan.startDate) ||
+			    ('scheduledDate' in updates && updates.scheduledDate !== plan.scheduledDate)) {
+				// For now, just update the plan - in a future update we could offer to regenerate jobs
+				console.log('Schedule changed - jobs may need to be regenerated');
+			}
+			
+			// Commit all updates
+			await batch.commit();
+			
+			// Update local state
 			setPlans(prev => prev.map(p => (p.id === planId ? { ...p, ...updates } : p)));
 			
 			// Show save confirmation
@@ -196,6 +242,9 @@ export default function ManageServicesScreen() {
 			}
 			setShowSaveConfirmation(true);
 			setTimeout(() => setShowSaveConfirmation(false), 2000);
+			
+			// Reload plans to ensure we have the latest data
+			await loadPlans();
 		} catch (e) {
 			console.error('Failed to update plan', e);
 			Alert.alert('Error', 'Failed to update plan.');
@@ -389,6 +438,77 @@ export default function ManageServicesScreen() {
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Active</ThemedText>
 									<Switch value={!!plan.isActive} onValueChange={val => updatePlan(plan.id, { isActive: val }, 'Active Status')} />
+								</View>
+								<View style={[styles.planRow, { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 8 }]}>
+									<Pressable 
+										style={[styles.dateButton, { backgroundColor: '#ff9800', borderColor: '#f57c00' }]}
+										onPress={async () => {
+											Alert.alert(
+												'Regenerate Schedule',
+												'This will delete all pending jobs for this service and create new ones based on the current schedule. Continue?',
+												[
+													{ text: 'Cancel', style: 'cancel' },
+													{
+														text: 'Regenerate',
+														style: 'destructive',
+														onPress: async () => {
+															try {
+																const ownerId = await getDataOwnerId();
+																if (!ownerId) return;
+																
+																// Delete pending jobs for this service
+																const batch = writeBatch(db);
+																const jobsQuery = query(
+																	collection(db, 'jobs'),
+																	where('ownerId', '==', ownerId),
+																	where('clientId', '==', clientId),
+																	where('serviceId', '==', plan.serviceType),
+																	where('status', 'in', ['pending', 'scheduled'])
+																);
+																const jobsSnapshot = await getDocs(jobsQuery);
+																
+																let deletedCount = 0;
+																jobsSnapshot.forEach(jobDoc => {
+																	batch.delete(jobDoc.ref);
+																	deletedCount++;
+																});
+																
+																await batch.commit();
+																
+																// Generate new jobs based on current schedule
+																if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
+																	const { createJobsForServicePlan } = await import('../../../services/jobService');
+																	await createJobsForServicePlan(plan, client, 8);
+																} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
+																	// Create single job for one-off service
+																	const jobData = {
+																		ownerId,
+																		clientId: clientId,
+																		providerId: 'test-provider-1',
+																		serviceId: plan.serviceType,
+																		propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
+																		scheduledTime: plan.scheduledDate + 'T09:00:00',
+																		status: 'pending' as const,
+																		price: Number(plan.price),
+																		paymentStatus: 'unpaid' as const,
+																	};
+																	await addDoc(collection(db, 'jobs'), jobData);
+																}
+																
+																Alert.alert('Success', `Deleted ${deletedCount} old jobs and regenerated schedule with new settings.`);
+																await loadPlans();
+															} catch (error) {
+																console.error('Failed to regenerate schedule:', error);
+																Alert.alert('Error', 'Failed to regenerate schedule.');
+															}
+														}
+													}
+												]
+											);
+										}}
+									>
+										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Regenerate Schedule</ThemedText>
+									</Pressable>
 								</View>
 							</View>
 						))
