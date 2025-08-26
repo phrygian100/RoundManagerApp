@@ -111,7 +111,7 @@ export default function EditCustomerScreen() {
       const batch = writeBatch(db);
       futureJobsSnapshot.forEach((jobDoc) => batch.delete(jobDoc.ref));
       await batch.commit();
-      const jobsCreated = await createJobsForClient(id, 8, false);
+      const jobsCreated = await createJobsForClient(id, 52, false);
       return jobsCreated;
     } catch (error) {
       console.error('Error regenerating jobs:', error);

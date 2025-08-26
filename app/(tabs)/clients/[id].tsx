@@ -654,7 +654,7 @@ export default function ClientDetailScreen() {
 
       // Generate jobs for the new recurring service
       try {
-        const jobsCreated = await createJobsForAdditionalServices(id as string, 8);
+        const jobsCreated = await createJobsForAdditionalServices(id as string, 52);
         console.log(`Created ${jobsCreated} jobs for new recurring service`);
       } catch (jobError) {
         console.error('Error creating jobs for new recurring service:', jobError);

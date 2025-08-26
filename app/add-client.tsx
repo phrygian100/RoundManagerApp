@@ -340,7 +340,7 @@ export default function AddClientScreen() {
       // Create jobs for the new client (only for recurring clients, not one-off)
       if (frequencyValue !== 'one-off') {
         try {
-          const jobsCreated = await createJobsForClient(clientRef.id, 8, true);
+          const jobsCreated = await createJobsForClient(clientRef.id, 52, true);
           console.log(`Created ${jobsCreated} jobs for new client`);
         } catch (jobError) {
           console.error('Error creating jobs for new client:', jobError);

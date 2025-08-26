@@ -142,10 +142,10 @@ export async function getClientById(clientId: string): Promise<Client | null> {
 }
 
 /**
- * Creates jobs for a specific client for the next 8 weeks worth of occurrences
+ * Creates jobs for a specific client for the next year (52 weeks) worth of occurrences
  * This function ensures no duplicate jobs are created
  */
-export async function createJobsForClient(clientId: string, maxWeeks: number = 8, skipTodayIfComplete: boolean = false): Promise<number> {
+export async function createJobsForClient(clientId: string, maxWeeks: number = 52, skipTodayIfComplete: boolean = false): Promise<number> {
   try {
     // New logic: use service plans if present; otherwise, fall back to legacy client fields
     let totalJobsCreated = 0;
@@ -511,7 +511,7 @@ export async function generateRecurringJobs() {
 /**
  * Creates jobs for additional recurring services for a specific client
  */
-export async function createJobsForServicePlan(plan: ServicePlan, client: Client, weeksAhead: number = 8): Promise<number> {
+export async function createJobsForServicePlan(plan: ServicePlan, client: Client, weeksAhead: number = 52): Promise<number> {
   if (!plan.isActive || plan.scheduleType !== 'recurring' || !plan.frequencyWeeks || !plan.startDate) {
     return 0;
   }
@@ -593,7 +593,7 @@ export async function createJobsForServicePlan(plan: ServicePlan, client: Client
   return jobsToCreate.length;
 }
 
-export async function createJobsForAdditionalServices(clientId: string, maxWeeks: number = 8): Promise<number> {
+export async function createJobsForAdditionalServices(clientId: string, maxWeeks: number = 52): Promise<number> {
   try {
     const client = await getClientById(clientId);
     if (!client || !client.additionalServices || client.additionalServices.length === 0) {
