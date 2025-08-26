@@ -311,4 +311,10 @@ Context:
    • Added proper error handling for job creation failures
    • Continues deleting other jobs even if one fails due to permissions
 
-This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling.
+6. **Firestore index optimization** - `services/jobService.ts`
+   • Fixed "query requires an index" error in createJobsForServicePlan function
+   • Simplified the job existence check query to use only ownerId and clientId where clauses
+   • Moved service type and date filtering to in-memory operations to avoid composite index requirement
+   • This eliminates the need to create additional Firestore indexes while maintaining functionality
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling and no additional Firestore index requirements.
