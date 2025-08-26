@@ -477,7 +477,7 @@ export default function ManageServicesScreen() {
 																
 																// Generate new jobs based on current schedule
 																if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
-																	const { createJobsForServicePlan } = await import('../../../services/jobService');
+																	const { createJobsForServicePlan } = await import('../../../../services/jobService');
 																	await createJobsForServicePlan(plan, client, 8);
 																} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
 																	// Create single job for one-off service
