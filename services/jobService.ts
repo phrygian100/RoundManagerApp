@@ -540,17 +540,24 @@ export async function createJobsForServicePlan(plan: ServicePlan, client: Client
     const weekStr = format(visitDate, 'yyyy-MM-dd');
     
     // Check if job already exists for this date/service
+    // First get all jobs for this client and service
     const existingJobsQuery = query(
       collection(db, JOBS_COLLECTION),
       where('ownerId', '==', ownerId),
-      where('clientId', '==', client.id),
-      where('serviceId', '==', plan.serviceType),
-      where('scheduledTime', '>=', weekStr + 'T00:00:00'),
-      where('scheduledTime', '<=', weekStr + 'T23:59:59')
+      where('clientId', '==', client.id)
     );
-    const existingJobs = await getDocs(existingJobsQuery);
+    const existingJobsSnapshot = await getDocs(existingJobsQuery);
     
-    if (existingJobs.empty) {
+    // Then filter in memory for the specific service and date
+    const existingJobs = existingJobsSnapshot.docs.filter(doc => {
+      const data = doc.data();
+      if (data.serviceId !== plan.serviceType) return false;
+      if (!data.scheduledTime) return false;
+      const jobDate = data.scheduledTime.split('T')[0];
+      return jobDate === weekStr;
+    });
+    
+    if (existingJobs.length === 0) {
       jobsToCreate.push({
         ownerId,
         clientId: client.id,
