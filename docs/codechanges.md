@@ -317,4 +317,13 @@ Context:
    • Moved service type and date filtering to in-memory operations to avoid composite index requirement
    • This eliminates the need to create additional Firestore indexes while maintaining functionality
 
-This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling and no additional Firestore index requirements.
+7. **Extended job generation outlook to 1 year** - Multiple files
+   • Changed default job generation period from 8 weeks to 52 weeks (1 full year)
+   • Updated in `services/jobService.ts`: createJobsForClient, createJobsForServicePlan, createJobsForAdditionalServices
+   • Updated in `app/(tabs)/clients/[id]/manage-services.tsx`: regenerate schedule now creates 1 year of jobs
+   • Updated in `app/(tabs)/clients/[id].tsx`: adding additional services creates 1 year of jobs
+   • Updated in `app/(tabs)/clients/[id]/edit-customer.tsx`: regenerating jobs creates 1 year outlook
+   • Updated in `app/add-client.tsx`: new clients get 1 year of jobs generated
+   • This ensures users can see their full year schedule at a glance
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling, no additional Firestore index requirements, and a full year's outlook of scheduled jobs.
