@@ -273,3 +273,22 @@ Context:
 
 1. `core/firebase.ts`
    • Call `initializeAuth(app)` on native before `getAuth(app)` so the `auth` component is registered (fixes "Component auth has not been registered yet").
+
+---
+
+### (Date: 2025-08-26) – Fix service plan changes not reflecting in Client Details
+
+1. **Client Details page update** - `app/(tabs)/clients/[id].tsx`
+   • Added fetching of service plans from `servicePlans` collection in `fetchClient` function
+   • Added `servicePlans` state to track active service plans for the client
+   • Replaced legacy frequency/quote display with proper service plan information in Service Details card
+   • Now displays all active service plans with their type, frequency, price, and next service date
+   • Falls back to legacy fields only if no service plans exist
+
+2. **Manage Services page improvements** - `app/(tabs)/clients/[id]/manage-services.tsx`
+   • Added visual confirmation when changes are saved (green toast notification)
+   • Added field name tracking to show which field was saved in the confirmation message
+   • Improved user feedback by showing "✓ [Field] saved" message for 2 seconds after each update
+   • All changes are still saved immediately to Firestore with `updateDoc`
+
+This ensures that changes made in the Manage Services page are immediately reflected when navigating back to the Client Details page, providing a consistent and up-to-date view of service information across the application.

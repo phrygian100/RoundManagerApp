@@ -18,6 +18,7 @@ import { updateClientGoCardlessSettings } from '../../../services/clientService'
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
+import type { ServicePlan } from '../../../types/servicePlan';
 import { displayAccountNumber } from '../../../utils/account';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
@@ -80,6 +81,9 @@ export default function ClientDetailScreen() {
   const [editServicePrice, setEditServicePrice] = useState('');
   const [editServiceNextVisit, setEditServiceNextVisit] = useState(new Date());
   const [showEditServiceDatePicker, setShowEditServiceDatePicker] = useState(false);
+  
+  // Service plans state
+  const [servicePlans, setServicePlans] = useState<ServicePlan[]>([]);
 
   // GoCardless settings modal state
   const [gocardlessModalVisible, setGocardlessModalVisible] = useState(false);
@@ -98,6 +102,29 @@ export default function ClientDetailScreen() {
         setClient({ id: docSnap.id, ...data } as Client);
         setNotes(data.runsheetNotes || data.notes || '');
       }
+      
+      // Fetch service plans
+      try {
+        const ownerId = await getDataOwnerId();
+        const plansQuery = ownerId
+          ? query(collection(db, 'servicePlans'), 
+              where('ownerId', '==', ownerId), 
+              where('clientId', '==', id),
+              where('isActive', '==', true))
+          : query(collection(db, 'servicePlans'), 
+              where('clientId', '==', id),
+              where('isActive', '==', true));
+        const plansSnapshot = await getDocs(plansQuery);
+        const plans = plansSnapshot.docs.map(doc => ({ 
+          id: doc.id, 
+          ...doc.data() 
+        } as ServicePlan));
+        setServicePlans(plans);
+      } catch (error) {
+        console.error('Error fetching service plans:', error);
+        setServicePlans([]);
+      }
+      
       setLoading(false);
     }
   }, [id]);
@@ -728,33 +755,68 @@ export default function ClientDetailScreen() {
                 title="Service Details" 
                 icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
               >
-                <InfoRow 
-                  label="Quote" 
-                  value={typeof client.quote === 'number' && !isNaN(client.quote) 
-                    ? `£${client.quote.toFixed(2)}` 
-                    : 'N/A'
-                  } 
-                />
-                <InfoRow 
-                  label="Frequency" 
-                  value={client.frequency && client.frequency !== 'one-off' 
-                    ? `Visit every ${client.frequency} weeks` 
-                    : client.frequency === 'one-off' 
-                      ? 'No recurring work' 
-                      : 'N/A'
-                  } 
-                />
-                <InfoRow 
-                  label="Next Scheduled Visit" 
-                  value={nextScheduledVisit 
-                    ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'long',
-                        year: 'numeric',
-                      })
-                    : 'N/A'
-                  } 
-                />
+                {servicePlans.length > 0 ? (
+                  servicePlans.map((plan, index) => (
+                    <View key={plan.id} style={index > 0 ? { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' } : {}}>
+                      <InfoRow label="Service" value={plan.serviceType} />
+                      <InfoRow label="Type" value={plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'} />
+                      {plan.scheduleType === 'recurring' && (
+                        <InfoRow label="Frequency" value={`Every ${plan.frequencyWeeks} weeks`} />
+                      )}
+                      <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
+                      <InfoRow 
+                        label="Next Service" 
+                        value={plan.scheduleType === 'recurring' 
+                          ? (plan.startDate 
+                            ? new Date(plan.startDate).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                              })
+                            : 'Not scheduled')
+                          : (plan.scheduledDate
+                            ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
+                                day: '2-digit',
+                                month: 'long',
+                                year: 'numeric',
+                              })
+                            : 'Not scheduled')
+                        } 
+                      />
+                    </View>
+                  ))
+                ) : (
+                  // Fallback to legacy fields if no service plans
+                  <>
+                    <InfoRow 
+                      label="Quote" 
+                      value={typeof client.quote === 'number' && !isNaN(client.quote) 
+                        ? `£${client.quote.toFixed(2)}` 
+                        : 'N/A'
+                      } 
+                    />
+                    <InfoRow 
+                      label="Frequency" 
+                      value={client.frequency && client.frequency !== 'one-off' 
+                        ? `Visit every ${client.frequency} weeks` 
+                        : client.frequency === 'one-off' 
+                          ? 'No recurring work' 
+                          : 'N/A'
+                      } 
+                    />
+                    <InfoRow 
+                      label="Next Scheduled Visit" 
+                      value={nextScheduledVisit 
+                        ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : 'N/A'
+                      } 
+                    />
+                  </>
+                )}
               </SectionCard>
 
               {/* Contact Information Card */}
@@ -908,33 +970,68 @@ export default function ClientDetailScreen() {
               title="Service Details" 
               icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
             >
-              <InfoRow 
-                label="Quote" 
-                value={typeof client.quote === 'number' && !isNaN(client.quote) 
-                  ? `£${client.quote.toFixed(2)}` 
-                  : 'N/A'
-                } 
-              />
-              <InfoRow 
-                label="Frequency" 
-                value={client.frequency && client.frequency !== 'one-off' 
-                  ? `Visit every ${client.frequency} weeks` 
-                  : client.frequency === 'one-off' 
-                    ? 'No recurring work' 
-                    : 'N/A'
-                } 
-              />
-              <InfoRow 
-                label="Next Scheduled Visit" 
-                value={nextScheduledVisit 
-                  ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'long',
-                      year: 'numeric',
-                    })
-                  : 'N/A'
-                } 
-              />
+              {servicePlans.length > 0 ? (
+                servicePlans.map((plan, index) => (
+                  <View key={plan.id} style={index > 0 ? { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' } : {}}>
+                    <InfoRow label="Service" value={plan.serviceType} />
+                    <InfoRow label="Type" value={plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'} />
+                    {plan.scheduleType === 'recurring' && (
+                      <InfoRow label="Frequency" value={`Every ${plan.frequencyWeeks} weeks`} />
+                    )}
+                    <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
+                    <InfoRow 
+                      label="Next Service" 
+                      value={plan.scheduleType === 'recurring' 
+                        ? (plan.startDate 
+                          ? new Date(plan.startDate).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : 'Not scheduled')
+                        : (plan.scheduledDate
+                          ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            })
+                          : 'Not scheduled')
+                      } 
+                    />
+                  </View>
+                ))
+              ) : (
+                // Fallback to legacy fields if no service plans
+                <>
+                  <InfoRow 
+                    label="Quote" 
+                    value={typeof client.quote === 'number' && !isNaN(client.quote) 
+                      ? `£${client.quote.toFixed(2)}` 
+                      : 'N/A'
+                    } 
+                  />
+                  <InfoRow 
+                    label="Frequency" 
+                    value={client.frequency && client.frequency !== 'one-off' 
+                      ? `Visit every ${client.frequency} weeks` 
+                      : client.frequency === 'one-off' 
+                        ? 'No recurring work' 
+                        : 'N/A'
+                    } 
+                  />
+                  <InfoRow 
+                    label="Next Scheduled Visit" 
+                    value={nextScheduledVisit 
+                      ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        })
+                      : 'N/A'
+                    } 
+                  />
+                </>
+              )}
             </SectionCard>
 
             {/* Contact Information Card */}

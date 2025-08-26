@@ -24,6 +24,8 @@ export default function ManageServicesScreen() {
 	const [loading, setLoading] = useState(true);
 	const [creating, setCreating] = useState(false);
 	const [pendingJobs, setPendingJobs] = useState<any[]>([]);
+	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
+	const [lastSavedField, setLastSavedField] = useState<string>('');
 
 	// New plan state
 	const [newServiceType, setNewServiceType] = useState('window-cleaning');
@@ -181,10 +183,19 @@ export default function ManageServicesScreen() {
 		}
 	};
 
-	const updatePlan = async (planId: string, updates: Record<string, any>) => {
+	const updatePlan = async (planId: string, updates: Record<string, any>, fieldName?: string) => {
 		try {
 			await updateDoc(doc(db, 'servicePlans', planId), { ...updates, updatedAt: new Date().toISOString() });
 			setPlans(prev => prev.map(p => (p.id === planId ? { ...p, ...updates } : p)));
+			
+			// Show save confirmation
+			if (fieldName) {
+				setLastSavedField(fieldName);
+			} else {
+				setLastSavedField('Changes');
+			}
+			setShowSaveConfirmation(true);
+			setTimeout(() => setShowSaveConfirmation(false), 2000);
 		} catch (e) {
 			console.error('Failed to update plan', e);
 			Alert.alert('Error', 'Failed to update plan.');
@@ -193,6 +204,11 @@ export default function ManageServicesScreen() {
 
 	return (
 		<ThemedView style={styles.container}>
+			{showSaveConfirmation && (
+				<View style={styles.saveConfirmation}>
+					<ThemedText style={styles.saveConfirmationText}>✓ {lastSavedField} saved</ThemedText>
+				</View>
+			)}
 			<View style={styles.headerBar}>
 				<ThemedText style={styles.headerTitle}>Manage Services</ThemedText>
 				<Pressable style={styles.homeButton} onPress={() => router.back()}>
@@ -269,7 +285,7 @@ export default function ManageServicesScreen() {
 											<TextInput
 												style={styles.input}
 												value={String(plan.frequencyWeeks || '')}
-												onChangeText={v => updatePlan(plan.id, { frequencyWeeks: Number(v) || 0 })}
+												onChangeText={v => updatePlan(plan.id, { frequencyWeeks: Number(v) || 0 }, 'Frequency')}
 												keyboardType="numeric"
 											/>
 										</View>
@@ -278,9 +294,9 @@ export default function ManageServicesScreen() {
 											{Platform.OS === 'web' ? (
 												<input
 													type="date"
-													value={plan.startDate || ''}
-													onChange={e => updatePlan(plan.id, { startDate: e.target.value })}
-													style={styles.webDateInput as any}
+																											value={plan.startDate || ''}
+														onChange={e => updatePlan(plan.id, { startDate: e.target.value }, 'Next Service')}
+														style={styles.webDateInput as any}
 												/>
 											) : (
 												<>
@@ -293,8 +309,8 @@ export default function ManageServicesScreen() {
 															mode="date"
 															display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 															onChange={(_, selected) => {
-															setShowDatePickerKey(null);
-															if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') });
+																																setShowDatePickerKey(null);
+																	if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') }, 'Next Service');
 														}}
 													/>
 												)}
@@ -308,9 +324,9 @@ export default function ManageServicesScreen() {
 										{Platform.OS === 'web' ? (
 											<input
 												type="date"
-												value={plan.scheduledDate || ''}
-												onChange={e => updatePlan(plan.id, { scheduledDate: e.target.value })}
-												style={styles.webDateInput as any}
+																									value={plan.scheduledDate || ''}
+													onChange={e => updatePlan(plan.id, { scheduledDate: e.target.value }, 'Next Service')}
+													style={styles.webDateInput as any}
 											/>
 										) : (
 											<>
@@ -323,8 +339,8 @@ export default function ManageServicesScreen() {
 														mode="date"
 														display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 														onChange={(_, selected) => {
-														setShowDatePickerKey(null);
-														if (selected) updatePlan(plan.id, { scheduledDate: format(selected, 'yyyy-MM-dd') });
+																													setShowDatePickerKey(null);
+															if (selected) updatePlan(plan.id, { scheduledDate: format(selected, 'yyyy-MM-dd') }, 'Next Service');
 													}}
 												/>
 											)}
@@ -333,23 +349,23 @@ export default function ManageServicesScreen() {
 									</View>
 								)}
 
-								<View style={styles.planRow}>
-									<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
-									<TextInput
-										style={styles.input}
-										value={String(plan.price)}
-										onChangeText={v => updatePlan(plan.id, { price: Number(v) || 0 })}
-										keyboardType="numeric"
-									/>
-								</View>
+																	<View style={styles.planRow}>
+										<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
+										<TextInput
+											style={styles.input}
+											value={String(plan.price)}
+											onChangeText={v => updatePlan(plan.id, { price: Number(v) || 0 }, 'Price')}
+											keyboardType="numeric"
+										/>
+									</View>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Last Service Date</ThemedText>
 									{Platform.OS === 'web' ? (
 										<input
 											type="date"
-											value={plan.lastServiceDate || ''}
-											onChange={e => updatePlan(plan.id, { lastServiceDate: e.target.value || null })}
-											style={styles.webDateInput as any}
+																								value={plan.lastServiceDate || ''}
+													onChange={e => updatePlan(plan.id, { lastServiceDate: e.target.value || null }, 'Last Service Date')}
+													style={styles.webDateInput as any}
 										/>
 									) : (
 										<>
@@ -362,8 +378,8 @@ export default function ManageServicesScreen() {
 													mode="date"
 													display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 													onChange={(_, selected) => {
-													setShowDatePickerKey(null);
-													updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null });
+																												setShowDatePickerKey(null);
+															updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null }, 'Last Service Date');
 												}}
 											/>
 											)}
@@ -372,7 +388,7 @@ export default function ManageServicesScreen() {
 								</View>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Active</ThemedText>
-									<Switch value={!!plan.isActive} onValueChange={val => updatePlan(plan.id, { isActive: val })} />
+									<Switch value={!!plan.isActive} onValueChange={val => updatePlan(plan.id, { isActive: val }, 'Active Status')} />
 								</View>
 							</View>
 						))
@@ -488,6 +504,25 @@ const styles = StyleSheet.create({
 	picker: { height: 44 },
 	dateButton: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 10, backgroundColor: '#fff', minWidth: 140 },
 	dateButtonText: { color: '#333' },
+	saveConfirmation: {
+		position: 'absolute',
+		top: 60,
+		right: 20,
+		backgroundColor: '#4CAF50',
+		padding: 12,
+		borderRadius: 8,
+		zIndex: 1000,
+		elevation: 5,
+		shadowColor: '#000',
+		shadowOffset: { width: 0, height: 2 },
+		shadowOpacity: 0.25,
+		shadowRadius: 4,
+	},
+	saveConfirmationText: {
+		color: '#fff',
+		fontWeight: 'bold',
+		fontSize: 14,
+	},
 });
 
 
