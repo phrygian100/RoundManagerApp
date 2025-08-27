@@ -4,7 +4,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
@@ -1257,13 +1257,67 @@ export default function ClientDetailScreen() {
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
-                    <ThemedText style={styles.historyItemText}>
-                      <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
-                      {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
-                    </ThemedText>
-                    <ThemedText style={styles.historyItemText}>
-                      Price: £{item.price.toFixed(2)}
-                    </ThemedText>
+                    <View style={styles.jobItemContent}>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={styles.historyItemText}>
+                          <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
+                          {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
+                        </ThemedText>
+                        <ThemedText style={styles.historyItemText}>
+                          Price: £{item.price.toFixed(2)}
+                        </ThemedText>
+                      </View>
+                      <Pressable
+                        style={styles.deleteJobButton}
+                        onPress={async () => {
+                          const confirmDelete = () => {
+                            const performDelete = async () => {
+                              try {
+                                await deleteDoc(doc(db, 'jobs', item.id));
+                                // Update local state to remove the deleted job
+                                setPendingJobs(prev => prev.filter(job => job.id !== item.id));
+                                if (Platform.OS === 'web') {
+                                  // Brief success feedback
+                                  console.log('Job deleted successfully');
+                                } else {
+                                  // Mobile can use a brief toast or just update the UI
+                                  console.log('Job deleted successfully');
+                                }
+                              } catch (error) {
+                                console.error('Error deleting job:', error);
+                                if (Platform.OS === 'web') {
+                                  alert('Failed to delete job. Please try again.');
+                                } else {
+                                  Alert.alert('Error', 'Failed to delete job. Please try again.');
+                                }
+                              }
+                            };
+                            performDelete();
+                          };
+                          
+                          if (Platform.OS === 'web') {
+                            if (window.confirm(`Delete this ${item.serviceId || 'job'} scheduled for ${format(parseISO(item.scheduledTime), 'do MMMM yyyy')}?`)) {
+                              confirmDelete();
+                            }
+                          } else {
+                            Alert.alert(
+                              'Delete Job',
+                              `Delete this ${item.serviceId || 'job'} scheduled for ${format(parseISO(item.scheduledTime), 'do MMMM yyyy')}?`,
+                              [
+                                { text: 'Cancel', style: 'cancel' },
+                                {
+                                  text: 'Delete',
+                                  style: 'destructive',
+                                  onPress: confirmDelete
+                                }
+                              ]
+                            );
+                          }
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={24} color="#f44336" />
+                      </Pressable>
+                    </View>
                   </View>
                 )}
                 contentContainerStyle={styles.historyContainer}
@@ -2326,6 +2380,16 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     minHeight: 80,
     fontSize: 16,
+  },
+  jobItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  deleteJobButton: {
+    padding: 8,
+    marginLeft: 10,
   },
 });
 
