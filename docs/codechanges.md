@@ -326,4 +326,12 @@ Context:
    • Updated in `app/add-client.tsx`: new clients get 1 year of jobs generated
    • This ensures users can see their full year schedule at a glance
 
-This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling, no additional Firestore index requirements, and a full year's outlook of scheduled jobs.
+8. **Added delete button to Service Schedule jobs** - `app/(tabs)/clients/[id].tsx`
+   • Added red X delete button to each job in the Service Schedule section
+   • Implemented confirmation dialog before deletion (platform-specific: window.confirm for web, Alert.alert for mobile)
+   • Deleting a job removes it from Firestore immediately
+   • Updates local state to reflect deletion without page refresh
+   • Jobs deleted here are also removed from runsheets as they share the same data source
+   • Added proper error handling with user feedback if deletion fails
+
+This ensures that changes made in the Manage Services page are immediately reflected in both the Client Details page and the Service Schedule, with prices automatically updating for pending jobs and the ability to regenerate the entire schedule when dates or frequency changes. All functionality now works correctly on both web and mobile platforms with improved error handling, no additional Firestore index requirements, a full year's outlook of scheduled jobs, and the ability to delete individual jobs directly from the Service Schedule.
