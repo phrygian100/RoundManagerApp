@@ -1,3 +1,24 @@
+## 2025-01-23
+
+- Defer Feature Implementation
+  - Files: `types/models.ts`, `app/runsheet/[week].tsx`, `services/capacityService.ts`
+  - Added `isDeferred` field to Job type model to track jobs that have been rolled over from previous weeks
+  - Implemented "Defer" button in job action sheets (iOS ActionSheet and Android/Web Modal) - only visible for non-completed jobs
+  - Created `handleDeferToNextWeek` function that:
+    - Moves job to Monday of following week at 09:00
+    - Sets `isDeferred: true` flag
+    - Clears manual vehicle assignment and ETA
+    - Triggers capacity redistribution for the target week
+  - Updated sorting logic to prioritize deferred jobs:
+    - In capacity redistribution (`capacityService.ts`): deferred jobs placed first before regular jobs
+    - In runsheet display: deferred jobs appear first within each vehicle's allocation
+  - Added visual distinction for deferred jobs:
+    - Red background (#ffe6e6) with red border
+    - Red address block header (#d32f2f)
+    - "ROLLOVER" label badge in red (#ff5252)
+  - Integration with existing capacity system ensures deferred jobs automatically cascade other jobs when capacity limits are exceeded
+  - Deferred jobs behave as normal jobs after initial placement (can be moved, completed, or deferred again)
+
 - 2025-08-18: Payments CSV import fix
   - Normalized client account numbers when building the account map in `app/(tabs)/settings.tsx` for both web and mobile flows (trim, ensure `RWC` prefix, uppercase).
   - This resolves failures when importing rows (notably 'cash' payments) due to mismatches caused by stored account numbers lacking the `RWC` prefix or containing whitespace/case differences.

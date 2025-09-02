@@ -437,9 +437,13 @@ export default function RunsheetWeekScreen() {
         }
       });
       
-      // Sort non-note jobs by ETA
+      // Sort non-note jobs by deferred status first, then by ETA
       nonNoteJobs.sort((a: any, b: any) => {
-        // If both jobs have ETA, sort by ETA (earliest first)
+        // Deferred jobs always come first
+        if (a.isDeferred && !b.isDeferred) return -1;
+        if (!a.isDeferred && b.isDeferred) return 1;
+        
+        // Then sort by ETA
         if (a.eta && b.eta) {
           const [aHour, aMin] = a.eta.split(':').map(Number);
           const [bHour, bMin] = b.eta.split(':').map(Number);
@@ -636,6 +640,91 @@ export default function RunsheetWeekScreen() {
     setShowDeferDatePicker(true);
   };
 
+  const handleDeferToNextWeek = async (job: Job & { client: Client | null }) => {
+    try {
+      // Calculate next Monday
+      const currentJobDate = parseISO(job.scheduledTime);
+      const nextWeekStart = startOfWeek(addDays(currentJobDate, 7), { weekStartsOn: 1 }); // Monday of next week
+      const nextMondayString = format(nextWeekStart, 'yyyy-MM-dd') + 'T09:00:00';
+      
+      // Update the job with deferred flag and new date
+      const jobRef = doc(db, 'jobs', job.id);
+      await updateDoc(jobRef, {
+        scheduledTime: nextMondayString,
+        isDeferred: true,
+        vehicleId: null, // Reset to automatic allocation
+        eta: null // Clear any existing ETA
+      });
+      
+      // Log the action
+      await logAction(
+        'defer' as any,
+        'job' as any,
+        job.id,
+        `Job deferred from ${format(currentJobDate, 'EEEE, MMMM d')} to ${format(nextWeekStart, 'EEEE, MMMM d')}`,
+        job.client?.name
+      );
+      
+      // Update local state to reflect the change immediately
+      setJobs(prevJobs => prevJobs.filter(j => j.id !== job.id));
+      
+      // Get jobs for the target week to trigger redistribution
+      const weekEndDate = endOfWeek(nextWeekStart, { weekStartsOn: 1 });
+      const startDate = format(nextWeekStart, 'yyyy-MM-dd');
+      const endDate = format(weekEndDate, 'yyyy-MM-dd');
+      
+      // Trigger capacity redistribution for the target week
+      const { redistributeJobsForWeek } = await import('../../services/capacityService');
+      const jobsForTargetWeek = await getJobsForWeek(startDate, endDate);
+      
+      // Fetch client data for redistribution
+      const clientIds = [...new Set(jobsForTargetWeek.map(j => j.clientId))];
+      const clientChunks = [];
+      for (let i = 0; i < clientIds.length; i += 30) {
+        clientChunks.push(clientIds.slice(i, i + 30));
+      }
+      
+      const clientsMap = new Map<string, Client>();
+      const clientPromises = clientChunks.map(chunk => 
+        getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
+      );
+      const clientSnapshots = await Promise.all(clientPromises);
+      
+      clientSnapshots.forEach(snapshot => {
+        snapshot.forEach(docSnap => {
+          clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+        });
+      });
+      
+      const jobsWithClients = jobsForTargetWeek.map(j => ({
+        ...j,
+        client: clientsMap.get(j.clientId) || null,
+      }));
+      
+      // Perform redistribution with deferred jobs prioritized
+      const result = await redistributeJobsForWeek(
+        nextWeekStart,
+        jobsWithClients,
+        memberMap,
+        rotaMap,
+        false // Don't skip current week since we're targeting next week
+      );
+      
+      Alert.alert(
+        'Job Deferred',
+        `Job has been rolled over to ${format(nextWeekStart, 'EEEE, MMMM d')} and marked with priority.${
+          result.redistributedJobs > 0 ? `\n\n${result.redistributedJobs} jobs were rescheduled to maintain capacity limits.` : ''
+        }`
+      );
+      
+      setActionSheetJob(null); // Close the action sheet if open
+      
+    } catch (error) {
+      console.error('Error deferring job:', error);
+      Alert.alert('Error', 'Failed to defer job. Please try again.');
+    }
+  };
+
   const handleDeferDateChange = async (event: any, selectedDate?: Date) => {
     setShowDeferDatePicker(false);
     if (event.type === 'dismissed' || !selectedDate || !deferJob) {
@@ -702,19 +791,41 @@ export default function RunsheetWeekScreen() {
       return;
     }
     if (Platform.OS === 'ios') {
+      // Build options dynamically based on job status
+      const options = ['Navigate?', 'View details?', 'Message ETA', 'Edit Price'];
+      let deferIndex = -1;
+      let addNoteIndex = -1;
+      let deleteIndex = -1;
+      
+      // Add Defer option if job is not completed
+      if (job.status !== 'completed' && job.status !== 'accounted' && job.status !== 'paid') {
+        options.push('Defer');
+        deferIndex = options.length - 1;
+      }
+      
+      options.push('Add note below');
+      addNoteIndex = options.length - 1;
+      
+      options.push('Delete Job');
+      deleteIndex = options.length - 1;
+      
+      options.push('Cancel');
+      const cancelIndex = options.length - 1;
+      
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Navigate?', 'View details?', 'Message ETA', 'Edit Price', 'Add note below', 'Delete Job', 'Cancel'],
-          destructiveButtonIndex: 5,
-          cancelButtonIndex: 6,
+          options: options,
+          destructiveButtonIndex: deleteIndex,
+          cancelButtonIndex: cancelIndex,
         },
         (buttonIndex) => {
           if (buttonIndex === 0) handleNavigate(job.client);
           if (buttonIndex === 1) handleViewDetails(job.client);
           if (buttonIndex === 2) handleMessageETA(job);
           if (buttonIndex === 3) handleEditPrice(job);
-          if (buttonIndex === 4) handleAddNoteBelow(job);
-          if (buttonIndex === 5) handleDeleteJob(job.id);
+          if (buttonIndex === deferIndex) handleDeferToNextWeek(job);
+          if (buttonIndex === addNoteIndex) handleAddNoteBelow(job);
+          if (buttonIndex === deleteIndex) handleDeleteJob(job.id);
         }
       );
     } else {
@@ -1597,6 +1708,7 @@ ${signOff}`;
     
     // Combine one-off jobs and custom job types for styling
     const shouldUseOneOffStyling = isOneOffJob || isCustomJobType;
+    const isDeferred = item.isDeferred === true;
 
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
@@ -1605,20 +1717,26 @@ ${signOff}`;
       <View style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
-        shouldUseOneOffStyling && !isCompleted && styles.oneOffJobRow,
-        isAdditionalService && !isCompleted && styles.additionalServiceRow
+        isDeferred && !isCompleted && styles.deferredRow,
+        shouldUseOneOffStyling && !isCompleted && !isDeferred && styles.oneOffJobRow,
+        isAdditionalService && !isCompleted && !isDeferred && styles.additionalServiceRow
       ]}>
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
-            <View style={styles.addressBlock}>
+            <View style={[styles.addressBlock, isDeferred && !isCompleted && styles.deferredAddressBlock]}>
               <Text style={styles.addressTitle}>{address}</Text>
             </View>
-            {shouldUseOneOffStyling && (
+            {isDeferred && !isCompleted && (
+              <View style={styles.deferredLabel}>
+                <Text style={styles.deferredLabelText}>ROLLOVER</Text>
+              </View>
+            )}
+            {shouldUseOneOffStyling && !isDeferred && (
               <View style={styles.oneOffJobLabel}>
                 <Text style={styles.oneOffJobText}>{item.serviceId}</Text>
               </View>
             )}
-            {isAdditionalService && (
+            {isAdditionalService && !isDeferred && (
               <View style={styles.additionalServiceLabel}>
                 <Text style={styles.additionalServiceText}>{item.serviceId}</Text>
               </View>
@@ -2089,6 +2207,9 @@ ${signOff}`;
                     <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
                     <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
                     <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
+                    {actionSheetJob.status !== 'completed' && actionSheetJob.status !== 'accounted' && actionSheetJob.status !== 'paid' && (
+                      <Button title="Defer" onPress={() => handleDeferToNextWeek(actionSheetJob)} />
+                    )}
                     <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
                     <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
                   </>
@@ -2766,6 +2887,28 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   additionalServiceText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  deferredRow: {
+    backgroundColor: '#ffe6e6', // Light red background for deferred jobs
+    borderColor: '#ff9999',
+    borderWidth: 2,
+  },
+  deferredAddressBlock: {
+    backgroundColor: '#d32f2f', // Red background for deferred job address
+    borderBottomColor: '#b71c1c',
+  },
+  deferredLabel: {
+    backgroundColor: '#ff5252',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    alignSelf: 'flex-start',
+    borderBottomRightRadius: 10,
+    marginBottom: 4,
+  },
+  deferredLabelText: {
     color: '#fff',
     fontWeight: 'bold',
     fontSize: 14,

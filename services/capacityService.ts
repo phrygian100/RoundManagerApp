@@ -120,10 +120,16 @@ export async function redistributeJobsForWeek(
   const weekCapacity = await getWeekCapacity(weekStart, jobs, memberMap, rotaMap);
   const batch = writeBatch(db);
   
-  // Get all jobs for the week sorted by round order (continuous sequence)
+  // Get all jobs for the week sorted by priority: deferred jobs first, then by round order
   const allWeekJobs = jobs
     .filter(job => job.client) // Only jobs with clients (have round order)
-    .sort((a, b) => (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0));
+    .sort((a, b) => {
+      // Deferred jobs always come first
+      if (a.isDeferred && !b.isDeferred) return -1;
+      if (!a.isDeferred && b.isDeferred) return 1;
+      // Then sort by round order
+      return (a.client?.roundOrderNumber ?? 0) - (b.client?.roundOrderNumber ?? 0);
+    });
   
   if (allWeekJobs.length === 0) {
     return result;
