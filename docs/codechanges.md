@@ -1,5 +1,21 @@
 ## 2025-01-23
 
+- Manual Organization Mode for Runsheets
+  - File: `app/runsheet/[week].tsx`
+  - Fixed issue where moving jobs between vehicles would trigger automatic redistribution, causing unwanted job movements
+  - Added `manualOrganizationMode` state to control when automatic job allocation should occur
+  - Modified `allocateJobsForDay` function to accept `preserveExistingAllocations` parameter
+  - When in manual mode:
+    - Jobs with manual vehicle assignments stay in their assigned vehicles
+    - Unallocated jobs are shown in an "Unallocated" section instead of being auto-distributed
+    - Vehicles can exceed capacity without triggering redistribution
+  - Added toggle button in runsheet header (⚙️/🔒 icon) to switch between modes:
+    - ⚙️ = Auto-allocation mode (default behavior)
+    - 🔒 = Manual organization mode (locked allocations)
+  - Manual mode automatically activates when user assigns a job to a specific vehicle
+  - Users can explicitly toggle back to auto-allocation mode when needed
+  - Visual indicator (orange background) shows when manual mode is active
+
 - Defer Feature Implementation
   - Files: `types/models.ts`, `app/runsheet/[week].tsx`, `services/capacityService.ts`
   - Added `isDeferred` field to Job type model to track jobs that have been rolled over from previous weeks

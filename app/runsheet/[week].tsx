@@ -53,6 +53,7 @@ export default function RunsheetWeekScreen() {
   const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
+  const [manualOrganizationMode, setManualOrganizationMode] = useState(false);
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
   
   // Note job functionality
@@ -308,7 +309,7 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(true);
   };
 
-  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[]): any[] => {
+  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[], preserveExistingAllocations: boolean = false): any[] => {
     if (vehicles.length === 0) return jobsForDay;
     // Build active vehicles list with capacities
     const dateKey = format(dayDate, 'yyyy-MM-dd');
@@ -388,7 +389,43 @@ export default function RunsheetWeekScreen() {
       }
     });
 
-    // Then allocate remaining jobs sequentially - PRESERVE THE INPUT ORDER
+    // When preserving existing allocations (manual organization mode), 
+    // don't redistribute auto-allocated jobs - just return them as unallocated
+    if (preserveExistingAllocations) {
+      // Return manually assigned jobs only, with unallocated jobs shown separately
+      const result: any[] = [];
+      
+      // Add vehicles with manually assigned jobs
+      activeBlocks.forEach(block => {
+        if (block.jobs.length > 0) {
+          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dateKey}`, name: block.vehicle.name });
+          result.push(...block.jobs);
+        }
+      });
+      
+      // Add unallocated jobs at the end (jobs without vehicleId)
+      if (autoAllocateJobs.length > 0) {
+        result.push({ __type: 'vehicle', id: `unallocated-${dateKey}`, name: 'Unallocated' });
+        autoAllocateJobs.forEach(job => {
+          result.push(job);
+          if (job.attachedNotes && job.attachedNotes.length > 0) {
+            result.push(...job.attachedNotes);
+          }
+        });
+      }
+      
+      // Add standalone notes at the end
+      if (standaloneNotes.length > 0) {
+        if (result.length === 0 || result[result.length - 1].__type !== 'vehicle' || !result[result.length - 1].name.includes('Unallocated')) {
+          result.push({ __type: 'vehicle', id: `notes-${dateKey}`, name: 'Notes' });
+        }
+        result.push(...standaloneNotes);
+      }
+      
+      return result;
+    }
+
+    // Normal auto-allocation mode - distribute jobs based on capacity
     let blockIndex = 0;
     autoAllocateJobs.forEach(job => {
       if (blockIndex >= activeBlocks.length) {
@@ -541,7 +578,7 @@ export default function RunsheetWeekScreen() {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
-    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes);
+    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes, manualOrganizationMode);
     return {
       title: day,
       data: allocated,
@@ -754,9 +791,13 @@ export default function RunsheetWeekScreen() {
     if (deferSelectedVehicle === 'auto') {
       // Clear manual assignment to use automatic allocation
       updateData.vehicleId = null;
+      // When explicitly setting to auto, disable manual organization mode
+      setManualOrganizationMode(false);
     } else {
       // Set manual vehicle assignment
       updateData.vehicleId = deferSelectedVehicle;
+      // Enable manual organization mode when user manually assigns to a vehicle
+      setManualOrganizationMode(true);
     }
     
     await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
@@ -1926,6 +1967,21 @@ ${signOff}`;
           </Pressable>
           <Text style={styles.title}>{weekTitle}</Text>
           <View style={styles.headerButtons}>
+            <Pressable 
+              style={[styles.homeButton, manualOrganizationMode && { backgroundColor: '#ff9800' }]} 
+              onPress={() => {
+                setManualOrganizationMode(!manualOrganizationMode);
+                Alert.alert(
+                  manualOrganizationMode ? 'Auto-Allocation Enabled' : 'Manual Organization Mode',
+                  manualOrganizationMode 
+                    ? 'Jobs will now be automatically distributed across vehicles based on capacity.'
+                    : 'Manual mode enabled. Jobs will stay in their assigned vehicles even if capacity is exceeded. Auto-allocation is disabled.'
+                );
+              }}
+              accessibilityLabel="Toggle manual organization mode"
+            > 
+              <Text style={styles.homeButtonText}>{manualOrganizationMode ? '🔒' : '⚙️'}</Text>
+            </Pressable>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
             </Pressable>
