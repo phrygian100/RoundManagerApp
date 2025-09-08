@@ -4,7 +4,7 @@ import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -53,8 +53,6 @@ export default function RunsheetWeekScreen() {
   const [showQuoteDetailsModal, setShowQuoteDetailsModal] = useState(false);
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
-  const [manualOrganizationMode, setManualOrganizationMode] = useState(false);
-  const [preservedAllocations, setPreservedAllocations] = useState<Record<string, Record<string, string[]>>>({});
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
   
   // Note job functionality
@@ -310,11 +308,11 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(true);
   };
 
-  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[], preserveExistingAllocations: boolean = false, dateKey?: string): any[] => {
+  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[]): any[] => {
     if (vehicles.length === 0) return jobsForDay;
     // Build active vehicles list with capacities
-    const dayKey = dateKey || format(dayDate, 'yyyy-MM-dd');
-    const rotaForDay = rotaMap[dayKey] || {};
+    const dateKey = format(dayDate, 'yyyy-MM-dd');
+    const rotaForDay = rotaMap[dateKey] || {};
     type VehicleBlock = { vehicle: VehicleRecord; remaining: number; jobs: any[] };
     const activeBlocks: VehicleBlock[] = [];
     vehicles.forEach(v => {
@@ -390,60 +388,7 @@ export default function RunsheetWeekScreen() {
       }
     });
 
-    // When preserving existing allocations (manual organization mode), 
-    // use the preserved vehicle assignments or maintain current state
-    if (preserveExistingAllocations && preservedAllocations[dayKey]) {
-      // Use preserved allocations from when manual mode was activated
-      const vehicleAllocations = preservedAllocations[dayKey];
-      const result: any[] = [];
-      
-      // Place jobs according to preserved allocations
-      activeBlocks.forEach(block => {
-        const vehicleJobIds = vehicleAllocations[block.vehicle.id] || [];
-        const vehicleJobs: any[] = [];
-        
-        // Add manually assigned jobs and preserved auto-allocated jobs
-        parentJobs.forEach(job => {
-          if (job.vehicleId === block.vehicle.id || vehicleJobIds.includes(job.id)) {
-            vehicleJobs.push(job);
-            block.remaining -= (job.price || 0);
-            if (job.attachedNotes && job.attachedNotes.length > 0) {
-              vehicleJobs.push(...job.attachedNotes);
-            }
-          }
-        });
-        
-        if (vehicleJobs.length > 0) {
-          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dayKey}`, name: block.vehicle.name });
-          result.push(...vehicleJobs);
-        }
-      });
-      
-      // Add any standalone notes at the end
-      if (standaloneNotes.length > 0 && result.length > 0) {
-        result.push(...standaloneNotes);
-      }
-      
-      return result;
-    } else if (preserveExistingAllocations) {
-      // If no preserved allocations yet, just keep manually assigned jobs in place
-      // and don't auto-allocate the rest
-      const result: any[] = [];
-      
-      // Place manually assigned jobs
-      activeBlocks.forEach(block => {
-        if (block.jobs.length > 0) {
-          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dayKey}`, name: block.vehicle.name });
-          result.push(...block.jobs);
-        }
-      });
-      
-      // Keep auto-allocated jobs in their current positions without redistribution
-      // This shouldn't happen as we should always have preserved allocations when in manual mode
-      return result;
-    }
-
-    // Normal auto-allocation mode - distribute jobs based on capacity
+    // Then allocate remaining jobs sequentially - PRESERVE THE INPUT ORDER
     let blockIndex = 0;
     autoAllocateJobs.forEach(job => {
       if (blockIndex >= activeBlocks.length) {
@@ -596,13 +541,11 @@ export default function RunsheetWeekScreen() {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
-    const dateKey = format(dayDate, 'yyyy-MM-dd');
-    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes, manualOrganizationMode, dateKey);
+    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes);
     return {
       title: day,
       data: allocated,
       dayDate,
-      dateKey,
     };
   });
 
@@ -789,76 +732,40 @@ export default function RunsheetWeekScreen() {
       setDeferSelectedVehicle('auto');
       return;
     }
-    
-    try {
-      // Prevent deferring to today if today is marked as complete
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const selected = new Date(selectedDate);
-      selected.setHours(0, 0, 0, 0);
-      const isToday = selected.toDateString() === today.toDateString();
-      const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
-      const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
-      if (isToday && todayIsCompleted) {
-        Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
-        setDeferJob(null);
-        setDeferSelectedVehicle('auto');
-        return;
-      }
-      
-      // Move job to selected date (09:00) and update vehicle if specified
-      const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
-      const updateData: Record<string, any> = { 
-        scheduledTime: newDateString 
-      };
-      
-      // Update vehicle assignment
-      if (deferSelectedVehicle === 'auto') {
-        // Remove vehicleId field entirely for automatic allocation
-        updateData.vehicleId = deleteField();
-      } else {
-        // Set manual vehicle assignment
-        updateData.vehicleId = deferSelectedVehicle;
-        // Enable manual organization mode when user manually assigns to a vehicle
-        if (!manualOrganizationMode) {
-          setManualOrganizationMode(true);
-          // Capture current allocations when switching to manual mode
-          // This will be done on the next render cycle
-        }
-      }
-      
-      console.log('Updating job with data:', updateData);
-      console.log('Job ID:', deferJob.id);
-      
-      // Perform the database update
-      await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
-      
-      // Update local state
-      setJobs(prevJobs => prevJobs.map(j => {
-        if (j.id === deferJob.id) {
-          const updated = { ...j, scheduledTime: newDateString };
-          if (deferSelectedVehicle === 'auto') {
-            // Remove vehicleId for auto allocation
-            delete updated.vehicleId;
-          } else {
-            updated.vehicleId = deferSelectedVehicle;
-          }
-          return updated;
-        }
-        return j;
-      }));
-      
-      // Clean up state
+    // Prevent deferring to today if today is marked as complete
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    const isToday = selected.toDateString() === today.toDateString();
+    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
+    const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
+    if (isToday && todayIsCompleted) {
+      Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
       setDeferJob(null);
       setDeferSelectedVehicle('auto');
-      
-      Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
-    } catch (error) {
-      console.error('Error moving job:', error);
-      Alert.alert('Error', 'Failed to move job. Please try again.');
-      setDeferJob(null);
-      setDeferSelectedVehicle('auto');
+      return;
     }
+    // Move job to selected date (09:00) and update vehicle if specified
+    const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
+    const updateData: any = { scheduledTime: newDateString };
+    
+    // Update vehicle assignment
+    if (deferSelectedVehicle === 'auto') {
+      // Clear manual assignment to use automatic allocation
+      updateData.vehicleId = null;
+    } else {
+      // Set manual vehicle assignment
+      updateData.vehicleId = deferSelectedVehicle;
+    }
+    
+    await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
+    setJobs(prevJobs => prevJobs.map(j =>
+      j.id === deferJob.id ? { ...j, ...updateData } : j
+    ));
+    setDeferJob(null);
+    setDeferSelectedVehicle('auto');
+    Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
   };
 
   const handleJobPress = (job: any) => {
@@ -2019,63 +1926,6 @@ ${signOff}`;
           </Pressable>
           <Text style={styles.title}>{weekTitle}</Text>
           <View style={styles.headerButtons}>
-            <Pressable 
-              style={[styles.homeButton, manualOrganizationMode && { backgroundColor: '#ff9800' }]} 
-              onPress={() => {
-                const newMode = !manualOrganizationMode;
-                
-                if (newMode) {
-                  // Switching TO manual mode - capture current allocations
-                  try {
-                    const currentAllocations: Record<string, Record<string, string[]>> = {};
-                    
-                    sections.forEach(section => {
-                      const sectionDateKey = section.dateKey;
-                      if (!sectionDateKey) return;
-                      
-                      const vehicleJobMap: Record<string, string[]> = {};
-                      let currentVehicleId: string | null = null;
-                      
-                      section.data.forEach((item: any) => {
-                        if (item && item.__type === 'vehicle') {
-                          // Extract vehicle ID from the composite ID
-                          const vehicleIdMatch = item.id.match(/^(.+)-\d{4}-\d{2}-\d{2}$/);
-                          if (vehicleIdMatch) {
-                            currentVehicleId = vehicleIdMatch[1];
-                          }
-                          if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
-                            vehicleJobMap[currentVehicleId] = [];
-                          }
-                        } else if (item && currentVehicleId && !isNoteJob(item) && !isQuoteJob(item) && !item.__type) {
-                          // Add regular job to current vehicle's list
-                          vehicleJobMap[currentVehicleId].push(item.id);
-                        }
-                      });
-                      
-                      currentAllocations[sectionDateKey] = vehicleJobMap;
-                    });
-                    
-                    setPreservedAllocations(currentAllocations);
-                  } catch (error) {
-                    console.error('Error capturing allocations:', error);
-                  }
-                } else {
-                  // Switching TO auto mode - clear preserved allocations
-                  setPreservedAllocations({});
-                }
-                
-                setManualOrganizationMode(newMode);
-                Alert.alert(
-                  newMode ? 'Manual Organization Mode' : 'Auto-Allocation Enabled',
-                  newMode
-                    ? 'Manual mode enabled. Jobs will stay in their current vehicles. You can move jobs freely without automatic redistribution.'
-                    : 'Jobs will now be automatically distributed across vehicles based on capacity.'
-                );
-              }}
-              accessibilityLabel="Toggle manual organization mode"
-            > 
-              <Text style={styles.homeButtonText}>{manualOrganizationMode ? '🔒' : '⚙️'}</Text>
-            </Pressable>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
             </Pressable>
