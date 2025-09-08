@@ -1,5 +1,14 @@
 ## 2025-01-23
 
+- Fixed Job Movement Between Vehicles (400 Error Resolution)
+  - File: `app/runsheet/[week].tsx`
+  - Fixed 400 bad request error when moving jobs between vehicles
+  - Properly handle vehicleId field deletion using `deleteField()` from Firebase
+  - Simplified handleDeferDateChange function to avoid complex state management issues
+  - Added proper error handling with try-catch block
+  - Added console logging for debugging database updates
+  - Fixed local state update to properly handle vehicleId removal
+
 - Manual Organization Mode for Runsheets
   - File: `app/runsheet/[week].tsx`
   - Fixed issue where moving jobs between vehicles would trigger automatic redistribution, causing unwanted job movements

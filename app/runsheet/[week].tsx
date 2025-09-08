@@ -4,7 +4,7 @@ import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -789,94 +789,76 @@ export default function RunsheetWeekScreen() {
       setDeferSelectedVehicle('auto');
       return;
     }
-    // Prevent deferring to today if today is marked as complete
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const selected = new Date(selectedDate);
-    selected.setHours(0, 0, 0, 0);
-    const isToday = selected.toDateString() === today.toDateString();
-    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
-    const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
-    if (isToday && todayIsCompleted) {
-      Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
+    
+    try {
+      // Prevent deferring to today if today is marked as complete
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const selected = new Date(selectedDate);
+      selected.setHours(0, 0, 0, 0);
+      const isToday = selected.toDateString() === today.toDateString();
+      const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
+      const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
+      if (isToday && todayIsCompleted) {
+        Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
+        setDeferJob(null);
+        setDeferSelectedVehicle('auto');
+        return;
+      }
+      
+      // Move job to selected date (09:00) and update vehicle if specified
+      const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
+      const updateData: Record<string, any> = { 
+        scheduledTime: newDateString 
+      };
+      
+      // Update vehicle assignment
+      if (deferSelectedVehicle === 'auto') {
+        // Remove vehicleId field entirely for automatic allocation
+        updateData.vehicleId = deleteField();
+      } else {
+        // Set manual vehicle assignment
+        updateData.vehicleId = deferSelectedVehicle;
+        // Enable manual organization mode when user manually assigns to a vehicle
+        if (!manualOrganizationMode) {
+          setManualOrganizationMode(true);
+          // Capture current allocations when switching to manual mode
+          // This will be done on the next render cycle
+        }
+      }
+      
+      console.log('Updating job with data:', updateData);
+      console.log('Job ID:', deferJob.id);
+      
+      // Perform the database update
+      await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
+      
+      // Update local state
+      setJobs(prevJobs => prevJobs.map(j => {
+        if (j.id === deferJob.id) {
+          const updated = { ...j, scheduledTime: newDateString };
+          if (deferSelectedVehicle === 'auto') {
+            // Remove vehicleId for auto allocation
+            delete updated.vehicleId;
+          } else {
+            updated.vehicleId = deferSelectedVehicle;
+          }
+          return updated;
+        }
+        return j;
+      }));
+      
+      // Clean up state
       setDeferJob(null);
       setDeferSelectedVehicle('auto');
-      return;
+      
+      Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
+    } catch (error) {
+      console.error('Error moving job:', error);
+      Alert.alert('Error', 'Failed to move job. Please try again.');
+      setDeferJob(null);
+      setDeferSelectedVehicle('auto');
     }
-    // Move job to selected date (09:00) and update vehicle if specified
-    const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
-    const updateData: any = { scheduledTime: newDateString };
-    
-    // Update vehicle assignment
-    if (deferSelectedVehicle === 'auto') {
-      // Clear manual assignment to use automatic allocation
-      updateData.vehicleId = null;
-      // When explicitly setting to auto, disable manual organization mode
-      setManualOrganizationMode(false);
-      setPreservedAllocations({});
-    } else {
-      // Set manual vehicle assignment
-      updateData.vehicleId = deferSelectedVehicle;
-      // Enable manual organization mode when user manually assigns to a vehicle
-      if (!manualOrganizationMode) {
-        // Capture current allocations before switching to manual mode
-        const currentAllocations: Record<string, Record<string, string[]>> = {};
-        
-        sections.forEach(section => {
-          if (!section.dateKey) return;
-          const vehicleJobMap: Record<string, string[]> = {};
-          let currentVehicleId: string | null = null;
-          
-          section.data.forEach((item: any) => {
-            if (item.__type === 'vehicle') {
-              currentVehicleId = item.id.replace(`-${section.dateKey}`, '');
-              if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
-                vehicleJobMap[currentVehicleId] = [];
-              }
-            } else if (currentVehicleId && !isNoteJob(item) && !isQuoteJob(item)) {
-              vehicleJobMap[currentVehicleId].push(item.id);
-            }
-          });
-          
-          currentAllocations[section.dateKey] = vehicleJobMap;
-        });
-        
-        // Update the allocation for the job being moved
-        const targetDateKey = format(selectedDate, 'yyyy-MM-dd');
-        if (!currentAllocations[targetDateKey]) {
-          currentAllocations[targetDateKey] = {};
-        }
-        if (!currentAllocations[targetDateKey][deferSelectedVehicle]) {
-          currentAllocations[targetDateKey][deferSelectedVehicle] = [];
-        }
-        currentAllocations[targetDateKey][deferSelectedVehicle].push(deferJob.id);
-        
-        setPreservedAllocations(currentAllocations);
-        setManualOrganizationMode(true);
-      } else {
-        // Already in manual mode, just update preserved allocations
-        const targetDateKey = format(selectedDate, 'yyyy-MM-dd');
-        setPreservedAllocations(prev => {
-          const updated = { ...prev };
-          if (!updated[targetDateKey]) {
-            updated[targetDateKey] = {};
-          }
-          if (!updated[targetDateKey][deferSelectedVehicle]) {
-            updated[targetDateKey][deferSelectedVehicle] = [];
-          }
-          updated[targetDateKey][deferSelectedVehicle].push(deferJob.id);
-          return updated;
-        });
-      }
-    }
-    
-    await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
-    setJobs(prevJobs => prevJobs.map(j =>
-      j.id === deferJob.id ? { ...j, ...updateData } : j
-    ));
-    setDeferJob(null);
-    setDeferSelectedVehicle('auto');
-    Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
   };
 
   const handleJobPress = (job: any) => {
@@ -2044,30 +2026,39 @@ ${signOff}`;
                 
                 if (newMode) {
                   // Switching TO manual mode - capture current allocations
-                  const currentAllocations: Record<string, Record<string, string[]>> = {};
-                  
-                  sections.forEach(section => {
-                    if (!section.dateKey) return;
-                    const vehicleJobMap: Record<string, string[]> = {};
-                    let currentVehicleId: string | null = null;
+                  try {
+                    const currentAllocations: Record<string, Record<string, string[]>> = {};
                     
-                    section.data.forEach((item: any) => {
-                      if (item.__type === 'vehicle') {
-                        // Extract vehicle ID from the composite ID (e.g., "vehicle-id-2024-01-01" -> "vehicle-id")
-                        currentVehicleId = item.id.replace(`-${section.dateKey}`, '');
-                        if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
-                          vehicleJobMap[currentVehicleId] = [];
+                    sections.forEach(section => {
+                      const sectionDateKey = section.dateKey;
+                      if (!sectionDateKey) return;
+                      
+                      const vehicleJobMap: Record<string, string[]> = {};
+                      let currentVehicleId: string | null = null;
+                      
+                      section.data.forEach((item: any) => {
+                        if (item && item.__type === 'vehicle') {
+                          // Extract vehicle ID from the composite ID
+                          const vehicleIdMatch = item.id.match(/^(.+)-\d{4}-\d{2}-\d{2}$/);
+                          if (vehicleIdMatch) {
+                            currentVehicleId = vehicleIdMatch[1];
+                          }
+                          if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
+                            vehicleJobMap[currentVehicleId] = [];
+                          }
+                        } else if (item && currentVehicleId && !isNoteJob(item) && !isQuoteJob(item) && !item.__type) {
+                          // Add regular job to current vehicle's list
+                          vehicleJobMap[currentVehicleId].push(item.id);
                         }
-                      } else if (currentVehicleId && !isNoteJob(item) && !isQuoteJob(item)) {
-                        // Add regular job to current vehicle's list
-                        vehicleJobMap[currentVehicleId].push(item.id);
-                      }
+                      });
+                      
+                      currentAllocations[sectionDateKey] = vehicleJobMap;
                     });
                     
-                    currentAllocations[section.dateKey] = vehicleJobMap;
-                  });
-                  
-                  setPreservedAllocations(currentAllocations);
+                    setPreservedAllocations(currentAllocations);
+                  } catch (error) {
+                    console.error('Error capturing allocations:', error);
+                  }
                 } else {
                   // Switching TO auto mode - clear preserved allocations
                   setPreservedAllocations({});
@@ -2077,7 +2068,7 @@ ${signOff}`;
                 Alert.alert(
                   newMode ? 'Manual Organization Mode' : 'Auto-Allocation Enabled',
                   newMode
-                    ? 'Manual mode enabled. Current job allocations are preserved. Jobs will stay in their assigned vehicles even if capacity is exceeded.'
+                    ? 'Manual mode enabled. Jobs will stay in their current vehicles. You can move jobs freely without automatic redistribution.'
                     : 'Jobs will now be automatically distributed across vehicles based on capacity.'
                 );
               }}
