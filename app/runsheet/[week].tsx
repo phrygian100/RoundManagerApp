@@ -54,6 +54,7 @@ export default function RunsheetWeekScreen() {
   const [quoteDetails, setQuoteDetails] = useState({ frequency: '4 weekly', value: '', notes: '', quoteId: '' });
   const [quoteLines, setQuoteLines] = useState<any[]>([]);
   const [manualOrganizationMode, setManualOrganizationMode] = useState(false);
+  const [preservedAllocations, setPreservedAllocations] = useState<Record<string, Record<string, string[]>>>({});
   const [quoteData, setQuoteData] = useState<any>(null); // Add this to store full quote data
   
   // Note job functionality
@@ -309,11 +310,11 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(true);
   };
 
-  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[], preserveExistingAllocations: boolean = false): any[] => {
+  const allocateJobsForDay = (dayDate: Date, jobsForDay: (Job & { client: Client | null })[], preserveExistingAllocations: boolean = false, dateKey?: string): any[] => {
     if (vehicles.length === 0) return jobsForDay;
     // Build active vehicles list with capacities
-    const dateKey = format(dayDate, 'yyyy-MM-dd');
-    const rotaForDay = rotaMap[dateKey] || {};
+    const dayKey = dateKey || format(dayDate, 'yyyy-MM-dd');
+    const rotaForDay = rotaMap[dayKey] || {};
     type VehicleBlock = { vehicle: VehicleRecord; remaining: number; jobs: any[] };
     const activeBlocks: VehicleBlock[] = [];
     vehicles.forEach(v => {
@@ -390,38 +391,55 @@ export default function RunsheetWeekScreen() {
     });
 
     // When preserving existing allocations (manual organization mode), 
-    // don't redistribute auto-allocated jobs - just return them as unallocated
-    if (preserveExistingAllocations) {
-      // Return manually assigned jobs only, with unallocated jobs shown separately
+    // use the preserved vehicle assignments or maintain current state
+    if (preserveExistingAllocations && preservedAllocations[dayKey]) {
+      // Use preserved allocations from when manual mode was activated
+      const vehicleAllocations = preservedAllocations[dayKey];
       const result: any[] = [];
       
-      // Add vehicles with manually assigned jobs
+      // Place jobs according to preserved allocations
+      activeBlocks.forEach(block => {
+        const vehicleJobIds = vehicleAllocations[block.vehicle.id] || [];
+        const vehicleJobs: any[] = [];
+        
+        // Add manually assigned jobs and preserved auto-allocated jobs
+        parentJobs.forEach(job => {
+          if (job.vehicleId === block.vehicle.id || vehicleJobIds.includes(job.id)) {
+            vehicleJobs.push(job);
+            block.remaining -= (job.price || 0);
+            if (job.attachedNotes && job.attachedNotes.length > 0) {
+              vehicleJobs.push(...job.attachedNotes);
+            }
+          }
+        });
+        
+        if (vehicleJobs.length > 0) {
+          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dayKey}`, name: block.vehicle.name });
+          result.push(...vehicleJobs);
+        }
+      });
+      
+      // Add any standalone notes at the end
+      if (standaloneNotes.length > 0 && result.length > 0) {
+        result.push(...standaloneNotes);
+      }
+      
+      return result;
+    } else if (preserveExistingAllocations) {
+      // If no preserved allocations yet, just keep manually assigned jobs in place
+      // and don't auto-allocate the rest
+      const result: any[] = [];
+      
+      // Place manually assigned jobs
       activeBlocks.forEach(block => {
         if (block.jobs.length > 0) {
-          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dateKey}`, name: block.vehicle.name });
+          result.push({ __type: 'vehicle', id: `${block.vehicle.id}-${dayKey}`, name: block.vehicle.name });
           result.push(...block.jobs);
         }
       });
       
-      // Add unallocated jobs at the end (jobs without vehicleId)
-      if (autoAllocateJobs.length > 0) {
-        result.push({ __type: 'vehicle', id: `unallocated-${dateKey}`, name: 'Unallocated' });
-        autoAllocateJobs.forEach(job => {
-          result.push(job);
-          if (job.attachedNotes && job.attachedNotes.length > 0) {
-            result.push(...job.attachedNotes);
-          }
-        });
-      }
-      
-      // Add standalone notes at the end
-      if (standaloneNotes.length > 0) {
-        if (result.length === 0 || result[result.length - 1].__type !== 'vehicle' || !result[result.length - 1].name.includes('Unallocated')) {
-          result.push({ __type: 'vehicle', id: `notes-${dateKey}`, name: 'Notes' });
-        }
-        result.push(...standaloneNotes);
-      }
-      
+      // Keep auto-allocated jobs in their current positions without redistribution
+      // This shouldn't happen as we should always have preserved allocations when in manual mode
       return result;
     }
 
@@ -578,11 +596,13 @@ export default function RunsheetWeekScreen() {
       console.log(`📅 ${day}: ${jobsForDay.length} jobs`);
     }
     
-    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes, manualOrganizationMode);
+    const dateKey = format(dayDate, 'yyyy-MM-dd');
+    const allocated = allocateJobsForDay(dayDate, sortedJobsWithNotes, manualOrganizationMode, dateKey);
     return {
       title: day,
       data: allocated,
       dayDate,
+      dateKey,
     };
   });
 
@@ -793,11 +813,61 @@ export default function RunsheetWeekScreen() {
       updateData.vehicleId = null;
       // When explicitly setting to auto, disable manual organization mode
       setManualOrganizationMode(false);
+      setPreservedAllocations({});
     } else {
       // Set manual vehicle assignment
       updateData.vehicleId = deferSelectedVehicle;
       // Enable manual organization mode when user manually assigns to a vehicle
-      setManualOrganizationMode(true);
+      if (!manualOrganizationMode) {
+        // Capture current allocations before switching to manual mode
+        const currentAllocations: Record<string, Record<string, string[]>> = {};
+        
+        sections.forEach(section => {
+          if (!section.dateKey) return;
+          const vehicleJobMap: Record<string, string[]> = {};
+          let currentVehicleId: string | null = null;
+          
+          section.data.forEach((item: any) => {
+            if (item.__type === 'vehicle') {
+              currentVehicleId = item.id.replace(`-${section.dateKey}`, '');
+              if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
+                vehicleJobMap[currentVehicleId] = [];
+              }
+            } else if (currentVehicleId && !isNoteJob(item) && !isQuoteJob(item)) {
+              vehicleJobMap[currentVehicleId].push(item.id);
+            }
+          });
+          
+          currentAllocations[section.dateKey] = vehicleJobMap;
+        });
+        
+        // Update the allocation for the job being moved
+        const targetDateKey = format(selectedDate, 'yyyy-MM-dd');
+        if (!currentAllocations[targetDateKey]) {
+          currentAllocations[targetDateKey] = {};
+        }
+        if (!currentAllocations[targetDateKey][deferSelectedVehicle]) {
+          currentAllocations[targetDateKey][deferSelectedVehicle] = [];
+        }
+        currentAllocations[targetDateKey][deferSelectedVehicle].push(deferJob.id);
+        
+        setPreservedAllocations(currentAllocations);
+        setManualOrganizationMode(true);
+      } else {
+        // Already in manual mode, just update preserved allocations
+        const targetDateKey = format(selectedDate, 'yyyy-MM-dd');
+        setPreservedAllocations(prev => {
+          const updated = { ...prev };
+          if (!updated[targetDateKey]) {
+            updated[targetDateKey] = {};
+          }
+          if (!updated[targetDateKey][deferSelectedVehicle]) {
+            updated[targetDateKey][deferSelectedVehicle] = [];
+          }
+          updated[targetDateKey][deferSelectedVehicle].push(deferJob.id);
+          return updated;
+        });
+      }
     }
     
     await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
@@ -1970,12 +2040,45 @@ ${signOff}`;
             <Pressable 
               style={[styles.homeButton, manualOrganizationMode && { backgroundColor: '#ff9800' }]} 
               onPress={() => {
-                setManualOrganizationMode(!manualOrganizationMode);
+                const newMode = !manualOrganizationMode;
+                
+                if (newMode) {
+                  // Switching TO manual mode - capture current allocations
+                  const currentAllocations: Record<string, Record<string, string[]>> = {};
+                  
+                  sections.forEach(section => {
+                    if (!section.dateKey) return;
+                    const vehicleJobMap: Record<string, string[]> = {};
+                    let currentVehicleId: string | null = null;
+                    
+                    section.data.forEach((item: any) => {
+                      if (item.__type === 'vehicle') {
+                        // Extract vehicle ID from the composite ID (e.g., "vehicle-id-2024-01-01" -> "vehicle-id")
+                        currentVehicleId = item.id.replace(`-${section.dateKey}`, '');
+                        if (currentVehicleId && !vehicleJobMap[currentVehicleId]) {
+                          vehicleJobMap[currentVehicleId] = [];
+                        }
+                      } else if (currentVehicleId && !isNoteJob(item) && !isQuoteJob(item)) {
+                        // Add regular job to current vehicle's list
+                        vehicleJobMap[currentVehicleId].push(item.id);
+                      }
+                    });
+                    
+                    currentAllocations[section.dateKey] = vehicleJobMap;
+                  });
+                  
+                  setPreservedAllocations(currentAllocations);
+                } else {
+                  // Switching TO auto mode - clear preserved allocations
+                  setPreservedAllocations({});
+                }
+                
+                setManualOrganizationMode(newMode);
                 Alert.alert(
-                  manualOrganizationMode ? 'Auto-Allocation Enabled' : 'Manual Organization Mode',
-                  manualOrganizationMode 
-                    ? 'Jobs will now be automatically distributed across vehicles based on capacity.'
-                    : 'Manual mode enabled. Jobs will stay in their assigned vehicles even if capacity is exceeded. Auto-allocation is disabled.'
+                  newMode ? 'Manual Organization Mode' : 'Auto-Allocation Enabled',
+                  newMode
+                    ? 'Manual mode enabled. Current job allocations are preserved. Jobs will stay in their assigned vehicles even if capacity is exceeded.'
+                    : 'Jobs will now be automatically distributed across vehicles based on capacity.'
                 );
               }}
               accessibilityLabel="Toggle manual organization mode"
