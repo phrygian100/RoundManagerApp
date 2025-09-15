@@ -493,7 +493,7 @@ export default function ManageServicesScreen() {
 													try {
 														if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
 															console.log('Creating recurring jobs for plan:', plan);
-															const { createJobsForServicePlan } = await import('../../../services/jobService');
+															const { createJobsForServicePlan } = await import('../../../../services/jobService');
 															const jobsCreated = await createJobsForServicePlan(plan, client, 52); // Generate 1 year of jobs
 															console.log('Created', jobsCreated, 'new jobs');
 														} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
