@@ -71,8 +71,9 @@ export default function QuotesScreen() {
   const [quoteLines, setQuoteLines] = useState<QuoteLine[]>([
     { serviceType: '', frequency: '4 weekly', value: '', notes: '' }
   ]);
-  const [completeSearchQuery, setCompleteSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [collapsedQuotes, setCollapsedQuotes] = useState<Set<string>>(new Set());
+  const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -264,31 +265,68 @@ export default function QuotesScreen() {
     router.push('/add-client');
   };
 
-  // Group quotes by status
+  // Global search across all fields
+  const buildSearchHaystack = (q: Quote): string => {
+    const parts: string[] = [];
+    parts.push(q.name || '');
+    parts.push(q.address || '');
+    parts.push(q.town || '');
+    parts.push(q.number || '');
+    parts.push(q.date || '');
+    parts.push(q.status || '');
+    parts.push(q.notes || '');
+    parts.push(q.source || '');
+    parts.push(q.customSource || '');
+    if (Array.isArray(q.lines)) {
+      q.lines.forEach(l => {
+        parts.push(l.serviceType || '');
+        parts.push(l.frequency || '');
+        parts.push(l.customFrequency || '');
+        parts.push(l.value || '');
+        parts.push(l.notes || '');
+      });
+    }
+    return parts.join(' ').toLowerCase();
+  };
+
+  const matchesSearch = (q: Quote): boolean => {
+    const s = searchQuery.trim().toLowerCase();
+    if (!s) return true;
+    return buildSearchHaystack(q).includes(s);
+  };
+
+  // Group quotes by status and apply search filter
   const scheduledQuotes = quotes.filter(q => q.status === 'scheduled');
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
   const wonQuotes = quotes.filter(q => q.status === 'complete');
   const lostQuotes = quotes.filter(q => q.status === 'lost');
 
-  // Filtered complete quotes for search
-  const filteredCompleteQuotes = wonQuotes.filter(q => {
-    const search = completeSearchQuery.toLowerCase();
-    return (
-      q.name?.toLowerCase().includes(search) ||
-      q.address?.toLowerCase().includes(search)
-    );
-  });
+  const scheduledFiltered = scheduledQuotes.filter(matchesSearch);
+  const pendingFiltered = pendingQuotes.filter(matchesSearch);
+  const wonFiltered = wonQuotes.filter(matchesSearch);
+  const lostFiltered = lostQuotes.filter(matchesSearch);
 
   // --- UI helpers ---
-  const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  const SectionCard = ({ title, icon, children, collapsed, onToggle }: { title: string; icon: React.ReactNode; children: React.ReactNode; collapsed?: boolean; onToggle?: () => void }) => (
     <View style={{ backgroundColor: '#fff', borderRadius: 12, marginBottom: 28, boxShadow: '0 2px 8px #0001', padding: 0, borderWidth: 1, borderColor: '#eee' }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#f0f0f0', backgroundColor: '#f8faff', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
+      <Pressable onPress={onToggle} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderColor: '#f0f0f0', backgroundColor: '#f8faff', borderTopLeftRadius: 12, borderTopRightRadius: 12 }}>
         {icon}
-        <Text style={{ fontWeight: 'bold', fontSize: 20, marginLeft: 8 }}>{title}</Text>
-      </View>
-      <View style={{ padding: 16 }}>{children}</View>
+        <Text style={{ fontWeight: 'bold', fontSize: 20, marginLeft: 8, flex: 1 }}>{title}</Text>
+        <Ionicons name={collapsed ? 'chevron-forward' : 'chevron-down'} size={18} color="#666" />
+      </Pressable>
+      {!collapsed && (
+        <View style={{ padding: 16 }}>{children}</View>
+      )}
     </View>
   );
+
+  const toggleSection = (key: string) => {
+    setCollapsedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
 
   const QuoteCard = ({ quote, action, onDelete }: { quote: Quote; action?: React.ReactNode; onDelete?: () => void }) => {
     // For backward compatibility, if lines are not present, use legacy fields
@@ -408,16 +446,29 @@ export default function QuotesScreen() {
           </TouchableOpacity>
         </View>
       </View>
+      {/* Global Search */}
+      <View style={{ width: '100%', maxWidth: 700, paddingHorizontal: 16, marginBottom: 12, alignSelf: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
+          <Ionicons name="search" size={20} color="#666" />
+          <TextInput
+            style={{ flex: 1, fontSize: 16 }}
+            placeholder="Search quotes (all fields)…"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor="#999"
+          />
+        </View>
+      </View>
       {/* Main Content Container */}
       {isLargeScreen ? (
         <View style={{ width: '100%', maxWidth: 1200, flexDirection: 'row', gap: 32, alignItems: 'flex-start', padding: 16, marginHorizontal: 'auto' }}>
           {/* Left Column: Scheduled + Pending */}
           <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
-            <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
-              {scheduledQuotes.length === 0 ? (
-                <EmptyState message="No scheduled quotes." />
+            <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> } collapsed={collapsedSections.has('scheduled')} onToggle={() => toggleSection('scheduled')}>
+              {scheduledFiltered.length === 0 ? (
+                <EmptyState message={searchQuery ? 'No matches.' : 'No scheduled quotes.'} />
               ) : (
-                scheduledQuotes.map(item => (
+                scheduledFiltered.map(item => (
                   <QuoteCard
                     key={item.id}
                     quote={item}
@@ -429,11 +480,11 @@ export default function QuotesScreen() {
                 ))
               )}
             </SectionCard>
-            <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
-              {pendingQuotes.length === 0 ? (
-                <EmptyState message="No pending quotes." />
+            <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> } collapsed={collapsedSections.has('pending')} onToggle={() => toggleSection('pending')}>
+              {pendingFiltered.length === 0 ? (
+                <EmptyState message={searchQuery ? 'No matches.' : 'No pending quotes.'} />
               ) : (
-                pendingQuotes.map(item => (
+                pendingFiltered.map(item => (
                   <QuoteCard
                     key={item.id}
                     quote={item}
@@ -446,32 +497,22 @@ export default function QuotesScreen() {
               )}
             </SectionCard>
           </View>
-          {/* Right Column: Won with Search + Lost */}
+          {/* Right Column: Won + Lost */}
           <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
-            <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> }>
-              <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="search" size={20} color="#666" />
-                <TextInput
-                  style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
-                  placeholder="Search won quotes..."
-                  value={completeSearchQuery}
-                  onChangeText={setCompleteSearchQuery}
-                  placeholderTextColor="#999"
-                />
-              </View>
-              {filteredCompleteQuotes.length === 0 ? (
-                <EmptyState message={completeSearchQuery ? 'No won quotes found.' : 'No won quotes.'} />
+            <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> } collapsed={collapsedSections.has('won')} onToggle={() => toggleSection('won')}>
+              {wonFiltered.length === 0 ? (
+                <EmptyState message={searchQuery ? 'No matches.' : 'No won quotes.'} />
               ) : (
-                filteredCompleteQuotes.map(item => (
+                wonFiltered.map(item => (
                   <QuoteCard key={item.id} quote={item} />
                 ))
               )}
             </SectionCard>
-            <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> }>
-              {lostQuotes.length === 0 ? (
-                <EmptyState message="No lost quotes." />
+            <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> } collapsed={collapsedSections.has('lost')} onToggle={() => toggleSection('lost')}>
+              {lostFiltered.length === 0 ? (
+                <EmptyState message={searchQuery ? 'No matches.' : 'No lost quotes.'} />
               ) : (
-                lostQuotes.map(item => (
+                lostFiltered.map(item => (
                   <QuoteCard
                     key={item.id}
                     quote={item}
@@ -487,11 +528,11 @@ export default function QuotesScreen() {
       ) : (
         // Mobile/stacked layout
         <View style={{ width: '100%', maxWidth: 700, padding: 16, marginHorizontal: 'auto' }}>
-          <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> }>
-            {scheduledQuotes.length === 0 ? (
-              <EmptyState message="No scheduled quotes." />
+          <SectionCard title="Scheduled" icon={<Ionicons name="calendar-outline" size={22} color="#1976d2" /> } collapsed={collapsedSections.has('scheduled')} onToggle={() => toggleSection('scheduled')}>
+            {scheduledFiltered.length === 0 ? (
+              <EmptyState message={searchQuery ? 'No matches.' : 'No scheduled quotes.'} />
             ) : (
-              scheduledQuotes.map(item => (
+              scheduledFiltered.map(item => (
                 <QuoteCard
                   key={item.id}
                   quote={item}
@@ -503,46 +544,36 @@ export default function QuotesScreen() {
               ))
             )}
           </SectionCard>
-          <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> }>
-            {pendingQuotes.length === 0 ? (
-              <EmptyState message="No pending quotes." />
+          <SectionCard title="Pending" icon={<Ionicons name="time-outline" size={22} color="#ff9800" /> } collapsed={collapsedSections.has('pending')} onToggle={() => toggleSection('pending')}>
+            {pendingFiltered.length === 0 ? (
+              <EmptyState message={searchQuery ? 'No matches.' : 'No pending quotes.'} />
             ) : (
-              pendingQuotes.map(item => (
+              pendingFiltered.map(item => (
                 <QuoteCard
                   key={item.id}
                   quote={item}
                   action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
                   onDelete={() => {
-                    if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                    if (window.confirm('Mark this quote as Lost? It will move to the Lost section.')) handleMarkLost(item);
                   }}
                 />
               ))
             )}
           </SectionCard>
-          <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> }>
-            <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Ionicons name="search" size={20} color="#666" />
-              <TextInput
-                style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
-                placeholder="Search won quotes..."
-                value={completeSearchQuery}
-                onChangeText={setCompleteSearchQuery}
-                placeholderTextColor="#999"
-              />
-            </View>
-            {filteredCompleteQuotes.length === 0 ? (
-              <EmptyState message={completeSearchQuery ? 'No won quotes found.' : 'No won quotes.'} />
+          <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> } collapsed={collapsedSections.has('won')} onToggle={() => toggleSection('won')}>
+            {wonFiltered.length === 0 ? (
+              <EmptyState message={searchQuery ? 'No matches.' : 'No won quotes.'} />
             ) : (
-              filteredCompleteQuotes.map(item => (
+              wonFiltered.map(item => (
                 <QuoteCard key={item.id} quote={item} />
               ))
             )}
           </SectionCard>
-          <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> }>
-            {lostQuotes.length === 0 ? (
-              <EmptyState message="No lost quotes." />
+          <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> } collapsed={collapsedSections.has('lost')} onToggle={() => toggleSection('lost')}>
+            {lostFiltered.length === 0 ? (
+              <EmptyState message={searchQuery ? 'No matches.' : 'No lost quotes.'} />
             ) : (
-              lostQuotes.map(item => (
+              lostFiltered.map(item => (
                 <QuoteCard key={item.id} quote={item} onDelete={() => {
                   if (window.confirm('Permanently delete this lost quote?')) handleDeleteQuote(item.id);
                 }} />

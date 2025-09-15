@@ -1,5 +1,10 @@
 ## 2025-01-23
 ## 2025-09-15 – Quotes: Add Won and Lost sections; change delete behavior
+- Added collapsible section headers and a global search bar on Quotes screen
+  - Collapsible headers for Scheduled, Pending, Won, and Lost; click header to toggle
+  - Global search input searches across all fields (name, address, town, phone, date, status, notes, source/customSource, and all line fields: serviceType, frequency, customFrequency, value, notes)
+  - Removed per-section search in Won; consolidated into the global search
+
 
 - Files: `app/quotes.tsx`, `services/auditService.ts`, `types/audit.ts`
 - UI changes on Quotes screen:
