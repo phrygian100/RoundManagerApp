@@ -219,6 +219,8 @@ export function formatAuditDescription(
       return `Modified quote${entityDisplay}`;
     case 'quote_progressed':
       return `Progressed quote to pending${entityDisplay}`;
+    case 'quote_lost':
+      return `Marked quote as lost${entityDisplay}`;
     case 'quote_deleted':
       return `Deleted quote${entityDisplay}`;
     case 'rota_availability_changed':

@@ -19,6 +19,7 @@ export type AuditActionType =
   | 'quote_created'
   | 'quote_edited'
   | 'quote_progressed'
+  | 'quote_lost'
   | 'quote_deleted'
   | 'rota_availability_changed'
   | 'payment_created'

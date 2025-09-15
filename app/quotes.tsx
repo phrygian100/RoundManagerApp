@@ -182,6 +182,36 @@ export default function QuotesScreen() {
     }
   };
 
+  const handleMarkLost = async (quote: Quote) => {
+    // Mark quote as lost (from Pending) instead of deleting
+    await updateDoc(doc(db, 'quotes', quote.id), { status: 'lost' });
+
+    await logAction(
+      'quote_lost',
+      'quote',
+      quote.id,
+      formatAuditDescription('quote_lost', `${quote.name} - ${quote.address}`)
+    );
+
+    // Remove any runsheet jobs linked to this quote
+    const jobsRef = collection(db, 'jobs');
+    const jobsQ = query(jobsRef, where('quoteId', '==', quote.id));
+    const jobsSnapshot = await getDocs(jobsQ);
+    for (const jobDoc of jobsSnapshot.docs) {
+      await deleteDoc(jobDoc.ref);
+    }
+
+    // Refresh quotes list
+    const ownerId = await getDataOwnerId();
+    if (ownerId) {
+      const quotesQuery = query(collection(db, 'quotes'), where('ownerId', '==', ownerId));
+      const snap = await getDocs(quotesQuery);
+      setQuotes(snap.docs.map(d => ({ id: d.id, ...d.data() }) as Quote));
+    }
+  };
+
+  
+
   const handleOpenDetails = (quote: Quote) => {
     // For backward compatibility, if lines are not present, use legacy fields
     const lines = quote.lines || [{ serviceType: '', frequency: quote.frequency || '4 weekly', value: quote.value || '', notes: quote.notes || '' }];
@@ -237,10 +267,11 @@ export default function QuotesScreen() {
   // Group quotes by status
   const scheduledQuotes = quotes.filter(q => q.status === 'scheduled');
   const pendingQuotes = quotes.filter(q => q.status === 'pending');
-  const completeQuotes = quotes.filter(q => q.status === 'complete');
+  const wonQuotes = quotes.filter(q => q.status === 'complete');
+  const lostQuotes = quotes.filter(q => q.status === 'lost');
 
   // Filtered complete quotes for search
-  const filteredCompleteQuotes = completeQuotes.filter(q => {
+  const filteredCompleteQuotes = wonQuotes.filter(q => {
     const search = completeSearchQuery.toLowerCase();
     return (
       q.name?.toLowerCase().includes(search) ||
@@ -408,31 +439,46 @@ export default function QuotesScreen() {
                     quote={item}
                     action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
                     onDelete={() => {
-                      if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                      if (window.confirm('Mark this quote as Lost? It will move to the Lost section.')) handleMarkLost(item);
                     }}
                   />
                 ))
               )}
             </SectionCard>
           </View>
-          {/* Right Column: Complete with Search */}
+          {/* Right Column: Won with Search + Lost */}
           <View style={{ flex: 1, minWidth: 340, maxWidth: 500 }}>
-            <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
+            <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> }>
               <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <Ionicons name="search" size={20} color="#666" />
                 <TextInput
                   style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
-                  placeholder="Search completed quotes..."
+                  placeholder="Search won quotes..."
                   value={completeSearchQuery}
                   onChangeText={setCompleteSearchQuery}
                   placeholderTextColor="#999"
                 />
               </View>
               {filteredCompleteQuotes.length === 0 ? (
-                <EmptyState message={completeSearchQuery ? 'No completed quotes found.' : 'No complete quotes.'} />
+                <EmptyState message={completeSearchQuery ? 'No won quotes found.' : 'No won quotes.'} />
               ) : (
                 filteredCompleteQuotes.map(item => (
                   <QuoteCard key={item.id} quote={item} />
+                ))
+              )}
+            </SectionCard>
+            <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> }>
+              {lostQuotes.length === 0 ? (
+                <EmptyState message="No lost quotes." />
+              ) : (
+                lostQuotes.map(item => (
+                  <QuoteCard
+                    key={item.id}
+                    quote={item}
+                    onDelete={() => {
+                      if (window.confirm('Permanently delete this lost quote?')) handleDeleteQuote(item.id);
+                    }}
+                  />
                 ))
               )}
             </SectionCard>
@@ -473,22 +519,33 @@ export default function QuotesScreen() {
               ))
             )}
           </SectionCard>
-          <SectionCard title="Complete" icon={<Ionicons name="checkmark-done-outline" size={22} color="#43a047" /> }>
+          <SectionCard title="Won" icon={<Ionicons name="trophy-outline" size={22} color="#43a047" /> }>
             <View style={{ marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ionicons name="search" size={20} color="#666" />
               <TextInput
                 style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8, fontSize: 16 }}
-                placeholder="Search completed quotes..."
+                placeholder="Search won quotes..."
                 value={completeSearchQuery}
                 onChangeText={setCompleteSearchQuery}
                 placeholderTextColor="#999"
               />
             </View>
             {filteredCompleteQuotes.length === 0 ? (
-              <EmptyState message={completeSearchQuery ? 'No completed quotes found.' : 'No complete quotes.'} />
+              <EmptyState message={completeSearchQuery ? 'No won quotes found.' : 'No won quotes.'} />
             ) : (
               filteredCompleteQuotes.map(item => (
                 <QuoteCard key={item.id} quote={item} />
+              ))
+            )}
+          </SectionCard>
+          <SectionCard title="Lost" icon={<Ionicons name="close-circle-outline" size={22} color="#e53935" /> }>
+            {lostQuotes.length === 0 ? (
+              <EmptyState message="No lost quotes." />
+            ) : (
+              lostQuotes.map(item => (
+                <QuoteCard key={item.id} quote={item} onDelete={() => {
+                  if (window.confirm('Permanently delete this lost quote?')) handleDeleteQuote(item.id);
+                }} />
               ))
             )}
           </SectionCard>

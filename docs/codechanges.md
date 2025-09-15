@@ -1,4 +1,19 @@
 ## 2025-01-23
+## 2025-09-15 – Quotes: Add Won and Lost sections; change delete behavior
+
+- Files: `app/quotes.tsx`, `services/auditService.ts`, `types/audit.ts`
+- UI changes on Quotes screen:
+  - Renamed "Complete" section to "Won"; search updated to "Search won quotes…".
+  - Added new "Lost" section. Quotes marked as lost are listed here and can be permanently deleted.
+  - Pending section delete now prompts to mark as Lost instead of deleting the quote.
+- Behavior changes:
+  - New audit action `quote_lost` with description "Marked quote as lost".
+  - When marking a quote as lost, any runsheet jobs with the same `quoteId` are cleaned up.
+  - Existing flow that marks quotes `status: 'complete'` when converting to a client remains unchanged (these appear under Won).
+- Notes:
+  - No Supabase usage added. Web and mobile prompts respect platform specifics (web uses `window.confirm`).
+  - Searched codebase for references to quote statuses to avoid regressions; only Quotes screen groups were updated.
+
 
 - Defer Feature Implementation
   - Files: `types/models.ts`, `app/runsheet/[week].tsx`, `services/capacityService.ts`
