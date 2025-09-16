@@ -24,6 +24,7 @@ export default function ManageServicesScreen() {
 	const [pendingJobs, setPendingJobs] = useState<any[]>([]);
 	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 	const [lastSavedField, setLastSavedField] = useState<string>('');
+	const [serviceDrafts, setServiceDrafts] = useState<Record<string, string>>({});
 
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
@@ -287,10 +288,36 @@ export default function ManageServicesScreen() {
 									<ThemedText style={styles.planLabel}>Service</ThemedText>
 									<TextInput
 										style={styles.input}
-										value={String(plan.serviceType)}
-										onChangeText={v => updatePlan(plan.id, { serviceType: v.trim() }, 'Service')}
+										value={serviceDrafts[plan.id] !== undefined ? serviceDrafts[plan.id] : String(plan.serviceType)}
+										onChangeText={v => setServiceDrafts(prev => ({ ...prev, [plan.id]: v }))}
 									/>
 								</View>
+								{serviceDrafts[plan.id] !== undefined && serviceDrafts[plan.id].trim() !== String(plan.serviceType) && (
+									<View style={{ alignItems: 'flex-end', marginBottom: 8 }}>
+										<Pressable
+											style={[styles.dateButton, { backgroundColor: '#4CAF50', borderColor: '#388E3C' }]}
+											onPress={async () => {
+											const newName = (serviceDrafts[plan.id] || '').trim();
+											if (!newName) {
+												if (Platform.OS === 'web') {
+													alert('Service name cannot be empty.');
+												} else {
+													Alert.alert('Validation', 'Service name cannot be empty.');
+												}
+												return;
+											}
+											await updatePlan(plan.id, { serviceType: newName }, 'Service');
+											setServiceDrafts(prev => {
+												const cp = { ...prev };
+												delete cp[plan.id];
+												return cp;
+											});
+										}}
+									>
+										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Save changes</ThemedText>
+									</Pressable>
+									</View>
+								)}
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Type</ThemedText>
 									<ThemedText style={styles.planValue}>{plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'}</ThemedText>
