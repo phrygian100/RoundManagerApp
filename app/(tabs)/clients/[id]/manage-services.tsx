@@ -628,6 +628,12 @@ export default function ManageServicesScreen() {
 									>
 										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Regenerate Schedule</ThemedText>
 									</Pressable>
+									<Pressable 
+										style={[styles.dateButton, { backgroundColor: '#1976d2', borderColor: '#0d47a1' }]}
+										onPress={() => router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientId, openAddServiceModal: '1' } } as never)}
+									>
+										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Add Service</ThemedText>
+									</Pressable>
 								</View>
 							</View>
 						))

@@ -183,6 +183,14 @@ export default function ClientDetailScreen() {
     fetchServiceHistory();
   }, [client]);
 
+  // Optionally open Add Service modal when navigated from Manage Services
+  useEffect(() => {
+    const params = useLocalSearchParams();
+    if ((params as any).openAddServiceModal === '1') {
+      setModalVisible(true);
+    }
+  }, []);
+
   useEffect(() => {
     const checkTodayComplete = async () => {
       const today = new Date();
