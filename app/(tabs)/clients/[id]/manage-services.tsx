@@ -267,7 +267,11 @@ export default function ManageServicesScreen() {
 							<View key={plan.id} style={styles.planCard}>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Service</ThemedText>
-									<ThemedText style={styles.planValue}>{plan.serviceType}</ThemedText>
+									<TextInput
+										style={styles.input}
+										value={String(plan.serviceType)}
+										onChangeText={v => updatePlan(plan.id, { serviceType: v.trim() }, 'Service')}
+									/>
 								</View>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Type</ThemedText>
@@ -384,7 +388,53 @@ export default function ManageServicesScreen() {
 								</View>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Active</ThemedText>
-									<Switch value={!!plan.isActive} onValueChange={val => updatePlan(plan.id, { isActive: val }, 'Active Status')} />
+									<Switch value={!!plan.isActive} onValueChange={async val => {
+										try {
+											await updatePlan(plan.id, { isActive: val }, 'Active Status');
+											const ownerId = await getDataOwnerId();
+											if (!ownerId) return;
+
+											// Build jobs query for this plan's service
+											const jobsQuery = query(
+												collection(db, 'jobs'),
+												where('ownerId', '==', ownerId),
+												where('clientId', '==', clientId),
+												where('serviceId', '==', plan.serviceType),
+												where('status', 'in', ['pending', 'scheduled'])
+											);
+
+											if (!val) {
+												// Turning OFF: delete all pending/scheduled jobs
+												const jobsSnapshot = await getDocs(jobsQuery);
+												for (const jobDoc of jobsSnapshot.docs) {
+													try { await deleteDoc(jobDoc.ref); } catch {}
+												}
+											} else {
+												// Turning ON: regenerate jobs based on current plan
+												if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
+													const { createJobsForServicePlan } = await import('../../../../services/jobService');
+													await createJobsForServicePlan({ ...plan, isActive: true }, client as Client, 52);
+												} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
+													await addDoc(collection(db, 'jobs'), {
+														ownerId,
+														clientId,
+														providerId: 'test-provider-1',
+														serviceId: plan.serviceType,
+														propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
+														scheduledTime: plan.scheduledDate + 'T09:00:00',
+														status: 'pending',
+														price: Number(plan.price),
+														paymentStatus: 'unpaid',
+													});
+											}
+										}
+										await loadPlans();
+									} catch (err) {
+										console.error('Failed to toggle active state', err);
+										if (Platform.OS === 'web') alert('Failed to update active state');
+										else Alert.alert('Error', 'Failed to update active state');
+									}
+									}} />
 								</View>
 								<View style={[styles.planRow, { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 8 }]}>
 									<Pressable 

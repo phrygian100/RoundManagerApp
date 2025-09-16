@@ -10,6 +10,14 @@
 - Impact: No behavior change for the Client Details page. Web and mobile unaffected otherwise. This reduces risk of regressions/overwrites and avoids overlapping systems managing the same data.
 - Files: `app/(tabs)/clients/[id]/manage-services.tsx`
 
+## 2025-09-16 – Manage Services: Editable Service + Active toggle behavior
+- Change: In `manage-services.tsx`, the Service field is now editable (renamed display label to "Service").
+- Active toggle now wipes or regenerates schedule:
+  - Turning OFF deletes all pending/scheduled jobs for that plan’s `serviceType` and keeps the plan stored but inactive.
+  - Turning ON regenerates jobs: recurring plans create 1 year of jobs; one-off plans create a single job.
+- Client Details `Service Details` now shows N/A for Service/Type/Frequency/Price/Next Service when plans exist but none are active.
+- Files: `app/(tabs)/clients/[id]/manage-services.tsx`, `app/(tabs)/clients/[id].tsx`
+
 ## 2025-09-16 – Activity Log: Date range filters and pagination
 - Added ability to view historical activity beyond the recent 200 entries
 - Files: `services/auditService.ts`, `app/audit-log.tsx`

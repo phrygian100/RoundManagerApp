@@ -971,7 +971,20 @@ export default function ClientDetailScreen() {
               icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
             >
               {servicePlans.length > 0 ? (
-                servicePlans.map((plan, index) => (
+                (() => {
+                  const activePlans = servicePlans.filter(p => p.isActive);
+                  if (activePlans.length === 0) {
+                    return (
+                      <View>
+                        <InfoRow label="Service" value="N/A" />
+                        <InfoRow label="Type" value="N/A" />
+                        <InfoRow label="Frequency" value="N/A" />
+                        <InfoRow label="Price" value="N/A" />
+                        <InfoRow label="Next Service" value="N/A" />
+                      </View>
+                    );
+                  }
+                  return activePlans.map((plan, index) => (
                   <View key={plan.id} style={index > 0 ? { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' } : {}}>
                     <InfoRow label="Service" value={plan.serviceType} />
                     <InfoRow label="Type" value={plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'} />
@@ -999,7 +1012,8 @@ export default function ClientDetailScreen() {
                       } 
                     />
                   </View>
-                ))
+                  ));
+                })()
               ) : (
                 // Fallback to legacy fields if no service plans
                 <>
