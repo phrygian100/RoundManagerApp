@@ -663,7 +663,7 @@ export default function ManageServicesScreen() {
 										style={[styles.dateButton, { backgroundColor: '#1976d2', borderColor: '#0d47a1' }]}
 										onPress={() => setAddModalVisible(true)}
 									>
-										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Add Service</ThemedText>
+										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Ad-hoc Job</ThemedText>
 									</Pressable>
 								</View>
 							</View>
