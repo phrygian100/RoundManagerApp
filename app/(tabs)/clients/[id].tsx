@@ -946,7 +946,7 @@ export default function ClientDetailScreen() {
                   </Pressable>
                   <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
                     <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
-                    <ThemedText style={styles.actionButtonText}>Add Service</ThemedText>
+                    <ThemedText style={styles.actionButtonText}>Ad-hoc Job</ThemedText>
                   </Pressable>
                   <Pressable style={styles.actionButton} onPress={handleMakePayment}>
                     <Ionicons name="card-outline" size={20} color="#1976d2" />
@@ -1171,7 +1171,7 @@ export default function ClientDetailScreen() {
                 </Pressable>
                 <Pressable style={styles.actionButton} onPress={() => setModalVisible(true)}>
                   <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
-                  <ThemedText style={styles.actionButtonText}>Add Service</ThemedText>
+                  <ThemedText style={styles.actionButtonText}>Ad-hoc Job</ThemedText>
                 </Pressable>
                 <Pressable style={styles.actionButton} onPress={handleMakePayment}>
                   <Ionicons name="card-outline" size={20} color="#1976d2" />
