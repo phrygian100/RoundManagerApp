@@ -184,14 +184,18 @@ export default function ClientDetailScreen() {
     fetchServiceHistory();
   }, [client]);
 
-  // Optionally open Add Service modal when navigated from Manage Services
+  // Optionally open Add Service modal when navigated from Manage Services,
+  // then immediately clear the trigger param so it doesn't persist
   useEffect(() => {
     try {
-      if ((params as any).openAddServiceModal === '1') {
+      const p = params as any;
+      if (p.openAddServiceModal === '1') {
         setModalVisible(true);
+        // Remove the param to prevent future automatic opens
+        router.replace({ pathname: '/(tabs)/clients/[id]', params: { id } } as never);
       }
     } catch {}
-  }, []);
+  }, [id]);
 
   useEffect(() => {
     const checkTodayComplete = async () => {
