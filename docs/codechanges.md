@@ -18,6 +18,12 @@
 - Client Details `Service Details` now shows N/A for Service/Type/Frequency/Price/Next Service when plans exist but none are active.
 - Files: `app/(tabs)/clients/[id]/manage-services.tsx`, `app/(tabs)/clients/[id].tsx`
 
+## 2025-09-16 – Manage Services: Automatic legacy-to-plan conversion
+- Change: The Manage Services screen now automatically converts a client's legacy base schedule to an editable plan on first load (one-time), removing the need to click "Convert to editable plan".
+- Detection uses any of: legacy `frequency`, existing window-cleaning pending jobs, or `nextVisit`.
+- On success, the page refreshes with the new plan. If conversion fails, no blocking UI is shown and logs are written to console.
+- Files: `app/(tabs)/clients/[id]/manage-services.tsx`
+
 ## 2025-09-16 – Activity Log: Date range filters and pagination
 - Added ability to view historical activity beyond the recent 200 entries
 - Files: `services/auditService.ts`, `app/audit-log.tsx`

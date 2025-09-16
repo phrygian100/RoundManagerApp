@@ -25,6 +25,7 @@ export default function ManageServicesScreen() {
 	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 	const [lastSavedField, setLastSavedField] = useState<string>('');
 	const [serviceDrafts, setServiceDrafts] = useState<Record<string, string>>({});
+	const [autoConvertAttempted, setAutoConvertAttempted] = useState(false);
 
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
@@ -88,6 +89,30 @@ export default function ManageServicesScreen() {
 	useEffect(() => {
 		loadPlans();
 	}, [loadPlans]);
+
+	// Auto-convert legacy base schedule on first load so users don't need to click
+	useEffect(() => {
+		if (autoConvertAttempted) return;
+		if (loading) return;
+		if (!client) return;
+		if (plans.length > 0) return;
+
+		// Determine if a legacy schedule exists (base window-cleaning)
+		const c: any = client;
+		const rawFreq = c.frequency;
+		const parsed = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq || '').replace(/[^0-9]/g, ''), 10);
+		const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(parsed);
+		const hasWindowJobs = pendingJobs.some(j => (j.serviceId ? j.serviceId === 'window-cleaning' : true));
+		const hasNextVisit = !!c.nextVisit;
+
+		if (isRecurring || hasWindowJobs || hasNextVisit) {
+			setAutoConvertAttempted(true);
+			const nextDate = getNextDateForService(undefined, c.nextVisit) || undefined;
+			// Fire-and-forget; loadPlans() runs inside on success
+			handleConvertLegacy('window-cleaning', 'recurring', isNaN(parsed) ? 4 : parsed, nextDate, c.quote)
+				.catch(err => console.error('Auto-convert legacy failed', err));
+		}
+	}, [autoConvertAttempted, loading, client, plans.length, pendingJobs]);
 
 	// Helpers to derive legacy next date
 	const getNextDateForService = (serviceType?: string, fallback?: string): string | null => {
