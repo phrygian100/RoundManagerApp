@@ -36,7 +36,8 @@ const isMobileBrowser = () => {
 };
 
 export default function ClientDetailScreen() {
-  const { id } = useLocalSearchParams();
+  const params = useLocalSearchParams();
+  const id = typeof (params as any).id === 'string' ? (params as any).id : '';
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
@@ -185,10 +186,11 @@ export default function ClientDetailScreen() {
 
   // Optionally open Add Service modal when navigated from Manage Services
   useEffect(() => {
-    const params = useLocalSearchParams();
-    if ((params as any).openAddServiceModal === '1') {
-      setModalVisible(true);
-    }
+    try {
+      if ((params as any).openAddServiceModal === '1') {
+        setModalVisible(true);
+      }
+    } catch {}
   }, []);
 
   useEffect(() => {
