@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
-import { getAuditLogs, getAuditLogsFiltered } from '../services/auditService';
+import { getAuditLogsFiltered } from '../services/auditService';
 import type { AuditLog } from '../types/audit';
 
 const ActionTypeColors: Record<string, string> = {
@@ -67,20 +67,13 @@ export default function AuditLogScreen() {
   const loadAuditLogs = async () => {
     try {
       setLoading(true);
-      // Use filtered fetch when date range is applied; otherwise default recent 200
-      if (fromDate || toDate) {
-        const { logs, nextPageCursor } = await getAuditLogsFiltered({
-          startDate: fromDate || undefined,
-          endDate: toDate || undefined,
-          limitCount: 200,
-        });
-        setAuditLogs(logs);
-        setNextPageCursor(nextPageCursor);
-      } else {
-        const logs = await getAuditLogs(200);
-        setAuditLogs(logs);
-        setNextPageCursor(null);
-      }
+      const { logs, nextPageCursor } = await getAuditLogsFiltered({
+        startDate: fromDate || undefined,
+        endDate: toDate || undefined,
+        limitCount: 200,
+      });
+      setAuditLogs(logs);
+      setNextPageCursor(nextPageCursor);
     } catch (error) {
       console.error('Error loading audit logs:', error);
     } finally {
