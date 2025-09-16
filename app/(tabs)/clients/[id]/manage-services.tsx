@@ -1,9 +1,10 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
@@ -27,6 +28,24 @@ export default function ManageServicesScreen() {
 	const [serviceDrafts, setServiceDrafts] = useState<Record<string, string>>({});
 	const [autoConvertAttempted, setAutoConvertAttempted] = useState(false);
 	const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
+
+	// Add Service modal state (ported from client screen)
+	const [addModalVisible, setAddModalVisible] = useState(false);
+	const [modalMode, setModalMode] = useState<'one-time' | 'recurring'>('one-time');
+	// One-time job fields
+	const [jobDate, setJobDate] = useState(new Date());
+	const [showDatePicker, setShowDatePicker] = useState(false);
+	const [jobType, setJobType] = useState('Gutter cleaning');
+	const [customJobType, setCustomJobType] = useState('');
+	const [jobNotes, setJobNotes] = useState('');
+	const [jobPrice, setJobPrice] = useState('');
+	// Recurring additional service fields
+	const [recurringServiceType, setRecurringServiceType] = useState('Gutter cleaning');
+	const [customRecurringServiceType, setCustomRecurringServiceType] = useState('');
+	const [recurringFrequency, setRecurringFrequency] = useState(12);
+	const [recurringPrice, setRecurringPrice] = useState('');
+	const [recurringNextVisit, setRecurringNextVisit] = useState(new Date());
+	const [showRecurringDatePicker, setShowRecurringDatePicker] = useState(false);
 
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
@@ -632,7 +651,7 @@ export default function ManageServicesScreen() {
 									</Pressable>
 									<Pressable 
 										style={[styles.dateButton, { backgroundColor: '#1976d2', borderColor: '#0d47a1' }]}
-										onPress={() => router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientId, openAddServiceModal: '1' } } as never)}
+										onPress={() => setAddModalVisible(true)}
 									>
 										<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Add Service</ThemedText>
 									</Pressable>
@@ -696,6 +715,124 @@ export default function ManageServicesScreen() {
 					</View>
 				)}
 			</ScrollView>
+		{/* Add Service Modal */}
+		<Modal
+			animationType="slide"
+			transparent={true}
+			visible={addModalVisible}
+			onRequestClose={() => setAddModalVisible(false)}
+		>
+			<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+				<View style={{ width: '90%', maxWidth: 800, backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+					<ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Add a New Job</ThemedText>
+					<View style={{ flexDirection: 'row', marginBottom: 12 }}>
+						<Pressable style={[{ padding: 8, borderRadius: 6, marginRight: 8 }, modalMode === 'one-time' ? { backgroundColor: '#e3f2fd' } : { backgroundColor: '#f5f5f5' }]} onPress={() => setModalMode('one-time')}>
+							<ThemedText>One-time Job</ThemedText>
+						</Pressable>
+						<Pressable style={[{ padding: 8, borderRadius: 6 }, modalMode === 'recurring' ? { backgroundColor: '#e3f2fd' } : { backgroundColor: '#f5f5f5' }]} onPress={() => setModalMode('recurring')}>
+							<ThemedText>Additional Recurring Work</ThemedText>
+						</Pressable>
+					</View>
+
+					{modalMode === 'one-time' ? (
+						<>
+							<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+								<ThemedText style={{ marginRight: 8 }}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
+								{Platform.OS === 'web' ? (
+									<input type="date" value={format(jobDate, 'yyyy-MM-dd')} onChange={e => setJobDate(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+								) : (
+									<Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
+								)}
+							</View>
+							{showDatePicker && Platform.OS !== 'web' && (
+								<DateTimePicker value={jobDate} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowDatePicker(false); if (d) setJobDate(d); }} />
+							)}
+							<Picker selectedValue={jobType} onValueChange={setJobType} style={styles.picker}>
+								<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+								<Picker.Item label="Conservatory roof" value="Conservatory roof" />
+								<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+								<Picker.Item label="One-off window cleaning" value="One-off window cleaning" />
+								<Picker.Item label="Other" value="Other" />
+							</Picker>
+							{jobType === 'Other' && (
+								<TextInput style={styles.input} placeholder="Enter custom job type" value={customJobType} onChangeText={setCustomJobType} />
+							)}
+							<TextInput style={[styles.input, { minHeight: 80 }]} placeholder="Job Notes" value={jobNotes} onChangeText={setJobNotes} multiline textAlignVertical="top" />
+							<TextInput style={styles.input} placeholder="Job Price (£)" value={jobPrice} onChangeText={setJobPrice} keyboardType="numeric" />
+							<View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+								<Button title="Cancel" color="red" onPress={() => setAddModalVisible(false)} />
+								<Button title="Add Job" onPress={async () => {
+									if (!clientId) return;
+									try {
+										await addDoc(collection(db, 'jobs'), {
+											clientId,
+											providerId: 'test-provider-1',
+											serviceId: jobType === 'Other' ? customJobType.trim() : jobType,
+											propertyDetails: `${client?.address1 || client?.address || ''}, ${client?.town || ''}, ${client?.postcode || ''}`,
+											scheduledTime: format(jobDate, 'yyyy-MM-dd') + 'T09:00:00',
+											status: 'pending',
+											price: Number(jobPrice) || 0,
+											paymentStatus: 'unpaid'
+										});
+										setAddModalVisible(false);
+									} catch (e) {
+										Alert.alert('Error', 'Failed to add job');
+									}
+								}} />
+							</View>
+						</>
+					) : (
+						<>
+							<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+								<ThemedText style={{ marginRight: 8 }}>First visit: {format(recurringNextVisit, 'do MMMM yyyy')}</ThemedText>
+								{Platform.OS === 'web' ? (
+									<input type="date" value={format(recurringNextVisit, 'yyyy-MM-dd')} onChange={e => setRecurringNextVisit(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+								) : (
+									<Pressable style={styles.dateButton} onPress={() => setShowRecurringDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
+								)}
+							</View>
+							{showRecurringDatePicker && Platform.OS !== 'web' && (
+								<DateTimePicker value={recurringNextVisit} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowRecurringDatePicker(false); if (d) setRecurringNextVisit(d); }} />
+							)}
+							<Picker selectedValue={recurringServiceType} onValueChange={setRecurringServiceType} style={styles.picker}>
+								<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+								<Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
+								<Picker.Item label="Conservatory roof" value="Conservatory roof" />
+								<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+								<Picker.Item label="Pressure washing" value="Pressure washing" />
+								<Picker.Item label="Other" value="Other" />
+							</Picker>
+							{recurringServiceType === 'Other' && (
+								<TextInput style={styles.input} placeholder="Enter custom service type" value={customRecurringServiceType} onChangeText={setCustomRecurringServiceType} />
+							)}
+							<ThemedText style={{ marginTop: 8, marginBottom: 4 }}>Frequency (weeks)</ThemedText>
+							<Picker selectedValue={recurringFrequency} onValueChange={setRecurringFrequency} style={styles.picker}>
+								{[4,8,12,16,20,24,28,32,36,40,44,48,52].map(w => <Picker.Item key={w} label={`${w} weeks`} value={w} />)}
+							</Picker>
+							<TextInput style={styles.input} placeholder="Service Price (£)" value={recurringPrice} onChangeText={setRecurringPrice} keyboardType="numeric" />
+							<View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+								<Button title="Cancel" color="red" onPress={() => setAddModalVisible(false)} />
+								<Button title="Add Recurring Service" onPress={async () => {
+									if (!client || !clientId) return;
+									const finalType = recurringServiceType === 'Other' ? customRecurringServiceType.trim() : recurringServiceType;
+									if (!finalType) { Alert.alert('Error', 'Service type required'); return; }
+									try {
+										const newService: AdditionalService = { id: Date.now().toString(), serviceType: finalType, frequency: recurringFrequency, price: Number(recurringPrice) || 0, nextVisit: format(recurringNextVisit, 'yyyy-MM-dd'), isActive: true } as any;
+										const updated = [...(client.additionalServices || []), newService];
+										await updateDoc(doc(db, 'clients', clientId), { additionalServices: updated });
+										setAdditionalServices(updated);
+										setAddModalVisible(false);
+									} catch (e) {
+										Alert.alert('Error', 'Failed to add service');
+									}
+								}} />
+							</View>
+						</>
+					)}
+				</View>
+			</View>
+		</Modal>
+
 		</ThemedView>
 	);
 }
