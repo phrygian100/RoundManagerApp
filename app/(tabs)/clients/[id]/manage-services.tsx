@@ -1,10 +1,9 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
@@ -22,19 +21,10 @@ export default function ManageServicesScreen() {
 	const [plans, setPlans] = useState<EditablePlan[]>([]);
 	const [client, setClient] = useState<Client | null>(null);
 	const [loading, setLoading] = useState(true);
-	const [creating, setCreating] = useState(false);
 	const [pendingJobs, setPendingJobs] = useState<any[]>([]);
 	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 	const [lastSavedField, setLastSavedField] = useState<string>('');
 
-	// New plan state
-	const [newServiceType, setNewServiceType] = useState('window-cleaning');
-	const [newScheduleType, setNewScheduleType] = useState<'recurring' | 'one_off'>('recurring');
-	const [newFrequency, setNewFrequency] = useState('4');
-	const [newStartDate, setNewStartDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
-	const [newScheduledDate, setNewScheduledDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
-	const [newLastServiceDate, setNewLastServiceDate] = useState<string>('');
-	const [newPrice, setNewPrice] = useState<string>('25');
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
 	const loadPlans = useMemo(() => async () => {
@@ -137,49 +127,6 @@ export default function ManageServicesScreen() {
 		} catch (e) {
 			console.error('convert legacy failed', e);
 			Alert.alert('Error', 'Could not convert legacy service.');
-		}
-	};
-
-	const handleCreate = async () => {
-		if (!clientId) return;
-		setCreating(true);
-		try {
-			const ownerId = await getDataOwnerId();
-			if (!ownerId) {
-				Alert.alert('Error', 'Could not determine account owner.');
-				return;
-			}
-			const now = new Date().toISOString();
-			const base: any = {
-				ownerId,
-				clientId,
-				serviceType: newServiceType,
-				scheduleType: newScheduleType,
-				price: Number(newPrice) || 25,
-				isActive: true,
-				lastServiceDate: newLastServiceDate ? newLastServiceDate : null,
-				createdAt: now,
-				updatedAt: now,
-			};
-			if (newScheduleType === 'recurring') {
-				const freq = Number(newFrequency);
-				if (!freq || freq <= 0) {
-					Alert.alert('Error', 'Frequency must be a positive number of weeks.');
-					return;
-				}
-				base.frequencyWeeks = freq;
-				base.startDate = newStartDate;
-			} else {
-				base.scheduledDate = newScheduledDate;
-			}
-			await addDoc(collection(db, 'servicePlans'), base);
-			await loadPlans();
-			Alert.alert('Success', 'Service plan created.');
-		} catch (e) {
-			console.error('Failed to create plan', e);
-			Alert.alert('Error', 'Failed to create service plan.');
-		} finally {
-			setCreating(false);
 		}
 	};
 
@@ -343,9 +290,9 @@ export default function ManageServicesScreen() {
 											{Platform.OS === 'web' ? (
 												<input
 													type="date"
-																											value={plan.startDate || ''}
-														onChange={e => updatePlan(plan.id, { startDate: e.target.value }, 'Next Service')}
-														style={styles.webDateInput as any}
+													value={plan.startDate || ''}
+													onChange={e => updatePlan(plan.id, { startDate: e.target.value }, 'Next Service')}
+													style={styles.webDateInput as any}
 												/>
 											) : (
 												<>
@@ -358,13 +305,13 @@ export default function ManageServicesScreen() {
 															mode="date"
 															display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 															onChange={(_, selected) => {
-																																setShowDatePickerKey(null);
-																	if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') }, 'Next Service');
-														}}
-													/>
-												)}
-											</>
-										)}
+																setShowDatePickerKey(null);
+																if (selected) updatePlan(plan.id, { startDate: format(selected, 'yyyy-MM-dd') }, 'Next Service');
+															}}
+														/>
+													)}
+												</>
+											)}
 										</View>
 									</>
 								) : (
@@ -373,9 +320,9 @@ export default function ManageServicesScreen() {
 										{Platform.OS === 'web' ? (
 											<input
 												type="date"
-																									value={plan.scheduledDate || ''}
-													onChange={e => updatePlan(plan.id, { scheduledDate: e.target.value }, 'Next Service')}
-													style={styles.webDateInput as any}
+												value={plan.scheduledDate || ''}
+												onChange={e => updatePlan(plan.id, { scheduledDate: e.target.value }, 'Next Service')}
+												style={styles.webDateInput as any}
 											/>
 										) : (
 											<>
@@ -388,33 +335,33 @@ export default function ManageServicesScreen() {
 														mode="date"
 														display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 														onChange={(_, selected) => {
-																													setShowDatePickerKey(null);
+															setShowDatePickerKey(null);
 															if (selected) updatePlan(plan.id, { scheduledDate: format(selected, 'yyyy-MM-dd') }, 'Next Service');
-													}}
-												/>
-											)}
+														}}
+													/>
+												)}
 											</>
 										)}
 									</View>
 								)}
 
-																	<View style={styles.planRow}>
-										<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
-										<TextInput
-											style={styles.input}
-											value={String(plan.price)}
-											onChangeText={v => updatePlan(plan.id, { price: Number(v) || 0 }, 'Price')}
-											keyboardType="numeric"
-										/>
-									</View>
+								<View style={styles.planRow}>
+									<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
+									<TextInput
+										style={styles.input}
+										value={String(plan.price)}
+										onChangeText={v => updatePlan(plan.id, { price: Number(v) || 0 }, 'Price')}
+										keyboardType="numeric"
+									/>
+								</View>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Last Service Date</ThemedText>
 									{Platform.OS === 'web' ? (
 										<input
 											type="date"
-																								value={plan.lastServiceDate || ''}
-													onChange={e => updatePlan(plan.id, { lastServiceDate: e.target.value || null }, 'Last Service Date')}
-													style={styles.webDateInput as any}
+											value={plan.lastServiceDate || ''}
+											onChange={e => updatePlan(plan.id, { lastServiceDate: e.target.value || null }, 'Last Service Date')}
+											style={styles.webDateInput as any}
 										/>
 									) : (
 										<>
@@ -427,10 +374,10 @@ export default function ManageServicesScreen() {
 													mode="date"
 													display={Platform.OS === 'ios' ? 'spinner' : 'default'}
 													onChange={(_, selected) => {
-																												setShowDatePickerKey(null);
-															updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null }, 'Last Service Date');
-												}}
-											/>
+														setShowDatePickerKey(null);
+														updatePlan(plan.id, { lastServiceDate: selected ? format(selected, 'yyyy-MM-dd') : null }, 'Last Service Date');
+													}}
+												/>
 											)}
 										</>
 									)}
@@ -494,7 +441,7 @@ export default function ManageServicesScreen() {
 														if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
 															console.log('Creating recurring jobs for plan:', plan);
 															const { createJobsForServicePlan } = await import('../../../../services/jobService');
-															const jobsCreated = await createJobsForServicePlan(plan, client, 52); // Generate 1 year of jobs
+															const jobsCreated = await createJobsForServicePlan(plan, client as Client, 52); // Generate 1 year of jobs
 															console.log('Created', jobsCreated, 'new jobs');
 														} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
 															console.log('Creating one-off job for plan:', plan);
@@ -515,7 +462,8 @@ export default function ManageServicesScreen() {
 														}
 													} catch (createError) {
 														console.error('Failed to create new jobs:', createError);
-														throw new Error(`Failed to create new jobs: ${createError.message}`);
+														const message = createError instanceof Error ? createError.message : String(createError);
+														throw new Error(`Failed to create new jobs: ${message}`);
 													}
 													
 													if (Platform.OS === 'web') {
@@ -565,80 +513,7 @@ export default function ManageServicesScreen() {
 					)}
 				</View>
 
-				{/* Create new plan */}
-				<View style={styles.section}>
-					<ThemedText style={styles.sectionTitle}>Add Service Plan</ThemedText>
-					<View style={styles.inputRow}> 
-						<ThemedText style={styles.inputLabel}>Service Type</ThemedText>
-						<TextInput style={styles.input} value={newServiceType} onChangeText={setNewServiceType} placeholder="e.g. window-cleaning" />
-					</View>
-					<View style={styles.inputRow}>
-						<ThemedText style={styles.inputLabel}>Schedule</ThemedText>
-						<Picker selectedValue={newScheduleType} onValueChange={v => setNewScheduleType(v)} style={styles.picker}>
-							<Picker.Item label="Recurring" value="recurring" />
-							<Picker.Item label="One-off" value="one_off" />
-						</Picker>
-					</View>
-					{newScheduleType === 'recurring' ? (
-						<>
-							<View style={styles.inputRow}>
-								<ThemedText style={styles.inputLabel}>Frequency (weeks)</ThemedText>
-								<TextInput style={styles.input} value={newFrequency} onChangeText={setNewFrequency} keyboardType="numeric" placeholder="4" />
-							</View>
-							<View style={styles.inputRow}>
-								<ThemedText style={styles.inputLabel}>Next Service</ThemedText>
-								{Platform.OS === 'web' ? (
-									<input type="date" value={newStartDate} onChange={e => setNewStartDate(e.target.value)} style={styles.webDateInput as any} />
-								) : (
-									<>
-										<Pressable style={styles.dateButton} onPress={() => setShowDatePickerKey('new_start')}>
-											<ThemedText style={styles.dateButtonText}>{newStartDate ? format(parseISO(newStartDate), 'do MMM yyyy') : 'Set date'}</ThemedText>
-										</Pressable>
-										{showDatePickerKey === 'new_start' && (
-											<DateTimePicker value={parseISO(newStartDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowDatePickerKey(null); if (d) setNewStartDate(format(d, 'yyyy-MM-dd')); }} />
-										)}
-									</>
-								)}
-							</View>
-						</>
-					) : (
-						<View style={styles.inputRow}>
-							<ThemedText style={styles.inputLabel}>Next Service</ThemedText>
-							{Platform.OS === 'web' ? (
-								<input type="date" value={newScheduledDate} onChange={e => setNewScheduledDate(e.target.value)} style={styles.webDateInput as any} />
-							) : (
-								<>
-									<Pressable style={styles.dateButton} onPress={() => setShowDatePickerKey('new_sched')}>
-										<ThemedText style={styles.dateButtonText}>{newScheduledDate ? format(parseISO(newScheduledDate), 'do MMM yyyy') : 'Set date'}</ThemedText>
-									</Pressable>
-									{showDatePickerKey === 'new_sched' && (
-										<DateTimePicker value={parseISO(newScheduledDate)} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowDatePickerKey(null); if (d) setNewScheduledDate(format(d, 'yyyy-MM-dd')); }} />
-									)}
-								</>
-							)}
-						</View>
-					)}
-					<View style={styles.inputRow}>
-						<ThemedText style={styles.inputLabel}>Last Service Date</ThemedText>
-						{Platform.OS === 'web' ? (
-							<input type="date" value={newLastServiceDate} onChange={e => setNewLastServiceDate(e.target.value)} style={styles.webDateInput as any} />
-						) : (
-							<>
-								<Pressable style={styles.dateButton} onPress={() => setShowDatePickerKey('new_last')}>
-									<ThemedText style={styles.dateButtonText}>{newLastServiceDate ? format(parseISO(newLastServiceDate), 'do MMM yyyy') : 'None'}</ThemedText>
-								</Pressable>
-								{showDatePickerKey === 'new_last' && (
-									<DateTimePicker value={newLastServiceDate ? parseISO(newLastServiceDate) : new Date()} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowDatePickerKey(null); setNewLastServiceDate(d ? format(d, 'yyyy-MM-dd') : ''); }} />
-								)}
-							</>
-						)}
-					</View>
-					<View style={styles.inputRow}>
-						<ThemedText style={styles.inputLabel}>Price (£)</ThemedText>
-						<TextInput style={styles.input} value={newPrice} onChangeText={setNewPrice} keyboardType="numeric" placeholder="25" />
-					</View>
-					<Button title={creating ? 'Creating...' : 'Create Plan'} onPress={handleCreate} disabled={creating} />
-				</View>
+				{/* Add Service Plan removed: manage additional services via Client "Add Service" modal */}
 			</ScrollView>
 		</ThemedView>
 	);

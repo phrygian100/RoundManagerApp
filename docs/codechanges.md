@@ -4,6 +4,12 @@
 - Files: `app/runsheet/[week].tsx`
 - Details: We now pass the client's formatted address to `formatAuditDescription('job_completed', address)` so entries read like "Marked job complete for \"12 High St, York, YO1\"".
 
+## 2025-09-16 – Manage Services: Remove Add Service Plan section
+- Change: Removed the "Add Service Plan" form from `app/(tabs)/clients/[id]/manage-services.tsx` to prevent unintended overwriting of an account's existing plan when specifying new services.
+- Rationale: Users should add or edit additional services only via the Client Details screen's "Add Service" modal. The Manage Services screen now focuses on converting legacy schedules to plans and editing existing plans without duplicating creation flows.
+- Impact: No behavior change for the Client Details page. Web and mobile unaffected otherwise. This reduces risk of regressions/overwrites and avoids overlapping systems managing the same data.
+- Files: `app/(tabs)/clients/[id]/manage-services.tsx`
+
 ## 2025-09-16 – Activity Log: Date range filters and pagination
 - Added ability to view historical activity beyond the recent 200 entries
 - Files: `services/auditService.ts`, `app/audit-log.tsx`
