@@ -47,6 +47,16 @@ export default function ManageServicesScreen() {
 	const [recurringNextVisit, setRecurringNextVisit] = useState(new Date());
 	const [showRecurringDatePicker, setShowRecurringDatePicker] = useState(false);
 
+	// Edit Additional Service modal state
+	const [editModalVisible, setEditModalVisible] = useState(false);
+	const [selectedService, setSelectedService] = useState<AdditionalService | null>(null);
+	const [editServiceType, setEditServiceType] = useState('Gutter cleaning');
+	const [editCustomServiceType, setEditCustomServiceType] = useState('');
+	const [editServiceFrequency, setEditServiceFrequency] = useState(12);
+	const [editServicePrice, setEditServicePrice] = useState('');
+	const [editServiceNextVisit, setEditServiceNextVisit] = useState(new Date());
+	const [showEditServiceDatePicker, setShowEditServiceDatePicker] = useState(false);
+
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
 	const loadPlans = useMemo(() => async () => {
@@ -666,7 +676,23 @@ export default function ManageServicesScreen() {
 					<View style={styles.section}>
 						<ThemedText style={styles.sectionTitle}>Additional Services</ThemedText>
 						{additionalServices.filter(s => s.isActive).map(s => (
-							<View key={s.id} style={styles.planCard}>
+							<Pressable key={s.id} onPress={() => {
+								setSelectedService(s);
+								const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
+								if (predefinedTypes.includes(s.serviceType)) {
+									setEditServiceType(s.serviceType);
+									setEditCustomServiceType('');
+								} else {
+									setEditServiceType('Other');
+									setEditCustomServiceType(s.serviceType);
+								}
+								setEditServiceFrequency(s.frequency);
+								setEditServicePrice(String(s.price));
+								setEditServiceNextVisit(new Date(s.nextVisit));
+								setShowEditServiceDatePicker(false);
+								setEditModalVisible(true);
+							}}>
+							<View style={styles.planCard}>
 								<View style={styles.planRow}>
 									<ThemedText style={styles.planLabel}>Service</ThemedText>
 									<ThemedText style={styles.planValue}>{s.serviceType}</ThemedText>
@@ -711,6 +737,7 @@ export default function ManageServicesScreen() {
 								</Pressable>
 							</View>
 							</View>
+							</Pressable>
 						))}
 					</View>
 				)}
@@ -829,6 +856,63 @@ export default function ManageServicesScreen() {
 							</View>
 						</>
 					)}
+				</View>
+			</View>
+		</Modal>
+
+		{/* Edit Additional Service Modal */}
+		<Modal
+			animationType="slide"
+			transparent={true}
+			visible={editModalVisible}
+			onRequestClose={() => setEditModalVisible(false)}
+		>
+			<View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
+				<View style={{ width: '90%', maxWidth: 800, backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
+					<ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Edit Additional Service</ThemedText>
+					<Picker selectedValue={editServiceType} onValueChange={setEditServiceType} style={styles.picker}>
+						<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
+						<Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
+						<Picker.Item label="Conservatory roof" value="Conservatory roof" />
+						<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
+						<Picker.Item label="Pressure washing" value="Pressure washing" />
+						<Picker.Item label="Other" value="Other" />
+					</Picker>
+					{editServiceType === 'Other' && (
+						<TextInput style={styles.input} placeholder="Enter custom service type" value={editCustomServiceType} onChangeText={setEditCustomServiceType} />
+					)}
+					<ThemedText style={{ marginTop: 8, marginBottom: 4 }}>Frequency (weeks between visits):</ThemedText>
+					<Picker selectedValue={editServiceFrequency} onValueChange={setEditServiceFrequency} style={styles.picker}>
+						{[4,8,12,16,20,24,28,32,36,40,44,48,52].map(w => <Picker.Item key={w} label={`${w} weeks`} value={w} />)}
+					</Picker>
+					<TextInput style={styles.input} placeholder="Service Price (£)" value={editServicePrice} onChangeText={setEditServicePrice} keyboardType="numeric" />
+					<View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
+						<ThemedText style={{ marginRight: 8 }}>Next visit: {format(editServiceNextVisit, 'do MMMM yyyy')}</ThemedText>
+						{Platform.OS === 'web' ? (
+							<input type="date" value={format(editServiceNextVisit, 'yyyy-MM-dd')} onChange={e => setEditServiceNextVisit(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+						) : (
+							<Pressable style={styles.dateButton} onPress={() => setShowEditServiceDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
+						)}
+					</View>
+					{showEditServiceDatePicker && Platform.OS !== 'web' && (
+						<DateTimePicker value={editServiceNextVisit} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowEditServiceDatePicker(false); if (d) setEditServiceNextVisit(d); }} />
+					)}
+					<View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+						<Button title="Cancel" color="red" onPress={() => setEditModalVisible(false)} />
+						<Button title="Save Changes" onPress={async () => {
+							if (!selectedService || !clientId) return;
+							const finalType = editServiceType === 'Other' ? editCustomServiceType.trim() : editServiceType;
+							try {
+								const updatedService: AdditionalService = { ...selectedService, serviceType: finalType, frequency: editServiceFrequency, price: Number(editServicePrice), nextVisit: format(editServiceNextVisit, 'yyyy-MM-dd'), isActive: true } as any;
+								const updated = additionalServices.map(s => s.id === updatedService.id ? updatedService : s);
+								await updateDoc(doc(db, 'clients', clientId), { additionalServices: updated });
+								setAdditionalServices(updated);
+								setEditModalVisible(false);
+							} catch (e) {
+								Alert.alert('Error', 'Failed to update service');
+							}
+						}} />
+					</View>
 				</View>
 			</View>
 		</Modal>
