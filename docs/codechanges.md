@@ -1,4 +1,9 @@
 ## 2025-01-23
+## 2025-09-16 – Activity Log: Include job address for completions
+- Change: When marking a job complete from the runsheet, the audit log entry now includes the job's address instead of a generic "Job" label.
+- Files: `app/runsheet/[week].tsx`
+- Details: We now pass the client's formatted address to `formatAuditDescription('job_completed', address)` so entries read like "Marked job complete for \"12 High St, York, YO1\"".
+
 ## 2025-09-15 – Quotes: Add Won and Lost sections; change delete behavior
 - Added collapsible section headers and a global search bar on Quotes screen
 - Fixed web build error: corrected dynamic import path in `app/(tabs)/clients/[id]/manage-services.tsx` from `'../../../../services/jobService'` to `'../../../services/jobService'` so Expo web bundler (Metro) can resolve the module during static export.

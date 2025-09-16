@@ -561,11 +561,17 @@ export default function RunsheetWeekScreen() {
 
     // 🔍 Audit log for marking job complete
     if (!isCompleted) {
+      // Try to include the client address in the log description for clarity
+      const completedJob = jobs.find(j => j.id === jobId);
+      const jobAddress = completedJob && completedJob.client
+        ? `${completedJob.client.address1}, ${completedJob.client.town}, ${completedJob.client.postcode}`
+        : undefined;
+
       await logAction(
         'job_completed',
         'job',
         jobId,
-        formatAuditDescription('job_completed')
+        formatAuditDescription('job_completed', jobAddress)
       );
 
       // Record completion sequence and detect out-of-order within the current vehicle block (for today only)
