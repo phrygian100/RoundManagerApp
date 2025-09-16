@@ -1,4 +1,4 @@
-import { addDoc, collection, collectionGroup, getDocs, limit, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, collectionGroup, getDocs, limit, orderBy, query, startAfter, where } from 'firebase/firestore';
 import { auth, db } from '../core/firebase';
 import { getDataOwnerId, getUserSession } from '../core/session';
 import type { AuditActionType, AuditEntityType, AuditLog } from '../types/audit';
@@ -151,6 +151,69 @@ export async function getAuditLogs(limitCount: number = 100): Promise<AuditLog[]
     } as AuditLog));
   } catch (error) {
     console.error('Error fetching audit logs:', error);
+    throw error;
+  }
+}
+
+/**
+ * Options for filtered/paginated audit log queries
+ */
+export type AuditQueryOptions = {
+  limitCount?: number;
+  startDate?: string | Date; // inclusive (start of day if date-only)
+  endDate?: string | Date;   // inclusive (end of day if date-only)
+  startAfterTimestamp?: string; // pagination cursor (ISO string of last item's timestamp)
+};
+
+function toIsoStart(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : new Date(date);
+  // If it's a date-only string (YYYY-MM-DD), normalize to start of day local
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    d.setHours(0, 0, 0, 0);
+  }
+  return d.toISOString();
+}
+
+function toIsoEnd(date: string | Date): string {
+  const d = typeof date === 'string' ? new Date(date) : new Date(date);
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    d.setHours(23, 59, 59, 999);
+  }
+  return d.toISOString();
+}
+
+/**
+ * Fetch audit logs with optional date range and pagination.
+ * Returns logs plus a cursor (timestamp string) for subsequent pages.
+ */
+export async function getAuditLogsFiltered(options: AuditQueryOptions = {}): Promise<{ logs: AuditLog[]; nextPageCursor: string | null; }>{
+  const { limitCount = 100, startDate, endDate, startAfterTimestamp } = options;
+  try {
+    const session = await getUserSession();
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) {
+      throw new Error('No owner ID found');
+    }
+
+    const constraints: any[] = [where('ownerId', '==', ownerId)];
+    if (startDate) constraints.push(where('timestamp', '>=', toIsoStart(startDate)));
+    if (endDate) constraints.push(where('timestamp', '<=', toIsoEnd(endDate)));
+    constraints.push(orderBy('timestamp', 'desc'));
+    if (startAfterTimestamp) constraints.push(startAfter(startAfterTimestamp));
+    constraints.push(limit(limitCount));
+
+    const auditQuery = query(collection(db, AUDIT_COLLECTION), ...constraints);
+    const snapshot = await getDocs(auditQuery);
+    const logs = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as any) })) as AuditLog[];
+    const last = snapshot.docs[snapshot.docs.length - 1];
+    const nextPageCursor = last ? (last.data().timestamp as string) : null;
+    return { logs, nextPageCursor };
+  } catch (error) {
+    console.error('Error fetching filtered audit logs:', error);
     throw error;
   }
 }

@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
-import { getAuditLogs } from '../services/auditService';
+import { getAuditLogs, getAuditLogsFiltered } from '../services/auditService';
 import type { AuditLog } from '../types/audit';
 
 const ActionTypeColors: Record<string, string> = {
@@ -59,12 +59,28 @@ export default function AuditLogScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
+  const [fromDate, setFromDate] = useState<string | null>(null);
+  const [toDate, setToDate] = useState<string | null>(null);
+  const [nextPageCursor, setNextPageCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const loadAuditLogs = async () => {
     try {
       setLoading(true);
-      const logs = await getAuditLogs(200); // Get latest 200 entries
-      setAuditLogs(logs);
+      // Use filtered fetch when date range is applied; otherwise default recent 200
+      if (fromDate || toDate) {
+        const { logs, nextPageCursor } = await getAuditLogsFiltered({
+          startDate: fromDate || undefined,
+          endDate: toDate || undefined,
+          limitCount: 200,
+        });
+        setAuditLogs(logs);
+        setNextPageCursor(nextPageCursor);
+      } else {
+        const logs = await getAuditLogs(200);
+        setAuditLogs(logs);
+        setNextPageCursor(null);
+      }
     } catch (error) {
       console.error('Error loading audit logs:', error);
     } finally {
@@ -80,7 +96,26 @@ export default function AuditLogScreen() {
 
   useEffect(() => {
     loadAuditLogs();
-  }, []);
+  }, [fromDate, toDate]);
+
+  const loadMore = async () => {
+    if (!nextPageCursor || loadingMore) return;
+    try {
+      setLoadingMore(true);
+      const { logs, nextPageCursor: next } = await getAuditLogsFiltered({
+        startDate: fromDate || undefined,
+        endDate: toDate || undefined,
+        startAfterTimestamp: nextPageCursor,
+        limitCount: 200,
+      });
+      setAuditLogs(prev => [...prev, ...logs]);
+      setNextPageCursor(next);
+    } catch (e) {
+      console.error('Failed to load more audit logs:', e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Filter and search logic
   const filteredLogs = auditLogs.filter(log => {
@@ -157,6 +192,31 @@ export default function AuditLogScreen() {
             />
           </View>
 
+          {/* Date Range */}
+          <View style={styles.dateRangeRow}>
+            <View style={styles.dateInputWrapper}>
+              <Text style={styles.dateLabel}>From</Text>
+              <TextInput
+                placeholder="YYYY-MM-DD"
+                value={fromDate || ''}
+                onChangeText={(t) => setFromDate(t || null)}
+                style={styles.dateInput}
+              />
+            </View>
+            <View style={styles.dateInputWrapper}>
+              <Text style={styles.dateLabel}>To</Text>
+              <TextInput
+                placeholder="YYYY-MM-DD"
+                value={toDate || ''}
+                onChangeText={(t) => setToDate(t || null)}
+                style={styles.dateInput}
+              />
+            </View>
+            <Pressable style={styles.clearDatesButton} onPress={() => { setFromDate(null); setToDate(null); }}>
+              <Text style={styles.clearDatesText}>Clear</Text>
+            </Pressable>
+          </View>
+
           {/* Filter Buttons */}
           <ScrollView 
             horizontal 
@@ -207,6 +267,15 @@ export default function AuditLogScreen() {
                   }
                 </Text>
               </View>
+            }
+            ListFooterComponent={
+              nextPageCursor ? (
+                <View style={{ padding: 16 }}>
+                  <Pressable onPress={loadMore} style={styles.loadMoreButton}>
+                    <Text style={styles.loadMoreText}>{loadingMore ? 'Loading…' : 'Load more'}</Text>
+                  </Pressable>
+                </View>
+              ) : null
             }
           />
         )}
@@ -261,6 +330,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 16,
   },
+  dateRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  dateInputWrapper: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    marginBottom: 4,
+  },
+  dateInput: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  clearDatesButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f1f3f5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+  },
+  clearDatesText: {
+    color: '#495057',
+    fontWeight: '600',
+  },
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -283,6 +387,19 @@ const styles = StyleSheet.create({
   },
   list: {
     flex: 1,
+  },
+  loadMoreButton: {
+    alignSelf: 'center',
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#dee2e6',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  loadMoreText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   logItem: {
     backgroundColor: '#fff',

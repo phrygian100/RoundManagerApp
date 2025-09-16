@@ -4,6 +4,17 @@
 - Files: `app/runsheet/[week].tsx`
 - Details: We now pass the client's formatted address to `formatAuditDescription('job_completed', address)` so entries read like "Marked job complete for \"12 High St, York, YO1\"".
 
+## 2025-09-16 – Activity Log: Date range filters and pagination
+- Added ability to view historical activity beyond the recent 200 entries
+- Files: `services/auditService.ts`, `app/audit-log.tsx`
+- Service:
+  - New `getAuditLogsFiltered({ startDate, endDate, startAfterTimestamp, limitCount })`
+  - Supports date range queries and cursor-based pagination (ordered by timestamp desc)
+- UI:
+  - From/To inputs (`YYYY-MM-DD`) to filter by date range
+  - "Load more" button appends older entries while filters remain applied
+  - Pull-to-refresh respects current filters
+
 ## 2025-09-15 – Quotes: Add Won and Lost sections; change delete behavior
 - Added collapsible section headers and a global search bar on Quotes screen
 - Fixed web build error: corrected dynamic import path in `app/(tabs)/clients/[id]/manage-services.tsx` from `'../../../../services/jobService'` to `'../../../services/jobService'` so Expo web bundler (Metro) can resolve the module during static export.
