@@ -109,11 +109,9 @@ export default function ClientDetailScreen() {
         const plansQuery = ownerId
           ? query(collection(db, 'servicePlans'), 
               where('ownerId', '==', ownerId), 
-              where('clientId', '==', id),
-              where('isActive', '==', true))
+              where('clientId', '==', id))
           : query(collection(db, 'servicePlans'), 
-              where('clientId', '==', id),
-              where('isActive', '==', true));
+              where('clientId', '==', id));
         const plansSnapshot = await getDocs(plansQuery);
         const plans = plansSnapshot.docs.map(doc => ({ 
           id: doc.id, 
@@ -756,35 +754,49 @@ export default function ClientDetailScreen() {
                 icon={<Ionicons name="build-outline" size={22} color="#1976d2" />}
               >
                 {servicePlans.length > 0 ? (
-                  servicePlans.map((plan, index) => (
-                    <View key={plan.id} style={index > 0 ? { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' } : {}}>
-                      <InfoRow label="Service" value={plan.serviceType} />
-                      <InfoRow label="Type" value={plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'} />
-                      {plan.scheduleType === 'recurring' && (
-                        <InfoRow label="Frequency" value={`Every ${plan.frequencyWeeks} weeks`} />
-                      )}
-                      <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
-                      <InfoRow 
-                        label="Next Service" 
-                        value={plan.scheduleType === 'recurring' 
-                          ? (plan.startDate 
-                            ? new Date(plan.startDate).toLocaleDateString('en-GB', {
-                                day: '2-digit',
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : 'Not scheduled')
-                          : (plan.scheduledDate
-                            ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
-                                day: '2-digit',
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : 'Not scheduled')
-                        } 
-                      />
-                    </View>
-                  ))
+                  (() => {
+                    const activePlans = servicePlans.filter(p => p.isActive);
+                    if (activePlans.length === 0) {
+                      return (
+                        <View>
+                          <InfoRow label="Service" value="N/A" />
+                          <InfoRow label="Type" value="N/A" />
+                          <InfoRow label="Frequency" value="N/A" />
+                          <InfoRow label="Price" value="N/A" />
+                          <InfoRow label="Next Service" value="N/A" />
+                        </View>
+                      );
+                    }
+                    return activePlans.map((plan, index) => (
+                      <View key={plan.id} style={index > 0 ? { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' } : {}}>
+                        <InfoRow label="Service" value={plan.serviceType} />
+                        <InfoRow label="Type" value={plan.scheduleType === 'recurring' ? 'Recurring' : 'One-off'} />
+                        {plan.scheduleType === 'recurring' && (
+                          <InfoRow label="Frequency" value={`Every ${plan.frequencyWeeks} weeks`} />
+                        )}
+                        <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
+                        <InfoRow 
+                          label="Next Service" 
+                          value={plan.scheduleType === 'recurring' 
+                            ? (plan.startDate 
+                              ? new Date(plan.startDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })
+                              : 'Not scheduled')
+                            : (plan.scheduledDate
+                              ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })
+                              : 'Not scheduled')
+                          } 
+                        />
+                      </View>
+                    ));
+                  })()
                 ) : (
                   // Fallback to legacy fields if no service plans
                   <>

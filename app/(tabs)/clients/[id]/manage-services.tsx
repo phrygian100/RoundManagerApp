@@ -142,6 +142,24 @@ export default function ManageServicesScreen() {
 			const planRef = doc(db, 'servicePlans', planId);
 			batch.update(planRef, { ...updates, updatedAt: new Date().toISOString() });
 			
+			// If service name changed, update pending/scheduled/in_progress jobs to the new serviceId
+			if ('serviceType' in updates && updates.serviceType && updates.serviceType !== plan.serviceType) {
+				const ownerIdForRename = await getDataOwnerId();
+				if (ownerIdForRename) {
+					const renameQuery = query(
+						collection(db, 'jobs'),
+						where('ownerId', '==', ownerIdForRename),
+						where('clientId', '==', clientId),
+						where('serviceId', '==', plan.serviceType),
+						where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+					);
+					const renameSnap = await getDocs(renameQuery);
+					renameSnap.forEach(jobDoc => {
+						batch.update(jobDoc.ref, { serviceId: String(updates.serviceType) });
+					});
+				}
+			}
+			
 			// If price changed, update all pending jobs for this service
 			if ('price' in updates && updates.price !== plan.price) {
 				const ownerId = await getDataOwnerId();
