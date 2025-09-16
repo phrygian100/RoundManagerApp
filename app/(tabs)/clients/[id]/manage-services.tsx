@@ -412,20 +412,21 @@ export default function ManageServicesScreen() {
 											const ownerId = await getDataOwnerId();
 											if (!ownerId) return;
 
-											// Build jobs query for this plan's service
+											// Build broad jobs query for this client (filter in memory to avoid index gaps)
 											const jobsQuery = query(
 												collection(db, 'jobs'),
-												where('ownerId', '==', ownerId),
-												where('clientId', '==', clientId),
-												where('serviceId', '==', plan.serviceType),
-												where('status', 'in', ['pending', 'scheduled'])
+												where('clientId', '==', clientId)
 											);
 
 											if (!val) {
-												// Turning OFF: delete all pending/scheduled jobs
+												// Turning OFF: delete all future/scheduled jobs for this service
 												const jobsSnapshot = await getDocs(jobsQuery);
 												for (const jobDoc of jobsSnapshot.docs) {
-													try { await deleteDoc(jobDoc.ref); } catch {}
+													const jd: any = jobDoc.data();
+													const status = jd.status;
+													if (jd.serviceId === plan.serviceType && (status === 'pending' || status === 'scheduled' || status === 'in_progress')) {
+														try { await deleteDoc(jobDoc.ref); } catch {}
+													}
 												}
 											} else {
 												// Turning ON: regenerate jobs based on current plan
