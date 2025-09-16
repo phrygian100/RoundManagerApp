@@ -1777,6 +1777,21 @@ export default function ClientDetailScreen() {
                         });
 
                         setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
+                        // Delete any pending/scheduled/in_progress jobs for this additional service
+                        try {
+                          const jobsSnap = await getDocs(query(collection(db, 'jobs'), where('clientId', '==', id as string)));
+                          for (const jobDoc of jobsSnap.docs) {
+                            const jd: any = jobDoc.data();
+                            const st = jd.status;
+                            if (jd.serviceId === selectedService.serviceType && (st === 'pending' || st === 'scheduled' || st === 'in_progress')) {
+                              try { await deleteDoc(jobDoc.ref); } catch {}
+                            }
+                          }
+                          // Update local schedule list
+                          setPendingJobs(prev => prev.filter(j => j.serviceId !== selectedService.serviceType));
+                        } catch (jobDelErr) {
+                          console.warn('Failed to delete jobs for removed additional service', jobDelErr);
+                        }
                         setEditServiceModalVisible(false);
                         setSelectedService(null);
                         setEditServiceType('');

@@ -1,14 +1,14 @@
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
-import type { Client } from '../../../../types/client';
+import type { AdditionalService, Client } from '../../../../types/client';
 import type { ServicePlan } from '../../../../types/servicePlan';
 
 type EditablePlan = ServicePlan & { _isEditing?: boolean };
@@ -26,6 +26,7 @@ export default function ManageServicesScreen() {
 	const [lastSavedField, setLastSavedField] = useState<string>('');
 	const [serviceDrafts, setServiceDrafts] = useState<Record<string, string>>({});
 	const [autoConvertAttempted, setAutoConvertAttempted] = useState(false);
+	const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
 
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
 
@@ -53,6 +54,7 @@ export default function ManageServicesScreen() {
 				if (clientSnap.exists()) {
 					const c = { id: clientSnap.id, ...(clientSnap.data() as any) } as any;
 					setClient(c);
+					setAdditionalServices(Array.isArray(c.additionalServices) ? (c.additionalServices as AdditionalService[]) : []);
 					console.log('[ManageServices] client legacy fields', {
 						frequency: c.frequency,
 						nextVisit: c.nextVisit,
@@ -640,7 +642,59 @@ export default function ManageServicesScreen() {
 					)}
 				</View>
 
-				{/* Add Service Plan removed: manage additional services via Client "Add Service" modal */}
+				{/* Additional Services (legacy) */}
+				{additionalServices.filter(s => s.isActive).length > 0 && (
+					<View style={styles.section}>
+						<ThemedText style={styles.sectionTitle}>Additional Services</ThemedText>
+						{additionalServices.filter(s => s.isActive).map(s => (
+							<View key={s.id} style={styles.planCard}>
+								<View style={styles.planRow}>
+									<ThemedText style={styles.planLabel}>Service</ThemedText>
+									<ThemedText style={styles.planValue}>{s.serviceType}</ThemedText>
+								</View>
+								<View style={styles.planRow}>
+									<ThemedText style={styles.planLabel}>Frequency (weeks)</ThemedText>
+									<ThemedText style={styles.planValue}>{s.frequency}</ThemedText>
+								</View>
+								<View style={styles.planRow}>
+									<ThemedText style={styles.planLabel}>Next Service</ThemedText>
+									<ThemedText style={styles.planValue}>{s.nextVisit}</ThemedText>
+								</View>
+								<View style={styles.planRow}>
+									<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
+									<ThemedText style={styles.planValue}>{s.price}</ThemedText>
+								</View>
+								<View style={[styles.planRow, { borderTopWidth: 1, borderTopColor: '#eee', paddingTop: 8, marginTop: 8 }]}>
+									<Pressable 
+										style={[styles.dateButton, { backgroundColor: '#ff5252', borderColor: '#d32f2f' }]}
+										onPress={async () => {
+										try {
+											if (!clientId) return;
+											// Remove from client doc
+											const updated = additionalServices.filter(x => x.id !== s.id);
+											await updateDoc(doc(db, 'clients', clientId), { additionalServices: updated });
+											setAdditionalServices(updated);
+											// Delete related jobs (pending/scheduled/in_progress)
+											const jobsSnap = await getDocs(query(collection(db, 'jobs'), where('clientId', '==', clientId)));
+											for (const jobDoc of jobsSnap.docs) {
+												const jd: any = jobDoc.data();
+												const st = jd.status;
+												if (jd.serviceId === s.serviceType && (st === 'pending' || st === 'scheduled' || st === 'in_progress')) {
+													try { await deleteDoc(jobDoc.ref); } catch {}
+												}
+											}
+										} catch (err) {
+											console.error('Failed to delete additional service', err);
+										}
+									}}
+								>
+									<ThemedText style={[styles.dateButtonText, { color: '#fff', fontWeight: 'bold' }]}>Delete Service</ThemedText>
+								</Pressable>
+							</View>
+							</View>
+						))}
+					</View>
+				)}
 			</ScrollView>
 		</ThemedView>
 	);
