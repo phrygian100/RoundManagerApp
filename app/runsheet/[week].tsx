@@ -77,7 +77,6 @@ export default function RunsheetWeekScreen() {
   const [summaryTotal, setSummaryTotal] = useState(0);
   const [summaryDDJobs, setSummaryDDJobs] = useState<(Job & { client: Client | null })[]>([]);
   // Track per-job completion order and out-of-order swap proposals (per day)
-  const [completionSeq, setCompletionSeq] = useState(0);
   const [completionMap, setCompletionMap] = useState<Record<string, number>>({});
   const [swapProposalsByDay, setSwapProposalsByDay] = useState<Record<string, Array<{ jobId: string; swapWithJobId: string }>>>({});
   const [summarySwapChoices, setSummarySwapChoices] = useState<Array<{ jobId: string; swapWithJobId: string; selected: boolean }>>([]);
@@ -607,11 +606,20 @@ export default function RunsheetWeekScreen() {
         // Build the current vehicle's display order: filter to real jobs (exclude vehicle headers, notes, quotes)
         const vehicleJobs = data.slice(vehicleStartIndex, vehicleEndIndex)
           .filter((x: any) => x && !(x as any).__type && !isNoteJob(x) && !isQuoteJob(x));
-        // Update completion map with sequence number
-        setCompletionSeq(prev => prev + 1);
-        setCompletionMap(prev => ({ ...prev, [jobId]: (prev[jobId] ?? completionSeq + 1) }));
+        
+        // Count only real jobs completed today for the sequence number
+        const todayCompletedJobCount = Object.keys(completionMap).filter(id => {
+          const j = jobs.find(job => job.id === id);
+          if (!j) return false;
+          const jDate = j.scheduledTime ? parseISO(j.scheduledTime) : null;
+          return jDate && jDate.toDateString() === today.toDateString();
+        }).length;
+        
+        // Update completion map with sequence number (1-based for the day)
+        const newSeq = todayCompletedJobCount + 1;
+        setCompletionMap(prev => ({ ...prev, [jobId]: newSeq }));
         // Detect if this completion is out of order within vehicle: any earlier display job completed later than this one
-        const currentSeq = (completionMap[jobId] ?? completionSeq + 1);
+        const currentSeq = newSeq;
         const aheadJobs = vehicleJobs.slice(0, vehicleJobs.findIndex((x: any) => x.id === jobId));
         const firstAheadIncompleteOrNotCompletedFirst = aheadJobs.find((x: any) => {
           if (x.status === 'completed') {
@@ -1671,6 +1679,13 @@ ${signOff}`;
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
     
+    // Calculate the job's position in today's runsheet (1, 2, 3, etc.)
+    // Filter out vehicle headers, notes, and quotes to get only real jobs
+    const realJobs = section.data.filter((job: any) => 
+      job && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job)
+    );
+    const dayJobPosition = realJobs.findIndex((j: any) => j.id === item.id) + 1;
+    
     // Find which vehicle this job belongs to by looking backwards for the most recent vehicle header
     let vehicleStartIndex = 0;
     for (let i = index - 1; i >= 0; i--) {
@@ -1736,10 +1751,10 @@ ${signOff}`;
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={[styles.addressBlock, isDeferred && !isCompleted && styles.deferredAddressBlock]}>
               <View style={styles.addressBlockContent}>
-                {/* Round order number badge */}
-                {client?.roundOrderNumber && (
+                {/* Day position badge - shows job's order in today's runsheet */}
+                {dayJobPosition > 0 && (
                   <View style={styles.roundOrderBadge}>
-                    <Text style={styles.roundOrderText}>{client.roundOrderNumber}</Text>
+                    <Text style={styles.roundOrderText}>{dayJobPosition}</Text>
                   </View>
                 )}
                 <Text style={[styles.addressTitle, { flex: 1 }]}>{address}</Text>
@@ -1747,7 +1762,7 @@ ${signOff}`;
                 {isCompleted && completionMap[item.id] && (
                   <View style={[
                     styles.completionBadge,
-                    completionMap[item.id] !== client?.roundOrderNumber && styles.completionBadgeWarning
+                    completionMap[item.id] !== dayJobPosition && styles.completionBadgeWarning
                   ]}>
                     <Text style={styles.completionText}>→{completionMap[item.id]}</Text>
                   </View>
@@ -2168,7 +2183,6 @@ ${signOff}`;
                         setSummaryDayTitle(null);
                         // Clear completion tracking after finishing the day
                         setCompletionMap({});
-                        setCompletionSeq(0);
                       }
                     }}
                   >

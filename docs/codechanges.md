@@ -1,19 +1,20 @@
 ## 2025-01-23
 
-## 2025-01-23 – Runsheet: Visual round order indicators and working swap proposals
+## 2025-01-23 – Runsheet: Visual day position indicators and working swap proposals
 - **Fixed Bug**: Out-of-order detection was running but swap proposals were never shown to users
   - The `summarySwapChoices` array was never populated from `swapProposalsByDay`
   - Fixed by populating swap choices when day completion modal opens
 - **Added Visual Indicators**: 
-  - Round order number badge: Shows client's `roundOrderNumber` in a white semi-transparent badge on the blue address block
+  - Day position badge: Shows job's position in today's runsheet (1, 2, 3...) in a white semi-transparent badge on the blue address block
   - Completion sequence badge: Shows actual completion order (e.g., "→4") when job is marked complete
-  - Out-of-order highlighting: Completion badge turns amber when completion order doesn't match round order
+  - Out-of-order highlighting: Completion badge turns amber when completion order doesn't match day position
 - **UI Changes**:
-  - Jobs now show "[3] 123 Main Street [→4]" where 3 is round order and 4 is completion sequence
+  - Jobs now show "[1] 25 Bellflower Road [→1]" where first 1 is the job's position in today's list and →1 is completion sequence
   - Day completion modal now properly shows swap proposals with checkboxes
   - Users can select which round orders to swap when completing a day
+  - Completion sequence resets to 1 for each new day's jobs
 - **Files**: `app/runsheet/[week].tsx`
-- **Impact**: Users can now see when jobs are completed out of round order and are prompted to update round orders accordingly
+- **Impact**: Users can now see when jobs are completed out of their intended daily order and are prompted to update round orders accordingly
 
 ## 2025-09-16 – Activity Log: Include job address for completions
 - Change: When marking a job complete from the runsheet, the audit log entry now includes the job's address instead of a generic "Job" label.
