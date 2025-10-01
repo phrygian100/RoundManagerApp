@@ -1330,6 +1330,11 @@ ${signOff}`;
       // Process GoCardless payments for completed jobs (non-blocking UI)
       setSummaryProcessing(true);
       setSummaryDayTitle(dayTitle);
+      
+      // Populate swap choices from the proposals detected during job completion
+      const proposals = swapProposalsByDay[dayTitle] || [];
+      setSummarySwapChoices(proposals.map(p => ({ ...p, selected: false })));
+      
       setSummaryVisible(true);
       // Defer heavy processing to next tick to avoid UI jank/modal delay
       setTimeout(async () => {
@@ -1730,7 +1735,24 @@ ${signOff}`;
         <View style={{ flex: 1 }}>
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={[styles.addressBlock, isDeferred && !isCompleted && styles.deferredAddressBlock]}>
-              <Text style={styles.addressTitle}>{address}</Text>
+              <View style={styles.addressBlockContent}>
+                {/* Round order number badge */}
+                {client?.roundOrderNumber && (
+                  <View style={styles.roundOrderBadge}>
+                    <Text style={styles.roundOrderText}>{client.roundOrderNumber}</Text>
+                  </View>
+                )}
+                <Text style={[styles.addressTitle, { flex: 1 }]}>{address}</Text>
+                {/* Completion sequence badge - only show if completed and we have the sequence */}
+                {isCompleted && completionMap[item.id] && (
+                  <View style={[
+                    styles.completionBadge,
+                    completionMap[item.id] !== client?.roundOrderNumber && styles.completionBadgeWarning
+                  ]}>
+                    <Text style={styles.completionText}>→{completionMap[item.id]}</Text>
+                  </View>
+                )}
+              </View>
             </View>
             {isDeferred && !isCompleted && (
               <View style={styles.deferredLabel}>
@@ -2828,6 +2850,40 @@ const styles = StyleSheet.create({
     borderBottomColor: '#005bb5',
     marginBottom: 4,
     alignSelf: 'stretch',
+  },
+  addressBlockContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  roundOrderBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 24,
+    alignItems: 'center',
+  },
+  roundOrderText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  completionBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    minWidth: 32,
+    alignItems: 'center',
+  },
+  completionBadgeWarning: {
+    backgroundColor: 'rgba(255, 193, 7, 0.5)', // Amber color for out-of-order
+  },
+  completionText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   addressTitle: {
     color: '#fff',
