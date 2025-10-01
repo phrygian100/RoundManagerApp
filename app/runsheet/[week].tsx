@@ -618,27 +618,34 @@ export default function RunsheetWeekScreen() {
         // Update completion map with sequence number (1-based for the day)
         const newSeq = todayCompletedJobCount + 1;
         setCompletionMap(prev => ({ ...prev, [jobId]: newSeq }));
-        // Detect if this completion is out of order within vehicle: any earlier display job completed later than this one
-        const currentSeq = newSeq;
-        const aheadJobs = vehicleJobs.slice(0, vehicleJobs.findIndex((x: any) => x.id === jobId));
-        const firstAheadIncompleteOrNotCompletedFirst = aheadJobs.find((x: any) => {
-          if (x.status === 'completed') {
-            const seq = completionMap[x.id];
-            return typeof seq === 'number' && seq > currentSeq; // completed after this one
-          }
-          // not completed yet but is above, so this is out of order relative to the next expected job
-          return true;
+        
+        // Sort vehicle jobs by round order to get the intended completion order
+        const vehicleJobsByRoundOrder = [...vehicleJobs].sort((a: any, b: any) => {
+          const aRoundOrder = a.client?.roundOrderNumber || 999999;
+          const bRoundOrder = b.client?.roundOrderNumber || 999999;
+          return aRoundOrder - bRoundOrder;
         });
-        if (firstAheadIncompleteOrNotCompletedFirst) {
-          const nextExpected = firstAheadIncompleteOrNotCompletedFirst;
-          const dayTitle = section.title;
-          setSwapProposalsByDay(prev => {
-            const existing = prev[dayTitle] || [];
-            // Avoid duplicates
-            const exists = existing.some(p => (p.jobId === jobId && p.swapWithJobId === nextExpected.id) || (p.jobId === nextExpected.id && p.swapWithJobId === jobId));
-            if (exists) return prev;
-            return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: nextExpected.id }] };
-          });
+        
+        // Get this job's intended position (based on round order)
+        const intendedPosition = vehicleJobsByRoundOrder.findIndex((x: any) => x.id === jobId) + 1;
+        
+        // If completed out of intended order, create swap proposal
+        if (newSeq !== intendedPosition) {
+          // Find the job that should have been completed at this sequence
+          const shouldHaveBeenJob = vehicleJobsByRoundOrder[newSeq - 1];
+          if (shouldHaveBeenJob && shouldHaveBeenJob.id !== jobId) {
+            const dayTitle = section.title;
+            setSwapProposalsByDay(prev => {
+              const existing = prev[dayTitle] || [];
+              // Avoid duplicates
+              const exists = existing.some(p => 
+                (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) || 
+                (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
+              );
+              if (exists) return prev;
+              return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }] };
+            });
+          }
         }
       } catch (e) {
         console.warn('Completion order tracking failed:', e);
@@ -1679,12 +1686,21 @@ ${signOff}`;
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
     
-    // Calculate the job's position in today's runsheet (1, 2, 3, etc.)
-    // Filter out vehicle headers, notes, and quotes to get only real jobs
+    // Calculate the job's position based on round order within today's jobs
+    // This number should stay with the job even if it's reordered by ETA
     const realJobs = section.data.filter((job: any) => 
       job && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job)
     );
-    const dayJobPosition = realJobs.findIndex((j: any) => j.id === item.id) + 1;
+    
+    // Sort jobs by their client's round order to get the original intended position
+    const jobsByRoundOrder = [...realJobs].sort((a: any, b: any) => {
+      const aRoundOrder = a.client?.roundOrderNumber || 999999;
+      const bRoundOrder = b.client?.roundOrderNumber || 999999;
+      return aRoundOrder - bRoundOrder;
+    });
+    
+    // Find this job's position in the round-order-sorted list (1-based)
+    const dayJobPosition = jobsByRoundOrder.findIndex((j: any) => j.id === item.id) + 1;
     
     // Find which vehicle this job belongs to by looking backwards for the most recent vehicle header
     let vehicleStartIndex = 0;
