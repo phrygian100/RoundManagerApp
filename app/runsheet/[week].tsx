@@ -212,6 +212,15 @@ export default function RunsheetWeekScreen() {
         console.error('Error loading vehicles/members/rota:', err);
       }
 
+      // Populate completion map from database for jobs already marked complete
+      const initialCompletionMap: Record<string, number> = {};
+      jobsWithClients.forEach(job => {
+        if (job.status === 'completed' && (job as any).completionSequence) {
+          initialCompletionMap[job.id] = (job as any).completionSequence;
+        }
+      });
+      setCompletionMap(initialCompletionMap);
+      
       setJobs(jobsWithClients);
       
       // 5. Fetch and verify completed days for this week
@@ -550,10 +559,30 @@ export default function RunsheetWeekScreen() {
 
   const handleComplete = async (jobId: string, isCompleted: boolean, section?: any) => {
     setLoading(true);
-    await updateJobStatus(jobId, isCompleted ? 'pending' : 'completed');
+    
+    // Calculate completion sequence if marking as complete
+    let completionSeq: number | undefined;
+    if (!isCompleted) {
+      // Count jobs completed today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayCompletedCount = jobs.filter(j => {
+        if (j.status !== 'completed') return false;
+        const jDate = j.scheduledTime ? parseISO(j.scheduledTime) : null;
+        return jDate && jDate.toDateString() === today.toDateString();
+      }).length;
+      completionSeq = todayCompletedCount + 1;
+    }
+    
+    await updateJobStatus(jobId, isCompleted ? 'pending' : 'completed', completionSeq);
     setJobs((prev) =>
       prev.map((job) =>
-        job.id === jobId ? { ...job, status: isCompleted ? 'pending' : 'completed' } : job
+        job.id === jobId ? { 
+          ...job, 
+          status: isCompleted ? 'pending' : 'completed',
+          completionSequence: !isCompleted ? completionSeq : undefined,
+          completedAt: !isCompleted ? new Date().toISOString() : undefined
+        } : job
       )
     );
     setLoading(false);
@@ -583,6 +612,12 @@ export default function RunsheetWeekScreen() {
         today.setHours(0, 0, 0, 0);
         if (!jobDate || jobDate.toDateString() !== today.toDateString()) return; // only track for today
         if (!section) return; // need section data to establish per-vehicle order
+        
+        // Update local completion map to match database value
+        if (completionSeq) {
+          setCompletionMap(prev => ({ ...prev, [jobId]: completionSeq }));
+        }
+        
         // Find vehicle block bounds
         const data = section.data || [];
         const jobIndex = data.findIndex((d: any) => d && d.id === jobId);
@@ -607,18 +642,6 @@ export default function RunsheetWeekScreen() {
         const vehicleJobs = data.slice(vehicleStartIndex, vehicleEndIndex)
           .filter((x: any) => x && !(x as any).__type && !isNoteJob(x) && !isQuoteJob(x));
         
-        // Count only real jobs completed today for the sequence number
-        const todayCompletedJobCount = Object.keys(completionMap).filter(id => {
-          const j = jobs.find(job => job.id === id);
-          if (!j) return false;
-          const jDate = j.scheduledTime ? parseISO(j.scheduledTime) : null;
-          return jDate && jDate.toDateString() === today.toDateString();
-        }).length;
-        
-        // Update completion map with sequence number (1-based for the day)
-        const newSeq = todayCompletedJobCount + 1;
-        setCompletionMap(prev => ({ ...prev, [jobId]: newSeq }));
-        
         // Sort vehicle jobs by round order to get the intended completion order
         const vehicleJobsByRoundOrder = [...vehicleJobs].sort((a: any, b: any) => {
           const aRoundOrder = a.client?.roundOrderNumber || 999999;
@@ -630,9 +653,9 @@ export default function RunsheetWeekScreen() {
         const intendedPosition = vehicleJobsByRoundOrder.findIndex((x: any) => x.id === jobId) + 1;
         
         // If completed out of intended order, create swap proposal
-        if (newSeq !== intendedPosition) {
+        if (completionSeq && completionSeq !== intendedPosition) {
           // Find the job that should have been completed at this sequence
-          const shouldHaveBeenJob = vehicleJobsByRoundOrder[newSeq - 1];
+          const shouldHaveBeenJob = vehicleJobsByRoundOrder[completionSeq - 1];
           if (shouldHaveBeenJob && shouldHaveBeenJob.id !== jobId) {
             const dayTitle = section.title;
             setSwapProposalsByDay(prev => {
@@ -1573,6 +1596,15 @@ ${signOff}`;
             client: job.clientId ? clientsMap.get(job.clientId) || null : null,
           }));
           
+          // Update completion map from database
+          const updatedCompletionMap: Record<string, number> = {};
+          jobsWithClients.forEach(job => {
+            if (job.status === 'completed' && (job as any).completionSequence) {
+              updatedCompletionMap[job.id] = (job as any).completionSequence;
+            }
+          });
+          setCompletionMap(updatedCompletionMap);
+          
           setJobs(jobsWithClients);
         }
         
@@ -1775,12 +1807,12 @@ ${signOff}`;
                 )}
                 <Text style={[styles.addressTitle, { flex: 1 }]}>{address}</Text>
                 {/* Completion sequence badge - only show if completed and we have the sequence */}
-                {isCompleted && completionMap[item.id] && (
+                {isCompleted && ((item as any).completionSequence || completionMap[item.id]) && (
                   <View style={[
                     styles.completionBadge,
-                    completionMap[item.id] !== dayJobPosition && styles.completionBadgeWarning
+                    ((item as any).completionSequence || completionMap[item.id]) !== dayJobPosition && styles.completionBadgeWarning
                   ]}>
-                    <Text style={styles.completionText}>→{completionMap[item.id]}</Text>
+                    <Text style={styles.completionText}>→{(item as any).completionSequence || completionMap[item.id]}</Text>
                   </View>
                 )}
               </View>
@@ -2215,7 +2247,6 @@ ${signOff}`;
                       setSummaryDayTitle(null);
                       // Clear completion tracking after finishing the day
                       setCompletionMap({});
-                      setCompletionSeq(0);
                     }}
                   >
                     <Text style={styles.summaryCloseTxt}>Close</Text>

@@ -95,9 +95,21 @@ export async function getJobsForProvider(providerId: string): Promise<Job[]> {
   return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
 }
 
-export async function updateJobStatus(jobId: string, status: Job['status']) {
+export async function updateJobStatus(jobId: string, status: Job['status'], completionSequence?: number) {
   const jobRef = doc(db, JOBS_COLLECTION, jobId);
-  await updateDoc(jobRef, { status });
+  const updateData: any = { status };
+  
+  // If marking as completed, also save the completion sequence and date
+  if (status === 'completed' && completionSequence !== undefined) {
+    updateData.completionSequence = completionSequence;
+    updateData.completedAt = new Date().toISOString();
+  } else if (status !== 'completed') {
+    // If unmarking as complete (undo), remove completion data
+    updateData.completionSequence = null;
+    updateData.completedAt = null;
+  }
+  
+  await updateDoc(jobRef, updateData);
 }
 
 export async function deleteJob(jobId: string): Promise<void> {

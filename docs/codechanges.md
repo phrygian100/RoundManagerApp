@@ -1,5 +1,17 @@
 ## 2025-01-23
 
+## 2025-01-23 – Runsheet: Fix completion sequence sync between users
+- **Fixed Critical Bug**: Completion sequence numbers were only visible to the user who marked jobs complete
+  - Issue: Completion tracking was only stored in local state (`completionMap`), not synced to database
+  - Owner users couldn't see completion numbers when member users marked jobs complete
+- **Solution**: 
+  - Modified `updateJobStatus` to save `completionSequence` and `completedAt` to Firestore
+  - Updated `handleComplete` to pass completion sequence to the service
+  - Populate `completionMap` from database values when loading jobs
+  - Display uses database `completionSequence` field with fallback to local state
+- **Files**: `app/runsheet/[week].tsx`, `services/jobService.ts`
+- **Impact**: All users now see the same completion sequence numbers in real-time, enabling proper collaboration
+
 ## 2025-01-23 – Runsheet: Visual round order indicators and working swap proposals
 - **Fixed Bug**: Out-of-order detection was running but swap proposals were never shown to users
   - The `summarySwapChoices` array was never populated from `swapProposalsByDay`
