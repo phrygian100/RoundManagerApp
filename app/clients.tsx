@@ -373,6 +373,20 @@ export default function ClientsScreen() {
     );
   }
 
+  // Calculate active clients (those with future service dates)
+  const activeClientsCount = clients.filter(client => {
+    const nextVisit = nextVisits[client.id];
+    if (!nextVisit || nextVisit === 'N/A') return false;
+    
+    try {
+      const visitDate = new Date(nextVisit);
+      const now = new Date();
+      return visitDate >= now;
+    } catch {
+      return false;
+    }
+  }).length;
+
   return (
     <PermissionGate perm="viewClients" fallback={<ThemedView style={styles.container}><ThemedText>You don't have permission to view clients.</ThemedText></ThemedView>}>
       <ThemedView style={styles.container}>
@@ -383,7 +397,10 @@ export default function ClientsScreen() {
           </Pressable>
         </View>
         <ThemedView style={styles.headerRow}>
-          <ThemedText style={styles.clientCount}>Total: {clients?.length || 0} clients</ThemedText>
+          <View>
+            <ThemedText style={styles.clientCount}>Total: {clients?.length || 0} clients</ThemedText>
+            <ThemedText style={[styles.clientCount, { marginTop: 4 }]}>Active: {activeClientsCount} clients</ThemedText>
+          </View>
           <View style={{ flexDirection: 'row' }}>
             <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
               <View style={styles.sortIcon}>
