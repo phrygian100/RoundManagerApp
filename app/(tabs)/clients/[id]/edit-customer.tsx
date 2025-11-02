@@ -29,6 +29,9 @@ export default function EditCustomerScreen() {
   const [frequency, setFrequency] = useState('');
   const [nextVisit, setNextVisit] = useState('');
   const [weekOptions, setWeekOptions] = useState<string[]>([]);
+  // Track original values to detect actual changes
+  const [originalFrequency, setOriginalFrequency] = useState('');
+  const [originalNextVisit, setOriginalNextVisit] = useState('');
   
   // UI state
   const [loading, setLoading] = useState(true);
@@ -85,8 +88,13 @@ export default function EditCustomerScreen() {
           setEmail(data.email || '');
           
           // Legacy service routine (not shown in UI)
-          setFrequency(data.frequency?.toString() || '');
-          setNextVisit(data.nextVisit || '');
+          const freq = data.frequency?.toString() || '';
+          const next = data.nextVisit || '';
+          setFrequency(freq);
+          setNextVisit(next);
+          // Store original values to detect changes
+          setOriginalFrequency(freq);
+          setOriginalNextVisit(next);
         }
         setLoading(false);
       };
@@ -192,7 +200,11 @@ export default function EditCustomerScreen() {
           formatAuditDescription('client_edited', clientAddress)
         );
 
-        if (frequency.trim() && nextVisit.trim()) {
+        // Only regenerate jobs if frequency or nextVisit were actually changed
+        const frequencyChanged = frequency !== originalFrequency;
+        const nextVisitChanged = nextVisit !== originalNextVisit;
+        
+        if ((frequencyChanged || nextVisitChanged) && frequency.trim() && nextVisit.trim()) {
           const jobsCreated = await regenerateJobsForClient();
           showAlert('Success', `Customer updated and ${jobsCreated} jobs regenerated!`);
         } else {

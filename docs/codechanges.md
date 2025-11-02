@@ -1,5 +1,16 @@
 ## 2025-01-23
 
+## 2025-01-23 – Edit Details: Fixed unwanted job regeneration on client detail updates
+- **Fixed Bug**: Editing client details (like phone numbers) was incorrectly triggering service schedule regeneration
+  - Issue: Legacy `frequency` and `nextVisit` fields were being loaded from database but not tracked for changes
+  - Even when only changing unrelated fields like phone numbers, the system would regenerate all jobs if these legacy fields had values
+- **Solution**:
+  - Added tracking of original `frequency` and `nextVisit` values when loading client data
+  - Modified job regeneration logic to only trigger when these fields are actually changed
+  - Jobs now only regenerate when frequency or nextVisit values are different from their original values
+- **Files**: `app/(tabs)/clients/[id]/edit-customer.tsx`
+- **Impact**: Users can now safely update client contact information without triggering unnecessary job regeneration
+
 ## 2025-01-23 – Runsheet: Fix completion sequence sync between users
 - **Fixed Critical Bug**: Completion sequence numbers were only visible to the user who marked jobs complete
   - Issue: Completion tracking was only stored in local state (`completionMap`), not synced to database
