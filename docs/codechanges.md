@@ -2,11 +2,15 @@
 
 ## November 2, 2025
 
-### Added Active Clients Count Display
+### Added Active Clients Count Display with Info Modal
 - **Location**: `app/clients.tsx`
-- **Feature**: Added "Active: X clients" count below the total clients count
+- **Features**: 
+  - Added "Active: X clients" count below the total clients count
+  - Added blue info icon (ⓘ) next to the Active count
+  - Tapping the icon opens an informational modal
 - **Logic**: Counts only clients with valid future service dates (nextVisit >= now)
 - **Excludes**: Clients with null, "N/A", or past nextVisit dates
+- **Modal Content**: Explains that this shows clients who have future services scheduled
 
 ## November 2, 2025 (Earlier)
 

@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -27,6 +27,7 @@ export default function ClientsScreen() {
   const [clientBalances, setClientBalances] = useState<Record<string, number>>({});
   const [loadingBalances, setLoadingBalances] = useState(true);
   const [nextVisits, setNextVisits] = useState<Record<string, string | null>>({});
+  const [showActiveInfoModal, setShowActiveInfoModal] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -399,7 +400,12 @@ export default function ClientsScreen() {
         <ThemedView style={styles.headerRow}>
           <View>
             <ThemedText style={styles.clientCount}>Total: {clients?.length || 0} clients</ThemedText>
-            <ThemedText style={[styles.clientCount, { marginTop: 4 }]}>Active: {activeClientsCount} clients</ThemedText>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <ThemedText style={[styles.clientCount, { marginTop: 4 }]}>Active: {activeClientsCount} clients</ThemedText>
+              <Pressable onPress={() => setShowActiveInfoModal(true)} style={{ marginLeft: 8, marginTop: 4 }}>
+                <Ionicons name="information-circle-outline" size={20} color="#007AFF" />
+              </Pressable>
+            </View>
           </View>
           <View style={{ flexDirection: 'row' }}>
             <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
@@ -442,6 +448,35 @@ export default function ClientsScreen() {
             </ThemedText>
           }
         />
+        
+        {/* Info Modal for Active Clients */}
+        <Modal
+          visible={showActiveInfoModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowActiveInfoModal(false)}
+        >
+          <Pressable 
+            style={styles.modalOverlay} 
+            onPress={() => setShowActiveInfoModal(false)}
+          >
+            <View style={styles.modalContent}>
+              <ThemedText style={styles.modalTitle}>Active Clients</ThemedText>
+              <ThemedText style={styles.modalText}>
+                This shows the count of clients who have future services scheduled.
+              </ThemedText>
+              <ThemedText style={[styles.modalText, { marginTop: 10 }]}>
+                Clients without upcoming jobs are not included in this count.
+              </ThemedText>
+              <Pressable 
+                style={styles.modalButton} 
+                onPress={() => setShowActiveInfoModal(false)}
+              >
+                <ThemedText style={styles.modalButtonText}>Got it</ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Modal>
       </ThemedView>
     </PermissionGate>
   );
@@ -560,5 +595,44 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 24,
+    margin: 20,
+    maxWidth: 400,
+    width: '90%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 16,
+    lineHeight: 22,
+    color: '#333',
+    textAlign: 'center',
+  },
+  modalButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 32,
+    borderRadius: 8,
+    marginTop: 20,
+    alignSelf: 'center',
+  },
+  modalButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
