@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
 import { ThemedText } from '../../../components/ThemedText';
@@ -25,6 +25,15 @@ type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment'
 
 // Extend Client type to include optional startingBalance
 type ClientWithStartingBalance = Client & { startingBalance?: number };
+
+const isSameDay = (a: Date | null | undefined, b: Date | null | undefined) => {
+  if (!a || !b) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+};
 
 // Mobile browser detection for better touch targets
 const isMobileBrowser = () => {
@@ -65,10 +74,6 @@ export default function ClientDetailScreen() {
   const [nextJobWasMoved, setNextJobWasMoved] = useState(false); // Fallback for jobs moved before tracking was added
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
-  const [showOriginalDateModal, setShowOriginalDateModal] = useState(false);
-  const [originalDateDraft, setOriginalDateDraft] = useState<Date>(new Date());
-  const [originalDateInput, setOriginalDateInput] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [jobAwaitingOriginalDate, setJobAwaitingOriginalDate] = useState<(Job & { type: 'job' }) | null>(null);
   
   // Additional recurring work states
   const [modalMode, setModalMode] = useState<'one-time' | 'recurring'>('one-time');
@@ -94,6 +99,33 @@ export default function ClientDetailScreen() {
 
   // GoCardless settings modal state
   const [gocardlessModalVisible, setGocardlessModalVisible] = useState(false);
+
+  const planByService = useMemo(() => {
+    const map: Record<string, ServicePlan> = {};
+    servicePlans.forEach(plan => {
+      if (plan.serviceType) {
+        map[plan.serviceType] = plan;
+      }
+    });
+    return map;
+  }, [servicePlans]);
+
+  const nextPendingJobByService = useMemo(() => {
+    const map: Record<string, (Job & { type: 'job' })> = {};
+    pendingJobs.forEach(job => {
+      const key = job.serviceId || 'default';
+      if (!map[key]) {
+        map[key] = job;
+        return;
+      }
+      const existingDate = new Date(map[key].scheduledTime || 0).getTime();
+      const jobDate = new Date(job.scheduledTime || 0).getTime();
+      if (jobDate < existingDate) {
+        map[key] = job;
+      }
+    });
+    return map;
+  }, [pendingJobs]);
 
   // Get responsive layout like accounts screen
   const { width } = useWindowDimensions();
@@ -467,59 +499,6 @@ export default function ClientDetailScreen() {
     }
   };
 
-  const handlePromptOriginalDate = (job: Job & { type: 'job' }) => {
-    const baseDate = job.originalScheduledTime ? parseISO(job.originalScheduledTime) : parseISO(job.scheduledTime);
-    const safeDate = baseDate || new Date();
-    setOriginalDateDraft(safeDate);
-    setOriginalDateInput(format(safeDate, 'yyyy-MM-dd'));
-    setJobAwaitingOriginalDate(job);
-    setShowOriginalDateModal(true);
-  };
-
-  const handleCancelOriginalDate = () => {
-    setShowOriginalDateModal(false);
-    setJobAwaitingOriginalDate(null);
-  };
-
-  const handleOriginalDateInputChange = (value: string) => {
-    setOriginalDateInput(value);
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      setOriginalDateDraft(parseISO(value));
-    }
-  };
-
-  const handleConfirmOriginalDate = async () => {
-    if (!jobAwaitingOriginalDate) return;
-    if (!originalDateInput || !/^\d{4}-\d{2}-\d{2}$/.test(originalDateInput)) {
-      Alert.alert('Invalid date', 'Please enter a valid date in the format YYYY-MM-DD.');
-      return;
-    }
-    try {
-      const timePortion = jobAwaitingOriginalDate.scheduledTime?.split('T')[1] || '09:00:00';
-      const isoDate = `${format(originalDateDraft, 'yyyy-MM-dd')}T${timePortion}`;
-      await updateDoc(doc(db, 'jobs', jobAwaitingOriginalDate.id), {
-        originalScheduledTime: isoDate,
-        isDeferred: true,
-      });
-      setPendingJobs(prev =>
-        prev.map(job =>
-          job.id === jobAwaitingOriginalDate.id ? { ...job, originalScheduledTime: isoDate, isDeferred: true } : job
-        )
-      );
-      if (nextScheduledVisit) {
-        const jobDate = new Date(jobAwaitingOriginalDate.scheduledTime);
-        const nextDate = new Date(nextScheduledVisit);
-        if (Math.abs(jobDate.getTime() - nextDate.getTime()) < 60000) {
-          setOriginalScheduledVisit(isoDate);
-          setNextJobWasMoved(true);
-        }
-      }
-      handleCancelOriginalDate();
-    } catch (error) {
-      console.error('Failed to save original date', error);
-      Alert.alert('Error', 'Failed to save the original date. Please try again.');
-    }
-  };
 
   const handleEditDetails = () => {
     router.push({
@@ -862,42 +841,21 @@ export default function ClientDetailScreen() {
                         <InfoRow 
                           label="Next Service" 
                           value={(() => {
-                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                            });
-                            
-                            // If we have next scheduled visit info and it's been moved, show ORIGINAL date with "(moved to NEW)"
-                            if (nextScheduledVisit && originalScheduledVisit) {
-                              const originalDateStr = originalScheduledVisit.split('T')[0];
-                              const currentDateStr = nextScheduledVisit.split('T')[0];
-                              // Only show moved notation if dates are actually different
-                              if (originalDateStr !== currentDateStr) {
-                                return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
-                              }
+                            const planNextJob = plan.serviceType ? nextPendingJobByService[plan.serviceType] : undefined;
+                            const jobActualDate = planNextJob ? parseISO(planNextJob.scheduledTime) : null;
+                            const jobOriginalDate = planNextJob?.originalScheduledTime ? parseISO(planNextJob.originalScheduledTime) : null;
+                            const planAnchorDate = plan.startDate ? parseISO(plan.startDate) : null;
+                            const canonicalOriginal = jobOriginalDate || planAnchorDate;
+                            if (canonicalOriginal && jobActualDate && !isSameDay(canonicalOriginal, jobActualDate)) {
+                              return `${format(canonicalOriginal, 'do MMMM yyyy')} (moved to ${format(jobActualDate, 'do MMMM yyyy')})`;
                             }
-                            
-                            // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
-                            if (nextScheduledVisit && nextJobWasMoved && !originalScheduledVisit) {
-                              return `${formatDate(nextScheduledVisit)} (moved)`;
+                            if (canonicalOriginal) {
+                              return format(canonicalOriginal, 'do MMMM yyyy');
                             }
-                            
-                            // Show actual next scheduled visit if available
-                            if (nextScheduledVisit) {
-                              return formatDate(nextScheduledVisit);
+                            if (jobActualDate) {
+                              return format(jobActualDate, 'do MMMM yyyy');
                             }
-                            
-                            // Fall back to plan dates
-                            if (plan.scheduleType === 'recurring') {
-                              return plan.startDate 
-                                ? formatDate(plan.startDate)
-                                : 'Not scheduled';
-                            } else {
-                              return plan.scheduledDate
-                                ? formatDate(plan.scheduledDate)
-                                : 'Not scheduled';
-                            }
+                            return 'Not scheduled';
                           })()}
                         />
                       </View>
@@ -1446,11 +1404,16 @@ export default function ClientDetailScreen() {
                 data={pendingJobs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => {
-                  // Check if job was moved - either has originalScheduledTime OR isDeferred flag
-                  const hasOriginalDate = item.originalScheduledTime && 
-                    item.originalScheduledTime.split('T')[0] !== item.scheduledTime.split('T')[0];
-                  const wasMoved = hasOriginalDate || item.isDeferred;
-                  
+                  const plan = item.serviceId ? planByService[item.serviceId] : undefined;
+                  const fallbackOriginalDate = plan?.startDate ? parseISO(plan.startDate) : null;
+                  const jobOriginalDate = item.originalScheduledTime ? parseISO(item.originalScheduledTime) : null;
+                  const scheduledDate = parseISO(item.scheduledTime);
+                  const derivedOriginalDate =
+                    jobOriginalDate || (item.isDeferred ? fallbackOriginalDate : null);
+                  const movedWithDate =
+                    !!(item.isDeferred && derivedOriginalDate && !isSameDay(derivedOriginalDate, scheduledDate));
+                  const movedWithoutDate = item.isDeferred && !derivedOriginalDate;
+
                   return (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
                     <View style={styles.jobItemContent}>
@@ -1458,10 +1421,10 @@ export default function ClientDetailScreen() {
                         <ThemedText style={styles.historyItemText}>
                           <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
                           {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
-                          {wasMoved && (
+                          {(movedWithDate || movedWithoutDate) && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
-                              {hasOriginalDate 
-                                ? ` (Moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM yyyy')})`
+                              {movedWithDate && derivedOriginalDate
+                                ? ` (Moved from ${format(derivedOriginalDate, 'do MMM yyyy')})`
                                 : ' (Moved)'
                               }
                             </ThemedText>
@@ -1470,11 +1433,6 @@ export default function ClientDetailScreen() {
                         <ThemedText style={styles.historyItemText}>
                           Price: £{item.price.toFixed(2)}
                         </ThemedText>
-                        {wasMoved && !hasOriginalDate && (
-                          <Pressable style={styles.setOriginalButton} onPress={() => handlePromptOriginalDate(item)}>
-                            <ThemedText style={styles.setOriginalButtonText}>Set original date</ThemedText>
-                          </Pressable>
-                        )}
                       </View>
                       <Pressable
                         style={styles.deleteJobButton}
@@ -2075,58 +2033,6 @@ export default function ClientDetailScreen() {
         </View>
       </Modal>
       
-      {showOriginalDateModal && (
-        <Modal
-          transparent
-          visible={showOriginalDateModal}
-          animationType="fade"
-          onRequestClose={handleCancelOriginalDate}
-        >
-          <View style={styles.originalDateModalBackdrop}>
-            <View style={styles.originalDateModalContent}>
-              <ThemedText style={styles.originalDateModalTitle}>Set original date</ThemedText>
-              <ThemedText style={styles.originalDateModalSubtitle}>
-                Specify the date this job was originally scheduled for.
-              </ThemedText>
-              {Platform.OS === 'web' ? (
-                <TextInput
-                  style={styles.originalDateInput}
-                  value={originalDateInput}
-                  onChangeText={handleOriginalDateInputChange}
-                  placeholder="YYYY-MM-DD"
-                />
-              ) : (
-                <DateTimePicker
-                  value={originalDateDraft}
-                  mode="date"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onChange={(_, selected) => {
-                    if (selected) {
-                      setOriginalDateDraft(selected);
-                      setOriginalDateInput(format(selected, 'yyyy-MM-dd'));
-                    }
-                  }}
-                />
-              )}
-              <View style={styles.originalDateModalActions}>
-                <Pressable
-                  style={[styles.modalButton, styles.modalCancelButton]}
-                  onPress={handleCancelOriginalDate}
-                >
-                  <ThemedText style={styles.modalCancelButtonText}>Cancel</ThemedText>
-                </Pressable>
-                <Pressable
-                  style={[styles.modalButton, styles.modalSaveButton]}
-                  onPress={handleConfirmOriginalDate}
-                >
-                  <ThemedText style={styles.modalSaveButtonText}>Save</ThemedText>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-        </Modal>
-      )}
-
       {/* GoCardless Settings Modal */}
       <GoCardlessSettingsModal
         visible={gocardlessModalVisible}
@@ -2390,80 +2296,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#f0f0f0',
     borderColor: '#d0d0d0',
-  },
-  setOriginalButton: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#f57c00',
-    borderRadius: 6,
-  },
-  setOriginalButtonText: {
-    color: '#f57c00',
-    fontWeight: '600',
-    fontSize: 12,
-  },
-  originalDateModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  originalDateModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    width: '100%',
-    maxWidth: 380,
-  },
-  originalDateModalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  originalDateModalSubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginBottom: 16,
-    color: '#555',
-  },
-  originalDateInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    padding: 10,
-    width: '100%',
-    fontSize: 16,
-    backgroundColor: '#fdfdfd',
-  },
-  originalDateModalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 20,
-  },
-  modalButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  modalCancelButton: {
-    backgroundColor: '#e0e0e0',
-    marginRight: 12,
-  },
-  modalSaveButton: {
-    backgroundColor: '#1976d2',
-  },
-  modalCancelButtonText: {
-    color: '#333',
-    fontWeight: '600',
-  },
-  modalSaveButtonText: {
-    color: '#fff',
-    fontWeight: 'bold',
   },
   notesSection: {
     marginTop: 24,
