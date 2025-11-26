@@ -814,31 +814,42 @@ export default function RunsheetWeekScreen() {
     // Move job to selected date (09:00) and update vehicle if specified
     const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
     
-    // If job doesn't have originalScheduledTime, calculate it from service plan
-    let originalTimeToStore = deferJob.originalScheduledTime;
-    if (!originalTimeToStore) {
-      try {
-        // Fetch service plans for this client to get the canonical anchor
-        const { getServicePlansForClient } = await import('../../services/servicePlanService');
-        const plans = await getServicePlansForClient(deferJob.clientId);
-        const matchingPlan = plans.find(p => p.serviceType === deferJob.serviceId && p.isActive);
-        if (matchingPlan?.startDate) {
-          originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
-        } else {
-          // Fallback to current scheduledTime
-          originalTimeToStore = deferJob.scheduledTime;
-        }
-      } catch (error) {
-        console.error('Error fetching service plan for original date:', error);
-        originalTimeToStore = deferJob.scheduledTime;
-      }
-    }
+    // Check if moving to a different WEEK (not just a different day)
+    const currentJobDate = parseISO(deferJob.scheduledTime);
+    const newJobDate = selectedDate;
+    const currentWeekStart = startOfWeek(currentJobDate, { weekStartsOn: 1 });
+    const newWeekStart = startOfWeek(newJobDate, { weekStartsOn: 1 });
+    const isDifferentWeek = currentWeekStart.getTime() !== newWeekStart.getTime();
     
     const updateData: any = { 
-      scheduledTime: newDateString,
-      originalScheduledTime: originalTimeToStore,
-      isDeferred: true
+      scheduledTime: newDateString
     };
+    
+    // Only mark as deferred if moving to a different week
+    if (isDifferentWeek) {
+      // If job doesn't have originalScheduledTime, calculate it from service plan
+      let originalTimeToStore = deferJob.originalScheduledTime;
+      if (!originalTimeToStore) {
+        try {
+          // Fetch service plans for this client to get the canonical anchor
+          const { getServicePlansForClient } = await import('../../services/servicePlanService');
+          const plans = await getServicePlansForClient(deferJob.clientId);
+          const matchingPlan = plans.find(p => p.serviceType === deferJob.serviceId && p.isActive);
+          if (matchingPlan?.startDate) {
+            originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
+          } else {
+            // Fallback to current scheduledTime
+            originalTimeToStore = deferJob.scheduledTime;
+          }
+        } catch (error) {
+          console.error('Error fetching service plan for original date:', error);
+          originalTimeToStore = deferJob.scheduledTime;
+        }
+      }
+      
+      updateData.originalScheduledTime = originalTimeToStore;
+      updateData.isDeferred = true;
+    }
     
     // Update vehicle assignment
     if (deferSelectedVehicle === 'auto') {

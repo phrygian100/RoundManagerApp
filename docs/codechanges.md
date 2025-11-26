@@ -63,6 +63,9 @@
 
 ### Final Fix - Fetching Service Plan Anchor on Move (Same Day):
 - **Critical bug fixed**: Move handlers now FETCH the service plan before storing `originalScheduledTime`
+- **Week-based rollover detection**: `isDeferred` flag is now ONLY set when moving jobs to a **different week**, not just a different day
+- **Within-week moves**: Moving a job from Monday to Tuesday in the same week does NOT set `isDeferred` - no "moved" indicator shown
+- **Cross-week moves**: Moving a job from one week to another sets `isDeferred: true` and stores the service plan anchor as `originalScheduledTime`
 - **Service Details display**: Uses service plan's `startDate` directly - if job has `isDeferred: true` and plan has `startDate`, shows `"8th December 2025 (moved to 6th December 2025)"`
 - **Service Schedule display**: Shows `"(Moved from 8th Dec 2025)"` using service plan anchor as the "from" date
 - **Display uses plan anchor**: Even if `originalScheduledTime` is corrupted in existing data, display logic now references service plan `startDate` directly
@@ -73,10 +76,12 @@
 2. Move detection (what date jobs SHOULD be on)
 3. Display of "moved from" indicators
 
+**Rollover/Moved Definition**: Jobs are only considered "rolled over" or "moved" when moved to a **different week**, not when redistributed within the same week.
+
 **To fix corrupted existing data**:
-1. Jobs with wrong `originalScheduledTime`: Will be fixed next time they're moved (or delete and regenerate)
+1. Jobs with wrong `originalScheduledTime`: Will be fixed next time they're moved cross-week (or delete and regenerate)
 2. Service plans with wrong `startDate`: Manually correct in Manage Services → Regenerate Schedule
-3. Future: All new moves will calculate the correct original date from the service plan
+3. Future: All new cross-week moves will calculate the correct original date from the service plan
 
 ---
 
