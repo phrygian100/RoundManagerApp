@@ -872,20 +872,44 @@ export default function ClientDetailScreen() {
                         <InfoRow 
                           label="Next Service" 
                           value={(() => {
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            });
+                            
+                            // Get the next pending job for this service type
                             const planNextJob = plan.serviceType ? nextPendingJobByService[plan.serviceType] : undefined;
-                            const jobActualDate = planNextJob ? parseISO(planNextJob.scheduledTime) : null;
-                            const jobOriginalDate = planNextJob?.originalScheduledTime ? parseISO(planNextJob.originalScheduledTime) : null;
-                            const planAnchorDate = plan.startDate ? parseISO(plan.startDate) : null;
-                            const canonicalOriginal = jobOriginalDate || planAnchorDate;
-                            if (canonicalOriginal && jobActualDate && !isSameDay(canonicalOriginal, jobActualDate)) {
-                              return `${format(canonicalOriginal, 'do MMMM yyyy')} (moved to ${format(jobActualDate, 'do MMMM yyyy')})`;
+                            
+                            // Debug logging
+                            console.log('Service Details debug for', plan.serviceType, {
+                              planStartDate: plan.startDate,
+                              planNextJob: planNextJob ? {
+                                scheduledTime: planNextJob.scheduledTime,
+                                isDeferred: planNextJob.isDeferred,
+                                originalScheduledTime: planNextJob.originalScheduledTime
+                              } : 'No job found'
+                            });
+                            
+                            if (planNextJob && (planNextJob.isDeferred || planNextJob.originalScheduledTime)) {
+                              // Job was moved - show original date (moved to actual)
+                              const originalDate = planNextJob.originalScheduledTime || plan.startDate;
+                              if (originalDate) {
+                                return `${formatDate(originalDate)} (moved to ${formatDate(planNextJob.scheduledTime)})`;
+                              } else {
+                                return `${formatDate(planNextJob.scheduledTime)} (moved)`;
+                              }
                             }
-                            if (canonicalOriginal) {
-                              return format(canonicalOriginal, 'do MMMM yyyy');
+                            
+                            // Job not moved - show either actual job date or plan anchor
+                            if (planNextJob) {
+                              return formatDate(planNextJob.scheduledTime);
+                            } else if (plan.startDate) {
+                              return formatDate(plan.startDate);
+                            } else if (plan.scheduledDate) {
+                              return formatDate(plan.scheduledDate);
                             }
-                            if (jobActualDate) {
-                              return format(jobActualDate, 'do MMMM yyyy');
-                            }
+                            
                             return 'Not scheduled';
                           })()}
                         />
@@ -1423,15 +1447,14 @@ export default function ClientDetailScreen() {
                 data={pendingJobs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => {
-                  const plan = item.serviceId ? planByService[item.serviceId] : undefined;
-                  const fallbackOriginalDate = plan?.startDate ? parseISO(plan.startDate) : null;
-                  const jobOriginalDate = item.originalScheduledTime ? parseISO(item.originalScheduledTime) : null;
-                  const scheduledDate = parseISO(item.scheduledTime);
-                  const derivedOriginalDate =
-                    jobOriginalDate || (item.isDeferred ? fallbackOriginalDate : null);
-                  const movedWithDate =
-                    !!(item.isDeferred && derivedOriginalDate && !isSameDay(derivedOriginalDate, scheduledDate));
-                  const movedWithoutDate = item.isDeferred && !derivedOriginalDate;
+                  // Debug: let's see what flags this job has
+                  console.log('Job debug:', {
+                    id: item.id,
+                    scheduledTime: item.scheduledTime,
+                    originalScheduledTime: item.originalScheduledTime,
+                    isDeferred: item.isDeferred,
+                    serviceId: item.serviceId
+                  });
 
                   return (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
@@ -1440,12 +1463,9 @@ export default function ClientDetailScreen() {
                         <ThemedText style={styles.historyItemText}>
                           <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
                           {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
-                          {(movedWithDate || movedWithoutDate) && (
+                          {(item.isDeferred || item.originalScheduledTime) && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
-                              {movedWithDate && derivedOriginalDate
-                                ? ` (Moved from ${format(derivedOriginalDate, 'do MMM yyyy')})`
-                                : ' (Moved)'
-                              }
+                              {' '}(MOVED - Debug: isDeferred={item.isDeferred ? 'true' : 'false'}, hasOriginal={item.originalScheduledTime ? 'yes' : 'no'})
                             </ThemedText>
                           )}
                         </ThemedText>
