@@ -49,9 +49,15 @@
 - When viewing the clients list or client detail page, if a job has been moved/deferred, users will see:
   - The ACTUAL scheduled date (when the job will occur)
   - Plus "(moved from [original date])" to show where it was originally scheduled
+  - OR just "(moved)" for jobs moved before this tracking was added
 - The Service Schedule list now highlights moved jobs with an orange indicator
 - Job generation will no longer create duplicate jobs for the original date when a job has been moved
 - **Recurrence is NOT affected**: Moving a job is an exception - the service plan anchor date (editable only in Manage Services) controls future job generation
+
+### Follow-up Fix (Same Day):
+- **Display format corrected**: Changed from "original (moved to new)" to "new (moved from original)"
+- **Added fallback for legacy moved jobs**: Jobs moved before this code was deployed only have `isDeferred: true` flag but no `originalScheduledTime`. These now show "(moved)" indicator.
+- **Applied to all locations**: Service Details, Next Scheduled Visit, Service Schedule list, and Clients list page
 
 ---
 

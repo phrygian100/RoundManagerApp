@@ -28,6 +28,7 @@ export default function ClientsScreen() {
   const [loadingBalances, setLoadingBalances] = useState(true);
   const [nextVisits, setNextVisits] = useState<Record<string, string | null>>({});
   const [originalVisits, setOriginalVisits] = useState<Record<string, string | null>>({}); // Original dates before jobs were moved
+  const [movedFlags, setMovedFlags] = useState<Record<string, boolean>>({}); // Track if job was deferred (fallback for old jobs)
   const [showActiveInfoModal, setShowActiveInfoModal] = useState(false);
 
   useEffect(() => {
@@ -108,11 +109,13 @@ export default function ClientsScreen() {
       // Group jobs by clientId and find the next scheduled date for each
       const clientNextVisits: Record<string, string | null> = {};
       const clientOriginalVisits: Record<string, string | null> = {};
+      const clientMovedFlags: Record<string, boolean> = {};
       
-      // Initialize all clients with null
+      // Initialize all clients with null/false
       clients.forEach(client => {
         clientNextVisits[client.id] = null;
         clientOriginalVisits[client.id] = null;
+        clientMovedFlags[client.id] = false;
       });
       
       // Process all jobs and find earliest future date for each client
@@ -126,6 +129,8 @@ export default function ClientsScreen() {
               clientNextVisits[job.clientId] = jobDate.toISOString();
               // Track original date if job was moved
               clientOriginalVisits[job.clientId] = job.originalScheduledTime || null;
+              // Track isDeferred as fallback for jobs moved before tracking was added
+              clientMovedFlags[job.clientId] = job.isDeferred || false;
             }
           }
         }
@@ -133,6 +138,7 @@ export default function ClientsScreen() {
       
       setNextVisits(clientNextVisits);
       setOriginalVisits(clientOriginalVisits);
+      setMovedFlags(clientMovedFlags);
     } catch (error) {
       console.error('Error fetching next visits:', error);
       // Set all clients to null on error
@@ -323,6 +329,7 @@ export default function ClientsScreen() {
     let nextVisitDisplay = 'N/A';
     const nextVisit = nextVisits[item.id];
     const originalVisit = originalVisits[item.id];
+    const wasMoved = movedFlags[item.id];
     if (nextVisit) {
       try {
         const parsedDate = parseISO(nextVisit);
@@ -338,6 +345,9 @@ export default function ClientsScreen() {
             } else {
               nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
             }
+          } else if (wasMoved) {
+            // Fallback: job was moved before tracking was added (isDeferred flag exists but no originalScheduledTime)
+            nextVisitDisplay = `${format(parsedDate, 'd MMMM yyyy')} (moved)`;
           } else {
             nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
           }

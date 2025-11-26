@@ -62,6 +62,7 @@ export default function ClientDetailScreen() {
   const [todayComplete, setTodayComplete] = useState(false);
   const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
   const [originalScheduledVisit, setOriginalScheduledVisit] = useState<string | null>(null); // Original date before job was moved
+  const [nextJobWasMoved, setNextJobWasMoved] = useState(false); // Fallback for jobs moved before tracking was added
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
   
@@ -239,6 +240,7 @@ export default function ClientDetailScreen() {
         const now = new Date();
         let nextJobDate: Date | null = null;
         let nextJobOriginalDate: string | null = null;
+        let nextJobIsDeferred: boolean = false;
         jobsSnapshot.forEach(doc => {
           const job = doc.data();
           if (job.scheduledTime) {
@@ -247,14 +249,18 @@ export default function ClientDetailScreen() {
               nextJobDate = jobDate;
               // Track the original date if job was moved
               nextJobOriginalDate = job.originalScheduledTime || null;
+              // Also track isDeferred as fallback for jobs moved before tracking was added
+              nextJobIsDeferred = job.isDeferred || false;
             }
           }
         });
         setNextScheduledVisit((nextJobDate && Object.prototype.toString.call(nextJobDate) === '[object Date]') ? (nextJobDate as Date).toISOString() : null);
         setOriginalScheduledVisit(nextJobOriginalDate);
+        setNextJobWasMoved(nextJobIsDeferred);
       } catch (error) {
         setNextScheduledVisit(null);
         setOriginalScheduledVisit(null);
+        setNextJobWasMoved(false);
       }
     };
 
@@ -814,6 +820,11 @@ export default function ClientDetailScreen() {
                               }
                             }
                             
+                            // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
+                            if (nextScheduledVisit && nextJobWasMoved && !originalScheduledVisit) {
+                              return `${formatDate(nextScheduledVisit)} (moved)`;
+                            }
+                            
                             // Show actual next scheduled visit if available
                             if (nextScheduledVisit) {
                               return formatDate(nextScheduledVisit);
@@ -872,6 +883,11 @@ export default function ClientDetailScreen() {
                           if (originalDateStr !== currentDateStr) {
                             return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                           }
+                        }
+                        
+                        // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
+                        if (nextJobWasMoved && !originalScheduledVisit) {
+                          return `${formatDate(nextScheduledVisit)} (moved)`;
                         }
                         
                         return formatDate(nextScheduledVisit);
@@ -1069,8 +1085,13 @@ export default function ClientDetailScreen() {
                           const currentDateStr = nextScheduledVisit.split('T')[0];
                           // Only show moved notation if dates are actually different
                           if (originalDateStr !== currentDateStr) {
-                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                            return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                           }
+                        }
+                        
+                        // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
+                        if (nextScheduledVisit && nextJobWasMoved && !originalScheduledVisit) {
+                          return `${formatDate(nextScheduledVisit)} (moved)`;
                         }
                         
                         // Show actual next scheduled visit if available
@@ -1131,6 +1152,11 @@ export default function ClientDetailScreen() {
                         if (originalDateStr !== currentDateStr) {
                           return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                         }
+                      }
+                      
+                      // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
+                      if (nextJobWasMoved && !originalScheduledVisit) {
+                        return `${formatDate(nextScheduledVisit)} (moved)`;
                       }
                       
                       return formatDate(nextScheduledVisit);
@@ -1362,9 +1388,10 @@ export default function ClientDetailScreen() {
                 data={pendingJobs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => {
-                  // Check if job was moved
-                  const wasMoved = item.originalScheduledTime && 
+                  // Check if job was moved - either has originalScheduledTime OR isDeferred flag
+                  const hasOriginalDate = item.originalScheduledTime && 
                     item.originalScheduledTime.split('T')[0] !== item.scheduledTime.split('T')[0];
+                  const wasMoved = hasOriginalDate || item.isDeferred;
                   
                   return (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
@@ -1375,7 +1402,10 @@ export default function ClientDetailScreen() {
                           {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
                           {wasMoved && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
-                              {' '}(moved from {format(parseISO(item.originalScheduledTime!), 'do MMM')})
+                              {hasOriginalDate 
+                                ? ` (moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM')})`
+                                : ' (moved)'
+                              }
                             </ThemedText>
                           )}
                         </ThemedText>
