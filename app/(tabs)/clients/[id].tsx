@@ -810,13 +810,13 @@ export default function ClientDetailScreen() {
                               year: 'numeric',
                             });
                             
-                            // If we have next scheduled visit info and it's been moved, show both dates
+                            // If we have next scheduled visit info and it's been moved, show ORIGINAL date with "(moved to NEW)"
                             if (nextScheduledVisit && originalScheduledVisit) {
                               const originalDateStr = originalScheduledVisit.split('T')[0];
                               const currentDateStr = nextScheduledVisit.split('T')[0];
                               // Only show moved notation if dates are actually different
                               if (originalDateStr !== currentDateStr) {
-                                return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
+                                return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
                               }
                             }
                             
@@ -875,13 +875,13 @@ export default function ClientDetailScreen() {
                           year: 'numeric',
                         });
                         
-                        // If job was moved, show new date with "(moved from...)" notation
+                        // If job was moved, show ORIGINAL date with "(moved to NEW)"
                         if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
                           const originalDateStr = originalScheduledVisit.split('T')[0];
                           const currentDateStr = nextScheduledVisit.split('T')[0];
                           // Only show moved notation if dates are actually different
                           if (originalDateStr !== currentDateStr) {
-                            return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
+                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
                           }
                         }
                         
@@ -1403,8 +1403,8 @@ export default function ClientDetailScreen() {
                           {wasMoved && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
                               {hasOriginalDate 
-                                ? ` (moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM')})`
-                                : ' (moved)'
+                                ? ` (Moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM')})`
+                                : ' (Moved)'
                               }
                             </ThemedText>
                           )}

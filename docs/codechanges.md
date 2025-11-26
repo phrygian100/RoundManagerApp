@@ -55,9 +55,12 @@
 - **Recurrence is NOT affected**: Moving a job is an exception - the service plan anchor date (editable only in Manage Services) controls future job generation
 
 ### Follow-up Fix (Same Day):
-- **Display format corrected**: Changed from "original (moved to new)" to "new (moved from original)"
-- **Added fallback for legacy moved jobs**: Jobs moved before this code was deployed only have `isDeferred: true` flag but no `originalScheduledTime`. These now show "(moved)" indicator.
+- **Display format corrected**: Shows "ORIGINAL DATE (moved to NEW DATE)" - displaying when it SHOULD have been per the schedule, then where it was moved to
+- **Added fallback for legacy moved jobs**: Jobs moved before this code was deployed only have `isDeferred: true` flag but no `originalScheduledTime`. These show "(Moved)" indicator without the original date.
+- **Service Schedule list**: Shows "(Moved from 15th Dec)" in orange for jobs with original date tracked, or just "(Moved)" for legacy jobs
 - **Applied to all locations**: Service Details, Next Scheduled Visit, Service Schedule list, and Clients list page
+
+**Note**: For jobs moved BEFORE this tracking was added, the original date cannot be shown because it wasn't stored. The service plan's startDate (anchor) must be manually corrected in Manage Services to fix recurrence.
 
 ---
 
