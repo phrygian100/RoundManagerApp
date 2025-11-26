@@ -5,8 +5,9 @@
 ### Job Deferral/Move Tracking - Original Date Preservation
 
 **Problem**: When a user moved/deferred a job from one week to another, the system lost track of the original scheduled date. This caused:
-1. Confusion in the `/clients` page where "Next Visit" showed the moved-to date instead of the original
+1. Confusion in the `/clients` page where "Next Visit" didn't indicate the job had been moved
 2. Potential duplicate job generation when the job generation dedup logic only checked `scheduledTime` (the moved-to date), not the original date
+3. No visibility into which jobs in the Service Schedule were moved
 
 **Solution**: Added `originalScheduledTime` field tracking and display throughout the system.
 
@@ -27,27 +28,30 @@
 - Updated dedup logic in `createJobsForServicePlan()`
 - Updated dedup logic in `createJobsForAdditionalServices()`
 - Now checks BOTH `scheduledTime` AND `originalScheduledTime` to prevent duplicate job creation when a job has been moved
+- **Important**: Moving a job does NOT change the service plan's anchor date - recurrence continues from the original schedule
 
 #### 4. Client Detail Page (`app/(tabs)/clients/[id].tsx`)
 - Added `originalScheduledVisit` state to track the original date
 - Updated `fetchNextScheduledVisit()` to also fetch `originalScheduledTime` from the next pending job
-- Updated "Next Service" display (both desktop and mobile layouts) to show:
-  - `"02 December 2024 (moved to 09 December 2024)"` if job was moved
+- Updated "Next Service" / "Next Scheduled Visit" display (both desktop and mobile layouts) to show:
+  - `"06 December 2025 (moved from 15 December 2025)"` if job was moved
   - Normal date display if job was not moved
+- **Service Schedule list**: Added orange "(moved from [date])" indicator for moved jobs
 
 #### 5. Clients List Page (`app/clients.tsx`)
 - Added `originalVisits` state to track original dates per client
 - Updated `fetchNextVisits()` to also capture `originalScheduledTime` for each client's next job
 - Updated renderItem to display:
-  - `"2 Dec (moved to 9 Dec 2024)"` format if job was moved
+  - `"6 Dec 2025 (moved from 15 Dec)"` format if job was moved
   - Normal date display if job was not moved
 
 ### User-Facing Behavior:
 - When viewing the clients list or client detail page, if a job has been moved/deferred, users will see:
-  - The original scheduled date
-  - Plus "(moved to [new date])"
-- This provides clear visibility into both when the job was originally scheduled and when it will actually occur
+  - The ACTUAL scheduled date (when the job will occur)
+  - Plus "(moved from [original date])" to show where it was originally scheduled
+- The Service Schedule list now highlights moved jobs with an orange indicator
 - Job generation will no longer create duplicate jobs for the original date when a job has been moved
+- **Recurrence is NOT affected**: Moving a job is an exception - the service plan anchor date (editable only in Manage Services) controls future job generation
 
 ---
 

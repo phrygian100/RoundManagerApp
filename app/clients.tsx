@@ -333,8 +333,8 @@ export default function ClientsScreen() {
             const originalDateStr = originalVisit.split('T')[0];
             const currentDateStr = nextVisit.split('T')[0];
             if (parsedOriginalDate && parsedOriginalDate.toString() !== 'Invalid Date' && originalDateStr !== currentDateStr) {
-              // Show "(moved to...)" notation
-              nextVisitDisplay = `${format(parsedOriginalDate, 'd MMM')} (moved to ${format(parsedDate, 'd MMM yyyy')})`;
+              // Show "(moved from...)" notation - show NEW date with original date reference
+              nextVisitDisplay = `${format(parsedDate, 'd MMM yyyy')} (moved from ${format(parsedOriginalDate, 'd MMM')})`;
             } else {
               nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
             }

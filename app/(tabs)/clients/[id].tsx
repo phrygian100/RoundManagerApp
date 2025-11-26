@@ -810,7 +810,7 @@ export default function ClientDetailScreen() {
                               const currentDateStr = nextScheduledVisit.split('T')[0];
                               // Only show moved notation if dates are actually different
                               if (originalDateStr !== currentDateStr) {
-                                return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                                return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                               }
                             }
                             
@@ -864,13 +864,13 @@ export default function ClientDetailScreen() {
                           year: 'numeric',
                         });
                         
-                        // If job was moved, show original date with "(moved to...)" notation
+                        // If job was moved, show new date with "(moved from...)" notation
                         if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
                           const originalDateStr = originalScheduledVisit.split('T')[0];
                           const currentDateStr = nextScheduledVisit.split('T')[0];
                           // Only show moved notation if dates are actually different
                           if (originalDateStr !== currentDateStr) {
-                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                            return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                           }
                         }
                         
@@ -1123,13 +1123,13 @@ export default function ClientDetailScreen() {
                         year: 'numeric',
                       });
                       
-                      // If job was moved, show original date with "(moved to...)" notation
+                      // If job was moved, show new date with "(moved from...)" notation
                       if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
                         const originalDateStr = originalScheduledVisit.split('T')[0];
                         const currentDateStr = nextScheduledVisit.split('T')[0];
                         // Only show moved notation if dates are actually different
                         if (originalDateStr !== currentDateStr) {
-                          return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                          return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
                         }
                       }
                       
@@ -1361,13 +1361,23 @@ export default function ClientDetailScreen() {
               <FlatList
                 data={pendingJobs}
                 keyExtractor={(item) => item.id}
-                renderItem={({ item }) => (
+                renderItem={({ item }) => {
+                  // Check if job was moved
+                  const wasMoved = item.originalScheduledTime && 
+                    item.originalScheduledTime.split('T')[0] !== item.scheduledTime.split('T')[0];
+                  
+                  return (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
                     <View style={styles.jobItemContent}>
                       <View style={{ flex: 1 }}>
                         <ThemedText style={styles.historyItemText}>
                           <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
                           {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
+                          {wasMoved && (
+                            <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
+                              {' '}(moved from {format(parseISO(item.originalScheduledTime!), 'do MMM')})
+                            </ThemedText>
+                          )}
                         </ThemedText>
                         <ThemedText style={styles.historyItemText}>
                           Price: £{item.price.toFixed(2)}
@@ -1425,7 +1435,8 @@ export default function ClientDetailScreen() {
                       </Pressable>
                     </View>
                   </View>
-                )}
+                );
+                }}
                 contentContainerStyle={styles.historyContainer}
                 showsVerticalScrollIndicator={false}
               />
