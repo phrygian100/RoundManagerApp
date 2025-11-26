@@ -46,6 +46,7 @@ export type Job = {
   serviceId: string;
   propertyDetails: string;
   scheduledTime: string; // ISO date string
+  originalScheduledTime?: string; // Original date before job was moved/deferred (ISO date string)
   status: 'pending' | 'scheduled' | 'in_progress' | 'completed' | 'cancelled' | 'accounted' | 'paid';
   eta?: string; // e.g., "13:45"
   price: number;

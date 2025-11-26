@@ -691,10 +691,14 @@ export default function RunsheetWeekScreen() {
       const nextWeekStart = startOfWeek(addDays(currentJobDate, 7), { weekStartsOn: 1 }); // Monday of next week
       const nextMondayString = format(nextWeekStart, 'yyyy-MM-dd') + 'T09:00:00';
       
+      // Store original scheduled time if not already set (preserve the first original date)
+      const originalScheduledTime = job.originalScheduledTime || job.scheduledTime;
+      
       // Update the job with deferred flag and new date
       const jobRef = doc(db, 'jobs', job.id);
       await updateDoc(jobRef, {
         scheduledTime: nextMondayString,
+        originalScheduledTime: originalScheduledTime,
         isDeferred: true,
         vehicleId: null, // Reset to automatic allocation
         eta: null // Clear any existing ETA
@@ -792,7 +796,15 @@ export default function RunsheetWeekScreen() {
     }
     // Move job to selected date (09:00) and update vehicle if specified
     const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
-    const updateData: any = { scheduledTime: newDateString };
+    
+    // Store original scheduled time if not already set (preserve the first original date)
+    const originalScheduledTime = deferJob.originalScheduledTime || deferJob.scheduledTime;
+    
+    const updateData: any = { 
+      scheduledTime: newDateString,
+      originalScheduledTime: originalScheduledTime,
+      isDeferred: true
+    };
     
     // Update vehicle assignment
     if (deferSelectedVehicle === 'auto') {

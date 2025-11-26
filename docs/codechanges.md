@@ -1,5 +1,56 @@
 # Code Changes Log
 
+## November 26, 2025
+
+### Job Deferral/Move Tracking - Original Date Preservation
+
+**Problem**: When a user moved/deferred a job from one week to another, the system lost track of the original scheduled date. This caused:
+1. Confusion in the `/clients` page where "Next Visit" showed the moved-to date instead of the original
+2. Potential duplicate job generation when the job generation dedup logic only checked `scheduledTime` (the moved-to date), not the original date
+
+**Solution**: Added `originalScheduledTime` field tracking and display throughout the system.
+
+### Changes Made:
+
+#### 1. Data Model (`types/models.ts`)
+- Added `originalScheduledTime?: string` field to the `Job` type
+- This field stores the original date before a job was moved/deferred
+
+#### 2. Defer/Move Logic (`app/runsheet/[week].tsx`)
+- Updated `handleDeferToNextWeek()` to store `originalScheduledTime` when deferring a job
+- Updated `handleDeferDateChange()` to store `originalScheduledTime` when moving a job to a custom date
+- Logic preserves the FIRST original date if a job is moved multiple times
+
+#### 3. Job Generation Dedup (`services/jobService.ts`)
+- Updated dedup logic in `createJobsForClient()` (both service plan and legacy paths)
+- Updated dedup logic in `createJobsForWeek()`
+- Updated dedup logic in `createJobsForServicePlan()`
+- Updated dedup logic in `createJobsForAdditionalServices()`
+- Now checks BOTH `scheduledTime` AND `originalScheduledTime` to prevent duplicate job creation when a job has been moved
+
+#### 4. Client Detail Page (`app/(tabs)/clients/[id].tsx`)
+- Added `originalScheduledVisit` state to track the original date
+- Updated `fetchNextScheduledVisit()` to also fetch `originalScheduledTime` from the next pending job
+- Updated "Next Service" display (both desktop and mobile layouts) to show:
+  - `"02 December 2024 (moved to 09 December 2024)"` if job was moved
+  - Normal date display if job was not moved
+
+#### 5. Clients List Page (`app/clients.tsx`)
+- Added `originalVisits` state to track original dates per client
+- Updated `fetchNextVisits()` to also capture `originalScheduledTime` for each client's next job
+- Updated renderItem to display:
+  - `"2 Dec (moved to 9 Dec 2024)"` format if job was moved
+  - Normal date display if job was not moved
+
+### User-Facing Behavior:
+- When viewing the clients list or client detail page, if a job has been moved/deferred, users will see:
+  - The original scheduled date
+  - Plus "(moved to [new date])"
+- This provides clear visibility into both when the job was originally scheduled and when it will actually occur
+- Job generation will no longer create duplicate jobs for the original date when a job has been moved
+
+---
+
 ## November 2, 2025
 
 ### Added Active Clients Count Display with Info Modal

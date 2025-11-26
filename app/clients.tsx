@@ -27,6 +27,7 @@ export default function ClientsScreen() {
   const [clientBalances, setClientBalances] = useState<Record<string, number>>({});
   const [loadingBalances, setLoadingBalances] = useState(true);
   const [nextVisits, setNextVisits] = useState<Record<string, string | null>>({});
+  const [originalVisits, setOriginalVisits] = useState<Record<string, string | null>>({}); // Original dates before jobs were moved
   const [showActiveInfoModal, setShowActiveInfoModal] = useState(false);
 
   useEffect(() => {
@@ -106,10 +107,12 @@ export default function ClientsScreen() {
       
       // Group jobs by clientId and find the next scheduled date for each
       const clientNextVisits: Record<string, string | null> = {};
+      const clientOriginalVisits: Record<string, string | null> = {};
       
       // Initialize all clients with null
       clients.forEach(client => {
         clientNextVisits[client.id] = null;
+        clientOriginalVisits[client.id] = null;
       });
       
       // Process all jobs and find earliest future date for each client
@@ -121,12 +124,15 @@ export default function ClientsScreen() {
             const currentNext = clientNextVisits[job.clientId];
             if (!currentNext || jobDate < new Date(currentNext)) {
               clientNextVisits[job.clientId] = jobDate.toISOString();
+              // Track original date if job was moved
+              clientOriginalVisits[job.clientId] = job.originalScheduledTime || null;
             }
           }
         }
       });
       
       setNextVisits(clientNextVisits);
+      setOriginalVisits(clientOriginalVisits);
     } catch (error) {
       console.error('Error fetching next visits:', error);
       // Set all clients to null on error
@@ -135,6 +141,7 @@ export default function ClientsScreen() {
         emptyResult[client.id] = null;
       });
       setNextVisits(emptyResult);
+      setOriginalVisits(emptyResult);
     }
   };
 
@@ -315,11 +322,25 @@ export default function ClientsScreen() {
     // Safely format next visit date
     let nextVisitDisplay = 'N/A';
     const nextVisit = nextVisits[item.id];
+    const originalVisit = originalVisits[item.id];
     if (nextVisit) {
       try {
         const parsedDate = parseISO(nextVisit);
         if (parsedDate && parsedDate.toString() !== 'Invalid Date') {
-          nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
+          // Check if job was moved (has original date that differs from current)
+          if (originalVisit) {
+            const parsedOriginalDate = parseISO(originalVisit);
+            const originalDateStr = originalVisit.split('T')[0];
+            const currentDateStr = nextVisit.split('T')[0];
+            if (parsedOriginalDate && parsedOriginalDate.toString() !== 'Invalid Date' && originalDateStr !== currentDateStr) {
+              // Show "(moved to...)" notation
+              nextVisitDisplay = `${format(parsedOriginalDate, 'd MMM')} (moved to ${format(parsedDate, 'd MMM yyyy')})`;
+            } else {
+              nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
+            }
+          } else {
+            nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
+          }
         }
       } catch (error) {
         nextVisitDisplay = 'N/A';

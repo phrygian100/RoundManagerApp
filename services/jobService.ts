@@ -205,6 +205,7 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 5
 
           const weekStr = format(visitDate, 'yyyy-MM-dd');
           // Dedup: does job already exist for this date/service?
+          // Check both current scheduledTime AND originalScheduledTime (for moved jobs)
           const existingJobsQuery = query(
             collection(db, JOBS_COLLECTION),
             where('ownerId', '==', ownerId),
@@ -214,9 +215,13 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 5
           const jobExistsForDate = existingJobs.docs.some(doc => {
             const jobData = doc.data();
             const jobDate = jobData.scheduledTime;
+            const originalDate = jobData.originalScheduledTime;
             if (!jobDate) return false;
             const jobDateStr = jobDate.split('T')[0];
-            return jobDateStr === weekStr && jobData.serviceId === plan.serviceType;
+            const originalDateStr = originalDate ? originalDate.split('T')[0] : null;
+            // Match if current date OR original date (before move) matches the target date
+            const dateMatches = jobDateStr === weekStr || originalDateStr === weekStr;
+            return dateMatches && jobData.serviceId === plan.serviceType;
           });
 
           const isToday = visitDate.getTime() === today.getTime();
@@ -289,6 +294,7 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 5
           continue;
         }
         const weekStr = format(visitDate, 'yyyy-MM-dd');
+        // Dedup: Check both current scheduledTime AND originalScheduledTime (for moved jobs)
         const existingJobsQuery = query(
           collection(db, JOBS_COLLECTION),
           where('ownerId', '==', ownerId),
@@ -298,9 +304,13 @@ export async function createJobsForClient(clientId: string, maxWeeks: number = 5
         const jobExistsForDate = existingJobs.docs.some(doc => {
           const jobData = doc.data();
           const jobDate = jobData.scheduledTime;
+          const originalDate = jobData.originalScheduledTime;
           if (!jobDate) return false;
           const jobDateStr = jobDate.split('T')[0];
-          return jobDateStr === weekStr && jobData.serviceId === 'window-cleaning';
+          const originalDateStr = originalDate ? originalDate.split('T')[0] : null;
+          // Match if current date OR original date (before move) matches the target date
+          const dateMatches = jobDateStr === weekStr || originalDateStr === weekStr;
+          return dateMatches && jobData.serviceId === 'window-cleaning';
         });
         const isToday = visitDate.getTime() === today.getTime();
         if (!jobExistsForDate && !(skipToday && isToday)) {
@@ -392,14 +402,17 @@ export async function createJobsForWeek(weekStartDate: string): Promise<number> 
         const existingJobs = await getDocs(existingJobsQuery);
         
         // Check if any existing job matches this date (client-side filtering)
+        // Also check originalScheduledTime for moved jobs to prevent duplicates
         const jobExistsForDate = existingJobs.docs.some(doc => {
           const jobData = doc.data();
           const jobDate = jobData.scheduledTime;
+          const originalDate = jobData.originalScheduledTime;
           if (!jobDate) return false;
           
-          // Check if the job is scheduled for the same date
+          // Check if the job is scheduled for the same date OR was originally scheduled for this date
           const jobDateStr = jobDate.split('T')[0]; // Get just the date part
-          return jobDateStr === weekStr;
+          const originalDateStr = originalDate ? originalDate.split('T')[0] : null;
+          return jobDateStr === weekStr || originalDateStr === weekStr;
         });
         
         // Only create job if no existing job for this date
@@ -561,12 +574,15 @@ export async function createJobsForServicePlan(plan: ServicePlan, client: Client
     const existingJobsSnapshot = await getDocs(existingJobsQuery);
     
     // Then filter in memory for the specific service and date
+    // Also check originalScheduledTime for moved jobs to prevent duplicates
     const existingJobs = existingJobsSnapshot.docs.filter(doc => {
       const data = doc.data();
       if (data.serviceId !== plan.serviceType) return false;
       if (!data.scheduledTime) return false;
       const jobDate = data.scheduledTime.split('T')[0];
-      return jobDate === weekStr;
+      const originalDate = data.originalScheduledTime ? data.originalScheduledTime.split('T')[0] : null;
+      // Match if current date OR original date (before move) matches the target date
+      return jobDate === weekStr || originalDate === weekStr;
     });
     
     if (existingJobs.length === 0) {
@@ -645,13 +661,18 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
         const existingJobs = await getDocs(existingJobsQuery);
 
         // Check if any existing job matches this date and service type
+        // Also check originalScheduledTime for moved jobs to prevent duplicates
         const jobExistsForDateAndService = existingJobs.docs.some(doc => {
           const jobData = doc.data();
           const jobDate = jobData.scheduledTime;
+          const originalDate = jobData.originalScheduledTime;
           if (!jobDate) return false;
 
           const jobDateStr = jobDate.split('T')[0];
-          return jobDateStr === serviceDateStr && jobData.serviceId === service.serviceType;
+          const originalDateStr = originalDate ? originalDate.split('T')[0] : null;
+          // Match if current date OR original date (before move) matches the target date
+          const dateMatches = jobDateStr === serviceDateStr || originalDateStr === serviceDateStr;
+          return dateMatches && jobData.serviceId === service.serviceType;
         });
 
         // Only create job if no existing job for this date and service

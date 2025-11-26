@@ -61,6 +61,7 @@ export default function ClientDetailScreen() {
   const [historyCollapsed, setHistoryCollapsed] = useState(false);
   const [todayComplete, setTodayComplete] = useState(false);
   const [nextScheduledVisit, setNextScheduledVisit] = useState<string | null>(null);
+  const [originalScheduledVisit, setOriginalScheduledVisit] = useState<string | null>(null); // Original date before job was moved
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
   
@@ -237,18 +238,23 @@ export default function ClientDetailScreen() {
         const jobsSnapshot = await getDocs(jobsQuery);
         const now = new Date();
         let nextJobDate: Date | null = null;
+        let nextJobOriginalDate: string | null = null;
         jobsSnapshot.forEach(doc => {
           const job = doc.data();
           if (job.scheduledTime) {
             const jobDate = new Date(job.scheduledTime);
             if (jobDate >= now && (!nextJobDate || jobDate < nextJobDate)) {
               nextJobDate = jobDate;
+              // Track the original date if job was moved
+              nextJobOriginalDate = job.originalScheduledTime || null;
             }
           }
         });
         setNextScheduledVisit((nextJobDate && Object.prototype.toString.call(nextJobDate) === '[object Date]') ? (nextJobDate as Date).toISOString() : null);
+        setOriginalScheduledVisit(nextJobOriginalDate);
       } catch (error) {
         setNextScheduledVisit(null);
+        setOriginalScheduledVisit(null);
       }
     };
 
@@ -791,22 +797,39 @@ export default function ClientDetailScreen() {
                         <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
                         <InfoRow 
                           label="Next Service" 
-                          value={plan.scheduleType === 'recurring' 
-                            ? (plan.startDate 
-                              ? new Date(plan.startDate).toLocaleDateString('en-GB', {
-                                  day: '2-digit',
-                                  month: 'long',
-                                  year: 'numeric',
-                                })
-                              : 'Not scheduled')
-                            : (plan.scheduledDate
-                              ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
-                                  day: '2-digit',
-                                  month: 'long',
-                                  year: 'numeric',
-                                })
-                              : 'Not scheduled')
-                          } 
+                          value={(() => {
+                            const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
+                              day: '2-digit',
+                              month: 'long',
+                              year: 'numeric',
+                            });
+                            
+                            // If we have next scheduled visit info and it's been moved, show both dates
+                            if (nextScheduledVisit && originalScheduledVisit) {
+                              const originalDateStr = originalScheduledVisit.split('T')[0];
+                              const currentDateStr = nextScheduledVisit.split('T')[0];
+                              // Only show moved notation if dates are actually different
+                              if (originalDateStr !== currentDateStr) {
+                                return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                              }
+                            }
+                            
+                            // Show actual next scheduled visit if available
+                            if (nextScheduledVisit) {
+                              return formatDate(nextScheduledVisit);
+                            }
+                            
+                            // Fall back to plan dates
+                            if (plan.scheduleType === 'recurring') {
+                              return plan.startDate 
+                                ? formatDate(plan.startDate)
+                                : 'Not scheduled';
+                            } else {
+                              return plan.scheduledDate
+                                ? formatDate(plan.scheduledDate)
+                                : 'Not scheduled';
+                            }
+                          })()}
                         />
                       </View>
                     ));
@@ -832,14 +855,27 @@ export default function ClientDetailScreen() {
                     />
                     <InfoRow 
                       label="Next Scheduled Visit" 
-                      value={nextScheduledVisit 
-                        ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : 'N/A'
-                      } 
+                      value={(() => {
+                        if (!nextScheduledVisit) return 'N/A';
+                        
+                        const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        });
+                        
+                        // If job was moved, show original date with "(moved to...)" notation
+                        if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
+                          const originalDateStr = originalScheduledVisit.split('T')[0];
+                          const currentDateStr = nextScheduledVisit.split('T')[0];
+                          // Only show moved notation if dates are actually different
+                          if (originalDateStr !== currentDateStr) {
+                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                          }
+                        }
+                        
+                        return formatDate(nextScheduledVisit);
+                      })()} 
                     />
                   </>
                 )}
@@ -1020,22 +1056,39 @@ export default function ClientDetailScreen() {
                     <InfoRow label="Price" value={`£${plan.price.toFixed(2)}`} />
                     <InfoRow 
                       label="Next Service" 
-                      value={plan.scheduleType === 'recurring' 
-                        ? (plan.startDate 
-                          ? new Date(plan.startDate).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                            })
-                          : 'Not scheduled')
-                        : (plan.scheduledDate
-                          ? new Date(plan.scheduledDate).toLocaleDateString('en-GB', {
-                              day: '2-digit',
-                              month: 'long',
-                              year: 'numeric',
-                            })
-                          : 'Not scheduled')
-                      } 
+                      value={(() => {
+                        const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
+                          day: '2-digit',
+                          month: 'long',
+                          year: 'numeric',
+                        });
+                        
+                        // If we have next scheduled visit info and it's been moved, show both dates
+                        if (nextScheduledVisit && originalScheduledVisit) {
+                          const originalDateStr = originalScheduledVisit.split('T')[0];
+                          const currentDateStr = nextScheduledVisit.split('T')[0];
+                          // Only show moved notation if dates are actually different
+                          if (originalDateStr !== currentDateStr) {
+                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                          }
+                        }
+                        
+                        // Show actual next scheduled visit if available
+                        if (nextScheduledVisit) {
+                          return formatDate(nextScheduledVisit);
+                        }
+                        
+                        // Fall back to plan dates
+                        if (plan.scheduleType === 'recurring') {
+                          return plan.startDate 
+                            ? formatDate(plan.startDate)
+                            : 'Not scheduled';
+                        } else {
+                          return plan.scheduledDate
+                            ? formatDate(plan.scheduledDate)
+                            : 'Not scheduled';
+                        }
+                      })()}
                     />
                   </View>
                   ));
@@ -1061,14 +1114,27 @@ export default function ClientDetailScreen() {
                   />
                   <InfoRow 
                     label="Next Scheduled Visit" 
-                    value={nextScheduledVisit 
-                      ? new Date(nextScheduledVisit).toLocaleDateString('en-GB', {
-                          day: '2-digit',
-                          month: 'long',
-                          year: 'numeric',
-                        })
-                      : 'N/A'
-                    } 
+                    value={(() => {
+                      if (!nextScheduledVisit) return 'N/A';
+                      
+                      const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'long',
+                        year: 'numeric',
+                      });
+                      
+                      // If job was moved, show original date with "(moved to...)" notation
+                      if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
+                        const originalDateStr = originalScheduledVisit.split('T')[0];
+                        const currentDateStr = nextScheduledVisit.split('T')[0];
+                        // Only show moved notation if dates are actually different
+                        if (originalDateStr !== currentDateStr) {
+                          return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
+                        }
+                      }
+                      
+                      return formatDate(nextScheduledVisit);
+                    })()} 
                   />
                 </>
               )}
