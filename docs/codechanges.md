@@ -56,7 +56,8 @@
 
 ### Follow-up Fix (Same Day):
 - **Display format corrected**: Shows "ORIGINAL DATE (moved to NEW DATE)" - displaying when it SHOULD have been per the schedule, then where it was moved to
-- **Added fallback for legacy moved jobs**: Jobs moved before this code was deployed only have `isDeferred: true` flag but no `originalScheduledTime`. These show "(Moved)" indicator without the original date.
+- **Manual backfill for legacy jobs**: Added "Set original date" control to each deferred job so historic moves can record their original date. Once set, the UI shows "(Moved from …)" everywhere and recurrence calculations respect the original anchor again.
+- **Added fallback for legacy moved jobs**: Jobs moved before this code was deployed only have `isDeferred: true` flag but no `originalScheduledTime`. These show "(Moved)" indicator until an original date is set.
 - **Service Schedule list**: Shows "(Moved from 15th Dec)" in orange for jobs with original date tracked, or just "(Moved)" for legacy jobs
 - **Applied to all locations**: Service Details, Next Scheduled Visit, Service Schedule list, and Clients list page
 

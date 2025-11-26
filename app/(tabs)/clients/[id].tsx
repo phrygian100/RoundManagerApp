@@ -65,6 +65,10 @@ export default function ClientDetailScreen() {
   const [nextJobWasMoved, setNextJobWasMoved] = useState(false); // Fallback for jobs moved before tracking was added
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
+  const [showOriginalDateModal, setShowOriginalDateModal] = useState(false);
+  const [originalDateDraft, setOriginalDateDraft] = useState<Date>(new Date());
+  const [originalDateInput, setOriginalDateInput] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [jobAwaitingOriginalDate, setJobAwaitingOriginalDate] = useState<(Job & { type: 'job' }) | null>(null);
   
   // Additional recurring work states
   const [modalMode, setModalMode] = useState<'one-time' | 'recurring'>('one-time');
@@ -460,6 +464,60 @@ export default function ClientDetailScreen() {
           },
         ]
       );
+    }
+  };
+
+  const handlePromptOriginalDate = (job: Job & { type: 'job' }) => {
+    const baseDate = job.originalScheduledTime ? parseISO(job.originalScheduledTime) : parseISO(job.scheduledTime);
+    const safeDate = baseDate || new Date();
+    setOriginalDateDraft(safeDate);
+    setOriginalDateInput(format(safeDate, 'yyyy-MM-dd'));
+    setJobAwaitingOriginalDate(job);
+    setShowOriginalDateModal(true);
+  };
+
+  const handleCancelOriginalDate = () => {
+    setShowOriginalDateModal(false);
+    setJobAwaitingOriginalDate(null);
+  };
+
+  const handleOriginalDateInputChange = (value: string) => {
+    setOriginalDateInput(value);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      setOriginalDateDraft(parseISO(value));
+    }
+  };
+
+  const handleConfirmOriginalDate = async () => {
+    if (!jobAwaitingOriginalDate) return;
+    if (!originalDateInput || !/^\d{4}-\d{2}-\d{2}$/.test(originalDateInput)) {
+      Alert.alert('Invalid date', 'Please enter a valid date in the format YYYY-MM-DD.');
+      return;
+    }
+    try {
+      const timePortion = jobAwaitingOriginalDate.scheduledTime?.split('T')[1] || '09:00:00';
+      const isoDate = `${format(originalDateDraft, 'yyyy-MM-dd')}T${timePortion}`;
+      await updateDoc(doc(db, 'jobs', jobAwaitingOriginalDate.id), {
+        originalScheduledTime: isoDate,
+        isDeferred: true,
+      });
+      setPendingJobs(prev =>
+        prev.map(job =>
+          job.id === jobAwaitingOriginalDate.id ? { ...job, originalScheduledTime: isoDate, isDeferred: true } : job
+        )
+      );
+      if (nextScheduledVisit) {
+        const jobDate = new Date(jobAwaitingOriginalDate.scheduledTime);
+        const nextDate = new Date(nextScheduledVisit);
+        if (Math.abs(jobDate.getTime() - nextDate.getTime()) < 60000) {
+          setOriginalScheduledVisit(isoDate);
+          setNextJobWasMoved(true);
+        }
+      }
+      handleCancelOriginalDate();
+    } catch (error) {
+      console.error('Failed to save original date', error);
+      Alert.alert('Error', 'Failed to save the original date. Please try again.');
     }
   };
 
@@ -1403,7 +1461,7 @@ export default function ClientDetailScreen() {
                           {wasMoved && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
                               {hasOriginalDate 
-                                ? ` (Moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM')})`
+                                ? ` (Moved from ${format(parseISO(item.originalScheduledTime!), 'do MMM yyyy')})`
                                 : ' (Moved)'
                               }
                             </ThemedText>
@@ -1412,6 +1470,11 @@ export default function ClientDetailScreen() {
                         <ThemedText style={styles.historyItemText}>
                           Price: £{item.price.toFixed(2)}
                         </ThemedText>
+                        {wasMoved && !hasOriginalDate && (
+                          <Pressable style={styles.setOriginalButton} onPress={() => handlePromptOriginalDate(item)}>
+                            <ThemedText style={styles.setOriginalButtonText}>Set original date</ThemedText>
+                          </Pressable>
+                        )}
                       </View>
                       <Pressable
                         style={styles.deleteJobButton}
@@ -2012,6 +2075,58 @@ export default function ClientDetailScreen() {
         </View>
       </Modal>
       
+      {showOriginalDateModal && (
+        <Modal
+          transparent
+          visible={showOriginalDateModal}
+          animationType="fade"
+          onRequestClose={handleCancelOriginalDate}
+        >
+          <View style={styles.originalDateModalBackdrop}>
+            <View style={styles.originalDateModalContent}>
+              <ThemedText style={styles.originalDateModalTitle}>Set original date</ThemedText>
+              <ThemedText style={styles.originalDateModalSubtitle}>
+                Specify the date this job was originally scheduled for.
+              </ThemedText>
+              {Platform.OS === 'web' ? (
+                <TextInput
+                  style={styles.originalDateInput}
+                  value={originalDateInput}
+                  onChangeText={handleOriginalDateInputChange}
+                  placeholder="YYYY-MM-DD"
+                />
+              ) : (
+                <DateTimePicker
+                  value={originalDateDraft}
+                  mode="date"
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={(_, selected) => {
+                    if (selected) {
+                      setOriginalDateDraft(selected);
+                      setOriginalDateInput(format(selected, 'yyyy-MM-dd'));
+                    }
+                  }}
+                />
+              )}
+              <View style={styles.originalDateModalActions}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalCancelButton]}
+                  onPress={handleCancelOriginalDate}
+                >
+                  <ThemedText style={styles.modalCancelButtonText}>Cancel</ThemedText>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.modalSaveButton]}
+                  onPress={handleConfirmOriginalDate}
+                >
+                  <ThemedText style={styles.modalSaveButtonText}>Save</ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
       {/* GoCardless Settings Modal */}
       <GoCardlessSettingsModal
         visible={gocardlessModalVisible}
@@ -2275,6 +2390,80 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: '#f0f0f0',
     borderColor: '#d0d0d0',
+  },
+  setOriginalButton: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#f57c00',
+    borderRadius: 6,
+  },
+  setOriginalButtonText: {
+    color: '#f57c00',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  originalDateModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  originalDateModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 380,
+  },
+  originalDateModalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  originalDateModalSubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 16,
+    color: '#555',
+  },
+  originalDateInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    padding: 10,
+    width: '100%',
+    fontSize: 16,
+    backgroundColor: '#fdfdfd',
+  },
+  originalDateModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+  },
+  modalButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  modalCancelButton: {
+    backgroundColor: '#e0e0e0',
+    marginRight: 12,
+  },
+  modalSaveButton: {
+    backgroundColor: '#1976d2',
+  },
+  modalCancelButtonText: {
+    color: '#333',
+    fontWeight: '600',
+  },
+  modalSaveButtonText: {
+    color: '#fff',
+    fontWeight: 'bold',
   },
   notesSection: {
     marginTop: 24,
