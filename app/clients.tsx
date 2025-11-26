@@ -347,7 +347,20 @@ export default function ClientsScreen() {
             }
           } else if (wasMoved) {
             // Fallback: job was moved before tracking was added (isDeferred flag exists but no originalScheduledTime)
-            nextVisitDisplay = `${format(parsedDate, 'd MMMM yyyy')} (moved)`;
+            // For legacy clients, check if actual job date differs from client.nextVisit (their anchor)
+            const client = item;
+            if (client.nextVisit) {
+              const clientAnchor = parseISO(client.nextVisit);
+              const clientAnchorStr = client.nextVisit.split('T')[0];
+              const currentDateStr = nextVisit.split('T')[0];
+              if (clientAnchorStr !== currentDateStr) {
+                nextVisitDisplay = `${format(clientAnchor, 'd MMM')} (moved to ${format(parsedDate, 'd MMM yyyy')})`;
+              } else {
+                nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
+              }
+            } else {
+              nextVisitDisplay = `${format(parsedDate, 'd MMMM yyyy')} (moved)`;
+            }
           } else {
             nextVisitDisplay = format(parsedDate, 'd MMMM yyyy');
           }

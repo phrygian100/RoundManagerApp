@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { useFocusEffect } from '@react-navigation/native';
-import { format, parseISO } from 'date-fns';
+import { addWeeks, format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -131,6 +131,37 @@ export default function ClientDetailScreen() {
   const { width } = useWindowDimensions();
   const isWeb = Platform.OS === 'web';
   const isLargeScreen = isWeb && width > 768;
+
+  // Helper function to calculate what date a job SHOULD be on based on service plan
+  const calculateExpectedJobDate = (jobDate: string, plan: ServicePlan): string | null => {
+    if (!plan.startDate || !plan.frequencyWeeks || plan.scheduleType !== 'recurring') {
+      return null;
+    }
+    
+    try {
+      const jobDateTime = parseISO(jobDate);
+      const planStart = parseISO(plan.startDate);
+      
+      // Find which occurrence this should be
+      let expectedDate = new Date(planStart);
+      
+      // If job is before plan start, it shouldn't exist
+      if (jobDateTime < planStart) {
+        return null;
+      }
+      
+      // Calculate which occurrence this should be
+      const weeksDiff = Math.round((jobDateTime.getTime() - planStart.getTime()) / (7 * 24 * 60 * 60 * 1000));
+      const occurrenceNumber = Math.floor(weeksDiff / plan.frequencyWeeks);
+      
+      // Calculate the expected date for this occurrence
+      expectedDate = addWeeks(planStart, occurrenceNumber * plan.frequencyWeeks);
+      
+      return format(expectedDate, 'yyyy-MM-dd');
+    } catch {
+      return null;
+    }
+  };
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
@@ -891,19 +922,13 @@ export default function ClientDetailScreen() {
                           year: 'numeric',
                         });
                         
-                        // If job was moved, show ORIGINAL date with "(moved to NEW)"
-                        if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
-                          const originalDateStr = originalScheduledVisit.split('T')[0];
-                          const currentDateStr = nextScheduledVisit.split('T')[0];
-                          // Only show moved notation if dates are actually different
-                          if (originalDateStr !== currentDateStr) {
-                            return `${formatDate(originalScheduledVisit)} (moved to ${formatDate(nextScheduledVisit)})`;
-                          }
-                        }
+                        // For legacy clients, use the client.nextVisit as the expected anchor
+                        const legacyAnchor = client.nextVisit ? parseISO(client.nextVisit) : null;
+                        const actualJobDate = parseISO(nextScheduledVisit);
                         
-                        // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
-                        if (nextJobWasMoved && !originalScheduledVisit) {
-                          return `${formatDate(nextScheduledVisit)} (moved)`;
+                        // Check if job was moved from its expected legacy anchor
+                        if (legacyAnchor && !isSameDay(legacyAnchor, actualJobDate)) {
+                          return `${formatDate(legacyAnchor.toISOString())} (moved to ${formatDate(nextScheduledVisit)})`;
                         }
                         
                         return formatDate(nextScheduledVisit);
@@ -1160,19 +1185,13 @@ export default function ClientDetailScreen() {
                         year: 'numeric',
                       });
                       
-                      // If job was moved, show new date with "(moved from...)" notation
-                      if (originalScheduledVisit && originalScheduledVisit !== nextScheduledVisit) {
-                        const originalDateStr = originalScheduledVisit.split('T')[0];
-                        const currentDateStr = nextScheduledVisit.split('T')[0];
-                        // Only show moved notation if dates are actually different
-                        if (originalDateStr !== currentDateStr) {
-                          return `${formatDate(nextScheduledVisit)} (moved from ${formatDate(originalScheduledVisit)})`;
-                        }
-                      }
+                      // For legacy clients, use the client.nextVisit as the expected anchor
+                      const legacyAnchor = client.nextVisit ? parseISO(client.nextVisit) : null;
+                      const actualJobDate = parseISO(nextScheduledVisit);
                       
-                      // Fallback: if job was deferred but we don't have original date (moved before tracking was added)
-                      if (nextJobWasMoved && !originalScheduledVisit) {
-                        return `${formatDate(nextScheduledVisit)} (moved)`;
+                      // Check if job was moved from its expected legacy anchor
+                      if (legacyAnchor && !isSameDay(legacyAnchor, actualJobDate)) {
+                        return `${formatDate(legacyAnchor.toISOString())} (moved to ${formatDate(nextScheduledVisit)})`;
                       }
                       
                       return formatDate(nextScheduledVisit);

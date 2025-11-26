@@ -2,14 +2,18 @@
 
 ## November 26, 2025
 
-### Job Deferral/Move Tracking - Original Date Preservation
+### Job Deferral/Move Tracking - Service Plan Anchor Separation
 
-**Problem**: When a user moved/deferred a job from one week to another, the system lost track of the original scheduled date. This caused:
-1. Confusion in the `/clients` page where "Next Visit" didn't indicate the job had been moved
-2. Potential duplicate job generation when the job generation dedup logic only checked `scheduledTime` (the moved-to date), not the original date
+**Problem**: When a user moved/deferred a job, the system didn't properly separate the concepts of:
+1. **Service plan anchor date** (`startDate`) - the canonical date for generating future recurring jobs
+2. **Actual job date** (`scheduledTime`) - where the job was moved to
+
+This caused:
+1. Confusion when viewing job schedules - no indication that jobs were moved from their expected dates
+2. Potential recurrence issues if the plan anchor drifted from its intended value
 3. No visibility into which jobs in the Service Schedule were moved
 
-**Solution**: Added `originalScheduledTime` field tracking and display throughout the system.
+**Solution**: Implemented proper separation using service plan `startDate` as the source of truth for expected dates.
 
 ### Changes Made:
 
@@ -54,13 +58,17 @@
 - Job generation will no longer create duplicate jobs for the original date when a job has been moved
 - **Recurrence is NOT affected**: Moving a job is an exception - the service plan anchor date (editable only in Manage Services) controls future job generation
 
-### Follow-up Fix (Same Day):
-- **Display format corrected**: Shows "ORIGINAL DATE (moved to NEW DATE)" - displaying when it SHOULD have been per the schedule, then where it was moved to
-- **Service-plan anchor as source of truth**: When a job lacks `originalScheduledTime` (legacy move), the UI now falls back to the service plan's `Next Service` value (editable in Manage Services). Whatever date you keep there is treated as the canonical "should" date everywhere, so no extra button is required.
-- **Moved indicators**: Service Schedule rows show "(Moved from …)" in orange whenever the job date differs from the plan anchor, or "(Moved)" if no anchor is available. The same logic drives Service Details and the clients list.
-- **Applied to all locations**: Service Details, Next Scheduled Visit, Service Schedule list, and Clients list page rely on the service plan anchor plus per-job original data when available.
+### Follow-up Fix - Service Plan Anchor Separation (Same Day):
+- **Service plan `startDate` as canonical anchor**: The service plan's `Next Service` date (visible in Manage Services) is now the single source of truth for what date jobs SHOULD be on
+- **Move detection logic**: Jobs are considered "moved" when their actual `scheduledTime` differs from what's expected based on the service plan anchor + frequency calculation  
+- **Display format**: Always shows "EXPECTED DATE (moved to ACTUAL DATE)" - the date from the recurrence pattern first, then where it was moved to
+- **Service Schedule indicators**: Shows "(Moved from 8th Dec 2025)" when job differs from calculated expected date
+- **Automatic fallback for legacy jobs**: Uses service plan anchor to determine the "should" date even for jobs moved before `originalScheduledTime` tracking existed
 
-**Note**: For jobs moved BEFORE this tracking was added, the original date cannot be shown because it wasn't stored. The service plan's startDate (anchor) must be manually corrected in Manage Services to fix recurrence.
+### Key Architectural Principle:
+**The service plan's `startDate` is sacred** - it should NEVER be modified by job moves, only by manual edits in Manage Services. Job moves are exceptions to the pattern, not changes to the pattern itself.
+
+**To fix existing issues**: If a service plan's "Next Service" date has drifted to the moved-to date (e.g., 06/12 instead of 08/12), manually correct it in Manage Services to restore proper recurrence and move indicators.
 
 ---
 
