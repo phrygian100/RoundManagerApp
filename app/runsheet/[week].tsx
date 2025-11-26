@@ -691,14 +691,31 @@ export default function RunsheetWeekScreen() {
       const nextWeekStart = startOfWeek(addDays(currentJobDate, 7), { weekStartsOn: 1 }); // Monday of next week
       const nextMondayString = format(nextWeekStart, 'yyyy-MM-dd') + 'T09:00:00';
       
-      // Store original scheduled time if not already set (preserve the first original date)
-      const originalScheduledTime = job.originalScheduledTime || job.scheduledTime;
+      // If job doesn't have originalScheduledTime, calculate it from service plan
+      let originalTimeToStore = job.originalScheduledTime;
+      if (!originalTimeToStore) {
+        try {
+          // Fetch service plans for this client to get the canonical anchor
+          const { getServicePlansForClient } = await import('../../services/servicePlanService');
+          const plans = await getServicePlansForClient(job.clientId);
+          const matchingPlan = plans.find(p => p.serviceType === job.serviceId && p.isActive);
+          if (matchingPlan?.startDate) {
+            originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
+          } else {
+            // Fallback to current scheduledTime
+            originalTimeToStore = job.scheduledTime;
+          }
+        } catch (error) {
+          console.error('Error fetching service plan for original date:', error);
+          originalTimeToStore = job.scheduledTime;
+        }
+      }
       
       // Update the job with deferred flag and new date
       const jobRef = doc(db, 'jobs', job.id);
       await updateDoc(jobRef, {
         scheduledTime: nextMondayString,
-        originalScheduledTime: originalScheduledTime,
+        originalScheduledTime: originalTimeToStore,
         isDeferred: true,
         vehicleId: null, // Reset to automatic allocation
         eta: null // Clear any existing ETA
@@ -797,12 +814,29 @@ export default function RunsheetWeekScreen() {
     // Move job to selected date (09:00) and update vehicle if specified
     const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
     
-    // Store original scheduled time if not already set (preserve the first original date)
-    const originalScheduledTime = deferJob.originalScheduledTime || deferJob.scheduledTime;
+    // If job doesn't have originalScheduledTime, calculate it from service plan
+    let originalTimeToStore = deferJob.originalScheduledTime;
+    if (!originalTimeToStore) {
+      try {
+        // Fetch service plans for this client to get the canonical anchor
+        const { getServicePlansForClient } = await import('../../services/servicePlanService');
+        const plans = await getServicePlansForClient(deferJob.clientId);
+        const matchingPlan = plans.find(p => p.serviceType === deferJob.serviceId && p.isActive);
+        if (matchingPlan?.startDate) {
+          originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
+        } else {
+          // Fallback to current scheduledTime
+          originalTimeToStore = deferJob.scheduledTime;
+        }
+      } catch (error) {
+        console.error('Error fetching service plan for original date:', error);
+        originalTimeToStore = deferJob.scheduledTime;
+      }
+    }
     
     const updateData: any = { 
       scheduledTime: newDateString,
-      originalScheduledTime: originalScheduledTime,
+      originalScheduledTime: originalTimeToStore,
       isDeferred: true
     };
     

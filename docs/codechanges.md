@@ -2,18 +2,20 @@
 
 ## November 26, 2025
 
-### Job Deferral/Move Tracking - Service Plan Anchor Separation
+### Job Deferral/Move Tracking - Service Plan Anchor as Source of Truth
 
-**Problem**: When a user moved/deferred a job, the system didn't properly separate the concepts of:
-1. **Service plan anchor date** (`startDate`) - the canonical date for generating future recurring jobs
-2. **Actual job date** (`scheduledTime`) - where the job was moved to
+**Problem**: When a user moved/deferred a job, the system stored the wrong original date, causing:
+1. Moved jobs to show "moved from 06-Dec to 06-Dec" (same date)
+2. Service plan anchor dates to become corrupted
+3. Future job recurrence to be calculated from the wrong base date
 
-This caused:
-1. Confusion when viewing job schedules - no indication that jobs were moved from their expected dates
-2. Potential recurrence issues if the plan anchor drifted from its intended value
-3. No visibility into which jobs in the Service Schedule were moved
+**Root Cause**: The move handler was storing `job.scheduledTime` as the `originalScheduledTime`, which was already the moved-to date if the job had been moved before.
 
-**Solution**: Implemented proper separation using service plan `startDate` as the source of truth for expected dates.
+**Solution**: Service plan `startDate` is now the single source of truth. When moving a job, the system:
+1. Fetches the service plan to get the canonical anchor date
+2. Stores THAT as `originalScheduledTime` (not the corrupted current date)
+3. Marks the job with `isDeferred: true`
+4. Displays use the service plan anchor for move detection
 
 ### Changes Made:
 
@@ -22,9 +24,10 @@ This caused:
 - This field stores the original date before a job was moved/deferred
 
 #### 2. Defer/Move Logic (`app/runsheet/[week].tsx`)
-- Updated `handleDeferToNextWeek()` to store `originalScheduledTime` when deferring a job
-- Updated `handleDeferDateChange()` to store `originalScheduledTime` when moving a job to a custom date
-- Logic preserves the FIRST original date if a job is moved multiple times
+- **Fixed critical bug**: Now fetches the service plan to get the canonical `startDate` BEFORE storing `originalScheduledTime`
+- Updated `handleDeferToNextWeek()` to calculate and store the correct original date from service plan
+- Updated `handleDeferDateChange()` to calculate and store the correct original date from service plan
+- **Key change**: `originalScheduledTime` is now calculated from service plan anchor, NOT from `job.scheduledTime` (which could be corrupted)
 
 #### 3. Job Generation Dedup (`services/jobService.ts`)
 - Updated dedup logic in `createJobsForClient()` (both service plan and legacy paths)
@@ -58,17 +61,22 @@ This caused:
 - Job generation will no longer create duplicate jobs for the original date when a job has been moved
 - **Recurrence is NOT affected**: Moving a job is an exception - the service plan anchor date (editable only in Manage Services) controls future job generation
 
-### Follow-up Fix - Service Plan Anchor Separation (Same Day):
-- **Service plan `startDate` as canonical anchor**: The service plan's `Next Service` date (visible in Manage Services) is now the single source of truth for what date jobs SHOULD be on
-- **Move detection logic**: Jobs are considered "moved" when their actual `scheduledTime` differs from what's expected based on the service plan anchor + frequency calculation  
-- **Display format**: Always shows "EXPECTED DATE (moved to ACTUAL DATE)" - the date from the recurrence pattern first, then where it was moved to
-- **Service Schedule indicators**: Shows "(Moved from 8th Dec 2025)" when job differs from calculated expected date
-- **Automatic fallback for legacy jobs**: Uses service plan anchor to determine the "should" date even for jobs moved before `originalScheduledTime` tracking existed
+### Final Fix - Fetching Service Plan Anchor on Move (Same Day):
+- **Critical bug fixed**: Move handlers now FETCH the service plan before storing `originalScheduledTime`
+- **Service Details display**: Uses service plan's `startDate` directly - if job has `isDeferred: true` and plan has `startDate`, shows `"8th December 2025 (moved to 6th December 2025)"`
+- **Service Schedule display**: Shows `"(Moved from 8th Dec 2025)"` using service plan anchor as the "from" date
+- **Display uses plan anchor**: Even if `originalScheduledTime` is corrupted in existing data, display logic now references service plan `startDate` directly
 
 ### Key Architectural Principle:
-**The service plan's `startDate` is sacred** - it should NEVER be modified by job moves, only by manual edits in Manage Services. Job moves are exceptions to the pattern, not changes to the pattern itself.
+**Manage Services screen is the single source of truth** - the "Next Service" date there controls:
+1. Future job generation (recurrence pattern)
+2. Move detection (what date jobs SHOULD be on)
+3. Display of "moved from" indicators
 
-**To fix existing issues**: If a service plan's "Next Service" date has drifted to the moved-to date (e.g., 06/12 instead of 08/12), manually correct it in Manage Services to restore proper recurrence and move indicators.
+**To fix corrupted existing data**:
+1. Jobs with wrong `originalScheduledTime`: Will be fixed next time they're moved (or delete and regenerate)
+2. Service plans with wrong `startDate`: Manually correct in Manage Services → Regenerate Schedule
+3. Future: All new moves will calculate the correct original date from the service plan
 
 ---
 

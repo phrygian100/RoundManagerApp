@@ -881,24 +881,10 @@ export default function ClientDetailScreen() {
                             // Get the next pending job for this service type
                             const planNextJob = plan.serviceType ? nextPendingJobByService[plan.serviceType] : undefined;
                             
-                            // Debug logging
-                            console.log('Service Details debug for', plan.serviceType, {
-                              planStartDate: plan.startDate,
-                              planNextJob: planNextJob ? {
-                                scheduledTime: planNextJob.scheduledTime,
-                                isDeferred: planNextJob.isDeferred,
-                                originalScheduledTime: planNextJob.originalScheduledTime
-                              } : 'No job found'
-                            });
-                            
-                            if (planNextJob && (planNextJob.isDeferred || planNextJob.originalScheduledTime)) {
-                              // Job was moved - show original date (moved to actual)
-                              const originalDate = planNextJob.originalScheduledTime || plan.startDate;
-                              if (originalDate) {
-                                return `${formatDate(originalDate)} (moved to ${formatDate(planNextJob.scheduledTime)})`;
-                              } else {
-                                return `${formatDate(planNextJob.scheduledTime)} (moved)`;
-                              }
+                            // If there's a pending job and it's marked as deferred
+                            if (planNextJob && planNextJob.isDeferred && plan.startDate) {
+                              // Job was moved - show what it SHOULD be (from plan) then where it is
+                              return `${formatDate(plan.startDate)} (moved to ${formatDate(planNextJob.scheduledTime)})`;
                             }
                             
                             // Job not moved - show either actual job date or plan anchor
@@ -1447,14 +1433,9 @@ export default function ClientDetailScreen() {
                 data={pendingJobs}
                 keyExtractor={(item) => item.id}
                 renderItem={({ item }) => {
-                  // Debug: let's see what flags this job has
-                  console.log('Job debug:', {
-                    id: item.id,
-                    scheduledTime: item.scheduledTime,
-                    originalScheduledTime: item.originalScheduledTime,
-                    isDeferred: item.isDeferred,
-                    serviceId: item.serviceId
-                  });
+                  // Get the service plan for this job to determine expected date
+                  const plan = item.serviceId ? planByService[item.serviceId] : undefined;
+                  const expectedDate = plan?.startDate || null;
 
                   return (
                   <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
@@ -1463,9 +1444,9 @@ export default function ClientDetailScreen() {
                         <ThemedText style={styles.historyItemText}>
                           <ThemedText style={{ fontWeight: 'bold' }}>{item.serviceId || 'Job'}:</ThemedText>{' '}
                           {format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
-                          {(item.isDeferred || item.originalScheduledTime) && (
+                          {item.isDeferred && expectedDate && (
                             <ThemedText style={{ color: '#f57c00', fontStyle: 'italic' }}>
-                              {' '}(MOVED - Debug: isDeferred={item.isDeferred ? 'true' : 'false'}, hasOriginal={item.originalScheduledTime ? 'yes' : 'no'})
+                              {' '}(Moved from {format(parseISO(expectedDate), 'do MMM yyyy')})
                             </ThemedText>
                           )}
                         </ThemedText>
