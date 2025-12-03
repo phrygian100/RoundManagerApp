@@ -4,7 +4,7 @@ import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -83,25 +83,25 @@ export default function RunsheetWeekScreen() {
   const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
   const [summaryProcessing, setSummaryProcessing] = useState<boolean>(false);
 
-  // Real-time swap proposals listener
-  useEffect(() => {
-    if (!accountId) return;
-
-    const weekKey = `${accountId}_${format(weekStart, 'yyyy-MM-dd')}`;
-    const proposalsRef = collection(db, 'swapProposals', weekKey, 'proposals');
-
-    const unsubscribe = onSnapshot(proposalsRef, (snapshot) => {
-      const proposals: Record<string, Array<{ jobId: string; swapWithJobId: string }>> = {};
-      snapshot.forEach((doc) => {
-        proposals[doc.id] = doc.data().proposals || [];
-      });
-      setSwapProposalsByDay(proposals);
-    }, (error) => {
-      console.error('Error listening to swap proposals:', error);
-    });
-
-    return unsubscribe;
-  }, [accountId, weekStart]);
+  // Real-time swap proposals listener - DISABLED FOR NOW DUE TO BLANK SCREEN ISSUE
+  // useEffect(() => {
+  //   if (!accountId) return;
+  //
+  //   const weekKey = `${accountId}_${format(weekStart, 'yyyy-MM-dd')}`;
+  //   const proposalsRef = collection(db, 'swapProposals', weekKey, 'proposals');
+  //
+  //   const unsubscribe = onSnapshot(proposalsRef, (snapshot) => {
+  //     const proposals: Record<string, Array<{ jobId: string; swapWithJobId: string }>> = {};
+  //     snapshot.forEach((doc) => {
+  //       proposals[doc.id] = doc.data().proposals || [];
+  //     });
+  //     setSwapProposalsByDay(proposals);
+  //   }, (error) => {
+  //     console.error('Error listening to swap proposals:', error);
+  //   });
+  //
+  //   return unsubscribe;
+  // }, [accountId, weekStart]);
 
   // GoCardless payment modal
   const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
@@ -298,31 +298,33 @@ export default function RunsheetWeekScreen() {
       
       setLoading(false);
 
-      // Set up real-time job updates after initial load
-      if (accountId) {
-        const jobsQuery = query(
-          collection(db, 'jobs'),
-          where('ownerId', '==', accountId),
-          where('scheduledTime', '>=', startDate),
-          where('scheduledTime', '<=', endDate)
-        );
-
-        jobsUnsubscribe = onSnapshot(jobsQuery, (snapshot) => {
-          console.log('Real-time job update received');
-          const updatedJobs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
-
-          // Update jobs state, merging with existing client data
-          setJobs(currentJobs => {
-            return updatedJobs.map(updatedJob => {
-              // Find existing job to preserve client data
-              const existingJob = currentJobs.find(j => j.id === updatedJob.id);
-              return existingJob ? { ...updatedJob, client: existingJob.client } : updatedJob;
-            });
-          });
-        }, (error) => {
-          console.error('Error in real-time jobs listener:', error);
-        });
-      }
+      // DISABLED: Real-time job updates causing blank screen
+      // // Set up real-time job updates after initial load
+      // const ownerId = await getDataOwnerId();
+      // if (ownerId) {
+      //   const jobsQuery = query(
+      //     collection(db, 'jobs'),
+      //     where('ownerId', '==', ownerId),
+      //     where('scheduledTime', '>=', startDate),
+      //     where('scheduledTime', '<=', endDate)
+      //   );
+      //
+      //   jobsUnsubscribe = onSnapshot(jobsQuery, (snapshot) => {
+      //     console.log('Real-time job update received');
+      //     const updatedJobs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+      //
+      //     // Update jobs state, merging with existing client data
+      //     setJobs(currentJobs => {
+      //       return updatedJobs.map(updatedJob => {
+      //         // Find existing job to preserve client data
+      //         const existingJob = currentJobs.find(j => j.id === updatedJob.id);
+      //         return existingJob ? { ...updatedJob, client: existingJob.client } : updatedJob;
+      //       });
+      //     });
+      //   }, (error) => {
+      //     console.error('Error in real-time jobs listener:', error);
+      //   });
+      // }
     };
 
     fetchJobsAndClients();
@@ -333,7 +335,7 @@ export default function RunsheetWeekScreen() {
         jobsUnsubscribe();
       }
     };
-  }, [week, accountId]);
+  }, [week]);
 
   const handleSetEta = async (time: string) => {
     if (!timePickerJob) return;
@@ -620,44 +622,65 @@ export default function RunsheetWeekScreen() {
     // Calculate completion sequence if marking as complete
     let completionSeq: number | undefined;
     if (!isCompleted) {
-      // Count jobs completed today WITHIN THIS VEHICLE BLOCK
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      try {
+        // Count jobs completed today WITHIN THIS VEHICLE BLOCK
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-      // Find this job's vehicle block boundaries
-      const data = section?.data || [];
-      const jobIndex = data.findIndex((d: any) => d && d.id === jobId);
+        // Find this job's vehicle block boundaries
+        const data = section?.data || [];
+        const jobIndex = data.findIndex((d: any) => d && d.id === jobId);
 
-      if (jobIndex >= 0) {
-        let vehicleStartIndex = 0;
-        for (let i = jobIndex - 1; i >= 0; i--) {
-          const prevItem = data[i];
-          if (prevItem && (prevItem as any).__type === 'vehicle') {
-            vehicleStartIndex = i + 1;
-            break;
+        if (jobIndex >= 0) {
+          let vehicleStartIndex = 0;
+          for (let i = jobIndex - 1; i >= 0; i--) {
+            const prevItem = data[i];
+            if (prevItem && (prevItem as any).__type === 'vehicle') {
+              vehicleStartIndex = i + 1;
+              break;
+            }
           }
-        }
-        let vehicleEndIndex = data.length;
-        for (let i = jobIndex + 1; i < data.length; i++) {
-          const nextItem = data[i];
-          if (nextItem && (nextItem as any).__type === 'vehicle') {
-            vehicleEndIndex = i;
-            break;
+          let vehicleEndIndex = data.length;
+          for (let i = jobIndex + 1; i < data.length; i++) {
+            const nextItem = data[i];
+            if (nextItem && (nextItem as any).__type === 'vehicle') {
+              vehicleEndIndex = i;
+              break;
+            }
           }
+
+          // Get jobs within this vehicle block
+          const vehicleJobs = data.slice(vehicleStartIndex, vehicleEndIndex)
+            .filter((x: any) => x && !(x as any).__type && !isNoteJob(x) && !isQuoteJob(x));
+
+          // Count completed jobs only within this vehicle for today
+          const vehicleCompletedToday = vehicleJobs.filter(job => {
+            if (job.status !== 'completed') return false;
+            const jDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+            return jDate && jDate.toDateString() === today.toDateString();
+          }).length;
+
+          completionSeq = vehicleCompletedToday + 1;
+        } else {
+          // Fallback: count all jobs completed today (original logic)
+          const todayCompletedCount = jobs.filter(j => {
+            if (j.status !== 'completed') return false;
+            const jDate = j.scheduledTime ? parseISO(j.scheduledTime) : null;
+            return jDate && jDate.toDateString() === today.toDateString();
+          }).length;
+          completionSeq = todayCompletedCount + 1;
         }
-
-        // Get jobs within this vehicle block
-        const vehicleJobs = data.slice(vehicleStartIndex, vehicleEndIndex)
-          .filter((x: any) => x && !(x as any).__type && !isNoteJob(x) && !isQuoteJob(x));
-
-        // Count completed jobs only within this vehicle for today
-        const vehicleCompletedToday = vehicleJobs.filter(job => {
-          if (job.status !== 'completed') return false;
-          const jDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+      } catch (error) {
+        console.error('Error calculating completion sequence:', error);
+        // Fallback to original global counting
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayCompletedCount = jobs.filter(j => {
+          if (j.status !== 'completed') return false;
+          const jDate = j.scheduledTime ? parseISO(j.scheduledTime) : null;
           return jDate && jDate.toDateString() === today.toDateString();
         }).length;
-
-        completionSeq = vehicleCompletedToday + 1;
+        completionSeq = todayCompletedCount + 1;
       }
     }
     
@@ -740,38 +763,28 @@ export default function RunsheetWeekScreen() {
         const intendedPosition = vehicleJobsByRoundOrder.findIndex((x: any) => x.id === jobId) + 1;
         
         // If completed out of intended order, create swap proposal
-        if (completionSeq && completionSeq !== intendedPosition) {
-          // Find the job that should have been completed at this sequence
-          const shouldHaveBeenJob = vehicleJobsByRoundOrder[completionSeq - 1];
-          if (shouldHaveBeenJob && shouldHaveBeenJob.id !== jobId) {
-            const dayTitle = section.title;
+        try {
+          if (completionSeq && completionSeq !== intendedPosition) {
+            // Find the job that should have been completed at this sequence
+            const shouldHaveBeenJob = vehicleJobsByRoundOrder[completionSeq - 1];
+            if (shouldHaveBeenJob && shouldHaveBeenJob.id !== jobId) {
+              const dayTitle = section.title;
 
-            // Store swap proposal in Firestore for cross-user sharing
-            try {
-              const weekKey = `${accountId}_${format(weekStart, 'yyyy-MM-dd')}`;
-              const dayProposalRef = doc(db, 'swapProposals', weekKey, 'proposals', dayTitle);
-
-              // Get current proposals to avoid duplicates
-              const currentDoc = await getDoc(dayProposalRef);
-              const existing = currentDoc.exists() ? currentDoc.data().proposals || [] : [];
-
-              // Avoid duplicates
-              const exists = existing.some((p: any) =>
-                (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) ||
-                (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
-              );
-
-              if (!exists) {
-                await setDoc(dayProposalRef, {
-                  proposals: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }],
-                  updatedAt: new Date(),
-                  updatedBy: userProfile?.uid || 'unknown'
-                }, { merge: true });
-              }
-            } catch (error) {
-              console.error('Failed to save swap proposal:', error);
+              // Use local state for now to avoid Firestore issues
+              setSwapProposalsByDay(prev => {
+                const existing = prev[dayTitle] || [];
+                // Avoid duplicates
+                const exists = existing.some(p =>
+                  (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) ||
+                  (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
+                );
+                if (exists) return prev;
+                return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }] };
+              });
             }
           }
+        } catch (error) {
+          console.error('Error detecting out-of-order completion:', error);
         }
       } catch (e) {
         console.warn('Completion order tracking failed:', e);
@@ -2386,14 +2399,8 @@ ${signOff}`;
                         setSummaryVisible(false);
                         setSummarySwapChoices([]);
                         if (summaryDayTitle) {
-                          // Clear swap proposals from Firestore
-                          try {
-                            const weekKey = `${accountId}_${format(weekStart, 'yyyy-MM-dd')}`;
-                            const dayProposalRef = doc(db, 'swapProposals', weekKey, 'proposals', summaryDayTitle);
-                            await deleteDoc(dayProposalRef);
-                          } catch (error) {
-                            console.error('Failed to clear swap proposals:', error);
-                          }
+                          // Clear swap proposals from local state (temporarily)
+                          setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
                         }
                         setSummaryDayTitle(null);
                         // Clear completion tracking after finishing the day
