@@ -1893,20 +1893,7 @@ ${signOff}`;
     
     // Calculate the job's position based on round order within today's jobs
     // This number should stay with the job even if it's reordered by ETA
-    const realJobs = section.data.filter((job: any) => 
-      job && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job)
-    );
-    
-    // Sort jobs by their client's round order to get the original intended position
-    const jobsByRoundOrder = [...realJobs].sort((a: any, b: any) => {
-      const aRoundOrder = a.client?.roundOrderNumber || 999999;
-      const bRoundOrder = b.client?.roundOrderNumber || 999999;
-      return aRoundOrder - bRoundOrder;
-    });
-    
-    // Find this job's position in the round-order-sorted list (1-based)
-    const dayJobPosition = jobsByRoundOrder.findIndex((j: any) => j.id === item.id) + 1;
-    
+
     // Find which vehicle this job belongs to by looking backwards for the most recent vehicle header
     let vehicleStartIndex = 0;
     for (let i = index - 1; i >= 0; i--) {
@@ -1916,7 +1903,7 @@ ${signOff}`;
         break;
       }
     }
-    
+
     // Find the next vehicle header (or end of section) to determine vehicle end
     let vehicleEndIndex = section.data.length;
     for (let i = index + 1; i < section.data.length; i++) {
@@ -1926,6 +1913,21 @@ ${signOff}`;
         break;
       }
     }
+
+    // Get only the jobs within this vehicle block
+    const vehicleJobs = section.data.slice(vehicleStartIndex, vehicleEndIndex).filter((job: any) =>
+      job && !(job as any).__type && !isNoteJob(job) && !isQuoteJob(job)
+    );
+
+    // Sort vehicle jobs by their client's round order to get the intended position within this vehicle
+    const vehicleJobsByRoundOrder = [...vehicleJobs].sort((a: any, b: any) => {
+      const aRoundOrder = a.client?.roundOrderNumber || 999999;
+      const bRoundOrder = b.client?.roundOrderNumber || 999999;
+      return aRoundOrder - bRoundOrder;
+    });
+
+    // Find this job's position in the vehicle-specific round-order-sorted list (1-based)
+    const dayJobPosition = vehicleJobsByRoundOrder.findIndex((j: any) => j.id === item.id) + 1;
     
     // Find the first incomplete job within this vehicle's section only
     const firstIncompleteIndexInVehicle = section.data.slice(vehicleStartIndex, vehicleEndIndex)
