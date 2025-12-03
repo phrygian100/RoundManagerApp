@@ -4,7 +4,7 @@ import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -83,25 +83,44 @@ export default function RunsheetWeekScreen() {
   const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
   const [summaryProcessing, setSummaryProcessing] = useState<boolean>(false);
 
-  // Real-time swap proposals listener - DISABLED FOR NOW DUE TO BLANK SCREEN ISSUE
-  // useEffect(() => {
-  //   if (!accountId) return;
-  //
-  //   const weekKey = `${accountId}_${format(weekStart, 'yyyy-MM-dd')}`;
-  //   const proposalsRef = collection(db, 'swapProposals', weekKey, 'proposals');
-  //
-  //   const unsubscribe = onSnapshot(proposalsRef, (snapshot) => {
-  //     const proposals: Record<string, Array<{ jobId: string; swapWithJobId: string }>> = {};
-  //     snapshot.forEach((doc) => {
-  //       proposals[doc.id] = doc.data().proposals || [];
-  //     });
-  //     setSwapProposalsByDay(proposals);
-  //   }, (error) => {
-  //     console.error('Error listening to swap proposals:', error);
-  //   });
-  //
-  //   return unsubscribe;
-  // }, [accountId, weekStart]);
+  // Real-time swap proposals listener
+  useEffect(() => {
+    let unsubscribe: (() => void) | null = null;
+
+    const setupListener = async () => {
+      try {
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) return;
+
+        const weekKey = `${ownerId}_${format(weekStart, 'yyyy-MM-dd')}`;
+        const proposalsRef = collection(db, 'swapProposals', weekKey, 'proposals');
+
+        unsubscribe = onSnapshot(proposalsRef, (snapshot) => {
+          try {
+            const proposals: Record<string, Array<{ jobId: string; swapWithJobId: string }>> = {};
+            snapshot.forEach((doc) => {
+              proposals[doc.id] = doc.data().proposals || [];
+            });
+            setSwapProposalsByDay(proposals);
+          } catch (error) {
+            console.error('Error processing swap proposals snapshot:', error);
+          }
+        }, (error) => {
+          console.error('Error listening to swap proposals:', error);
+        });
+      } catch (error) {
+        console.error('Error setting up swap proposals listener:', error);
+      }
+    };
+
+    setupListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [weekStart]);
 
   // GoCardless payment modal
   const [gocardlessPaymentModal, setGocardlessPaymentModal] = useState<{
@@ -770,17 +789,44 @@ export default function RunsheetWeekScreen() {
             if (shouldHaveBeenJob && shouldHaveBeenJob.id !== jobId) {
               const dayTitle = section.title;
 
-              // Use local state for now to avoid Firestore issues
-              setSwapProposalsByDay(prev => {
-                const existing = prev[dayTitle] || [];
-                // Avoid duplicates
-                const exists = existing.some(p =>
-                  (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) ||
-                  (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
-                );
-                if (exists) return prev;
-                return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }] };
-              });
+              // Store swap proposal in Firestore for cross-user sharing
+              try {
+                const ownerId = await getDataOwnerId();
+                if (ownerId) {
+                  const weekKey = `${ownerId}_${format(weekStart, 'yyyy-MM-dd')}`;
+                  const dayProposalRef = doc(db, 'swapProposals', weekKey, 'proposals', dayTitle);
+
+                  // Get current proposals to avoid duplicates
+                  const currentDoc = await getDoc(dayProposalRef);
+                  const existing = currentDoc.exists() ? currentDoc.data().proposals || [] : [];
+
+                  // Avoid duplicates
+                  const exists = existing.some((p: any) =>
+                    (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) ||
+                    (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
+                  );
+
+                  if (!exists) {
+                    await setDoc(dayProposalRef, {
+                      proposals: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }],
+                      updatedAt: new Date(),
+                      updatedBy: userProfile?.uid || 'unknown'
+                    }, { merge: true });
+                  }
+                }
+              } catch (firestoreError) {
+                console.error('Failed to save swap proposal to Firestore:', firestoreError);
+                // Fallback to local state if Firestore fails
+                setSwapProposalsByDay(prev => {
+                  const existing = prev[dayTitle] || [];
+                  const exists = existing.some(p =>
+                    (p.jobId === jobId && p.swapWithJobId === shouldHaveBeenJob.id) ||
+                    (p.jobId === shouldHaveBeenJob.id && p.swapWithJobId === jobId)
+                  );
+                  if (exists) return prev;
+                  return { ...prev, [dayTitle]: [...existing, { jobId, swapWithJobId: shouldHaveBeenJob.id }] };
+                });
+              }
             }
           }
         } catch (error) {
@@ -2401,8 +2447,19 @@ ${signOff}`;
                         setSummaryVisible(false);
                         setSummarySwapChoices([]);
                         if (summaryDayTitle) {
-                          // Clear swap proposals from local state (temporarily)
-                          setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
+                          // Clear swap proposals from Firestore
+                          try {
+                            const ownerId = await getDataOwnerId();
+                            if (ownerId) {
+                              const weekKey = `${ownerId}_${format(weekStart, 'yyyy-MM-dd')}`;
+                              const dayProposalRef = doc(db, 'swapProposals', weekKey, 'proposals', summaryDayTitle);
+                              await deleteDoc(dayProposalRef);
+                            }
+                          } catch (error) {
+                            console.error('Failed to clear swap proposals from Firestore:', error);
+                            // Fallback to local state clear
+                            setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
+                          }
                         }
                         setSummaryDayTitle(null);
                         // Clear completion tracking after finishing the day
