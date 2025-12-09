@@ -45,12 +45,11 @@ function AppContent() {
     const isPasswordResetFlow = typeof window !== 'undefined' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
-    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
+    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/tgmwindowcleaning', '/TGMWindowCleaning'];
     const redirectIfLoggedIn = ['/login', '/register'];
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 
     // Allow business portal routes (single path segments that could be business names)
-    // Matches paths like "/businessname" but not "/business/name" or "/_private"
     const isBusinessRoute = pathname && /^\/[^\/_][^\/]*$/.test(pathname);
     
     if (!loggedIn) {

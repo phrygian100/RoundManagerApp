@@ -39,7 +39,8 @@
 
 #### 5. Authentication Guard Updates (`app/_layout.tsx`)
 - Modified authentication logic to allow unauthenticated access to business portal routes
-- Added business route detection using regex pattern `/^\/[^\/_][^\/]*$/` to match single path segments (e.g., `/TGMWindowCleaning`)
+- Added explicit allowance for known business routes in `unauthAllowed` array (`/tgmwindowcleaning`, `/TGMWindowCleaning`)
+- Added business route detection using regex pattern `/^\/[^\/_][^\/]*$/` for future business routes
 - Updated redirect logic to handle business routes appropriately for both logged-in and logged-out users
 - Removed debounce delay for business routes to prevent 5-second redirect delays
 
