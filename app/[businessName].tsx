@@ -12,6 +12,8 @@ interface BusinessUser {
   businessName: string;
   email: string;
   name: string;
+  bankSortCode?: string;
+  bankAccountNumber?: string;
 }
 
 interface ClientData {
@@ -236,6 +238,17 @@ export default function ClientPortalScreen() {
     
     setDashboardLoading(true);
     try {
+      // Fetch business owner's banking info
+      const ownerDoc = await getDoc(doc(db, 'users', businessUser.id));
+      if (ownerDoc.exists()) {
+        const ownerData = ownerDoc.data();
+        setBusinessUser(prev => prev ? {
+          ...prev,
+          bankSortCode: ownerData.bankSortCode || '',
+          bankAccountNumber: ownerData.bankAccountNumber || ''
+        } : prev);
+      }
+
       // Fetch full client data
       const clientDoc = await getDoc(doc(db, 'clients', clientId));
       if (clientDoc.exists()) {
@@ -448,9 +461,11 @@ export default function ClientPortalScreen() {
           <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>
             {businessUser.businessName}
           </Text>
-          <Text style={[styles.heroSubtitle, isNarrowWeb && styles.heroSubtitleMobile]}>
-            Client Portal - Sign in to view your account
-          </Text>
+          {step !== 'dashboard' && (
+            <Text style={[styles.heroSubtitle, isNarrowWeb && styles.heroSubtitleMobile]}>
+              Client Portal - Sign in to view your account
+            </Text>
+          )}
         </View>
 
         {step === 'dashboard' ? (
@@ -482,6 +497,47 @@ export default function ClientPortalScreen() {
                     {balance >= 0 ? 'Credit on account' : 'Amount owing'}
                   </Text>
                 </View>
+
+                {/* Payment Info Card - shown when balance is negative */}
+                {balance < 0 && (businessUser?.bankSortCode || businessUser?.bankAccountNumber) && (
+                  <View style={[styles.dashboardCard, styles.paymentCard]}>
+                    <Text style={styles.paymentCardTitle}>Payment Details</Text>
+                    <Text style={styles.paymentCardSubtitle}>
+                      Please use the following details to make your payment
+                    </Text>
+                    
+                    <View style={styles.paymentDetails}>
+                      <View style={styles.paymentRow}>
+                        <Text style={styles.paymentLabel}>Account Name</Text>
+                        <Text style={styles.paymentValue}>{businessUser.businessName}</Text>
+                      </View>
+                      {businessUser.bankSortCode && (
+                        <View style={styles.paymentRow}>
+                          <Text style={styles.paymentLabel}>Sort Code</Text>
+                          <Text style={styles.paymentValue}>{businessUser.bankSortCode}</Text>
+                        </View>
+                      )}
+                      {businessUser.bankAccountNumber && (
+                        <View style={styles.paymentRow}>
+                          <Text style={styles.paymentLabel}>Account Number</Text>
+                          <Text style={styles.paymentValue}>{businessUser.bankAccountNumber}</Text>
+                        </View>
+                      )}
+                      <View style={[styles.paymentRow, styles.paymentRowHighlight]}>
+                        <Text style={styles.paymentLabel}>Your Reference</Text>
+                        <Text style={styles.paymentValueBold}>{foundClient?.accountNumber}</Text>
+                      </View>
+                      <View style={styles.paymentRow}>
+                        <Text style={styles.paymentLabel}>Amount Due</Text>
+                        <Text style={styles.paymentValueBold}>£{Math.abs(balance).toFixed(2)}</Text>
+                      </View>
+                    </View>
+                    
+                    <Text style={styles.paymentNote}>
+                      Please include your reference number when making payment
+                    </Text>
+                  </View>
+                )}
 
                 {/* Service Details Card */}
                 <View style={styles.dashboardCard}>
@@ -1150,6 +1206,63 @@ const styles = StyleSheet.create({
   balanceCard: {
     alignItems: 'center',
     backgroundColor: '#f8fafc',
+  },
+  paymentCard: {
+    backgroundColor: '#fef3c7',
+    borderColor: '#f59e0b',
+  },
+  paymentCardTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#92400e',
+    marginBottom: 4,
+  },
+  paymentCardSubtitle: {
+    fontSize: 14,
+    color: '#a16207',
+    marginBottom: 16,
+  },
+  paymentDetails: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+  },
+  paymentRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  paymentRowHighlight: {
+    backgroundColor: '#fef9c3',
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
+    borderBottomColor: '#fde047',
+  },
+  paymentLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  paymentValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+  },
+  paymentValueBold: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'web' ? 'monospace' : undefined,
+  },
+  paymentNote: {
+    fontSize: 13,
+    color: '#92400e',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   cardTitle: {
     fontSize: 16,

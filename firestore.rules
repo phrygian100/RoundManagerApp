@@ -89,7 +89,9 @@ service cloud.firestore {
     // Each user can manage a single document under /users/{uid}
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
-      allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
+      // Allow public read for client portal (to fetch business banking info)
+      allow read: if true;
+      allow update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Business portals - public read access for client portal login pages
