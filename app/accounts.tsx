@@ -499,11 +499,12 @@ export default function AccountsScreen() {
     </Pressable>
   );
 
-  const FinancialLineChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
+  const FinancialBarChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
     const [chartWidth, setChartWidth] = useState(0);
-    const chartHeight = 200;
+    const chartHeight = 220;
     const topPadding = 12;
-    const bottomPadding = 28;
+    const bottomPadding = 32;
+    const yAxisWidth = 64;
     const verticalSpace = chartHeight - topPadding - bottomPadding;
 
     const safeMax = useMemo(() => {
@@ -511,98 +512,106 @@ export default function AccountsScreen() {
       return maxValue > 0 ? maxValue : 1;
     }, [data]);
 
-    const buildPoints = useCallback(
-      (getValue: (point: ChartPoint) => number) => {
-        if (!chartWidth) return [];
-        const step = data.length > 1 ? chartWidth / (data.length - 1) : 0;
-        return data.map((point, idx) => {
-          const rawValue = getValue(point);
-          const normalized = Math.min(rawValue / safeMax, 1);
-          const x = data.length > 1 ? idx * step : chartWidth / 2;
-          const y = topPadding + (1 - normalized) * verticalSpace;
-          return { x, y, value: rawValue };
-        });
-      },
-      [chartWidth, data, safeMax, verticalSpace]
-    );
+    const ticks = [1, 0.75, 0.5, 0.25, 0].map(ratio => ({
+      ratio,
+      value: safeMax * ratio,
+      y: topPadding + (1 - ratio) * verticalSpace,
+    }));
 
-    const jobPoints = useMemo(() => buildPoints(point => point.jobs), [buildPoints]);
-    const paymentPoints = useMemo(() => buildPoints(point => point.payments), [buildPoints]);
+    const barAreaWidth = Math.max(chartWidth - yAxisWidth, 0);
+    const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
+    const barWidth = Math.max(10, slotWidth * 0.28);
+    const barGap = Math.min(10, slotWidth * 0.1);
 
-    const renderLine = (points: { x: number; y: number }[], color: string) =>
-      points.map((point, idx) => {
-        if (idx === 0) return null;
-        const prev = points[idx - 1];
-        const dx = point.x - prev.x;
-        const dy = point.y - prev.y;
-        const length = Math.sqrt(dx * dx + dy * dy) || 0;
-        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        return (
-          <View
-            key={`${color}-line-${idx}`}
-            style={{
-              position: 'absolute',
-              left: prev.x,
-              top: prev.y,
-              width: length || 1,
-              height: 2,
-              backgroundColor: color,
-              transform: [{ rotate: `${angle}deg` }],
-              borderRadius: 4,
-            }}
-          />
-        );
-      });
-
-    const renderPoints = (points: { x: number; y: number }[], color: string) =>
-      points.map((point, idx) => (
-        <View
-          key={`${color}-point-${idx}`}
-          style={{
-            position: 'absolute',
-            left: point.x - 4,
-            top: point.y - 4,
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: '#fff',
-            borderWidth: 2,
-            borderColor: color,
-          }}
-        />
-      ));
+    const formatCurrency = (value: number) => {
+      if (value >= 1000) return `£${Math.round(value).toLocaleString()}`;
+      return `£${value.toFixed(0)}`;
+    };
 
     const labelSpacing = data.length > 6 ? Math.ceil(data.length / 6) : 1;
 
+    const renderBars = () => {
+      if (!data.length) return null;
+
+      return data.map((point, idx) => {
+        const centerX = yAxisWidth + slotWidth * idx + slotWidth / 2;
+
+        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / safeMax) * verticalSpace));
+        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / safeMax) * verticalSpace));
+
+        return (
+          <React.Fragment key={`bars-${idx}`}>
+            <View
+              style={{
+                position: 'absolute',
+                left: centerX - barWidth - barGap,
+                width: barWidth,
+                bottom: bottomPadding,
+                height: jobsHeight,
+                backgroundColor: '#1976d2',
+                borderRadius: 6,
+              }}
+            />
+            <View
+              style={{
+                position: 'absolute',
+                left: centerX + barGap,
+                width: barWidth,
+                bottom: bottomPadding,
+                height: paymentsHeight,
+                backgroundColor: '#43a047',
+                borderRadius: 6,
+              }}
+            />
+
+            {/* Invisible touch-target area for future tooltips if needed */}
+            <View
+              style={{
+                position: 'absolute',
+                left: centerX - slotWidth / 2,
+                width: slotWidth,
+                top: 0,
+                bottom: bottomPadding,
+              }}
+            />
+          </React.Fragment>
+        );
+      });
+    };
+
     return (
       <View style={styles.chartWrapper}>
-        <View
-          style={styles.chartArea}
-          onLayout={({ nativeEvent }) => setChartWidth(nativeEvent.layout.width)}
-        >
-          {[0.25, 0.5, 0.75, 1].map((ratio) => {
-            const y = topPadding + (1 - ratio) * verticalSpace;
-            return <View key={`grid-${ratio}`} style={[styles.chartGridLine, { top: y }]} />;
-          })}
+        <View style={styles.barChartRow}>
+          <View style={[styles.yAxis, { width: yAxisWidth, height: chartHeight }]}>
+            {ticks.map(tick => (
+              <View key={`tick-${tick.ratio}`} style={[styles.yAxisLabelContainer, { top: tick.y - 8 }]}>
+                <ThemedText style={styles.yAxisLabel}>{formatCurrency(tick.value)}</ThemedText>
+              </View>
+            ))}
+          </View>
 
-          {loading && !hasChartData ? (
-            <View style={styles.chartEmptyState}>
-              <ActivityIndicator size="small" />
-              <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
-            </View>
-          ) : !hasChartData ? (
-            <View style={styles.chartEmptyState}>
-              <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
-              <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
-            </View>
-          ) : (
-            <>
-              {renderLine(jobPoints, '#1976d2')}
-              {renderLine(paymentPoints, '#43a047')}
-              {renderPoints(jobPoints, '#1976d2')}
-              {renderPoints(paymentPoints, '#43a047')}
-            </>
-          )}
+          <View
+            style={[styles.chartArea, { height: chartHeight }]}
+            onLayout={({ nativeEvent }) => setChartWidth(nativeEvent.layout.width)}
+          >
+            {ticks.map(tick => (
+              <View key={`grid-${tick.ratio}`} style={[styles.chartGridLine, { top: tick.y }]} />
+            ))}
+
+            {loading && !hasChartData ? (
+              <View style={styles.chartEmptyState}>
+                <ActivityIndicator size="small" />
+                <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
+              </View>
+            ) : !hasChartData ? (
+              <View style={styles.chartEmptyState}>
+                <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
+                <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
+              </View>
+            ) : (
+              renderBars()
+            )}
+          </View>
         </View>
 
         {data.length > 0 && (
@@ -767,7 +776,7 @@ export default function AccountsScreen() {
                     </View>
                   </View>
 
-                  <FinancialLineChart data={chartData} loading={loading} />
+                  <FinancialBarChart data={chartData} loading={loading} />
                 </SectionCard>
               </View>
               
@@ -857,7 +866,7 @@ export default function AccountsScreen() {
                   </View>
                 </View>
 
-                <FinancialLineChart data={chartData} loading={loading} />
+                <FinancialBarChart data={chartData} loading={loading} />
               </SectionCard>
               
               <SectionCard 
@@ -1077,6 +1086,26 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     gap: 10,
+  },
+  barChartRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 8,
+  },
+  yAxis: {
+    position: 'relative',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 32,
+  },
+  yAxisLabelContainer: {
+    position: 'absolute',
+    left: 0,
+  },
+  yAxisLabel: {
+    fontSize: 11,
+    color: '#455a64',
+    textAlign: 'right',
   },
   chartArea: {
     height: 200,
