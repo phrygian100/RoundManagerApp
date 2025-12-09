@@ -91,6 +91,15 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
+    // Business portals - public read access for client portal login pages
+    // Documents are keyed by normalized business name (e.g., "tgmwindowcleaning")
+    match /businessPortals/{portalId} {
+      // Anyone can read business portal info (needed for unauthenticated client login)
+      allow read: if true;
+      // Only the business owner can create/update/delete their portal
+      allow create, update, delete: if isSignedIn() && request.auth.uid == request.resource.data.ownerId;
+    }
+
     match /accounts/{accountId} {
       allow read: if isSignedIn() && hasAccountAccess(accountId);
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;
