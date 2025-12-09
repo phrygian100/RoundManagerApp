@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -13,7 +13,7 @@ type PaymentRow = {
   accountNumber: string;
   date: string;
   amount: string;
-  type: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'direct_debit' | 'other' | '';
+  type: string;
   notes: string;
 };
 
@@ -38,7 +38,26 @@ const createEmptyRow = (): PaymentRow => ({
   notes: '',
 });
 
-const INITIAL_ROWS = 10;
+const INITIAL_ROWS = 15;
+
+// Map type string to internal value
+const mapTypeValue = (input: string): string => {
+  const lower = input.toLowerCase().trim();
+  if (lower === 'cash') return 'cash';
+  if (lower === 'card') return 'card';
+  if (lower === 'bacs' || lower === 'bank' || lower === 'bank transfer') return 'bank_transfer';
+  if (lower === 'cheque' || lower === 'check') return 'cheque';
+  if (lower === 'dd' || lower === 'direct debit' || lower === 'direct_debit') return 'direct_debit';
+  if (lower === 'other') return 'other';
+  if (lower) return 'other'; // Default non-empty to other
+  return '';
+};
+
+// Get display label for type
+const getTypeLabel = (value: string): string => {
+  const found = PAYMENT_TYPES.find(pt => pt.value === value);
+  return found ? found.label : value;
+};
 
 export default function BulkPaymentsScreen() {
   const router = useRouter();
@@ -47,7 +66,8 @@ export default function BulkPaymentsScreen() {
   );
   const [accountMap, setAccountMap] = useState<AccountMap>(new Map());
   const [loading, setLoading] = useState(true);
-  const scrollViewRef = useRef<ScrollView>(null);
+  const [focusedCell, setFocusedCell] = useState<{ rowIndex: number; field: keyof PaymentRow } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch all clients to build account number mapping
   useEffect(() => {
@@ -80,6 +100,73 @@ export default function BulkPaymentsScreen() {
 
     fetchClients();
   }, []);
+
+  // Handle paste at document level for web
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+
+    const handlePaste = (e: ClipboardEvent) => {
+      // Only handle paste if we're focused on a cell
+      if (!focusedCell) return;
+      
+      // Check if the active element is one of our inputs
+      const activeEl = document.activeElement;
+      if (!activeEl || !containerRef.current?.contains(activeEl)) return;
+
+      const pastedText = e.clipboardData?.getData('text');
+      if (!pastedText) return;
+
+      // Check if this looks like multi-cell paste (contains tabs or newlines)
+      if (!pastedText.includes('\t') && !pastedText.includes('\n')) {
+        // Single cell paste - let it happen naturally
+        return;
+      }
+
+      // Multi-cell paste - prevent default and handle ourselves
+      e.preventDefault();
+      
+      const lines = pastedText.split('\n').filter(line => line.trim() || line.includes('\t'));
+      if (lines.length === 0) return;
+
+      const fieldOrder: (keyof PaymentRow)[] = ['accountNumber', 'date', 'amount', 'type', 'notes'];
+      const startFieldIndex = fieldOrder.indexOf(focusedCell.field);
+      const startRowIndex = focusedCell.rowIndex;
+
+      setRows(prev => {
+        const newRows = [...prev];
+        
+        // Add more rows if needed
+        while (newRows.length < startRowIndex + lines.length) {
+          newRows.push(createEmptyRow());
+        }
+
+        lines.forEach((line, lineIndex) => {
+          const rowIndex = startRowIndex + lineIndex;
+          const cells = line.split('\t');
+          
+          cells.forEach((cellValue, cellIndex) => {
+            const fieldIndex = startFieldIndex + cellIndex;
+            if (fieldIndex < fieldOrder.length) {
+              const field = fieldOrder[fieldIndex];
+              let value = cellValue.trim();
+              
+              // Handle type field - map to internal value
+              if (field === 'type') {
+                value = mapTypeValue(value);
+              }
+              
+              newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
+            }
+          });
+        });
+
+        return newRows;
+      });
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [focusedCell]);
 
   // Normalize account number for lookup
   const normalizeAccountNumber = (acc: string): string => {
@@ -125,67 +212,15 @@ export default function BulkPaymentsScreen() {
   };
 
   // Update a cell value
-  const updateCell = useCallback((rowId: string, field: keyof PaymentRow, value: string) => {
-    setRows(prev => prev.map(row => 
-      row.id === rowId ? { ...row, [field]: value } : row
+  const updateCell = useCallback((rowIndex: number, field: keyof PaymentRow, value: string) => {
+    setRows(prev => prev.map((row, idx) => 
+      idx === rowIndex ? { ...row, [field]: value } : row
     ));
   }, []);
 
   // Add more rows
   const addRows = useCallback((count: number = 5) => {
     setRows(prev => [...prev, ...Array.from({ length: count }, createEmptyRow)]);
-  }, []);
-
-  // Handle paste event for web
-  const handlePaste = useCallback((e: React.ClipboardEvent, startRowIndex: number, startField: keyof PaymentRow) => {
-    if (Platform.OS !== 'web') return;
-    
-    e.preventDefault();
-    const pastedText = e.clipboardData.getData('text');
-    const lines = pastedText.split('\n').filter(line => line.trim());
-    
-    if (lines.length === 0) return;
-
-    const fieldOrder: (keyof PaymentRow)[] = ['accountNumber', 'date', 'amount', 'type', 'notes'];
-    const startFieldIndex = fieldOrder.indexOf(startField);
-
-    setRows(prev => {
-      const newRows = [...prev];
-      
-      // Add more rows if needed
-      while (newRows.length < startRowIndex + lines.length) {
-        newRows.push(createEmptyRow());
-      }
-
-      lines.forEach((line, lineIndex) => {
-        const rowIndex = startRowIndex + lineIndex;
-        const cells = line.split('\t');
-        
-        cells.forEach((cellValue, cellIndex) => {
-          const fieldIndex = startFieldIndex + cellIndex;
-          if (fieldIndex < fieldOrder.length) {
-            const field = fieldOrder[fieldIndex];
-            let value = cellValue.trim();
-            
-            // Handle type field - try to map common values
-            if (field === 'type') {
-              const lowerValue = value.toLowerCase();
-              if (lowerValue === 'cash') value = 'cash';
-              else if (lowerValue === 'card') value = 'card';
-              else if (lowerValue === 'bacs' || lowerValue === 'bank' || lowerValue === 'bank transfer') value = 'bank_transfer';
-              else if (lowerValue === 'cheque' || lowerValue === 'check') value = 'cheque';
-              else if (lowerValue === 'dd' || lowerValue === 'direct debit') value = 'direct_debit';
-              else if (lowerValue === 'other') value = 'other';
-              else value = 'other'; // Default to other for unrecognized types
-            }
-            
-            newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
-          }
-        });
-      });
-
-      return newRows;
-    });
   }, []);
 
   // Check if a row has any data
@@ -213,59 +248,12 @@ export default function BulkPaymentsScreen() {
   // Count rows with data
   const filledRowCount = rows.filter(rowHasData).length;
 
-  // Render a cell with appropriate styling
-  const renderCell = (
-    row: PaymentRow, 
-    field: keyof PaymentRow, 
-    rowIndex: number,
-    placeholder: string,
-    width: number,
-    validation?: 'valid' | 'invalid' | 'warning' | 'none'
-  ) => {
-    if (field === 'type') {
-      return (
-        <View style={[styles.cell, { width }]}>
-          <select
-            value={row.type}
-            onChange={(e) => updateCell(row.id, 'type', e.target.value as PaymentRow['type'])}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              backgroundColor: 'transparent',
-              fontSize: 14,
-              padding: '8px',
-              cursor: 'pointer',
-            }}
-          >
-            {PAYMENT_TYPES.map(pt => (
-              <option key={pt.value} value={pt.value}>{pt.label}</option>
-            ))}
-          </select>
-        </View>
-      );
+  // Clear all data
+  const clearAll = useCallback(() => {
+    if (window.confirm('Are you sure you want to clear all data?')) {
+      setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
     }
-
-    const getBorderColor = () => {
-      if (validation === 'invalid') return '#f44336';
-      if (validation === 'warning') return '#ff9800';
-      if (validation === 'valid') return '#4CAF50';
-      return '#e0e0e0';
-    };
-
-    return (
-      <View style={[styles.cell, { width, borderColor: getBorderColor() }]}>
-        <TextInput
-          style={styles.cellInput}
-          value={row[field] as string}
-          onChangeText={(value) => updateCell(row.id, field, value)}
-          placeholder={placeholder}
-          placeholderTextColor="#999"
-          onPaste={(e: any) => handlePaste(e, rowIndex, field)}
-        />
-      </View>
-    );
-  };
+  }, []);
 
   if (Platform.OS !== 'web') {
     return (
@@ -281,6 +269,7 @@ export default function BulkPaymentsScreen() {
     );
   }
 
+  // Web-only render with native HTML elements
   return (
     <ThemedView style={styles.container}>
       {/* Header */}
@@ -294,12 +283,15 @@ export default function BulkPaymentsScreen() {
         </View>
         <View style={styles.headerRight}>
           <ThemedText style={styles.rowCount}>{filledRowCount} row(s) with data</ThemedText>
+          <Pressable style={styles.clearButton} onPress={clearAll}>
+            <Ionicons name="trash-outline" size={18} color="#666" />
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </Pressable>
           <Pressable style={styles.addRowsButton} onPress={() => addRows(5)}>
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addRowsButtonText}>Add 5 Rows</Text>
           </Pressable>
           <Pressable style={styles.submitButton} onPress={() => {
-            // TODO: Implement submission
             alert('Submission not yet implemented');
           }}>
             <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
@@ -312,128 +304,161 @@ export default function BulkPaymentsScreen() {
       <View style={styles.instructions}>
         <Ionicons name="information-circle-outline" size={18} color="#1976d2" />
         <ThemedText style={styles.instructionsText}>
-          Enter payment data manually or paste from Excel/Google Sheets. Use Tab to move between cells. 
+          Click a cell and paste data from Excel/Google Sheets. Data will fill across columns and down rows automatically.
           Date format: DD/MM/YYYY. Leave Account Number empty for unknown payments.
         </ThemedText>
       </View>
 
-      {/* Spreadsheet */}
-      <ScrollView 
-        ref={scrollViewRef}
-        style={styles.spreadsheetContainer}
-        horizontal
-        showsHorizontalScrollIndicator={true}
+      {/* Spreadsheet - using native HTML for proper paste handling */}
+      <div 
+        ref={containerRef}
+        style={{
+          flex: 1,
+          backgroundColor: '#fff',
+          borderRadius: 8,
+          border: '1px solid #e0e0e0',
+          overflow: 'auto',
+        }}
       >
-        <View>
-          {/* Header Row */}
-          <View style={styles.headerRow}>
-            <View style={[styles.headerCell, { width: 40 }]}>
-              <Text style={styles.headerCellText}>#</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 140 }]}>
-              <Text style={styles.headerCellText}>Account Number</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 120 }]}>
-              <Text style={styles.headerCellText}>Date (DD/MM/YYYY)</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 100 }]}>
-              <Text style={styles.headerCellText}>Amount (£)</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 140 }]}>
-              <Text style={styles.headerCellText}>Type</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 200 }]}>
-              <Text style={styles.headerCellText}>Notes</Text>
-            </View>
-            <View style={[styles.headerCell, { width: 100 }]}>
-              <Text style={styles.headerCellText}>Status</Text>
-            </View>
-          </View>
-
-          {/* Data Rows */}
-          <ScrollView style={styles.dataContainer} showsVerticalScrollIndicator={true}>
-            {rows.map((row, index) => {
+        <table style={{ 
+          borderCollapse: 'collapse', 
+          width: '100%',
+          minWidth: 840,
+        }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6' }}>
+              <th style={{ ...thStyle, width: 40 }}>#</th>
+              <th style={{ ...thStyle, width: 140 }}>Account Number</th>
+              <th style={{ ...thStyle, width: 120 }}>Date (DD/MM/YYYY)</th>
+              <th style={{ ...thStyle, width: 100 }}>Amount (£)</th>
+              <th style={{ ...thStyle, width: 140 }}>Type</th>
+              <th style={{ ...thStyle, width: 250 }}>Notes</th>
+              <th style={{ ...thStyle, width: 90 }}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => {
               const accountStatus = getAccountStatus(row.accountNumber);
               const validation = getRowValidation(row);
               const hasData = rowHasData(row);
 
               return (
-                <View key={row.id} style={styles.dataRow}>
+                <tr key={row.id} style={{ borderBottom: '1px solid #e9ecef' }}>
                   {/* Row number */}
-                  <View style={[styles.rowNumberCell, { width: 40 }]}>
-                    <Text style={styles.rowNumberText}>{index + 1}</Text>
-                  </View>
+                  <td style={{ ...tdStyle, backgroundColor: '#f8f9fa', textAlign: 'center', color: '#6c757d', fontWeight: 500 }}>
+                    {rowIndex + 1}
+                  </td>
                   
                   {/* Account Number */}
-                  {renderCell(
-                    row, 
-                    'accountNumber', 
-                    index, 
-                    'RWC001', 
-                    140,
-                    hasData ? (accountStatus === 'valid' ? 'valid' : accountStatus === 'unknown' ? 'warning' : 'none') : 'none'
-                  )}
+                  <td style={tdStyle}>
+                    <input
+                      type="text"
+                      value={row.accountNumber}
+                      onChange={(e) => updateCell(rowIndex, 'accountNumber', e.target.value)}
+                      onFocus={() => setFocusedCell({ rowIndex, field: 'accountNumber' })}
+                      placeholder="RWC001"
+                      style={{
+                        ...inputStyle,
+                        borderColor: hasData 
+                          ? (accountStatus === 'valid' ? '#4CAF50' : accountStatus === 'unknown' ? '#ff9800' : '#e0e0e0')
+                          : '#e0e0e0',
+                      }}
+                    />
+                  </td>
                   
                   {/* Date */}
-                  {renderCell(
-                    row, 
-                    'date', 
-                    index, 
-                    'DD/MM/YYYY', 
-                    120,
-                    hasData && row.date ? (isValidDate(row.date) ? 'valid' : 'invalid') : 'none'
-                  )}
+                  <td style={tdStyle}>
+                    <input
+                      type="text"
+                      value={row.date}
+                      onChange={(e) => updateCell(rowIndex, 'date', e.target.value)}
+                      onFocus={() => setFocusedCell({ rowIndex, field: 'date' })}
+                      placeholder="DD/MM/YYYY"
+                      style={{
+                        ...inputStyle,
+                        borderColor: hasData && row.date 
+                          ? (isValidDate(row.date) ? '#4CAF50' : '#f44336')
+                          : '#e0e0e0',
+                      }}
+                    />
+                  </td>
                   
                   {/* Amount */}
-                  {renderCell(
-                    row, 
-                    'amount', 
-                    index, 
-                    '0.00', 
-                    100,
-                    hasData && row.amount ? (isValidAmount(row.amount) ? 'valid' : 'invalid') : 'none'
-                  )}
+                  <td style={tdStyle}>
+                    <input
+                      type="text"
+                      value={row.amount}
+                      onChange={(e) => updateCell(rowIndex, 'amount', e.target.value)}
+                      onFocus={() => setFocusedCell({ rowIndex, field: 'amount' })}
+                      placeholder="0.00"
+                      style={{
+                        ...inputStyle,
+                        borderColor: hasData && row.amount 
+                          ? (isValidAmount(row.amount) ? '#4CAF50' : '#f44336')
+                          : '#e0e0e0',
+                      }}
+                    />
+                  </td>
                   
-                  {/* Type */}
-                  {renderCell(row, 'type', index, '', 140, 'none')}
+                  {/* Type - using select but also allowing paste via text */}
+                  <td style={tdStyle}>
+                    <select
+                      value={row.type}
+                      onChange={(e) => updateCell(rowIndex, 'type', e.target.value)}
+                      onFocus={() => setFocusedCell({ rowIndex, field: 'type' })}
+                      style={{
+                        ...inputStyle,
+                        cursor: 'pointer',
+                        borderColor: hasData && row.type ? '#4CAF50' : '#e0e0e0',
+                      }}
+                    >
+                      {PAYMENT_TYPES.map(pt => (
+                        <option key={pt.value} value={pt.value}>{pt.label}</option>
+                      ))}
+                    </select>
+                  </td>
                   
                   {/* Notes */}
-                  {renderCell(row, 'notes', index, 'Optional notes', 200, 'none')}
+                  <td style={tdStyle}>
+                    <input
+                      type="text"
+                      value={row.notes}
+                      onChange={(e) => updateCell(rowIndex, 'notes', e.target.value)}
+                      onFocus={() => setFocusedCell({ rowIndex, field: 'notes' })}
+                      placeholder="Optional notes"
+                      style={inputStyle}
+                    />
+                  </td>
                   
                   {/* Status */}
-                  <View style={[styles.statusCell, { width: 100 }]}>
+                  <td style={{ ...tdStyle, textAlign: 'center' }}>
                     {hasData && (
                       <>
                         {!validation.isValid ? (
-                          <View style={styles.statusBadge}>
+                          <span style={{ color: '#f44336', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                             <Ionicons name="warning" size={14} color="#f44336" />
-                            <Text style={[styles.statusText, { color: '#f44336' }]}>Invalid</Text>
-                          </View>
-                        ) : accountStatus === 'unknown' ? (
-                          <View style={styles.statusBadge}>
+                            Invalid
+                          </span>
+                        ) : accountStatus === 'unknown' || accountStatus === 'empty' ? (
+                          <span style={{ color: '#ff9800', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                             <Ionicons name="help-circle" size={14} color="#ff9800" />
-                            <Text style={[styles.statusText, { color: '#ff9800' }]}>Unknown</Text>
-                          </View>
-                        ) : accountStatus === 'empty' ? (
-                          <View style={styles.statusBadge}>
-                            <Ionicons name="help-circle" size={14} color="#ff9800" />
-                            <Text style={[styles.statusText, { color: '#ff9800' }]}>Unknown</Text>
-                          </View>
+                            Unknown
+                          </span>
                         ) : (
-                          <View style={styles.statusBadge}>
+                          <span style={{ color: '#4CAF50', fontSize: 12, fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
                             <Ionicons name="checkmark-circle" size={14} color="#4CAF50" />
-                            <Text style={[styles.statusText, { color: '#4CAF50' }]}>Valid</Text>
-                          </View>
+                            Valid
+                          </span>
                         )}
                       </>
                     )}
-                  </View>
-                </View>
+                  </td>
+                </tr>
               );
             })}
-          </ScrollView>
-        </View>
-      </ScrollView>
+          </tbody>
+        </table>
+      </div>
 
       {/* Legend */}
       <View style={styles.legend}>
@@ -453,6 +478,31 @@ export default function BulkPaymentsScreen() {
     </ThemedView>
   );
 }
+
+// Inline styles for HTML elements (web only)
+const thStyle: React.CSSProperties = {
+  padding: '12px 8px',
+  textAlign: 'left',
+  fontSize: 13,
+  fontWeight: 700,
+  color: '#495057',
+  borderRight: '1px solid #dee2e6',
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '4px',
+  borderRight: '1px solid #e9ecef',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '8px',
+  fontSize: 14,
+  border: '2px solid #e0e0e0',
+  borderRadius: 4,
+  outline: 'none',
+  boxSizing: 'border-box',
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -499,6 +549,22 @@ const styles = StyleSheet.create({
     color: '#666',
     marginRight: 8,
   },
+  clearButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  clearButtonText: {
+    color: '#666',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   addRowsButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,78 +607,6 @@ const styles = StyleSheet.create({
     color: '#1976d2',
     flex: 1,
   },
-  spreadsheetContainer: {
-    flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-  },
-  headerRow: {
-    flexDirection: 'row',
-    backgroundColor: '#f8f9fa',
-    borderBottomWidth: 2,
-    borderBottomColor: '#dee2e6',
-  },
-  headerCell: {
-    padding: 12,
-    borderRightWidth: 1,
-    borderRightColor: '#dee2e6',
-    justifyContent: 'center',
-  },
-  headerCellText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#495057',
-  },
-  dataContainer: {
-    maxHeight: 500,
-  },
-  dataRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  rowNumberCell: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRightWidth: 1,
-    borderRightColor: '#dee2e6',
-  },
-  rowNumberText: {
-    fontSize: 12,
-    color: '#6c757d',
-    fontWeight: '500',
-  },
-  cell: {
-    borderRightWidth: 1,
-    borderRightColor: '#e9ecef',
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    margin: 1,
-  },
-  cellInput: {
-    flex: 1,
-    padding: 8,
-    fontSize: 14,
-    color: '#333',
-  },
-  statusCell: {
-    padding: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: '500',
-  },
   legend: {
     flexDirection: 'row',
     gap: 24,
@@ -644,4 +638,3 @@ const styles = StyleSheet.create({
     marginVertical: 24,
   },
 });
-

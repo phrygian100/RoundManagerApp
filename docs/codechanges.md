@@ -16,15 +16,18 @@
 - Mobile: Shows alert explaining feature is desktop-only
 
 **Bulk Payments Page Features**:
-- Spreadsheet grid with columns: Account Number, Date, Amount, Type, Notes
-- Starts with 10 empty rows, "Add 5 Rows" button to expand
+- Native HTML table for proper paste support on web
+- Spreadsheet grid with columns: Account Number, Date, Amount, Type, Notes, Status
+- Starts with 15 empty rows, "Add 5 Rows" button to expand
+- **Paste support**: Click any cell and paste from Excel/Google Sheets/LibreOffice - data fills across columns and down rows
 - Real-time validation:
   - Account numbers matched against existing clients (green = valid, yellow = unknown)
   - Date validation (expects DD/MM/YYYY format)
   - Amount validation (must be positive number)
   - Type dropdown with options: Cash, Card, Bank Transfer, Cheque, Direct Debit, Other
-- Paste support from Excel/Google Sheets (tab-separated values)
+  - Type values auto-mapped from paste (e.g., "bacs" → "bank_transfer", "dd" → "direct_debit")
 - Status column showing Valid/Unknown/Invalid for each row
+- "Clear All" button to reset the spreadsheet
 - Legend explaining color coding
 - Mobile fallback with message to use desktop
 
