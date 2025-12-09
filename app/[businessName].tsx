@@ -32,7 +32,22 @@ export default function ClientPortalScreen() {
     if (pathname) {
       // Remove leading slash and decode
       const extractedName = decodeURIComponent(pathname.substring(1));
+      console.log('🟢 Business route page loaded! Extracted name:', extractedName);
       setBusinessName(extractedName);
+
+      // For debugging - show a simple message first
+      if (extractedName === 'tgmwindowcleaning') {
+        console.log('🟢 Found TGM Window Cleaning route - showing page');
+        // Don't do lookup yet, just show the page
+        setBusinessUser({
+          id: 'test',
+          businessName: 'TGM Window Cleaning',
+          email: 'test@tgm.com',
+          name: 'Test'
+        });
+        return;
+      }
+
       lookupBusinessUser(extractedName);
     }
   }, []);
