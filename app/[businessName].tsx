@@ -32,22 +32,7 @@ export default function ClientPortalScreen() {
     if (pathname) {
       // Remove leading slash and decode
       const extractedName = decodeURIComponent(pathname.substring(1));
-      console.log('🟢 Business route page loaded! Extracted name:', extractedName);
       setBusinessName(extractedName);
-
-      // For debugging - show a simple message first
-      if (extractedName === 'tgmwindowcleaning') {
-        console.log('🟢 Found TGM Window Cleaning route - showing page');
-        // Don't do lookup yet, just show the page
-        setBusinessUser({
-          id: 'test',
-          businessName: 'TGM Window Cleaning',
-          email: 'test@tgm.com',
-          name: 'Test'
-        });
-        return;
-      }
-
       lookupBusinessUser(extractedName);
     }
   }, []);
@@ -55,14 +40,18 @@ export default function ClientPortalScreen() {
   const lookupBusinessUser = async (name: string) => {
     try {
       setLoading(true);
+      console.log('🔍 Looking up business:', name);
 
       // Normalize the business name from URL (remove spaces, handle case)
       const normalizedName = name.replace(/\s+/g, '').toLowerCase();
+      console.log('🔍 Normalized name:', normalizedName);
 
       // Query for all users and filter client-side for business name matching
       // This allows for flexible matching (with/without spaces, case insensitive)
       const usersQuery = query(collection(db, 'users'));
+      console.log('🔍 Querying users collection...');
       const usersSnapshot = await getDocs(usersQuery);
+      console.log('🔍 Found', usersSnapshot.size, 'users');
 
       let matchedUser: BusinessUser | null = null;
       let matchedUserId = '';
@@ -72,8 +61,10 @@ export default function ClientPortalScreen() {
         if (userData.businessName) {
           // Normalize the stored business name for comparison
           const storedNormalized = userData.businessName.replace(/\s+/g, '').toLowerCase();
+          console.log('🔍 Comparing:', storedNormalized, 'vs', normalizedName);
 
           if (storedNormalized === normalizedName) {
+            console.log('🟢 Found match!', userData.businessName);
             matchedUser = { ...userData, id: doc.id };
             matchedUserId = doc.id;
           }
@@ -81,22 +72,21 @@ export default function ClientPortalScreen() {
       });
 
       if (matchedUser) {
-        // Verify this is an owner user, not a member
-        const isOwner = await checkIfOwner(matchedUserId);
-        if (isOwner) {
-          setBusinessUser(matchedUser);
-        } else {
-          // This is a member user, don't allow client portal
-          Alert.alert('Error', 'This business does not have a client portal available.');
-          router.replace('/login');
-        }
+        console.log('🟢 Setting business user:', matchedUser.businessName);
+        // Skip owner check for now - just show the page
+        setBusinessUser(matchedUser);
       } else {
-        Alert.alert('Error', 'Business not found. Please check the URL and try again.');
+        console.log('❌ No matching business found');
+        if (typeof window !== 'undefined') {
+          window.alert('Business not found. Please check the URL and try again.');
+        }
         router.replace('/login');
       }
     } catch (error) {
-      console.error('Error looking up business:', error);
-      Alert.alert('Error', 'Unable to load business information. Please try again.');
+      console.error('❌ Error looking up business:', error);
+      if (typeof window !== 'undefined') {
+        window.alert('Unable to load business information. Please try again.');
+      }
       router.replace('/login');
     } finally {
       setLoading(false);
