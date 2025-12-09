@@ -40,23 +40,11 @@ const createEmptyRow = (): PaymentRow => ({
 
 const INITIAL_ROWS = 15;
 
-// Map type string to internal value
-const mapTypeValue = (input: string): string => {
-  const lower = input.toLowerCase().trim();
-  if (lower === 'cash') return 'cash';
-  if (lower === 'card') return 'card';
-  if (lower === 'bacs' || lower === 'bank' || lower === 'bank transfer') return 'bank_transfer';
-  if (lower === 'cheque' || lower === 'check') return 'cheque';
-  if (lower === 'dd' || lower === 'direct debit' || lower === 'direct_debit') return 'direct_debit';
-  if (lower === 'other') return 'other';
-  if (lower) return 'other'; // Default non-empty to other
-  return '';
-};
-
-// Get display label for type
-const getTypeLabel = (value: string): string => {
-  const found = PAYMENT_TYPES.find(pt => pt.value === value);
-  return found ? found.label : value;
+// Check if type value is valid
+const isValidType = (value: string): boolean => {
+  if (!value) return false;
+  const validValues = ['cash', 'card', 'bank_transfer', 'cheque', 'direct_debit', 'other'];
+  return validValues.includes(value.toLowerCase().trim());
 };
 
 export default function BulkPaymentsScreen() {
@@ -148,13 +136,7 @@ export default function BulkPaymentsScreen() {
             const fieldIndex = startFieldIndex + cellIndex;
             if (fieldIndex < fieldOrder.length) {
               const field = fieldOrder[fieldIndex];
-              let value = cellValue.trim();
-              
-              // Handle type field - map to internal value
-              if (field === 'type') {
-                value = mapTypeValue(value);
-              }
-              
+              const value = cellValue.trim();
               newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
             }
           });
@@ -241,6 +223,7 @@ export default function BulkPaymentsScreen() {
     else if (!isValidAmount(row.amount)) errors.push('Invalid amount');
     
     if (!row.type) errors.push('Type required');
+    else if (!isValidType(row.type)) errors.push('Invalid type - select from dropdown');
     
     return { isValid: errors.length === 0, errors };
   };
@@ -400,22 +383,74 @@ export default function BulkPaymentsScreen() {
                     />
                   </td>
                   
-                  {/* Type - using select but also allowing paste via text */}
+                  {/* Type - show raw value with dropdown to fix invalid entries */}
                   <td style={tdStyle}>
-                    <select
-                      value={row.type}
-                      onChange={(e) => updateCell(rowIndex, 'type', e.target.value)}
-                      onFocus={() => setFocusedCell({ rowIndex, field: 'type' })}
-                      style={{
-                        ...inputStyle,
-                        cursor: 'pointer',
-                        borderColor: hasData && row.type ? '#4CAF50' : '#e0e0e0',
-                      }}
-                    >
-                      {PAYMENT_TYPES.map(pt => (
-                        <option key={pt.value} value={pt.value}>{pt.label}</option>
-                      ))}
-                    </select>
+                    {row.type && !isValidType(row.type) ? (
+                      // Invalid type - show the raw value with dropdown to fix
+                      <div style={{ position: 'relative' }}>
+                        <input
+                          type="text"
+                          value={row.type}
+                          readOnly
+                          onFocus={() => setFocusedCell({ rowIndex, field: 'type' })}
+                          style={{
+                            ...inputStyle,
+                            borderColor: '#f44336',
+                            backgroundColor: '#fff5f5',
+                            paddingRight: 30,
+                          }}
+                          title="Invalid type - click dropdown to select valid option"
+                        />
+                        <select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              updateCell(rowIndex, 'type', e.target.value);
+                            }
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: 4,
+                            top: '50%',
+                            transform: 'translateY(-50%)',
+                            width: 24,
+                            height: 24,
+                            opacity: 0.01,
+                            cursor: 'pointer',
+                          }}
+                          title="Select valid type"
+                        >
+                          <option value="">Fix...</option>
+                          {PAYMENT_TYPES.filter(pt => pt.value).map(pt => (
+                            <option key={pt.value} value={pt.value}>{pt.label}</option>
+                          ))}
+                        </select>
+                        <span style={{
+                          position: 'absolute',
+                          right: 8,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          pointerEvents: 'none',
+                          color: '#f44336',
+                        }}>▼</span>
+                      </div>
+                    ) : (
+                      // Valid or empty - show normal dropdown
+                      <select
+                        value={row.type}
+                        onChange={(e) => updateCell(rowIndex, 'type', e.target.value)}
+                        onFocus={() => setFocusedCell({ rowIndex, field: 'type' })}
+                        style={{
+                          ...inputStyle,
+                          cursor: 'pointer',
+                          borderColor: hasData && row.type && isValidType(row.type) ? '#4CAF50' : '#e0e0e0',
+                        }}
+                      >
+                        {PAYMENT_TYPES.map(pt => (
+                          <option key={pt.value} value={pt.value}>{pt.label}</option>
+                        ))}
+                      </select>
+                    )}
                   </td>
                   
                   {/* Notes */}

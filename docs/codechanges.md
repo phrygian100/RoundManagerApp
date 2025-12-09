@@ -25,7 +25,7 @@
   - Date validation (expects DD/MM/YYYY format)
   - Amount validation (must be positive number)
   - Type dropdown with options: Cash, Card, Bank Transfer, Cheque, Direct Debit, Other
-  - Type values auto-mapped from paste (e.g., "bacs" → "bank_transfer", "dd" → "direct_debit")
+  - Type column preserves raw pasted values - if invalid, shows red border with dropdown to fix
 - Status column showing Valid/Unknown/Invalid for each row
 - "Clear All" button to reset the spreadsheet
 - Legend explaining color coding
