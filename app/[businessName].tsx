@@ -36,6 +36,7 @@ interface ServicePlan {
   startDate?: string;
   price: number;
   isActive: boolean;
+  nextServiceDate?: string; // Calculated from pending jobs
 }
 
 interface HistoryItem {
@@ -279,7 +280,37 @@ export default function ClientPortalScreen() {
         id: doc.id,
         ...doc.data()
       })) as ServicePlan[];
-      setServicePlans(plans);
+
+      // Fetch pending jobs to get actual next service dates
+      const pendingJobsQuery = query(
+        collection(db, 'jobs'),
+        where('clientId', '==', clientId),
+        where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+      );
+      const pendingJobsSnapshot = await getDocs(pendingJobsQuery);
+      const now = new Date();
+      
+      // Find next job date for each service type
+      const nextServiceDates: Record<string, string> = {};
+      pendingJobsSnapshot.forEach(doc => {
+        const job = doc.data();
+        if (job.scheduledTime && job.serviceId) {
+          const jobDate = new Date(job.scheduledTime);
+          if (jobDate >= now) {
+            const existingDate = nextServiceDates[job.serviceId];
+            if (!existingDate || jobDate < new Date(existingDate)) {
+              nextServiceDates[job.serviceId] = job.scheduledTime;
+            }
+          }
+        }
+      });
+
+      // Attach next service dates to plans
+      const plansWithDates = plans.map(plan => ({
+        ...plan,
+        nextServiceDate: nextServiceDates[plan.serviceType] || undefined
+      }));
+      setServicePlans(plansWithDates);
 
       // Fetch completed jobs
       const jobsQuery = query(
@@ -556,10 +587,10 @@ export default function ClientPortalScreen() {
                             <Text style={styles.serviceLabel}>Frequency: </Text>
                             {formatFrequency(plan.frequencyWeeks)}
                           </Text>
-                          {plan.startDate && (
+                          {plan.nextServiceDate && (
                             <Text style={styles.serviceDetail}>
                               <Text style={styles.serviceLabel}>Next Service: </Text>
-                              {formatDate(plan.startDate)}
+                              {formatDate(plan.nextServiceDate)}
                             </Text>
                           )}
                         </View>
