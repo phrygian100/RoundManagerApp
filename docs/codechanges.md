@@ -2,6 +2,40 @@
 
 ## December 9, 2025
 
+### Added "Send account summary" Button to Runsheet Job Modal
+
+**File**: `app/runsheet/[week].tsx`
+
+**Feature**: Added a new "Send account summary" button to the job action modal in runsheets. This allows users to send a text message to clients with their complete account summary.
+
+**Message Content**:
+- Customer name greeting
+- Current balance (outstanding/credit)
+- Services provided count and total billed
+- Payments received count and total paid
+- Banking details (if balance is outstanding):
+  - Account Name (business name)
+  - Sort Code
+  - Account Number
+  - Amount Due
+  - Customer Reference (account number with RWC prefix)
+- Sign-off with provider name and business name
+
+**Implementation**:
+- Added `handleSendAccountSummary` async function that:
+  - Fetches completed jobs and payments for the client from Firestore
+  - Calculates balance from jobs, payments, and starting balance
+  - Builds a formatted SMS message with all account details
+  - Opens the native SMS app with the pre-filled message
+- Added button to iOS ActionSheet (after "Message ETA")
+- Added button to Android/Web Modal (after "Message ETA")
+- Added `displayAccountNumber` import from `../../utils/account`
+- Added `Payment` type import from `../../types/models`
+
+**Note**: This feature is only available for regular jobs (not quotes) since quotes don't have an associated client account yet.
+
+---
+
 ### Added Client Portal Dashboard
 
 **New Feature**: Full client dashboard after successful login at `guvnor.app/{businessname}`

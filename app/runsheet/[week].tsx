@@ -24,8 +24,9 @@ import { checkClientLimit } from '../../services/subscriptionService';
 import { getUserProfile } from '../../services/userService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
-import type { Job, User } from '../../types/models';
+import type { Job, Payment, User } from '../../types/models';
 import { getJobAccountDisplay } from '../../utils/jobDisplay';
+import { displayAccountNumber } from '../../utils/account';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -1028,7 +1029,7 @@ export default function RunsheetWeekScreen() {
     }
     if (Platform.OS === 'ios') {
       // Build options dynamically based on job status
-      const options = ['Navigate?', 'View details?', 'Message ETA', 'Edit Price'];
+      const options = ['Navigate?', 'View details?', 'Message ETA', 'Send account summary', 'Edit Price'];
       let deferIndex = -1;
       let addNoteIndex = -1;
       let deleteIndex = -1;
@@ -1058,7 +1059,8 @@ export default function RunsheetWeekScreen() {
           if (buttonIndex === 0) handleNavigate(job.client);
           if (buttonIndex === 1) handleViewDetails(job.client);
           if (buttonIndex === 2) handleMessageETA(job);
-          if (buttonIndex === 3) handleEditPrice(job);
+          if (buttonIndex === 3) handleSendAccountSummary(job);
+          if (buttonIndex === 4) handleEditPrice(job);
           if (buttonIndex === deferIndex) handleDeferToNextWeek(job);
           if (buttonIndex === addNoteIndex) handleAddNoteBelow(job);
           if (buttonIndex === deleteIndex) handleDeleteJob(job.id);
@@ -1175,6 +1177,114 @@ ${signOff}`;
     }
     Linking.openURL(smsUrl);
     setActionSheetJob(null);
+  };
+
+  const handleSendAccountSummary = async (job: (Job & { client: Client | null })) => {
+    const client = job.client;
+    
+    if (!client) {
+      Alert.alert('No client', 'No client information available for this job.');
+      return;
+    }
+    
+    const mobileNumber = client.mobileNumber;
+    if (!mobileNumber) {
+      Alert.alert('No mobile number', 'No mobile number available for this client.');
+      return;
+    }
+
+    try {
+      const ownerId = await getDataOwnerId();
+      
+      // Fetch completed jobs for this client
+      const jobsQuery = query(
+        collection(db, 'jobs'),
+        where('ownerId', '==', ownerId),
+        where('clientId', '==', client.id),
+        where('status', '==', 'completed')
+      );
+      const jobsSnapshot = await getDocs(jobsQuery);
+      const completedJobs = jobsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Job[];
+
+      // Fetch payments for this client
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        where('ownerId', '==', ownerId),
+        where('clientId', '==', client.id)
+      );
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      const payments = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id })) as Payment[];
+
+      // Calculate totals
+      const totalBilled = completedJobs.reduce((sum, j) => sum + j.price, 0);
+      const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+      const startingBalance = typeof client.startingBalance === 'number' ? client.startingBalance : 0;
+      const balance = totalPaid - totalBilled + startingBalance;
+
+      // Build the message
+      const name = client.name || 'Customer';
+      
+      // Format balance text
+      const balanceText = balance < 0 
+        ? `Outstanding Balance: £${Math.abs(balance).toFixed(2)}`
+        : balance > 0 
+          ? `Credit Balance: £${balance.toFixed(2)}`
+          : 'Account Balance: £0.00';
+
+      // Build service summary
+      const serviceLines = completedJobs.length > 0
+        ? `Services Provided: ${completedJobs.length} job${completedJobs.length !== 1 ? 's' : ''}\nTotal Billed: £${totalBilled.toFixed(2)}`
+        : 'Services Provided: None';
+
+      // Build payment summary
+      const paymentLines = payments.length > 0
+        ? `Payments Received: ${payments.length} payment${payments.length !== 1 ? 's' : ''}\nTotal Paid: £${totalPaid.toFixed(2)}`
+        : 'Payments Received: None';
+
+      // Build banking info section
+      let bankingInfo = '';
+      if (balance < 0 && userProfile) {
+        const bankParts = [];
+        if (userProfile.businessName) bankParts.push(`Account Name: ${userProfile.businessName}`);
+        if (userProfile.bankSortCode) bankParts.push(`Sort Code: ${userProfile.bankSortCode}`);
+        if (userProfile.bankAccountNumber) bankParts.push(`Account No: ${userProfile.bankAccountNumber}`);
+        bankParts.push(`Amount Due: £${Math.abs(balance).toFixed(2)}`);
+        if (client.accountNumber) bankParts.push(`Reference: ${displayAccountNumber(client.accountNumber)}`);
+        
+        if (bankParts.length > 0) {
+          bankingInfo = `\nPayment Details:\n${bankParts.join('\n')}`;
+        }
+      }
+
+      // Build sign-off
+      const signOffParts = ['Many thanks.', userProfile?.name, userProfile?.businessName].filter(Boolean);
+      const signOff = signOffParts.join('\n');
+
+      const template = `Hi, ${name}
+
+Below is an account summary.
+
+${balanceText}
+
+${serviceLines}
+
+${paymentLines}${bankingInfo}
+
+${signOff}`;
+
+      let smsUrl = '';
+      if (Platform.OS === 'ios') {
+        smsUrl = `sms:${mobileNumber}&body=${encodeURIComponent(template)}`;
+      } else {
+        smsUrl = `smsto:${mobileNumber}?body=${encodeURIComponent(template)}`;
+      }
+      Linking.openURL(smsUrl);
+      setActionSheetJob(null);
+      
+    } catch (error) {
+      console.error('Error fetching account data:', error);
+      Alert.alert('Error', 'Failed to fetch account information. Please try again.');
+    }
   };
 
   const handleDeleteJob = (jobId: string) => {
@@ -2490,6 +2600,7 @@ ${signOff}`;
                     <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
                     <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
                     <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
+                    <Button title="Send account summary" onPress={() => handleSendAccountSummary(actionSheetJob)} />
                     <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
                     {actionSheetJob.status !== 'completed' && actionSheetJob.status !== 'accounted' && actionSheetJob.status !== 'paid' && (
                       <Button title="Defer" onPress={() => handleDeferToNextWeek(actionSheetJob)} />
