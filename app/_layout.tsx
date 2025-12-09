@@ -42,18 +42,21 @@ function AppContent() {
   useEffect(() => {
     if (!authReady) return; // Wait for auth to be ready
     
-    const isPasswordResetFlow = typeof window !== 'undefined' && 
+    const isPasswordResetFlow = typeof window !== 'undefined' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
     const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
     const redirectIfLoggedIn = ['/login', '/register'];
     const alwaysAllowed = ['/set-password', '/forgot-password'];
+
+    // Allow business portal routes (single path segments that could be business names)
+    const isBusinessRoute = pathname && pathname.length > 1 && !pathname.includes('/') && !pathname.startsWith('_');
     
     if (!loggedIn) {
       console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
       // Avoid abrupt redirects if we previously had a user (e.g., during brief token refresh)
       const previouslyHadUser = !!previousUserRef.current;
-      const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p));
+      const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p)) && !isBusinessRoute;
 
       if (shouldRedirectToLogin) {
         if (previouslyHadUser) {
@@ -81,8 +84,9 @@ function AppContent() {
       }
       console.log('🔑 Logged in, checking redirect rules for:', pathname);
       // Don't redirect if we're in a password reset flow
-      if (redirectIfLoggedIn.some(p => pathname.startsWith(p)) && 
-          !alwaysAllowed.some(p => pathname.startsWith(p)) && 
+      if ((redirectIfLoggedIn.some(p => pathname.startsWith(p)) ||
+          isBusinessRoute) &&
+          !alwaysAllowed.some(p => pathname.startsWith(p)) &&
           !isPasswordResetFlow) {
         console.log('🔑 Redirecting to home from:', pathname);
         router.replace('/');

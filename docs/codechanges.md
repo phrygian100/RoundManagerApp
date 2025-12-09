@@ -37,10 +37,19 @@
 - Client authentication logic ready for implementation (account number + password)
 - Data isolation ensures clients only see their own business's data
 
+#### 5. Authentication Guard Updates (`app/_layout.tsx`)
+- Modified authentication logic to allow unauthenticated access to business portal routes
+- Added business route detection for single path segments (e.g., `/TGMWindowCleaning`)
+- Updated redirect logic to handle business routes appropriately for both logged-in and logged-out users
+
 **Next Steps**:
 - Implement client authentication against the business owner's client database
 - Create client dashboard showing account balance, job history, and payments
 - Add client self-service features (payment requests, booking, etc.)
+
+**Testing**:
+- ✅ Visit `www.guvnor.app/TGMWindowCleaning` - now shows client login page instead of redirecting to login
+- The authentication guard now allows unauthenticated access to business portal routes
 
 ---
 
