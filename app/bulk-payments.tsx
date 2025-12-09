@@ -104,11 +104,8 @@ export default function BulkPaymentsScreen() {
   });
 
   const handleBack = useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.replace('/accounts');
-    }
+    // Always take the user to accounts; avoids browser history quirks
+    router.replace('/accounts');
   }, [router]);
 
   // Fetch all clients to build account number mapping
