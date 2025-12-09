@@ -45,34 +45,64 @@ function AppContent() {
     const isPasswordResetFlow = typeof window !== 'undefined' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
-    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/tgmwindowcleaning', '/TGMWindowCleaning'];
+    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
     const redirectIfLoggedIn = ['/login', '/register'];
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 
+    // For web, use window.location.pathname directly as it's more reliable than Expo Router's pathname
+    // which may not be set immediately on initial load
+    const actualPathname = typeof window !== 'undefined' 
+      ? window.location.pathname 
+      : pathname;
+
     // Allow business portal routes (single path segments that could be business names)
-    const isBusinessRoute = pathname && /^\/[^\/_][^\/]*$/.test(pathname);
+    // Must be a valid pathname and match the pattern (not starting with _ or containing /)
+    // Examples: /tgmwindowcleaning, /acmecleaning - NOT /login, /(tabs), /_layout
+    const isBusinessRoute = actualPathname && 
+      actualPathname.length > 1 && 
+      /^\/[a-zA-Z][a-zA-Z0-9]*$/.test(actualPathname) &&
+      !unauthAllowed.includes(actualPathname) &&
+      !redirectIfLoggedIn.includes(actualPathname) &&
+      !alwaysAllowed.includes(actualPathname);
+    
+    console.log('🔍 Route check:', {
+      pathname,
+      actualPathname,
+      isBusinessRoute,
+      loggedIn
+    });
     
     if (!loggedIn) {
-      console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
-      // Avoid abrupt redirects if we previously had a user (e.g., during brief token refresh)
-      const previouslyHadUser = !!previousUserRef.current;
-      const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p)) && !isBusinessRoute;
-
-      if (shouldRedirectToLogin) {
-        if (previouslyHadUser && !isBusinessRoute) {
-          // Debounce redirect only for non-business routes – give auth a moment to settle
+      // Check if this is an allowed unauthenticated route
+      const isUnauthAllowed = actualPathname && unauthAllowed.some(p => actualPathname.startsWith(p));
+      
+      console.log('🔍 Unauth check:', {
+        isUnauthAllowed,
+        isBusinessRoute,
+        willRedirect: !isUnauthAllowed && !isBusinessRoute
+      });
+      
+      // Don't redirect if it's a business route OR explicitly allowed
+      if (!isUnauthAllowed && !isBusinessRoute) {
+        const previouslyHadUser = !!previousUserRef.current;
+        
+        if (previouslyHadUser) {
+          // Debounce redirect for non-business routes
           if (!loginRedirectTimeoutRef.current) {
             loginRedirectTimeoutRef.current = setTimeout(() => {
-              // Only redirect if still not logged in
-              if (!auth.currentUser) {
-                console.log('🔑 Debounced redirecting to login from:', pathname);
+              // Re-check business route status using window.location
+              const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+              const stillNotBusinessRoute = !currentPath || 
+                !/^\/[a-zA-Z][a-zA-Z0-9]*$/.test(currentPath) ||
+                unauthAllowed.includes(currentPath);
+              
+              if (!auth.currentUser && stillNotBusinessRoute) {
                 router.replace('/login');
               }
               loginRedirectTimeoutRef.current = null;
             }, 5000);
           }
         } else {
-          console.log('🔑 Redirecting to login from:', pathname);
           router.replace('/login');
         }
       }
@@ -82,13 +112,14 @@ function AppContent() {
         clearTimeout(loginRedirectTimeoutRef.current);
         loginRedirectTimeoutRef.current = null;
       }
-      console.log('🔑 Logged in, checking redirect rules for:', pathname);
+      console.log('🔑 Logged in, checking redirect rules for:', actualPathname);
       // Don't redirect if we're in a password reset flow
-      if ((redirectIfLoggedIn.some(p => pathname.startsWith(p)) ||
-          isBusinessRoute) &&
-          !alwaysAllowed.some(p => pathname.startsWith(p)) &&
+      // Note: logged-in users visiting business routes should NOT be redirected to home
+      // They might be business owners checking their own portal
+      if (redirectIfLoggedIn.some(p => actualPathname.startsWith(p)) &&
+          !alwaysAllowed.some(p => actualPathname.startsWith(p)) &&
           !isPasswordResetFlow) {
-        console.log('🔑 Redirecting to home from:', pathname);
+        console.log('🔑 Redirecting to home from:', actualPathname);
         router.replace('/');
       }
     }

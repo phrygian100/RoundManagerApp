@@ -2,6 +2,22 @@
 
 ## December 9, 2025
 
+### Fixed Client Portal Route Redirect Issue
+
+**Problem**: Navigating to `guvnor.app/tgmwindowcleaning` (or any business portal URL) was immediately redirecting to `/login` instead of showing the client portal page.
+
+**Root Cause**: Race condition in `_layout.tsx` - the `usePathname()` hook from Expo Router may not return the correct pathname immediately on initial page load on web, causing the auth redirect logic to incorrectly identify business routes as unauthorized pages.
+
+**Solution**:
+1. Changed auth guard to use `window.location.pathname` directly on web instead of relying solely on Expo Router's `usePathname()`
+2. Improved business route regex pattern to be more specific: `/^\/[a-zA-Z][a-zA-Z0-9]*$/`
+3. Removed hardcoded business names from `unauthAllowed` array (now dynamically detected)
+4. Fixed logged-in users being incorrectly redirected away from business portal routes
+
+**File Changed**: `app/_layout.tsx`
+
+---
+
 ### Added Client Portal System
 
 **New Features Added**:
