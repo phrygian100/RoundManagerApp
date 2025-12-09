@@ -309,12 +309,14 @@ const formatClientAddress = (c: ClientSummary): string => {
     const q = lookupModal.search.toLowerCase().trim();
     if (!q) return clients;
     return clients.filter(c => {
+      const account = c.accountNumber ? normalizeAccountNumber(String(c.accountNumber)).toLowerCase() : '';
       return (
         (c.name && c.name.toLowerCase().includes(q)) ||
         (c.address1 && c.address1.toLowerCase().includes(q)) ||
         (c.address && c.address.toLowerCase().includes(q)) ||
         (c.town && c.town.toLowerCase().includes(q)) ||
-        (c.postcode && c.postcode.toLowerCase().includes(q))
+        (c.postcode && c.postcode.toLowerCase().includes(q)) ||
+        (account && account.includes(q))
       );
     });
   }, [clients, lookupModal.search]);
@@ -880,14 +882,16 @@ const styles = StyleSheet.create({
     position: 'fixed',
     inset: 0,
     backgroundColor: 'rgba(0,0,0,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'flex-end',
+    padding: 24,
     zIndex: 9999,
   },
   modalCard: {
-    width: '90%',
-    maxWidth: 800,
-    maxHeight: '80%',
+    width: '32rem',
+    maxWidth: '90vw',
+    maxHeight: '85vh',
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
