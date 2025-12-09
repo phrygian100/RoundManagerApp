@@ -1,7 +1,7 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { doc, getDoc, getDocs, query, where, collection } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
@@ -17,6 +17,7 @@ interface BusinessUser {
 
 export default function ClientPortalScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const { width } = useWindowDimensions();
   const [businessName, setBusinessName] = useState('');
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
@@ -27,15 +28,17 @@ export default function ClientPortalScreen() {
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
   useEffect(() => {
-    // Extract business name from URL
-    const pathname = window?.location?.pathname;
-    if (pathname) {
-      // Remove leading slash and decode
-      const extractedName = decodeURIComponent(pathname.substring(1));
+    // Extract business name from route params
+    const extractedName = typeof params.businessName === 'string' 
+      ? decodeURIComponent(params.businessName)
+      : (typeof window !== 'undefined' ? decodeURIComponent(window.location.pathname.substring(1)) : '');
+    
+    if (extractedName) {
+      console.log('🏢 Business portal loading for:', extractedName);
       setBusinessName(extractedName);
       lookupBusinessUser(extractedName);
     }
-  }, []);
+  }, [params.businessName]);
 
   const lookupBusinessUser = async (name: string) => {
     try {

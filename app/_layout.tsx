@@ -50,29 +50,41 @@ function AppContent() {
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 
     // Allow business portal routes (single path segments that could be business names)
-    const isBusinessRoute = pathname && /^\/[^\/_][^\/]*$/.test(pathname);
+    // Must be a valid pathname and match the pattern (not starting with _ or containing /)
+    const isBusinessRoute = pathname && pathname.length > 1 && /^\/[^\/_][^\/]*$/.test(pathname);
+    
+    console.log('🔍 Route check:', {
+      pathname,
+      isBusinessRoute,
+      regexMatch: pathname ? /^\/[^\/_][^\/]*$/.test(pathname) : false,
+      loggedIn
+    });
     
     if (!loggedIn) {
-      console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
-      // Avoid abrupt redirects if we previously had a user (e.g., during brief token refresh)
-      const previouslyHadUser = !!previousUserRef.current;
-      const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p)) && !isBusinessRoute;
-
-      if (shouldRedirectToLogin) {
-        if (previouslyHadUser && !isBusinessRoute) {
-          // Debounce redirect only for non-business routes – give auth a moment to settle
+      // Check if this is an allowed unauthenticated route
+      const isUnauthAllowed = pathname && unauthAllowed.some(p => pathname.startsWith(p));
+      
+      console.log('🔍 Unauth check:', {
+        isUnauthAllowed,
+        isBusinessRoute,
+        willRedirect: !isUnauthAllowed && !isBusinessRoute
+      });
+      
+      // Don't redirect if it's a business route OR explicitly allowed
+      if (!isUnauthAllowed && !isBusinessRoute) {
+        const previouslyHadUser = !!previousUserRef.current;
+        
+        if (previouslyHadUser) {
+          // Debounce redirect for non-business routes
           if (!loginRedirectTimeoutRef.current) {
             loginRedirectTimeoutRef.current = setTimeout(() => {
-              // Only redirect if still not logged in
-              if (!auth.currentUser) {
-                console.log('🔑 Debounced redirecting to login from:', pathname);
+              if (!auth.currentUser && !isBusinessRoute) {
                 router.replace('/login');
               }
               loginRedirectTimeoutRef.current = null;
             }, 5000);
           }
         } else {
-          console.log('🔑 Redirecting to login from:', pathname);
           router.replace('/login');
         }
       }
