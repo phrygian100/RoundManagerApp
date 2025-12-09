@@ -603,7 +603,7 @@ export default function ClientPortalScreen() {
                     <Text style={styles.emptyText}>No service history yet</Text>
                   ) : (
                     <View style={styles.historyList}>
-                      {history.slice(0, 10).map((item) => (
+                      {history.map((item) => (
                         <View key={item.id} style={styles.historyItem}>
                           <View style={styles.historyLeft}>
                             <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
@@ -617,11 +617,6 @@ export default function ClientPortalScreen() {
                           </Text>
                         </View>
                       ))}
-                      {history.length > 10 && (
-                        <Text style={styles.historyMore}>
-                          + {history.length - 10} more items
-                        </Text>
-                      )}
                     </View>
                   )}
                 </View>
