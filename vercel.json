@@ -51,7 +51,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png).*)",
+      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png|home|pricing|about|feature-tour|contact|privacy-policy|terms|set-password|forgot-password|login|register).*)",
       "destination": "/index.html"
     }
   ],

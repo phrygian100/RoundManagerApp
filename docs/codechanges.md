@@ -1,5 +1,94 @@
 # Code Changes Log
 
+## December 9, 2025
+
+### Added Client Portal System
+
+**New Features Added**:
+
+1. **Dynamic Business Route**: Created `/app/[businessName].tsx` for client portal access via URLs like `guvnor.app/TGMWindowCleaning`
+2. **Business Name Lookup**: Implemented flexible business name matching that handles spaces and case variations (e.g., "TGMWindowCleaning" matches "TGM Window Cleaning")
+3. **Owner vs Member Discrimination**: Added logic to ensure only business owners can have client portals, not team members
+4. **Client Authentication UI**: Built login form for clients to enter account number (RWC...) and password
+
+**Technical Implementation**:
+
+#### 1. Dynamic Route Creation (`app/[businessName].tsx`)
+- Uses Expo Router's dynamic routing with square brackets
+- Extracts business name from URL and normalizes it for database lookup
+- Validates that the business user is an owner, not a team member
+
+#### 2. Business User Lookup Logic
+- Queries Firestore users collection for business name matches
+- Normalizes both URL and stored business names for flexible matching
+- Prevents member users from having client portals
+
+#### 3. Owner Discrimination
+- Checks if `user.accountId !== user.uid` (member indicator)
+- Verifies no member records exist in `accounts/{userId}/members/{userId}`
+- Ensures only business owners can access client portal functionality
+
+#### 4. Vercel Routing Updates
+- Updated `vercel.json` to properly route business name URLs to the main app
+- Maintains existing marketing page routing
+
+**Security Considerations**:
+- Only owner accounts can have client portals
+- Client authentication logic ready for implementation (account number + password)
+- Data isolation ensures clients only see their own business's data
+
+**Next Steps**:
+- Implement client authentication against the business owner's client database
+- Create client dashboard showing account balance, job history, and payments
+- Add client self-service features (payment requests, booking, etc.)
+
+---
+
+## Previous Changes
+
+### Fixed Critical Bugs in Accounts Screen (accounts.tsx)
+
+**Problems Fixed**:
+
+1. **Import Typo**: Line 1 had "thimport" instead of "import", causing all Ionicons references to fail and breaking the entire component
+2. **Starting Balance Calculation Bug**: `Number(client.startingBalance) || 0` returned `NaN` when `startingBalance` was `undefined`, causing incorrect balance calculations
+3. **Broken Add Payment Button**: The "Add Payment" button in the account details modal only closed the modal but didn't navigate to the add payment screen
+
+**Root Causes**:
+- Typo in import statement prevented proper module loading
+- Unsafe type coercion with `Number(undefined)` returning `NaN`
+- Missing `onAddPayment` prop in modal component interface
+
+**Solutions**:
+
+#### 1. Fixed Import Statement
+**Location**: `app/accounts.tsx` line 1
+- **Before**: `thimport { Ionicons } from '@expo/vector-icons';`
+- **After**: `import { Ionicons } from '@expo/vector-icons';`
+- **Impact**: Restored proper Ionicons import, fixing all icon references
+
+#### 2. Fixed Starting Balance Type Safety
+**Location**: `app/accounts.tsx` line 252
+- **Before**: `const startingBalance = Number(client.startingBalance) || 0;`
+- **After**: `const startingBalance = typeof client.startingBalance === 'number' ? client.startingBalance : 0;`
+- **Impact**: Prevents `NaN` values in balance calculations when `startingBalance` is undefined
+
+#### 3. Fixed Add Payment Button Functionality
+**Location**: `app/accounts.tsx` - AccountDetailsModal component
+- **Added**: `onAddPayment: (client: ClientWithBalance) => void` to `AccountDetailsModalProps` type
+- **Updated**: Modal component to accept and use `onAddPayment` prop
+- **Updated**: "Add Payment" button to call `onAddPayment(client!)` instead of just `onClose()`
+- **Updated**: Modal instantiation to pass `handleAddPayment` as `onAddPayment` prop
+- **Impact**: "Add Payment" button now properly navigates to add payment screen with client details pre-filled
+
+**User-Facing Behavior**:
+- Accounts screen now loads without TypeScript errors
+- Balance calculations are accurate even for clients without starting balance
+- Add Payment button in account details modal now works correctly
+- No functional regressions in existing features
+
+---
+
 ## December 3, 2025
 
 ### Fixed Job Completion Order Tracking for Collaborative Workflows

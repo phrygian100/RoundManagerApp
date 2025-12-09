@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
@@ -19,9 +19,10 @@ type AccountDetailsModalProps = {
   client: ClientWithBalance | null;
   onClose: () => void;
   onChasePayment: (client: ClientWithBalance) => void;
+  onAddPayment: (client: ClientWithBalance) => void;
 };
 
-const AccountDetailsModal = ({ visible, client, onClose, onChasePayment }: AccountDetailsModalProps) => {
+const AccountDetailsModal = ({ visible, client, onClose, onChasePayment, onAddPayment }: AccountDetailsModalProps) => {
   const [accountHistory, setAccountHistory] = useState<{ jobs: Job[]; payments: Payment[] }>({ jobs: [], payments: [] });
   const [loadingHistory, setLoadingHistory] = useState(false);
 
@@ -144,13 +145,9 @@ const AccountDetailsModal = ({ visible, client, onClose, onChasePayment }: Accou
                 <ThemedText style={styles.chaseButtonText}>Chase Payment</ThemedText>
               </Pressable>
               
-              <Pressable 
+              <Pressable
                 style={[styles.actionButton, styles.addPaymentButton]}
-                onPress={() => {
-                  onClose();
-                  // Navigate to add payment screen with client pre-filled
-                  // This will be handled by the parent component
-                }}
+                onPress={() => onAddPayment(client!)}
               >
                 <Ionicons name="add-circle-outline" size={20} color="#1976d2" />
                 <ThemedText style={styles.addPaymentButtonText}>Add Payment</ThemedText>
@@ -249,7 +246,7 @@ export default function AccountsScreen() {
           
           const totalBilled = clientJobs.reduce((sum, job) => sum + job.price, 0);
           const totalPaid = clientPayments.reduce((sum, payment) => sum + payment.amount, 0);
-          const startingBalance = Number(client.startingBalance) || 0;
+          const startingBalance = typeof client.startingBalance === 'number' ? client.startingBalance : 0;
           const balance = totalPaid - totalBilled + startingBalance;
           
           return { ...client, balance };
@@ -534,6 +531,7 @@ export default function AccountsScreen() {
             setSelectedClient(null);
           }}
           onChasePayment={handleChasePayment}
+          onAddPayment={handleAddPayment}
         />
       </ThemedView>
     </PermissionGate>
