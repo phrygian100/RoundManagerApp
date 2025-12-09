@@ -2,6 +2,36 @@
 
 ## December 9, 2025
 
+### Added Bulk Payments Feature (UI Only)
+
+**Files**: 
+- `app/accounts.tsx` - Added "Add Bulk Payments" button
+- `app/bulk-payments.tsx` - New spreadsheet-style bulk payment entry page
+
+**Feature**: Added a new bulk payments interface accessible from the Accounts page. This allows users to enter multiple payments at once using a spreadsheet-like interface.
+
+**Accounts Page Changes**:
+- Added "Add Bulk Payments" button in the header
+- Desktop: Navigates to `/bulk-payments`
+- Mobile: Shows alert explaining feature is desktop-only
+
+**Bulk Payments Page Features**:
+- Spreadsheet grid with columns: Account Number, Date, Amount, Type, Notes
+- Starts with 10 empty rows, "Add 5 Rows" button to expand
+- Real-time validation:
+  - Account numbers matched against existing clients (green = valid, yellow = unknown)
+  - Date validation (expects DD/MM/YYYY format)
+  - Amount validation (must be positive number)
+  - Type dropdown with options: Cash, Card, Bank Transfer, Cheque, Direct Debit, Other
+- Paste support from Excel/Google Sheets (tab-separated values)
+- Status column showing Valid/Unknown/Invalid for each row
+- Legend explaining color coding
+- Mobile fallback with message to use desktop
+
+**Note**: Submission functionality not yet implemented - this is UI-only for testing.
+
+---
+
 ### Added Quick Action Buttons to Runsheet Job Rows
 
 **File**: `app/runsheet/[week].tsx`

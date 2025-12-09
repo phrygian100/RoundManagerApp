@@ -2,7 +2,7 @@
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -390,6 +390,23 @@ export default function AccountsScreen() {
         <View style={styles.headerBar}>
           <ThemedText style={styles.headerTitle}>Accounts</ThemedText>
           <View style={styles.headerButtons}>
+            <Pressable 
+              style={styles.bulkPaymentsButton} 
+              onPress={() => {
+                if (isLargeScreen) {
+                  router.push('/bulk-payments');
+                } else {
+                  Alert.alert(
+                    'Desktop Only',
+                    'The bulk payments feature is only available on desktop. Please visit the web app on a computer to add bulk payments.',
+                    [{ text: 'OK' }]
+                  );
+                }
+              }}
+            >
+              <Ionicons name="grid-outline" size={18} color="#fff" />
+              <ThemedText style={styles.bulkPaymentsButtonText}>Add Bulk Payments</ThemedText>
+            </Pressable>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
               <Ionicons name="home-outline" size={22} color="#1976d2" />
             </Pressable>
@@ -571,6 +588,20 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 6,
     backgroundColor: '#eaf2ff',
+  },
+  bulkPaymentsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#1976d2',
+  },
+  bulkPaymentsButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   desktopContainer: {
     width: '100%',
