@@ -2,6 +2,15 @@
 
 ## December 9, 2025
 
+### Reworked Accounts Financial Summary
+
+**File**: `app/accounts.tsx`
+
+- Pulled the three financial quick links (Completed Jobs, All Payments, Unknown Payments) out into their own standalone cards so they read clearly as tappable boxes on both desktop and mobile.
+- Replaced the old financial summary grid with an over-time chart showing completed job value (blue) vs payments received (green).
+- Added timeframe chips (Daily, Weekly, Monthly, Year-to-date, Annual, Lifetime) to switch the chart aggregation, using existing Firestore job/payment data.
+- Included a simple legend and updated styling for the quick links to feel more prominent/clickable.
+
 ### Added Bulk Payments Feature (UI Only)
 
 **Files**: 

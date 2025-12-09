@@ -1,7 +1,8 @@
- import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
+import { addMonths, addYears, differenceInMonths, endOfDay, endOfMonth, endOfWeek, endOfYear, format, parseISO, startOfDay, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subWeeks, subYears } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
@@ -21,6 +22,9 @@ type AccountDetailsModalProps = {
   onChasePayment: (client: ClientWithBalance) => void;
   onAddPayment: (client: ClientWithBalance) => void;
 };
+
+type ChartRange = 'daily' | 'weekly' | 'monthly' | 'ytd' | 'annual' | 'lifetime';
+type ChartPoint = { label: string; jobs: number; payments: number };
 
 const AccountDetailsModal = ({ visible, client, onClose, onChasePayment, onAddPayment }: AccountDetailsModalProps) => {
   const [accountHistory, setAccountHistory] = useState<{ jobs: Job[]; payments: Payment[] }>({ jobs: [], payments: [] });
@@ -166,6 +170,9 @@ export default function AccountsScreen() {
   const [completedJobsTotal, setCompletedJobsTotal] = useState(0);
   const [paymentsCount, setPaymentsCount] = useState(0);
   const [completedJobsCount, setCompletedJobsCount] = useState(0);
+  const [completedJobsList, setCompletedJobsList] = useState<Job[]>([]);
+  const [paymentsList, setPaymentsList] = useState<Payment[]>([]);
+  const [chartRange, setChartRange] = useState<ChartRange>('monthly');
   const [outstandingClients, setOutstandingClients] = useState<ClientWithBalance[]>([]);
   const [loadingOutstanding, setLoadingOutstanding] = useState(true);
   const [selectedClient, setSelectedClient] = useState<ClientWithBalance | null>(null);
@@ -174,44 +181,76 @@ export default function AccountsScreen() {
   const { width } = useWindowDimensions();
 
   useEffect(() => {
+    let completedJobsUnsubscribe: (() => void) | undefined;
+    let paymentsUnsubscribe: (() => void) | undefined;
+    let jobsReady = false;
+    let paymentsReady = false;
+    let isMounted = true;
+
+    const markReady = () => {
+      if (jobsReady && paymentsReady) {
+        setLoading(false);
+      }
+    };
+
     const fetchTotals = async () => {
-      setLoading(true);
+      try {
+        setLoading(true);
 
-      const ownerId = await getDataOwnerId();
-
-      // Fetch completed jobs for total
-      const jobsRef = collection(db, 'jobs');
-      const completedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'completed'));
-      const completedJobsUnsubscribe = onSnapshot(completedJobsQuery, (querySnapshot) => {
-        let total = 0;
-        querySnapshot.forEach((doc) => {
-          total += doc.data().price;
+        const ownerId = await getDataOwnerId();
+        
+        // Fetch completed jobs for total and charting
+        const jobsRef = collection(db, 'jobs');
+        const completedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'completed'));
+        completedJobsUnsubscribe = onSnapshot(completedJobsQuery, (querySnapshot) => {
+          if (!isMounted) return;
+          let total = 0;
+          const jobs: Job[] = [];
+          querySnapshot.forEach((doc) => {
+            const jobData = doc.data() as Job;
+            const price = typeof jobData.price === 'number' ? jobData.price : 0;
+            total += price;
+            jobs.push({ ...jobData, id: doc.id });
+          });
+          jobsReady = true;
+          setCompletedJobsList(jobs);
+          setCompletedJobsTotal(total);
+          setCompletedJobsCount(querySnapshot.size);
+          markReady();
         });
-        setCompletedJobsTotal(total);
-        setCompletedJobsCount(querySnapshot.size);
-      });
 
-      // Fetch payments for total
-      const paymentsRef = collection(db, 'payments');
-      const paymentsQuery = query(paymentsRef, where('ownerId', '==', ownerId));
-      const paymentsUnsubscribe = onSnapshot(paymentsQuery, (querySnapshot) => {
-        let total = 0;
-        querySnapshot.forEach((doc) => {
-          total += doc.data().amount;
+        // Fetch payments for total and charting
+        const paymentsRef = collection(db, 'payments');
+        const paymentsQuery = query(paymentsRef, where('ownerId', '==', ownerId));
+        paymentsUnsubscribe = onSnapshot(paymentsQuery, (querySnapshot) => {
+          if (!isMounted) return;
+          let total = 0;
+          const payments: Payment[] = [];
+          querySnapshot.forEach((doc) => {
+            const paymentData = doc.data() as Payment;
+            const amount = typeof paymentData.amount === 'number' ? paymentData.amount : 0;
+            total += amount;
+            payments.push({ ...paymentData, id: doc.id });
+          });
+          paymentsReady = true;
+          setPaymentsList(payments);
+          setPaymentsTotal(total);
+          setPaymentsCount(querySnapshot.size);
+          markReady();
         });
-        setPaymentsTotal(total);
-        setPaymentsCount(querySnapshot.size);
-      });
-
-      setLoading(false);
-
-      return () => {
-        completedJobsUnsubscribe();
-        paymentsUnsubscribe();
-      };
+      } catch (error) {
+        console.error('Error fetching totals:', error);
+        setLoading(false);
+      }
     };
     
     fetchTotals();
+
+    return () => {
+      isMounted = false;
+      completedJobsUnsubscribe?.();
+      paymentsUnsubscribe?.();
+    };
   }, []);
 
   // Fetch outstanding clients
@@ -268,6 +307,130 @@ export default function AccountsScreen() {
     fetchOutstandingClients();
   }, []);
 
+  const timeframeOptions: { key: ChartRange; label: string }[] = [
+    { key: 'daily', label: 'Daily' },
+    { key: 'weekly', label: 'Weekly' },
+    { key: 'monthly', label: 'Monthly' },
+    { key: 'ytd', label: 'Year-to-date' },
+    { key: 'annual', label: 'Annual' },
+    { key: 'lifetime', label: 'Lifetime' },
+  ];
+
+  const parseDateValue = (value?: string) => {
+    if (!value) return null;
+    try {
+      const parsed = parseISO(value);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const earliestActivityDate = useMemo(() => {
+    let earliest: Date | null = null;
+
+    completedJobsList.forEach(job => {
+      const parsed = parseDateValue(job.scheduledTime || job.originalScheduledTime);
+      if (parsed && (!earliest || parsed < earliest)) {
+        earliest = parsed;
+      }
+    });
+
+    paymentsList.forEach(payment => {
+      const parsed = parseDateValue(payment.date || payment.createdAt);
+      if (parsed && (!earliest || parsed < earliest)) {
+        earliest = parsed;
+      }
+    });
+
+    return earliest;
+  }, [completedJobsList, paymentsList]);
+
+  const buildChartBuckets = useCallback((range: ChartRange) => {
+    const now = new Date();
+
+    switch (range) {
+      case 'daily':
+        return Array.from({ length: 14 }, (_, idx) => {
+          const start = startOfDay(subDays(now, 13 - idx));
+          return { key: format(start, 'yyyy-MM-dd'), label: format(start, 'd MMM'), start, end: endOfDay(start) };
+        });
+      case 'weekly':
+        return Array.from({ length: 12 }, (_, idx) => {
+          const start = startOfWeek(subWeeks(now, 11 - idx), { weekStartsOn: 1 });
+          const end = endOfWeek(start, { weekStartsOn: 1 });
+          return { key: format(start, 'yyyy-ww'), label: `w/c ${format(start, 'd MMM')}`, start, end };
+        });
+      case 'monthly':
+        return Array.from({ length: 12 }, (_, idx) => {
+          const start = startOfMonth(subMonths(now, 11 - idx));
+          const end = endOfMonth(start);
+          return { key: format(start, 'yyyy-MM'), label: format(start, 'MMM yyyy'), start, end };
+        });
+      case 'ytd': {
+        const start = startOfYear(now);
+        const months = differenceInMonths(now, start) + 1;
+        return Array.from({ length: months || 1 }, (_, idx) => {
+          const startMonth = startOfMonth(addMonths(start, idx));
+          const end = endOfMonth(startMonth);
+          return { key: format(startMonth, 'yyyy-MM'), label: format(startMonth, 'MMM'), start: startMonth, end };
+        });
+      }
+      case 'annual':
+        return Array.from({ length: 5 }, (_, idx) => {
+          const start = startOfYear(subYears(now, 4 - idx));
+          const end = endOfYear(start);
+          return { key: format(start, 'yyyy'), label: format(start, 'yyyy'), start, end };
+        });
+      case 'lifetime': {
+        const start = earliestActivityDate ? startOfYear(earliestActivityDate) : startOfYear(now);
+        const yearCount = Math.max(1, now.getFullYear() - start.getFullYear() + 1);
+        return Array.from({ length: yearCount }, (_, idx) => {
+          const startYear = addYears(start, idx);
+          const end = endOfYear(startYear);
+          return { key: format(startYear, 'yyyy'), label: format(startYear, 'yyyy'), start: startYear, end };
+        });
+      }
+      default:
+        return [];
+    }
+  }, [earliestActivityDate]);
+
+  const chartData = useMemo<ChartPoint[]>(() => {
+    const buckets = buildChartBuckets(chartRange);
+    if (!buckets.length) return [];
+
+    const series = buckets.map(bucket => ({ label: bucket.label, jobs: 0, payments: 0 }));
+
+    const assignToBucket = (date: Date, amount: number, field: 'jobs' | 'payments') => {
+      const idx = buckets.findIndex(bucket => date >= bucket.start && date <= bucket.end);
+      if (idx !== -1) {
+        series[idx][field] += amount;
+      }
+    };
+
+    completedJobsList.forEach(job => {
+      const parsedDate = parseDateValue(job.scheduledTime || job.originalScheduledTime);
+      if (!parsedDate) return;
+      const amount = typeof job.price === 'number' ? job.price : 0;
+      assignToBucket(parsedDate, amount, 'jobs');
+    });
+
+    paymentsList.forEach(payment => {
+      const parsedDate = parseDateValue(payment.date || payment.createdAt);
+      if (!parsedDate) return;
+      const amount = typeof payment.amount === 'number' ? payment.amount : 0;
+      assignToBucket(parsedDate, amount, 'payments');
+    });
+
+    return series;
+  }, [buildChartBuckets, chartRange, completedJobsList, paymentsList]);
+
+  const hasChartData = useMemo(
+    () => chartData.some(point => point.jobs > 0 || point.payments > 0),
+    [chartData]
+  );
+
   const handleOpenAccountDetails = (client: ClientWithBalance) => {
     setSelectedClient(client);
     setShowAccountModal(true);
@@ -322,7 +485,7 @@ export default function AccountsScreen() {
     icon: React.ReactNode;
   }) => (
     <Pressable 
-      style={styles.summaryCard} 
+      style={({ pressed }) => [styles.summaryCard, pressed && styles.summaryCardPressed]} 
       onPress={onPress}
     >
       <View style={styles.summaryCardHeader}>
@@ -335,6 +498,131 @@ export default function AccountsScreen() {
       )}
     </Pressable>
   );
+
+  const FinancialLineChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
+    const [chartWidth, setChartWidth] = useState(0);
+    const chartHeight = 200;
+    const topPadding = 12;
+    const bottomPadding = 28;
+    const verticalSpace = chartHeight - topPadding - bottomPadding;
+
+    const safeMax = useMemo(() => {
+      const maxValue = data.reduce((max, point) => Math.max(max, point.jobs, point.payments), 0);
+      return maxValue > 0 ? maxValue : 1;
+    }, [data]);
+
+    const buildPoints = useCallback(
+      (getValue: (point: ChartPoint) => number) => {
+        if (!chartWidth) return [];
+        const step = data.length > 1 ? chartWidth / (data.length - 1) : 0;
+        return data.map((point, idx) => {
+          const rawValue = getValue(point);
+          const normalized = Math.min(rawValue / safeMax, 1);
+          const x = data.length > 1 ? idx * step : chartWidth / 2;
+          const y = topPadding + (1 - normalized) * verticalSpace;
+          return { x, y, value: rawValue };
+        });
+      },
+      [chartWidth, data, safeMax, verticalSpace]
+    );
+
+    const jobPoints = useMemo(() => buildPoints(point => point.jobs), [buildPoints]);
+    const paymentPoints = useMemo(() => buildPoints(point => point.payments), [buildPoints]);
+
+    const renderLine = (points: { x: number; y: number }[], color: string) =>
+      points.map((point, idx) => {
+        if (idx === 0) return null;
+        const prev = points[idx - 1];
+        const dx = point.x - prev.x;
+        const dy = point.y - prev.y;
+        const length = Math.sqrt(dx * dx + dy * dy) || 0;
+        const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        return (
+          <View
+            key={`${color}-line-${idx}`}
+            style={{
+              position: 'absolute',
+              left: prev.x,
+              top: prev.y,
+              width: length || 1,
+              height: 2,
+              backgroundColor: color,
+              transform: [{ rotate: `${angle}deg` }],
+              borderRadius: 4,
+            }}
+          />
+        );
+      });
+
+    const renderPoints = (points: { x: number; y: number }[], color: string) =>
+      points.map((point, idx) => (
+        <View
+          key={`${color}-point-${idx}`}
+          style={{
+            position: 'absolute',
+            left: point.x - 4,
+            top: point.y - 4,
+            width: 8,
+            height: 8,
+            borderRadius: 4,
+            backgroundColor: '#fff',
+            borderWidth: 2,
+            borderColor: color,
+          }}
+        />
+      ));
+
+    const labelSpacing = data.length > 6 ? Math.ceil(data.length / 6) : 1;
+
+    return (
+      <View style={styles.chartWrapper}>
+        <View
+          style={styles.chartArea}
+          onLayout={({ nativeEvent }) => setChartWidth(nativeEvent.layout.width)}
+        >
+          {[0.25, 0.5, 0.75, 1].map((ratio) => {
+            const y = topPadding + (1 - ratio) * verticalSpace;
+            return <View key={`grid-${ratio}`} style={[styles.chartGridLine, { top: y }]} />;
+          })}
+
+          {loading && !hasChartData ? (
+            <View style={styles.chartEmptyState}>
+              <ActivityIndicator size="small" />
+              <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
+            </View>
+          ) : !hasChartData ? (
+            <View style={styles.chartEmptyState}>
+              <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
+              <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
+            </View>
+          ) : (
+            <>
+              {renderLine(jobPoints, '#1976d2')}
+              {renderLine(paymentPoints, '#43a047')}
+              {renderPoints(jobPoints, '#1976d2')}
+              {renderPoints(paymentPoints, '#43a047')}
+            </>
+          )}
+        </View>
+
+        {data.length > 0 && (
+          <View style={styles.chartLabelRow}>
+            {data.map((point, idx) => {
+              if (data.length > 6 && idx % labelSpacing !== 0 && idx !== data.length - 1) {
+                return <View key={`label-${idx}`} style={{ flex: 1 }} />;
+              }
+
+              return (
+                <View key={`label-${idx}`} style={styles.chartLabel}>
+                  <ThemedText style={styles.chartLabelText}>{point.label}</ThemedText>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   const OutstandingClientCard = ({ client }: { client: ClientWithBalance }) => {
     const addressParts = [client.address1, client.town, client.postcode].filter(Boolean);
@@ -421,35 +709,65 @@ export default function AccountsScreen() {
         >
           {isLargeScreen ? (
             <View style={styles.desktopContainer}>
-              {/* Left Column: Summary Cards */}
+              {/* Left Column: Summary Cards & Financial Chart */}
               <View style={styles.summarySection}>
+                <View style={styles.summaryGrid}>
+                  <SummaryCard
+                    title="Completed Jobs"
+                    value={`£${completedJobsTotal.toFixed(2)}`}
+                    subtitle={`${completedJobsCount} jobs completed`}
+                    onPress={() => router.push('/completed-jobs')}
+                    icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
+                  />
+                  <SummaryCard
+                    title="All Payments"
+                    value={`£${paymentsTotal.toFixed(2)}`}
+                    subtitle={`${paymentsCount} payments received`}
+                    onPress={() => router.push('/payments-list')}
+                    icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
+                  />
+                  <SummaryCard
+                    title="Unknown Payments"
+                    value="View Details"
+                    subtitle="Payments with unmatched accounts"
+                    onPress={() => router.push('/unknown-payments')}
+                    icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
+                  />
+                </View>
+
                 <SectionCard 
                   title="Financial Summary" 
                   icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
                 >
-                  <View style={styles.summaryGrid}>
-                    <SummaryCard
-                      title="Completed Jobs"
-                      value={`£${completedJobsTotal.toFixed(2)}`}
-                      subtitle={`${completedJobsCount} jobs completed`}
-                      onPress={() => router.push('/completed-jobs')}
-                      icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
-                    />
-                    <SummaryCard
-                      title="All Payments"
-                      value={`£${paymentsTotal.toFixed(2)}`}
-                      subtitle={`${paymentsCount} payments received`}
-                      onPress={() => router.push('/payments-list')}
-                      icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
-                    />
-                    <SummaryCard
-                      title="Unknown Payments"
-                      value="View Details"
-                      subtitle="Payments with unmatched accounts"
-                      onPress={() => router.push('/unknown-payments')}
-                      icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
-                    />
+                  <View style={styles.chartHeaderRow}>
+                    <View style={styles.chartLegend}>
+                      <View style={[styles.legendDot, { backgroundColor: '#1976d2' }]} />
+                      <ThemedText style={styles.legendText}>Completed jobs</ThemedText>
+                      <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
+                      <ThemedText style={styles.legendText}>Payments received</ThemedText>
+                    </View>
+                    <View style={styles.timeframeChips}>
+                      {timeframeOptions.map(option => (
+                        <Pressable
+                          key={option.key}
+                          style={[
+                            styles.timeframeChip,
+                            chartRange === option.key && styles.timeframeChipActive,
+                          ]}
+                          onPress={() => setChartRange(option.key)}
+                        >
+                          <ThemedText style={[
+                            styles.timeframeChipText,
+                            chartRange === option.key && styles.timeframeChipTextActive,
+                          ]}>
+                            {option.label}
+                          </ThemedText>
+                        </Pressable>
+                      ))}
+                    </View>
                   </View>
+
+                  <FinancialLineChart data={chartData} loading={loading} />
                 </SectionCard>
               </View>
               
@@ -483,33 +801,63 @@ export default function AccountsScreen() {
           ) : (
             // Mobile/stacked layout
             <View style={styles.mobileContainer}>
+              <View style={styles.mobileSummaryGrid}>
+                <SummaryCard
+                  title="Completed Jobs"
+                  value={`£${completedJobsTotal.toFixed(2)}`}
+                  subtitle={`${completedJobsCount} jobs completed`}
+                  onPress={() => router.push('/completed-jobs')}
+                  icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
+                />
+                <SummaryCard
+                  title="All Payments"
+                  value={`£${paymentsTotal.toFixed(2)}`}
+                  subtitle={`${paymentsCount} payments received`}
+                  onPress={() => router.push('/payments-list')}
+                  icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
+                />
+                <SummaryCard
+                  title="Unknown Payments"
+                  value="View Details"
+                  subtitle="Payments with unmatched accounts"
+                  onPress={() => router.push('/unknown-payments')}
+                  icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
+                />
+              </View>
+
               <SectionCard 
                 title="Financial Summary" 
                 icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
               >
-                <View style={styles.mobileSummaryGrid}>
-                  <SummaryCard
-                    title="Completed Jobs"
-                    value={`£${completedJobsTotal.toFixed(2)}`}
-                    subtitle={`${completedJobsCount} jobs completed`}
-                    onPress={() => router.push('/completed-jobs')}
-                    icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
-                  />
-                  <SummaryCard
-                    title="All Payments"
-                    value={`£${paymentsTotal.toFixed(2)}`}
-                    subtitle={`${paymentsCount} payments received`}
-                    onPress={() => router.push('/payments-list')}
-                    icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
-                  />
-                  <SummaryCard
-                    title="Unknown Payments"
-                    value="View Details"
-                    subtitle="Payments with unmatched accounts"
-                    onPress={() => router.push('/unknown-payments')}
-                    icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
-                  />
+                <View style={styles.chartHeaderRow}>
+                  <View style={styles.chartLegend}>
+                    <View style={[styles.legendDot, { backgroundColor: '#1976d2' }]} />
+                    <ThemedText style={styles.legendText}>Completed jobs</ThemedText>
+                    <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
+                    <ThemedText style={styles.legendText}>Payments received</ThemedText>
+                  </View>
+                  <View style={styles.timeframeChips}>
+                    {timeframeOptions.map(option => (
+                      <Pressable
+                        key={option.key}
+                        style={[
+                          styles.timeframeChip,
+                          chartRange === option.key && styles.timeframeChipActive,
+                        ]}
+                        onPress={() => setChartRange(option.key)}
+                      >
+                        <ThemedText style={[
+                          styles.timeframeChipText,
+                          chartRange === option.key && styles.timeframeChipTextActive,
+                        ]}>
+                          {option.label}
+                        </ThemedText>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
+
+                <FinancialLineChart data={chartData} loading={loading} />
               </SectionCard>
               
               <SectionCard 
@@ -621,7 +969,8 @@ const styles = StyleSheet.create({
   summarySection: {
     flex: 1,
     minWidth: 340,
-    maxWidth: 500,
+    maxWidth: 650,
+    gap: 18,
   },
   outstandingSection: {
     flex: 1,
@@ -632,23 +981,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 16,
+    marginBottom: 8,
   },
   mobileSummaryGrid: {
     gap: 16,
+    marginBottom: 16,
   },
   summaryCard: {
     flex: 1,
-    minWidth: 150,
-    backgroundColor: '#f8f9fa',
+    minWidth: 180,
+    backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
-    borderColor: '#e9ecef',
+    borderColor: '#d7e3ff',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  summaryCardPressed: {
+    transform: [{ scale: 0.98 }],
+    opacity: 0.95,
   },
   summaryCardHeader: {
     flexDirection: 'row',
@@ -670,6 +1025,100 @@ const styles = StyleSheet.create({
   summaryCardSubtitle: {
     fontSize: 14,
     color: '#6c757d',
+  },
+  chartHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  chartLegend: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  legendDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  legendText: {
+    fontSize: 12,
+    color: '#455a64',
+  },
+  timeframeChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'flex-end',
+  },
+  timeframeChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d0d7de',
+    backgroundColor: '#fff',
+  },
+  timeframeChipActive: {
+    backgroundColor: '#e3f2fd',
+    borderColor: '#90caf9',
+  },
+  timeframeChipText: {
+    fontSize: 12,
+    color: '#455a64',
+    fontWeight: '600',
+  },
+  timeframeChipTextActive: {
+    color: '#0d47a1',
+  },
+  chartWrapper: {
+    gap: 10,
+  },
+  chartArea: {
+    height: 200,
+    position: 'relative',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#eceff1',
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  chartGridLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: '#eceff1',
+  },
+  chartEmptyState: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  chartLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+  chartLabel: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  chartLabelText: {
+    fontSize: 11,
+    color: '#607d8b',
+    textAlign: 'center',
   },
   outstandingList: {
     gap: 12,
