@@ -523,7 +523,7 @@ export default function ClientPortalScreen() {
                           <Text style={styles.paymentValue}>{businessUser.bankAccountNumber}</Text>
                         </View>
                       )}
-                      <View style={[styles.paymentRow, styles.paymentRowHighlight]}>
+                      <View style={styles.paymentRow}>
                         <Text style={styles.paymentLabel}>Your Reference</Text>
                         <Text style={styles.paymentValueBold}>{foundClient?.accountNumber}</Text>
                       </View>
