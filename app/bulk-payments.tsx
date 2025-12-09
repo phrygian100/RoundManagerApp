@@ -420,7 +420,7 @@ export default function BulkPaymentsScreen() {
                           }}
                           title="Select valid type"
                         >
-                          <option value="">Fix...</option>
+                          <option value="" disabled>Select type...</option>
                           {PAYMENT_TYPES.filter(pt => pt.value).map(pt => (
                             <option key={pt.value} value={pt.value}>{pt.label}</option>
                           ))}
