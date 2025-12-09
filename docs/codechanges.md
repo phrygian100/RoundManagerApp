@@ -29,6 +29,7 @@
 - Invalid account numbers scan for embedded references like "RWC123" inside noisy text and surface a one-click "Use RWC123" suggestion to auto-correct the cell
 - For unknown accounts without an RWC hint, a "Find account" button opens a modal that lets the user search clients by name or address and apply the correct account number in one click
 - Find-account modal now supports searching by account number too and is anchored to the right side of the screen
+- Back button now falls back to `/accounts` if browser history cannot navigate back
 - Status column showing Valid/Unknown/Invalid for each row
 - "Clear All" button to reset the spreadsheet
 - Legend explaining color coding

@@ -84,6 +84,14 @@ export default function BulkPaymentsScreen() {
     search: '',
   });
 
+  const handleBack = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.replace('/accounts');
+    }
+  }, [router]);
+
   // Fetch all clients to build account number mapping
   useEffect(() => {
     const fetchClients = async () => {
@@ -328,7 +336,7 @@ const formatClientAddress = (c: ClientSummary): string => {
         <ThemedText style={styles.mobileMessage}>
           This feature is only available on desktop. Please visit the web app on a computer to add bulk payments.
         </ThemedText>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
+        <Pressable style={styles.backButton} onPress={handleBack}>
           <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
         </Pressable>
       </ThemedView>
@@ -341,7 +349,7 @@ const formatClientAddress = (c: ClientSummary): string => {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
+          <Pressable style={styles.backButton} onPress={handleBack}>
             <Ionicons name="arrow-back" size={20} color="#1976d2" />
             <ThemedText style={styles.backButtonText}>Back</ThemedText>
           </Pressable>
