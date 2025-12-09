@@ -1106,7 +1106,7 @@ export default function RunsheetWeekScreen() {
     }
     if (Platform.OS === 'ios') {
       // Build options dynamically based on job status
-      const options = ['Navigate?', 'View details?', 'Message ETA', 'Send account summary', 'Edit Price'];
+      const options = ['View details?', 'Edit Price'];
       let deferIndex = -1;
       let addNoteIndex = -1;
       let deleteIndex = -1;
@@ -1133,11 +1133,8 @@ export default function RunsheetWeekScreen() {
           cancelButtonIndex: cancelIndex,
         },
         (buttonIndex) => {
-          if (buttonIndex === 0) handleNavigate(job.client);
-          if (buttonIndex === 1) handleViewDetails(job.client);
-          if (buttonIndex === 2) handleMessageETA(job);
-          if (buttonIndex === 3) handleSendAccountSummary(job);
-          if (buttonIndex === 4) handleEditPrice(job);
+          if (buttonIndex === 0) handleViewDetails(job.client);
+          if (buttonIndex === 1) handleEditPrice(job);
           if (buttonIndex === deferIndex) handleDeferToNextWeek(job);
           if (buttonIndex === addNoteIndex) handleAddNoteBelow(job);
           if (buttonIndex === deleteIndex) handleDeleteJob(job.id);
@@ -2712,10 +2709,7 @@ ${signOff}`;
                   </>
                 ) : (
                   <>
-                    <Button title="Navigate?" onPress={() => handleNavigate(actionSheetJob.client)} />
                     <Button title="View details?" onPress={() => handleViewDetails(actionSheetJob.client)} />
-                    <Button title="Message ETA" onPress={() => handleMessageETA(actionSheetJob)} />
-                    <Button title="Send account summary" onPress={() => handleSendAccountSummary(actionSheetJob)} />
                     <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
                     {actionSheetJob.status !== 'completed' && actionSheetJob.status !== 'accounted' && actionSheetJob.status !== 'paid' && (
                       <Button title="Defer" onPress={() => handleDeferToNextWeek(actionSheetJob)} />

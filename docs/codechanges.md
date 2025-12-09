@@ -24,6 +24,11 @@
 - Added `quickActionsRow` with four compact buttons at the top of each job card
 - New styles: `quickActionsRow`, `quickActionBtn`, `quickActionBtnRed`, `quickActionBtnGreen`, `quickActionText`, `quickActionTextLight`
 
+**Modal Cleanup**:
+- Removed "Navigate", "Message ETA", and "Send account summary" from the job options modal (accessed via + button)
+- These actions are now exclusively available via the quick action buttons
+- Remaining modal options: View details, Edit Price, Defer, Add note below, Delete Job
+
 ---
 
 ### Added "Send account summary" Button to Runsheet Job Modal
