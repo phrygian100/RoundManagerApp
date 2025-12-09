@@ -2,6 +2,30 @@
 
 ## December 9, 2025
 
+### Added Quick Action Buttons to Runsheet Job Rows
+
+**File**: `app/runsheet/[week].tsx`
+
+**Feature**: Added inline quick action buttons to each job row in the runsheet for faster access to common actions.
+
+**Buttons**:
+1. **Nav** - Opens Google Maps navigation to the client's address
+2. **ETA** - Sends an ETA text message to the client
+3. **£** - Sends account summary text message (colored by balance status)
+   - 🔴 Red when client has outstanding balance
+   - 🟢 Green when client is up-to-date or has credit
+4. **+** - Opens the full options modal with all available actions
+
+**Implementation**:
+- Added `clientBalances` state to track balance for each client
+- Added `useEffect` to fetch client balances when jobs load:
+  - Fetches completed jobs and payments for all clients in batches
+  - Calculates balance (payments - jobs + starting balance) for each client
+- Added `quickActionsRow` with four compact buttons at the top of each job card
+- New styles: `quickActionsRow`, `quickActionBtn`, `quickActionBtnRed`, `quickActionBtnGreen`, `quickActionText`, `quickActionTextLight`
+
+---
+
 ### Added "Send account summary" Button to Runsheet Job Modal
 
 **File**: `app/runsheet/[week].tsx`

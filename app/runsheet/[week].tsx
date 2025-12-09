@@ -131,6 +131,9 @@ export default function RunsheetWeekScreen() {
 
   const [userProfile, setUserProfile] = useState<User | null>(null);
 
+  // Client balances for quick action buttons (clientId -> balance)
+  const [clientBalances, setClientBalances] = useState<Record<string, number>>({});
+
   const router = useRouter();
 
   // Owner & user profile
@@ -356,6 +359,80 @@ export default function RunsheetWeekScreen() {
       }
     };
   }, [week]);
+
+  // Fetch client balances for the quick action buttons
+  useEffect(() => {
+    const fetchClientBalances = async () => {
+      if (jobs.length === 0) return;
+      
+      try {
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) return;
+        
+        // Get unique client IDs from jobs (excluding quotes and notes)
+        const clientIds = [...new Set(
+          jobs
+            .filter(job => job.client && !isQuoteJob(job) && !isNoteJob(job))
+            .map(job => job.clientId)
+        )];
+        
+        if (clientIds.length === 0) return;
+        
+        // Fetch all completed jobs for these clients
+        const allJobs: Job[] = [];
+        const allPayments: Payment[] = [];
+        
+        // Batch fetch jobs (in chunks of 30 due to Firestore 'in' limit)
+        for (let i = 0; i < clientIds.length; i += 30) {
+          const chunk = clientIds.slice(i, i + 30);
+          const jobsQuery = query(
+            collection(db, 'jobs'),
+            where('ownerId', '==', ownerId),
+            where('clientId', 'in', chunk),
+            where('status', '==', 'completed')
+          );
+          const jobsSnapshot = await getDocs(jobsQuery);
+          jobsSnapshot.docs.forEach(doc => {
+            allJobs.push({ ...doc.data(), id: doc.id } as Job);
+          });
+          
+          // Fetch payments for same chunk
+          const paymentsQuery = query(
+            collection(db, 'payments'),
+            where('ownerId', '==', ownerId),
+            where('clientId', 'in', chunk)
+          );
+          const paymentsSnapshot = await getDocs(paymentsQuery);
+          paymentsSnapshot.docs.forEach(doc => {
+            allPayments.push({ ...doc.data(), id: doc.id } as Payment);
+          });
+        }
+        
+        // Calculate balance for each client
+        const balances: Record<string, number> = {};
+        clientIds.forEach(clientId => {
+          const clientJobs = allJobs.filter(job => job.clientId === clientId);
+          const clientPayments = allPayments.filter(payment => payment.clientId === clientId);
+          
+          const totalBilled = clientJobs.reduce((sum, job) => sum + (job.price || 0), 0);
+          const totalPaid = clientPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+          
+          // Get starting balance from client data
+          const clientData = jobs.find(j => j.clientId === clientId)?.client;
+          const startingBalance = typeof clientData?.startingBalance === 'number' ? clientData.startingBalance : 0;
+          
+          // Positive = credit, Negative = outstanding
+          balances[clientId] = totalPaid - totalBilled + startingBalance;
+        });
+        
+        setClientBalances(balances);
+      } catch (error) {
+        console.error('Error fetching client balances:', error);
+      }
+    };
+    
+    fetchClientBalances();
+  }, [jobs]);
 
   const handleSetEta = async (time: string) => {
     if (!timePickerJob) return;
@@ -2091,6 +2168,10 @@ ${signOff}`;
     const addressParts = client ? [client.address1 || client.address, client.town, client.postcode].filter(Boolean) : [];
     const address = client ? addressParts.join(', ') : 'Unknown address';
 
+    // Get client balance for the £ button color
+    const clientBalance = client ? clientBalances[client.id] : undefined;
+    const hasOutstandingBalance = clientBalance !== undefined && clientBalance < 0;
+
     return (
       <View style={[
         styles.clientRow,
@@ -2100,6 +2181,40 @@ ${signOff}`;
         isAdditionalService && !isCompleted && !isDeferred && styles.additionalServiceRow
       ]}>
         <View style={{ flex: 1 }}>
+          {/* Quick Action Buttons */}
+          <View style={styles.quickActionsRow}>
+            <Pressable 
+              style={styles.quickActionBtn}
+              onPress={() => handleNavigate(client)}
+            >
+              <Text style={styles.quickActionText}>Nav</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.quickActionBtn}
+              onPress={() => handleMessageETA(item)}
+            >
+              <Text style={styles.quickActionText}>ETA</Text>
+            </Pressable>
+            <Pressable 
+              style={[
+                styles.quickActionBtn,
+                hasOutstandingBalance ? styles.quickActionBtnRed : styles.quickActionBtnGreen
+              ]}
+              onPress={() => handleSendAccountSummary(item)}
+            >
+              <Text style={[
+                styles.quickActionText,
+                hasOutstandingBalance ? styles.quickActionTextLight : styles.quickActionTextLight
+              ]}>£</Text>
+            </Pressable>
+            <Pressable 
+              style={styles.quickActionBtn}
+              onPress={() => handleJobPress(item)}
+            >
+              <Text style={styles.quickActionText}>+</Text>
+            </Pressable>
+          </View>
+          
           <Pressable onPress={() => handleJobPress(item)}>
             <View style={[styles.addressBlock, isDeferred && !isCompleted && styles.deferredAddressBlock]}>
               <View style={styles.addressBlockContent}>
@@ -3206,6 +3321,41 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 1,
     minHeight: 0,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: 4,
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  quickActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#e8e8e8',
+    borderRadius: 6,
+    minWidth: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionBtnRed: {
+    backgroundColor: '#f44336',
+  },
+  quickActionBtnGreen: {
+    backgroundColor: '#4CAF50',
+  },
+  quickActionText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#333',
+  },
+  quickActionTextLight: {
+    color: '#fff',
   },
   addressBlock: {
     backgroundColor: '#007AFF',
