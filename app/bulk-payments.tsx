@@ -166,6 +166,14 @@ export default function BulkPaymentsScreen() {
     return accountMap.has(normalized) ? 'valid' : 'unknown';
   };
 
+// Extract a suggested account number (e.g., "RWC123") from noisy text
+const extractAccountSuggestion = (text: string): string | null => {
+  if (!text) return null;
+  const match = text.toUpperCase().match(/RWC\s*(\d+)/);
+  if (!match) return null;
+  return `RWC${match[1]}`;
+};
+
   // Validate date format (DD/MM/YYYY)
   const isValidDate = (dateStr: string): boolean => {
     if (!dateStr.trim()) return false;
@@ -334,19 +342,51 @@ export default function BulkPaymentsScreen() {
                   
                   {/* Account Number */}
                   <td style={tdStyle}>
-                    <input
-                      type="text"
-                      value={row.accountNumber}
-                      onChange={(e) => updateCell(rowIndex, 'accountNumber', e.target.value)}
-                      onFocus={() => setFocusedCell({ rowIndex, field: 'accountNumber' })}
-                      placeholder="RWC001"
-                      style={{
-                        ...inputStyle,
-                        borderColor: hasData 
-                          ? (accountStatus === 'valid' ? '#4CAF50' : accountStatus === 'unknown' ? '#ff9800' : '#e0e0e0')
-                          : '#e0e0e0',
-                      }}
-                    />
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        type="text"
+                        value={row.accountNumber}
+                        onChange={(e) => updateCell(rowIndex, 'accountNumber', e.target.value)}
+                        onFocus={() => setFocusedCell({ rowIndex, field: 'accountNumber' })}
+                        placeholder="RWC001"
+                        style={{
+                          ...inputStyle,
+                          paddingRight: 90,
+                          borderColor: hasData 
+                            ? (accountStatus === 'valid' ? '#4CAF50' : accountStatus === 'unknown' ? '#ff9800' : '#e0e0e0')
+                            : '#e0e0e0',
+                        }}
+                      />
+                      {(() => {
+                        const suggestion = extractAccountSuggestion(row.accountNumber);
+                        const normalizedSuggestion = suggestion ? normalizeAccountNumber(suggestion) : null;
+                        const normalizedCurrent = normalizeAccountNumber(row.accountNumber || '');
+                        const canSuggest = accountStatus === 'unknown' && normalizedSuggestion && normalizedSuggestion !== normalizedCurrent;
+                        if (!canSuggest) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={() => updateCell(rowIndex, 'accountNumber', normalizedSuggestion!)}
+                            style={{
+                              position: 'absolute',
+                              right: 6,
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              backgroundColor: '#fff3e0',
+                              border: '1px solid #ff9800',
+                              color: '#e65100',
+                              padding: '2px 6px',
+                              borderRadius: 4,
+                              fontSize: 11,
+                              cursor: 'pointer',
+                            }}
+                            title={`Use suggested account ${normalizedSuggestion}`}
+                          >
+                            Use {normalizedSuggestion}
+                          </button>
+                        );
+                      })()}
+                    </div>
                   </td>
                   
                   {/* Date */}

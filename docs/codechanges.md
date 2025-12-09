@@ -26,6 +26,7 @@
   - Amount validation (must be positive number)
   - Type dropdown with options: Cash, Card, Bank Transfer, Cheque, Direct Debit, Other
   - Type column preserves raw pasted values - if invalid, shows red border with dropdown to fix
+- Invalid account numbers scan for embedded references like "RWC123" inside noisy text and surface a one-click "Use RWC123" suggestion to auto-correct the cell
 - Status column showing Valid/Unknown/Invalid for each row
 - "Clear All" button to reset the spreadsheet
 - Legend explaining color coding
