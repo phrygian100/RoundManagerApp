@@ -39,19 +39,34 @@
 
 #### 5. Authentication Guard Updates (`app/_layout.tsx`)
 - Modified authentication logic to allow unauthenticated access to business portal routes
-- Added explicit allowance for known business routes in `unauthAllowed` array (`/tgmwindowcleaning`, `/TGMWindowCleaning`)
+- Added explicit allowance for known business routes in `unauthAllowed` array
 - Added business route detection using regex pattern `/^\/[^\/_][^\/]*$/` for future business routes
 - Updated redirect logic to handle business routes appropriately for both logged-in and logged-out users
-- Removed debounce delay for business routes to prevent 5-second redirect delays
+
+#### 6. Auto-Create Business Portals (`services/userService.ts`)
+- Modified `updateUserProfile` to automatically create/update business portal documents
+- When a user saves their business name in Settings, a `businessPortals/{normalizedName}` document is created
+- This enables public lookup of business info for client portal pages
+- If business name changes, old portal is deleted and new one is created
+- No manual scripts needed - portals are created automatically!
+
+#### 7. Firestore Rules (`firestore.rules`)
+- Added public read access for `businessPortals` collection
+- Only business owners can write to their own portal documents
+
+**How Business Portals Work Now**:
+1. User goes to Settings → Bank & Business Info
+2. User saves their business name (e.g., "TGM Window Cleaning")
+3. System automatically creates `businessPortals/tgmwindowcleaning` document
+4. Clients can now access `guvnor.app/tgmwindowcleaning`
+
+**For Existing Users**:
+To enable the client portal, simply go to Settings → Bank & Business Info and click Save. This will create your portal document.
 
 **Next Steps**:
 - Implement client authentication against the business owner's client database
 - Create client dashboard showing account balance, job history, and payments
 - Add client self-service features (payment requests, booking, etc.)
-
-**Testing**:
-- ✅ Visit `www.guvnor.app/TGMWindowCleaning` - now shows client login page instead of redirecting to login
-- The authentication guard now allows unauthenticated access to business portal routes
 
 ---
 
