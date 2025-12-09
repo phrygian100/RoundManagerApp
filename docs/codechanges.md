@@ -2,6 +2,46 @@
 
 ## December 9, 2025
 
+### Added Client Portal Dashboard
+
+**New Feature**: Full client dashboard after successful login at `guvnor.app/{businessname}`
+
+**Dashboard Sections**:
+1. **Welcome Header** - Shows client name and account number
+2. **Account Balance** - Displays current balance (credit or amount owing) with color coding
+3. **Your Services** - Lists active service plans with:
+   - Service type
+   - Price
+   - Frequency (Weekly, Fortnightly, 4 Weekly, etc.)
+   - Next service date
+4. **Your Details** - Shows contact info with Edit button to change:
+   - Name (editable)
+   - Mobile number (editable)
+   - Email (read-only)
+   - Address (read-only)
+5. **Service History** - Shows last 10 items:
+   - Completed jobs (in red as charges)
+   - Payments (in green as credits)
+   - Date and description for each
+6. **Sign Out** - Returns to login screen
+
+**Technical Implementation**:
+- Fetches service plans from `servicePlans` collection (filtered by clientId, isActive)
+- Fetches completed jobs from `jobs` collection (filtered by clientId, status=completed)
+- Fetches payments from `payments` collection (filtered by clientId)
+- Calculates balance: `totalPaid - totalBilled + startingBalance`
+- Allows profile updates via Firestore `updateDoc`
+
+**Firestore Rules Updated**:
+- Added public read for `jobs`, `servicePlans`, `payments` collections
+- Added public update for `clients` collection (for profile edits)
+
+**Files Changed**: 
+- `app/[businessName].tsx` - Dashboard UI and data fetching
+- `firestore.rules` - Public access for portal data
+
+---
+
 ### Implemented Multi-Step Client Portal Login
 
 **New Feature**: Two-step client authentication for business customer portals
