@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -18,6 +18,15 @@ type PaymentRow = {
 };
 
 type AccountMap = Map<string, { clientId: string; clientName: string }>;
+type ClientSummary = {
+  id: string;
+  name?: string;
+  address?: string;
+  address1?: string;
+  town?: string;
+  postcode?: string;
+  accountNumber?: string;
+};
 
 const PAYMENT_TYPES = [
   { value: '', label: 'Select...' },
@@ -53,9 +62,15 @@ export default function BulkPaymentsScreen() {
     Array.from({ length: INITIAL_ROWS }, createEmptyRow)
   );
   const [accountMap, setAccountMap] = useState<AccountMap>(new Map());
+  const [clients, setClients] = useState<ClientSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [focusedCell, setFocusedCell] = useState<{ rowIndex: number; field: keyof PaymentRow } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [lookupModal, setLookupModal] = useState<{ visible: boolean; rowIndex: number | null; search: string }>({
+    visible: false,
+    rowIndex: null,
+    search: '',
+  });
 
   // Fetch all clients to build account number mapping
   useEffect(() => {
@@ -68,17 +83,36 @@ export default function BulkPaymentsScreen() {
         const snapshot = await getDocs(clientsQuery);
         
         const map: AccountMap = new Map();
+        const list: ClientSummary[] = [];
+
         snapshot.docs.forEach(doc => {
-          const data = doc.data();
-          if (data.accountNumber) {
-            let acc = String(data.accountNumber).trim().toUpperCase();
+          const data = doc.data() as any;
+          const accRaw = data.accountNumber;
+          const name = data.name || 'Unknown';
+          const address = data.address || data.address1 || '';
+          const town = data.town || '';
+          const postcode = data.postcode || '';
+          const summary: ClientSummary = {
+            id: doc.id,
+            name,
+            address,
+            address1: data.address1,
+            town,
+            postcode,
+            accountNumber: accRaw,
+          };
+          list.push(summary);
+
+          if (accRaw) {
+            let acc = String(accRaw).trim().toUpperCase();
             if (!acc.startsWith('RWC')) {
               acc = 'RWC' + acc;
             }
-            map.set(acc, { clientId: doc.id, clientName: data.name || 'Unknown' });
+            map.set(acc, { clientId: doc.id, clientName: name });
           }
         });
         setAccountMap(map);
+        setClients(list);
       } catch (error) {
         console.error('Error fetching clients:', error);
       } finally {
@@ -174,6 +208,12 @@ const extractAccountSuggestion = (text: string): string | null => {
   return `RWC${match[1]}`;
 };
 
+// Build display address snippet
+const formatClientAddress = (c: ClientSummary): string => {
+  const parts = [c.address1 || c.address, c.town, c.postcode].filter(Boolean);
+  return parts.join(', ');
+};
+
   // Validate date format (DD/MM/YYYY)
   const isValidDate = (dateStr: string): boolean => {
     if (!dateStr.trim()) return false;
@@ -245,6 +285,21 @@ const extractAccountSuggestion = (text: string): string | null => {
       setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
     }
   }, []);
+
+  // Filtered clients for lookup modal
+  const filteredClients = useMemo(() => {
+    const q = lookupModal.search.toLowerCase().trim();
+    if (!q) return clients;
+    return clients.filter(c => {
+      return (
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.address1 && c.address1.toLowerCase().includes(q)) ||
+        (c.address && c.address.toLowerCase().includes(q)) ||
+        (c.town && c.town.toLowerCase().includes(q)) ||
+        (c.postcode && c.postcode.toLowerCase().includes(q))
+      );
+    });
+  }, [clients, lookupModal.search]);
 
   if (Platform.OS !== 'web') {
     return (
@@ -362,29 +417,60 @@ const extractAccountSuggestion = (text: string): string | null => {
                         const normalizedSuggestion = suggestion ? normalizeAccountNumber(suggestion) : null;
                         const normalizedCurrent = normalizeAccountNumber(row.accountNumber || '');
                         const canSuggest = accountStatus === 'unknown' && normalizedSuggestion && normalizedSuggestion !== normalizedCurrent;
-                        if (!canSuggest) return null;
-                        return (
-                          <button
-                            type="button"
-                            onClick={() => updateCell(rowIndex, 'accountNumber', normalizedSuggestion!)}
-                            style={{
-                              position: 'absolute',
-                              right: 6,
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              backgroundColor: '#fff3e0',
-                              border: '1px solid #ff9800',
-                              color: '#e65100',
-                              padding: '2px 6px',
-                              borderRadius: 4,
-                              fontSize: 11,
-                              cursor: 'pointer',
-                            }}
-                            title={`Use suggested account ${normalizedSuggestion}`}
-                          >
-                            Use {normalizedSuggestion}
-                          </button>
-                        );
+
+                        // If we have a regex suggestion, show it
+                        if (canSuggest) {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => updateCell(rowIndex, 'accountNumber', normalizedSuggestion!)}
+                              style={{
+                                position: 'absolute',
+                                right: 6,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                backgroundColor: '#fff3e0',
+                                border: '1px solid #ff9800',
+                                color: '#e65100',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontSize: 11,
+                                cursor: 'pointer',
+                              }}
+                              title={`Use suggested account ${normalizedSuggestion}`}
+                            >
+                              Use {normalizedSuggestion}
+                            </button>
+                          );
+                        }
+
+                        // Otherwise, offer lookup modal
+                        if (accountStatus === 'unknown') {
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setLookupModal({ visible: true, rowIndex, search: '' })}
+                              style={{
+                                position: 'absolute',
+                                right: 6,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                backgroundColor: '#e8f0fe',
+                                border: '1px solid #4285f4',
+                                color: '#1a73e8',
+                                padding: '2px 6px',
+                                borderRadius: 4,
+                                fontSize: 11,
+                                cursor: 'pointer',
+                              }}
+                              title="Find account by name or address"
+                            >
+                              Find account
+                            </button>
+                          );
+                        }
+
+                        return null;
                       })()}
                     </div>
                   </td>
@@ -534,6 +620,65 @@ const extractAccountSuggestion = (text: string): string | null => {
           </tbody>
         </table>
       </div>
+
+      {/* Lookup Modal */}
+      {lookupModal.visible && (
+        <div style={styles.modalOverlay as any}>
+          <div style={styles.modalCard as any}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Find Account</ThemedText>
+              <Pressable onPress={() => setLookupModal({ visible: false, rowIndex: null, search: '' })}>
+                <Ionicons name="close" size={22} color="#666" />
+              </Pressable>
+            </View>
+
+            <input
+              type="text"
+              placeholder="Search by name, address, town, or postcode..."
+              value={lookupModal.search}
+              onChange={(e) => setLookupModal(prev => ({ ...prev, search: e.target.value }))}
+              style={styles.modalSearch as any}
+              autoFocus
+            />
+
+            <div style={{ maxHeight: 400, overflowY: 'auto' }}>
+              {filteredClients.length === 0 && (
+                <ThemedText style={{ color: '#999', marginVertical: 8 }}>No matches</ThemedText>
+              )}
+              {filteredClients.map(client => {
+                const acc = client.accountNumber ? normalizeAccountNumber(String(client.accountNumber)) : '(no account)';
+                return (
+                  <button
+                    key={client.id}
+                    type="button"
+                    onClick={() => {
+                      if (lookupModal.rowIndex !== null && client.accountNumber) {
+                        const normalized = normalizeAccountNumber(String(client.accountNumber));
+                        setRows(prev => prev.map((row, idx) => idx === lookupModal.rowIndex ? { ...row, accountNumber: normalized } : row));
+                      }
+                      setLookupModal({ visible: false, rowIndex: null, search: '' });
+                    }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      padding: '6px 0',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <View style={styles.clientRow}>
+                      <Text style={styles.clientName}>{client.name || 'No name'}</Text>
+                      <Text style={styles.clientAddress}>{formatClientAddress(client) || 'No address'}</Text>
+                      <Text style={styles.clientMeta}>Account: {acc}</Text>
+                    </View>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Legend */}
       <View style={styles.legend}>
@@ -711,5 +856,64 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginVertical: 24,
+  },
+  // Lookup modal
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+  },
+  modalCard: {
+    width: '90%',
+    maxWidth: 800,
+    maxHeight: '80%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalSearch: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  clientRow: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  clientName: {
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  clientAddress: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 2,
+  },
+  clientMeta: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
   },
 });
