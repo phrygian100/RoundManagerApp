@@ -111,9 +111,14 @@ export default function ClientPortalScreen() {
       
       console.log('🔍 Looking up client with account:', fullAccountNumber, 'for business:', businessUser.id);
 
-      // Query the business owner's clients collection for matching account number
-      const clientsRef = collection(db, `accounts/${businessUser.id}/clients`);
-      const q = query(clientsRef, where('accountNumber', '==', fullAccountNumber));
+      // Query the root clients collection for matching account number AND ownerId
+      // Clients are stored in /clients with an ownerId field, not in a subcollection
+      const clientsRef = collection(db, 'clients');
+      const q = query(
+        clientsRef, 
+        where('ownerId', '==', businessUser.id),
+        where('accountNumber', '==', fullAccountNumber)
+      );
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {

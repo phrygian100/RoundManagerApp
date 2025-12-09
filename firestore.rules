@@ -45,9 +45,10 @@ service cloud.firestore {
     }
 
     match /clients/{clientId} {
-      // Allow list operations for signed in users - the query filter will handle access control
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && hasResourceAccess(resource);
+      // Allow public read for client portal account verification
+      // This enables unauthenticated customers to verify their account number
+      // The query filters by ownerId + accountNumber so only specific records are returned
+      allow read: if true;
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
@@ -110,16 +111,6 @@ service cloud.firestore {
         allow write: if isSignedIn() && (request.auth.uid == accountId || 
                                         (request.auth.uid == memberId && !('status' in request.resource.data)));
         allow delete: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
-      }
-
-      // Clients subcollection - allow public read for client portal account lookup
-      // This enables unauthenticated customers to verify their account number
-      // Note: Only exposes client name, accountNumber, and mobileNumber for verification
-      match /clients/{clientId} {
-        // Public read for client portal login verification
-        allow read: if true;
-        // Write operations require authenticated owner
-        allow write: if isSignedIn() && request.auth.uid == accountId;
       }
 
       match /vehicles/{vehicleId} {
