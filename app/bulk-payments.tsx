@@ -56,6 +56,18 @@ const isValidType = (value: string): boolean => {
   return validValues.includes(value.toLowerCase().trim());
 };
 
+// Convert a pasted/typed value into canonical type if possible; otherwise null
+const canonicalizeType = (value: string): string | null => {
+  const lower = value.toLowerCase().trim();
+  if (lower === 'cash') return 'cash';
+  if (lower === 'card') return 'card';
+  if (lower === 'bacs' || lower === 'bank' || lower === 'bank transfer') return 'bank_transfer';
+  if (lower === 'cheque' || lower === 'check') return 'cheque';
+  if (lower === 'dd' || lower === 'direct debit' || lower === 'direct_debit') return 'direct_debit';
+  if (lower === 'other') return 'other';
+  return null;
+};
+
 export default function BulkPaymentsScreen() {
   const router = useRouter();
   const [rows, setRows] = useState<PaymentRow[]>(() => 
@@ -170,7 +182,13 @@ export default function BulkPaymentsScreen() {
             const fieldIndex = startFieldIndex + cellIndex;
             if (fieldIndex < fieldOrder.length) {
               const field = fieldOrder[fieldIndex];
-              const value = cellValue.trim();
+              let value = cellValue.trim();
+
+              if (field === 'type') {
+                const canonical = canonicalizeType(value);
+                value = canonical ?? value; // keep raw if invalid, canonicalize if valid
+              }
+
               newRows[rowIndex] = { ...newRows[rowIndex], [field]: value };
             }
           });
