@@ -7,6 +7,8 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { createPayment } from '../services/paymentService';
+import { createUnknownPayment } from '../services/unknownPaymentService';
 
 type PaymentRow = {
   id: string;
@@ -56,6 +58,22 @@ const isValidType = (value: string): boolean => {
   return validValues.includes(value.toLowerCase().trim());
 };
 
+// Parse DD/MM/YYYY to YYYY-MM-DD (Payment expects ISO string)
+const parseDateToISO = (dateStr: string): string | null => {
+  const match = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, dd, mm, yyyy] = match;
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+// Sanitize amount string to number
+const parseAmount = (value: string): number | null => {
+  const sanitized = value.replace(/[^0-9.-]+/g, '');
+  const num = parseFloat(sanitized);
+  if (isNaN(num) || !isFinite(num) || num <= 0) return null;
+  return num;
+};
+
 // Convert a pasted/typed value into canonical type if possible; otherwise null
 const canonicalizeType = (value: string): string | null => {
   const lower = value.toLowerCase().trim();
@@ -78,6 +96,7 @@ export default function BulkPaymentsScreen() {
   const [loading, setLoading] = useState(true);
   const [focusedCell, setFocusedCell] = useState<{ rowIndex: number; field: keyof PaymentRow } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [lookupModal, setLookupModal] = useState<{ visible: boolean; rowIndex: number | null; search: string }>({
     visible: false,
     rowIndex: null,
@@ -312,6 +331,132 @@ const formatClientAddress = (c: ClientSummary): string => {
     }
   }, []);
 
+  // Submission handler
+  const handleSubmit = useCallback(async () => {
+    if (submitting) return;
+
+    const rowsWithData = rows
+      .map((row, index) => ({ row, index }))
+      .filter(({ row }) => rowHasData(row));
+
+    if (rowsWithData.length === 0) {
+      window.alert('Nothing to submit. Add some rows first.');
+      return;
+    }
+
+    const invalidRows: string[] = [];
+    const duplicateKeys: string[] = [];
+    const seenKeys = new Set<string>();
+
+    const validPayments: Array<{
+      clientId: string;
+      amount: number;
+      date: string;
+      method: string;
+      notes?: string;
+    }> = [];
+
+    const unknownPayments: Array<{
+      originalAccountIdentifier: string;
+      amount: number;
+      date: string;
+      method: string;
+      notes?: string;
+    }> = [];
+
+    rowsWithData.forEach(({ row, index }) => {
+      const rowNumber = index + 1;
+      const errors: string[] = [];
+
+      // Date
+      const isoDate = parseDateToISO(row.date);
+      if (!isoDate) errors.push('invalid date');
+
+      // Amount
+      const amountNum = parseAmount(row.amount);
+      if (amountNum === null) errors.push('invalid amount');
+
+      // Type
+      const canonicalType = canonicalizeType(row.type);
+      if (!canonicalType || !isValidType(canonicalType)) errors.push('invalid type');
+
+      // Account
+      const normalizedAccount = row.accountNumber ? normalizeAccountNumber(row.accountNumber) : '';
+      const hasAccount = !!normalizedAccount;
+      const accountEntry = hasAccount ? accountMap.get(normalizedAccount) : null;
+      const isKnownAccount = !!accountEntry;
+
+      if (errors.length) {
+        invalidRows.push(`Row ${rowNumber}: ${errors.join(', ')}`);
+        return;
+      }
+
+      // Duplicate detection (per submission only)
+      const dupKey = `${normalizedAccount || 'UNKNOWN'}|${isoDate}|${amountNum.toFixed(2)}`;
+      if (seenKeys.has(dupKey)) {
+        duplicateKeys.push(`Row ${rowNumber} (${normalizedAccount || 'Unknown'} / ${row.date} / ${row.amount})`);
+      } else {
+        seenKeys.add(dupKey);
+      }
+
+      if (isKnownAccount && accountEntry) {
+        validPayments.push({
+          clientId: accountEntry.clientId,
+          amount: amountNum,
+          date: isoDate!,
+          method: canonicalType!,
+          ...(row.notes ? { notes: row.notes } : {}),
+        });
+      } else {
+        unknownPayments.push({
+          originalAccountIdentifier: row.accountNumber || 'Unknown',
+          amount: amountNum,
+          date: isoDate!,
+          method: canonicalType!,
+          ...(row.notes ? { notes: row.notes } : {}),
+        });
+      }
+    });
+
+    if (invalidRows.length > 0) {
+      const preview = invalidRows.slice(0, 10).join('\n');
+      window.alert(`Fix the errors before submitting:\n${preview}${invalidRows.length > 10 ? '\n...and more' : ''}`);
+      return;
+    }
+
+    if (duplicateKeys.length > 0) {
+      const preview = duplicateKeys.slice(0, 10).join('\n');
+      const proceed = window.confirm(
+        `Possible duplicates detected (account + date + amount):\n${preview}${duplicateKeys.length > 10 ? '\n...and more' : ''}\n\nProceed anyway?`
+      );
+      if (!proceed) return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Create payments
+      await Promise.all(validPayments.map(p => createPayment(p)));
+      // Create unknown payments
+      await Promise.all(unknownPayments.map(p => createUnknownPayment({
+        amount: p.amount,
+        date: p.date,
+        method: p.method as any,
+        notes: p.notes,
+        originalAccountIdentifier: p.originalAccountIdentifier,
+      })));
+
+      window.alert(
+        `Submission complete!\n\nCreated payments: ${validPayments.length}\nUnknown payments: ${unknownPayments.length}`
+      );
+      setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
+    } catch (err) {
+      console.error('Submission error', err);
+      window.alert('Submission failed. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [rows, accountMap, submitting, rowHasData]);
+
   // Filtered clients for lookup modal
   const filteredClients = useMemo(() => {
     const q = lookupModal.search.toLowerCase().trim();
@@ -365,11 +510,13 @@ const formatClientAddress = (c: ClientSummary): string => {
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={styles.addRowsButtonText}>Add 5 Rows</Text>
           </Pressable>
-          <Pressable style={styles.submitButton} onPress={() => {
-            alert('Submission not yet implemented');
-          }}>
+          <Pressable
+            style={[styles.submitButton, submitting && { opacity: 0.7 }]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
             <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
-            <Text style={styles.submitButtonText}>Submit Payments</Text>
+            <Text style={styles.submitButtonText}>{submitting ? 'Submitting...' : 'Submit Payments'}</Text>
           </Pressable>
         </View>
       </View>

@@ -30,6 +30,11 @@
 - For unknown accounts without an RWC hint, a "Find account" button opens a modal that lets the user search clients by name or address and apply the correct account number in one click
 - Find-account modal now supports searching by account number too and is anchored to the right side of the screen
 - Back button now falls back to `/accounts` if browser history cannot navigate back
+- Submission implemented:
+  - Valid rows create payments in `payments` collection
+  - Unknown accounts create entries in `unknownPayments`
+  - Duplicate detection within the submission (account + date + amount) with confirmation prompt
+  - Input validation for date, amount, and type before submit
 - Status column showing Valid/Unknown/Invalid for each row
 - "Clear All" button to reset the spreadsheet
 - Legend explaining color coding
