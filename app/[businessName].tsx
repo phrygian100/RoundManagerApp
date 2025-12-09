@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
@@ -19,9 +19,32 @@ interface ClientData {
   name: string;
   accountNumber: string;
   mobileNumber?: string;
+  email?: string;
+  address1?: string;
+  town?: string;
+  postcode?: string;
+  startingBalance?: number;
 }
 
-type LoginStep = 'account' | 'phone' | 'success';
+interface ServicePlan {
+  id: string;
+  serviceType: string;
+  scheduleType: 'recurring' | 'one_off';
+  frequencyWeeks?: number;
+  startDate?: string;
+  price: number;
+  isActive: boolean;
+}
+
+interface HistoryItem {
+  id: string;
+  type: 'job' | 'payment';
+  date: string;
+  description: string;
+  amount: number;
+}
+
+type LoginStep = 'account' | 'phone' | 'dashboard';
 
 export default function ClientPortalScreen() {
   const router = useRouter();
@@ -38,6 +61,18 @@ export default function ClientPortalScreen() {
   const [phoneLast4, setPhoneLast4] = useState('');
   const [foundClient, setFoundClient] = useState<ClientData | null>(null);
   const [error, setError] = useState('');
+  
+  // Dashboard state
+  const [servicePlans, setServicePlans] = useState<ServicePlan[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [balance, setBalance] = useState<number>(0);
+  const [dashboardLoading, setDashboardLoading] = useState(false);
+  
+  // Edit mode state
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editMobile, setEditMobile] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
   
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
@@ -183,8 +218,9 @@ export default function ClientPortalScreen() {
         return;
       }
 
-      // Success! Move to success state
-      setStep('success');
+      // Success! Load dashboard data
+      await loadDashboardData(foundClient.id);
+      setStep('dashboard');
 
     } catch (err: any) {
       console.error('Phone verification error:', err);
@@ -192,6 +228,154 @@ export default function ClientPortalScreen() {
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  // Load dashboard data after successful login
+  const loadDashboardData = async (clientId: string) => {
+    if (!businessUser) return;
+    
+    setDashboardLoading(true);
+    try {
+      // Fetch full client data
+      const clientDoc = await getDoc(doc(db, 'clients', clientId));
+      if (clientDoc.exists()) {
+        const data = clientDoc.data();
+        setFoundClient({
+          id: clientId,
+          name: data.name || '',
+          accountNumber: data.accountNumber || '',
+          mobileNumber: data.mobileNumber || '',
+          email: data.email || '',
+          address1: data.address1 || '',
+          town: data.town || '',
+          postcode: data.postcode || '',
+          startingBalance: data.startingBalance || 0
+        });
+        setEditName(data.name || '');
+        setEditMobile(data.mobileNumber || '');
+      }
+
+      // Fetch service plans
+      const plansQuery = query(
+        collection(db, 'servicePlans'),
+        where('clientId', '==', clientId),
+        where('isActive', '==', true)
+      );
+      const plansSnapshot = await getDocs(plansQuery);
+      const plans = plansSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as ServicePlan[];
+      setServicePlans(plans);
+
+      // Fetch completed jobs
+      const jobsQuery = query(
+        collection(db, 'jobs'),
+        where('clientId', '==', clientId),
+        where('status', '==', 'completed')
+      );
+      const jobsSnapshot = await getDocs(jobsQuery);
+      const jobs = jobsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: 'job' as const,
+          date: data.scheduledTime || '',
+          description: data.serviceId || 'Service',
+          amount: data.price || 0
+        };
+      });
+
+      // Fetch payments
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        where('clientId', '==', clientId)
+      );
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      const payments = paymentsSnapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          type: 'payment' as const,
+          date: data.date || '',
+          description: `Payment (${data.method || 'unknown'})`,
+          amount: data.amount || 0
+        };
+      });
+
+      // Combine and sort history by date (newest first)
+      const combinedHistory = [...jobs, ...payments];
+      combinedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      setHistory(combinedHistory);
+
+      // Calculate balance
+      const totalBilled = jobs.reduce((sum, job) => sum + job.amount, 0);
+      const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
+      const startingBal = foundClient?.startingBalance || 0;
+      setBalance(totalPaid - totalBilled + startingBal);
+
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
+  // Save profile changes
+  const handleSaveProfile = async () => {
+    if (!foundClient) return;
+    
+    setSavingProfile(true);
+    try {
+      await updateDoc(doc(db, 'clients', foundClient.id), {
+        name: editName.trim(),
+        mobileNumber: editMobile.trim()
+      });
+      
+      setFoundClient({
+        ...foundClient,
+        name: editName.trim(),
+        mobileNumber: editMobile.trim()
+      });
+      setIsEditingProfile(false);
+      
+      if (Platform.OS === 'web') {
+        window.alert('Profile updated successfully!');
+      } else {
+        Alert.alert('Success', 'Profile updated successfully!');
+      }
+    } catch (err) {
+      console.error('Error saving profile:', err);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to save changes. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to save changes. Please try again.');
+      }
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'N/A';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  // Format frequency for display
+  const formatFrequency = (weeks?: number) => {
+    if (!weeks) return 'One-off';
+    if (weeks === 1) return 'Weekly';
+    if (weeks === 2) return 'Fortnightly';
+    if (weeks === 4) return '4 Weekly';
+    if (weeks === 8) return '8 Weekly';
+    if (weeks === 12) return '12 Weekly';
+    return `Every ${weeks} weeks`;
   };
 
   // Go back to account step
@@ -269,24 +453,201 @@ export default function ClientPortalScreen() {
           </Text>
         </View>
 
-        {/* Login Form Card */}
-        <View style={[styles.loginCard, isNarrowWeb && styles.loginCardMobile]}>
-          {step === 'success' ? (
-            // Success State
-            <View style={styles.successContainer}>
-              <Text style={styles.successIcon}>✓</Text>
-              <Text style={styles.successTitle}>Successfully Logged In</Text>
-              <Text style={styles.successSubtitle}>
-                Welcome back, {foundClient?.name || 'valued customer'}!
-              </Text>
-              <Text style={styles.successAccount}>
-                Account: {foundClient?.accountNumber}
-              </Text>
-            </View>
-          ) : (
-            // Login Form
-            <>
-              <View style={styles.formHeader}>
+        {step === 'dashboard' ? (
+          // Dashboard View
+          <View style={styles.dashboardContainer}>
+            {dashboardLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4f46e5" />
+                <Text style={styles.loadingText}>Loading your account...</Text>
+              </View>
+            ) : (
+              <>
+                {/* Welcome Header */}
+                <View style={styles.welcomeHeader}>
+                  <Text style={styles.welcomeTitle}>Welcome back, {foundClient?.name}!</Text>
+                  <Text style={styles.welcomeAccount}>{foundClient?.accountNumber}</Text>
+                </View>
+
+                {/* Balance Card */}
+                <View style={[styles.dashboardCard, styles.balanceCard]}>
+                  <Text style={styles.cardTitle}>Account Balance</Text>
+                  <Text style={[
+                    styles.balanceAmount,
+                    balance >= 0 ? styles.balancePositive : styles.balanceNegative
+                  ]}>
+                    {balance >= 0 ? '+' : ''}£{Math.abs(balance).toFixed(2)}
+                  </Text>
+                  <Text style={styles.balanceNote}>
+                    {balance >= 0 ? 'Credit on account' : 'Amount owing'}
+                  </Text>
+                </View>
+
+                {/* Service Details Card */}
+                <View style={styles.dashboardCard}>
+                  <Text style={styles.cardTitle}>Your Services</Text>
+                  {servicePlans.length === 0 ? (
+                    <Text style={styles.emptyText}>No active services</Text>
+                  ) : (
+                    servicePlans.map((plan) => (
+                      <View key={plan.id} style={styles.serviceItem}>
+                        <View style={styles.serviceHeader}>
+                          <Text style={styles.serviceType}>{plan.serviceType}</Text>
+                          <Text style={styles.servicePrice}>£{plan.price.toFixed(2)}</Text>
+                        </View>
+                        <View style={styles.serviceDetails}>
+                          <Text style={styles.serviceDetail}>
+                            <Text style={styles.serviceLabel}>Frequency: </Text>
+                            {formatFrequency(plan.frequencyWeeks)}
+                          </Text>
+                          {plan.startDate && (
+                            <Text style={styles.serviceDetail}>
+                              <Text style={styles.serviceLabel}>Next Service: </Text>
+                              {formatDate(plan.startDate)}
+                            </Text>
+                          )}
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+
+                {/* Contact Details Card */}
+                <View style={styles.dashboardCard}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>Your Details</Text>
+                    {!isEditingProfile && (
+                      <Pressable onPress={() => setIsEditingProfile(true)}>
+                        <Text style={styles.editButton}>Edit</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  
+                  {isEditingProfile ? (
+                    <View style={styles.editForm}>
+                      <View style={styles.editField}>
+                        <Text style={styles.editLabel}>Name</Text>
+                        <TextInput
+                          style={styles.editInput}
+                          value={editName}
+                          onChangeText={setEditName}
+                          placeholder="Your name"
+                        />
+                      </View>
+                      <View style={styles.editField}>
+                        <Text style={styles.editLabel}>Mobile Number</Text>
+                        <TextInput
+                          style={styles.editInput}
+                          value={editMobile}
+                          onChangeText={setEditMobile}
+                          placeholder="Your mobile number"
+                          keyboardType="phone-pad"
+                        />
+                      </View>
+                      <View style={styles.editButtons}>
+                        <Pressable 
+                          style={styles.cancelButton} 
+                          onPress={() => {
+                            setIsEditingProfile(false);
+                            setEditName(foundClient?.name || '');
+                            setEditMobile(foundClient?.mobileNumber || '');
+                          }}
+                        >
+                          <Text style={styles.cancelButtonText}>Cancel</Text>
+                        </Pressable>
+                        <Pressable 
+                          style={[styles.saveButton, savingProfile && styles.saveButtonDisabled]}
+                          onPress={handleSaveProfile}
+                          disabled={savingProfile}
+                        >
+                          {savingProfile ? (
+                            <ActivityIndicator color="#fff" size="small" />
+                          ) : (
+                            <Text style={styles.saveButtonText}>Save Changes</Text>
+                          )}
+                        </Pressable>
+                      </View>
+                    </View>
+                  ) : (
+                    <View style={styles.contactInfo}>
+                      <View style={styles.contactRow}>
+                        <Text style={styles.contactLabel}>Name</Text>
+                        <Text style={styles.contactValue}>{foundClient?.name || 'Not set'}</Text>
+                      </View>
+                      <View style={styles.contactRow}>
+                        <Text style={styles.contactLabel}>Mobile</Text>
+                        <Text style={styles.contactValue}>{foundClient?.mobileNumber || 'Not set'}</Text>
+                      </View>
+                      {foundClient?.email && (
+                        <View style={styles.contactRow}>
+                          <Text style={styles.contactLabel}>Email</Text>
+                          <Text style={styles.contactValue}>{foundClient.email}</Text>
+                        </View>
+                      )}
+                      {foundClient?.address1 && (
+                        <View style={styles.contactRow}>
+                          <Text style={styles.contactLabel}>Address</Text>
+                          <Text style={styles.contactValue}>
+                            {[foundClient.address1, foundClient.town, foundClient.postcode].filter(Boolean).join(', ')}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Service History Card */}
+                <View style={styles.dashboardCard}>
+                  <Text style={styles.cardTitle}>Service History</Text>
+                  {history.length === 0 ? (
+                    <Text style={styles.emptyText}>No service history yet</Text>
+                  ) : (
+                    <View style={styles.historyList}>
+                      {history.slice(0, 10).map((item) => (
+                        <View key={item.id} style={styles.historyItem}>
+                          <View style={styles.historyLeft}>
+                            <Text style={styles.historyDate}>{formatDate(item.date)}</Text>
+                            <Text style={styles.historyDesc}>{item.description}</Text>
+                          </View>
+                          <Text style={[
+                            styles.historyAmount,
+                            item.type === 'payment' ? styles.historyPayment : styles.historyJob
+                          ]}>
+                            {item.type === 'payment' ? '+' : '-'}£{item.amount.toFixed(2)}
+                          </Text>
+                        </View>
+                      ))}
+                      {history.length > 10 && (
+                        <Text style={styles.historyMore}>
+                          + {history.length - 10} more items
+                        </Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+
+                {/* Logout Button */}
+                <Pressable 
+                  style={styles.logoutButton}
+                  onPress={() => {
+                    setStep('account');
+                    setFoundClient(null);
+                    setAccountNumberSuffix('');
+                    setPhoneLast4('');
+                    setServicePlans([]);
+                    setHistory([]);
+                    setBalance(0);
+                  }}
+                >
+                  <Text style={styles.logoutButtonText}>Sign Out</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        ) : (
+          /* Login Form Card */
+          <View style={[styles.loginCard, isNarrowWeb && styles.loginCardMobile]}>
+            <View style={styles.formHeader}>
                 <Image
                   source={require('../assets/images/logo_transparent.png')}
                   style={[styles.formLogo, isNarrowWeb && styles.formLogoMobile]}
@@ -399,15 +760,14 @@ export default function ClientPortalScreen() {
                   </>
                 )}
 
-                <View style={styles.formLinks}>
-                  <Text style={styles.helpText}>
-                    Need help? Contact {businessUser.businessName}
-                  </Text>
-                </View>
+              <View style={styles.formLinks}>
+                <Text style={styles.helpText}>
+                  Need help? Contact {businessUser.businessName}
+                </Text>
               </View>
-            </>
-          )}
-        </View>
+            </View>
+          </View>
+        )}
       </View>
 
       {/* Footer */}
@@ -743,30 +1103,251 @@ const styles = StyleSheet.create({
     color: '#4f46e5',
   },
 
-  // Success state
-  successContainer: {
+  // Dashboard styles
+  dashboardContainer: {
+    width: '100%',
+    maxWidth: 800,
+    marginHorizontal: 'auto',
+    paddingBottom: 48,
+  },
+  loadingContainer: {
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: 64,
   },
-  successIcon: {
-    fontSize: 64,
-    color: '#22c55e',
-    marginBottom: 24,
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
   },
-  successTitle: {
+  welcomeHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  welcomeTitle: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#166534',
-    marginBottom: 8,
-  },
-  successSubtitle: {
-    fontSize: 18,
-    color: '#374151',
+    color: '#111827',
     marginBottom: 4,
   },
-  successAccount: {
+  welcomeAccount: {
     fontSize: 14,
     color: '#6b7280',
+  },
+  dashboardCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    ...Platform.select({
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      default: {
+        elevation: 2,
+      },
+    }),
+  },
+  balanceCard: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  balanceAmount: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  balancePositive: {
+    color: '#16a34a',
+  },
+  balanceNegative: {
+    color: '#dc2626',
+  },
+  balanceNote: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  emptyText: {
+    fontSize: 14,
+    color: '#9ca3af',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  serviceItem: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 12,
+    marginTop: 12,
+  },
+  serviceHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  serviceType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  servicePrice: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4f46e5',
+  },
+  serviceDetails: {
+    gap: 4,
+  },
+  serviceDetail: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  serviceLabel: {
+    fontWeight: '500',
+    color: '#374151',
+  },
+  editButton: {
+    fontSize: 14,
+    color: '#4f46e5',
+    fontWeight: '500',
+  },
+  contactInfo: {
+    gap: 12,
+  },
+  contactRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  contactLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  contactValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+    marginLeft: 16,
+  },
+  editForm: {
+    gap: 16,
+  },
+  editField: {
+    gap: 6,
+  },
+  editLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  editInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#111827',
+  },
+  editButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  saveButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#4f46e5',
+  },
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#fff',
+  },
+  historyList: {
+    gap: 0,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  historyLeft: {
+    flex: 1,
+  },
+  historyDate: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#111827',
+  },
+  historyDesc: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  historyAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  historyPayment: {
+    color: '#16a34a',
+  },
+  historyJob: {
+    color: '#dc2626',
+  },
+  historyMore: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#6b7280',
+    paddingTop: 12,
+  },
+  logoutButton: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginTop: 16,
+  },
+  logoutButtonText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textDecorationLine: 'underline',
   },
 
   // Form Links

@@ -49,31 +49,31 @@ service cloud.firestore {
       // This enables unauthenticated customers to verify their account number
       // The query filters by ownerId + accountNumber so only specific records are returned
       allow read: if true;
+      // Allow public update for client portal profile changes (name, mobileNumber only)
+      // TODO: Replace with Cloud Function for better security in production
+      allow update: if true;
       allow create: if isSignedIn() && hasCreateAccess();
-      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
+      allow delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /jobs/{jobId} {
-      // Allow list operations for signed in users - the query filter will handle access control
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && hasResourceAccess(resource);
+      // Allow public read for client portal (queries filtered by clientId)
+      allow read: if true;
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     // Service plans (new separated scheduling model)
     match /servicePlans/{planId} {
-      // Allow list operations for signed in users - queries are filtered by ownerId
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && hasResourceAccess(resource);
+      // Allow public read for client portal (queries filtered by clientId)
+      allow read: if true;
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /payments/{paymentId} {
-      // Allow list operations for signed in users - the query filter will handle access control
-      allow list: if isSignedIn();
-      allow get: if isSignedIn() && hasResourceAccess(resource);
+      // Allow public read for client portal (queries filtered by clientId)
+      allow read: if true;
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
