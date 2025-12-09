@@ -2,6 +2,33 @@
 
 ## December 9, 2025
 
+### Implemented Multi-Step Client Portal Login
+
+**New Feature**: Two-step client authentication for business customer portals
+
+**How It Works**:
+1. **Step 1 - Account Lookup**: Client enters their account number (with "RWC" pre-filled as prefix)
+   - Queries the business owner's clients collection to find matching account
+   - Shows "Account not found" error if no match
+   - If found, shows client name and moves to step 2
+
+2. **Step 2 - Phone Verification**: Client enters last 4 digits of their phone number
+   - Compares against the `mobileNumber` stored in their client record
+   - Shows error if phone doesn't match
+   - On success, displays "Successfully Logged In" message
+
+**UI Features**:
+- Step indicator showing progress (dots connected by line)
+- Pre-filled "RWC" prefix in account number field
+- Green confirmation box showing found client name/account
+- Back button to return to step 1
+- Error messages in styled red containers
+- Success state with checkmark and welcome message
+
+**File Changed**: `app/[businessName].tsx`
+
+---
+
 ### Fixed Client Portal Route Redirect Issue
 
 **Problem**: Navigating to `guvnor.app/tgmwindowcleaning` (or any business portal URL) was immediately redirecting to `/login` instead of showing the client portal page.

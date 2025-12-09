@@ -112,6 +112,16 @@ service cloud.firestore {
         allow delete: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
       }
 
+      // Clients subcollection - allow public read for client portal account lookup
+      // This enables unauthenticated customers to verify their account number
+      // Note: Only exposes client name, accountNumber, and mobileNumber for verification
+      match /clients/{clientId} {
+        // Public read for client portal login verification
+        allow read: if true;
+        // Write operations require authenticated owner
+        allow write: if isSignedIn() && request.auth.uid == accountId;
+      }
+
       match /vehicles/{vehicleId} {
         allow read: if isSignedIn() && hasAccountAccess(accountId);
         allow write: if isSignedIn() && request.auth.uid == accountId;

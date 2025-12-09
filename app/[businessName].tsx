@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
-import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { doc, getDoc } from 'firebase/firestore';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
@@ -12,8 +12,16 @@ interface BusinessUser {
   businessName: string;
   email: string;
   name: string;
-  // Add other business fields as needed
 }
+
+interface ClientData {
+  id: string;
+  name: string;
+  accountNumber: string;
+  mobileNumber?: string;
+}
+
+type LoginStep = 'account' | 'phone' | 'success';
 
 export default function ClientPortalScreen() {
   const router = useRouter();
@@ -23,8 +31,14 @@ export default function ClientPortalScreen() {
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
-  const [accountNumber, setAccountNumber] = useState('');
-  const [password, setPassword] = useState('');
+  
+  // Multi-step login state
+  const [step, setStep] = useState<LoginStep>('account');
+  const [accountNumberSuffix, setAccountNumberSuffix] = useState(''); // The part after "RWC"
+  const [phoneLast4, setPhoneLast4] = useState('');
+  const [foundClient, setFoundClient] = useState<ClientData | null>(null);
+  const [error, setError] = useState('');
+  
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
   useEffect(() => {
@@ -76,68 +90,111 @@ export default function ClientPortalScreen() {
     }
   };
 
-  const checkIfOwner = async (userId: string): Promise<boolean> => {
-    try {
-      // Get user document to check accountId
-      const userDoc = await getDoc(doc(db, 'users', userId));
-      if (!userDoc.exists()) return false;
-
-      const userData = userDoc.data();
-
-      // Primary check: If accountId exists and differs from userId, this is a member
-      if (userData.accountId && userData.accountId !== userId) {
-        return false;
-      }
-
-      // Secondary check: Look for member records in accounts/{accountId}/members/{userId}
-      // This handles the case where accountId might not be set on the user doc
-      const memberDoc = await getDoc(doc(db, `accounts/${userId}/members/${userId}`));
-      if (memberDoc.exists()) {
-        const memberData = memberDoc.data();
-        // If there's a member record with role !== 'owner', this is a member
-        return memberData.role === 'owner';
-      }
-
-      // If no member record exists and accountId equals userId (or is not set),
-      // this is an owner
-      return true;
-
-    } catch (error) {
-      console.error('Error checking owner status:', error);
-      return false;
-    }
-  };
-
-  const handleClientLogin = async () => {
-    if (!accountNumber || !password) {
-      Alert.alert('Error', 'Please enter both account number and password.');
+  // Step 1: Check if account number exists
+  const handleAccountLookup = async () => {
+    if (!accountNumberSuffix.trim()) {
+      setError('Please enter your account number');
       return;
     }
 
     if (!businessUser) {
-      Alert.alert('Error', 'Business information not available.');
+      setError('Business information not available');
       return;
     }
 
+    setError('');
+    setAuthLoading(true);
+
     try {
-      setAuthLoading(true);
+      // Build the full account number with RWC prefix
+      const fullAccountNumber = `RWC${accountNumberSuffix.trim().toUpperCase()}`;
+      
+      console.log('🔍 Looking up client with account:', fullAccountNumber, 'for business:', businessUser.id);
 
-      // TODO: Implement client authentication logic
-      // This would typically involve:
-      // 1. Looking up client by account number within the business owner's data
-      // 2. Verifying password (could be stored hashed in Firestore)
-      // 3. Setting up client session/auth
-      // 4. Redirecting to client dashboard
+      // Query the business owner's clients collection for matching account number
+      const clientsRef = collection(db, `accounts/${businessUser.id}/clients`);
+      const q = query(clientsRef, where('accountNumber', '==', fullAccountNumber));
+      const querySnapshot = await getDocs(q);
 
-      Alert.alert('Coming Soon', 'Client authentication will be implemented next.');
+      if (querySnapshot.empty) {
+        setError('Account not found. Please check your account number and try again.');
+        setAuthLoading(false);
+        return;
+      }
 
-    } catch (error: any) {
-      console.error('Client login error:', error);
-      const errMsg = error?.message || 'Login failed. Please try again.';
-      Alert.alert('Login Error', errMsg);
+      // Found the client
+      const clientDoc = querySnapshot.docs[0];
+      const clientData = clientDoc.data();
+      
+      setFoundClient({
+        id: clientDoc.id,
+        name: clientData.name || '',
+        accountNumber: clientData.accountNumber || '',
+        mobileNumber: clientData.mobileNumber || ''
+      });
+
+      // Move to phone verification step
+      setStep('phone');
+
+    } catch (err: any) {
+      console.error('Account lookup error:', err);
+      setError('Unable to verify account. Please try again.');
     } finally {
       setAuthLoading(false);
     }
+  };
+
+  // Step 2: Verify phone number
+  const handlePhoneVerification = async () => {
+    if (!phoneLast4.trim() || phoneLast4.length !== 4) {
+      setError('Please enter the last 4 digits of your phone number');
+      return;
+    }
+
+    if (!foundClient) {
+      setError('Client information not available');
+      return;
+    }
+
+    setError('');
+    setAuthLoading(true);
+
+    try {
+      // Get the last 4 digits of the stored phone number
+      const storedPhone = foundClient.mobileNumber || '';
+      // Remove any non-digit characters and get last 4
+      const storedLast4 = storedPhone.replace(/\D/g, '').slice(-4);
+
+      if (storedLast4.length < 4) {
+        // No valid phone number on file
+        setError('Phone verification unavailable. Please contact the business directly.');
+        setAuthLoading(false);
+        return;
+      }
+
+      if (phoneLast4 !== storedLast4) {
+        setError('Phone number does not match. Please try again.');
+        setAuthLoading(false);
+        return;
+      }
+
+      // Success! Move to success state
+      setStep('success');
+
+    } catch (err: any) {
+      console.error('Phone verification error:', err);
+      setError('Verification failed. Please try again.');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  // Go back to account step
+  const handleBackToAccount = () => {
+    setStep('account');
+    setPhoneLast4('');
+    setFoundClient(null);
+    setError('');
   };
 
   const handleNavigation = (path: string) => {
@@ -209,57 +266,143 @@ export default function ClientPortalScreen() {
 
         {/* Login Form Card */}
         <View style={[styles.loginCard, isNarrowWeb && styles.loginCardMobile]}>
-          <View style={styles.formHeader}>
-            <Image
-              source={require('../assets/images/logo_transparent.png')}
-              style={[styles.formLogo, isNarrowWeb && styles.formLogoMobile]}
-              resizeMode="contain"
-            />
-            <Text style={styles.formTitle}>Client Account Access</Text>
-            <Text style={styles.formSubtitle}>Enter your account details below</Text>
-          </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Account Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="RWC123456"
-                value={accountNumber}
-                onChangeText={setAccountNumber}
-                autoCapitalize="characters"
-                autoComplete="username"
-              />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your password"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                autoComplete="password"
-              />
-            </View>
-
-            <Pressable
-              style={[styles.submitButton, authLoading && styles.submitButtonDisabled]}
-              onPress={handleClientLogin}
-              disabled={authLoading}
-            >
-              <Text style={styles.submitButtonText}>
-                {authLoading ? 'Signing in...' : 'Sign in to Account'}
+          {step === 'success' ? (
+            // Success State
+            <View style={styles.successContainer}>
+              <Text style={styles.successIcon}>✓</Text>
+              <Text style={styles.successTitle}>Successfully Logged In</Text>
+              <Text style={styles.successSubtitle}>
+                Welcome back, {foundClient?.name || 'valued customer'}!
               </Text>
-            </Pressable>
-
-            <View style={styles.formLinks}>
-              <Text style={styles.helpText}>
-                Need help accessing your account? Contact {businessUser.businessName}
+              <Text style={styles.successAccount}>
+                Account: {foundClient?.accountNumber}
               </Text>
             </View>
-          </View>
+          ) : (
+            // Login Form
+            <>
+              <View style={styles.formHeader}>
+                <Image
+                  source={require('../assets/images/logo_transparent.png')}
+                  style={[styles.formLogo, isNarrowWeb && styles.formLogoMobile]}
+                  resizeMode="contain"
+                />
+                <Text style={styles.formTitle}>Client Account Access</Text>
+                <Text style={styles.formSubtitle}>
+                  {step === 'account' 
+                    ? 'Enter your account number to get started'
+                    : 'Verify your identity'}
+                </Text>
+              </View>
+
+              {/* Step indicator */}
+              <View style={styles.stepIndicator}>
+                <View style={[styles.stepDot, styles.stepDotActive]} />
+                <View style={[styles.stepLine, step === 'phone' && styles.stepLineActive]} />
+                <View style={[styles.stepDot, step === 'phone' && styles.stepDotActive]} />
+              </View>
+
+              <View style={styles.form}>
+                {step === 'account' ? (
+                  // Step 1: Account Number
+                  <>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Account Number</Text>
+                      <View style={styles.accountInputContainer}>
+                        <View style={styles.accountPrefix}>
+                          <Text style={styles.accountPrefixText}>RWC</Text>
+                        </View>
+                        <TextInput
+                          style={styles.accountInput}
+                          placeholder="123456"
+                          value={accountNumberSuffix}
+                          onChangeText={(text) => {
+                            setAccountNumberSuffix(text.toUpperCase());
+                            setError('');
+                          }}
+                          autoCapitalize="characters"
+                          autoComplete="username"
+                          keyboardType="default"
+                        />
+                      </View>
+                    </View>
+
+                    {error ? (
+                      <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                      </View>
+                    ) : null}
+
+                    <Pressable
+                      style={[styles.submitButton, authLoading && styles.submitButtonDisabled]}
+                      onPress={handleAccountLookup}
+                      disabled={authLoading}
+                    >
+                      {authLoading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>Next</Text>
+                      )}
+                    </Pressable>
+                  </>
+                ) : (
+                  // Step 2: Phone Verification
+                  <>
+                    <View style={styles.clientInfoBox}>
+                      <Text style={styles.clientInfoLabel}>Account found:</Text>
+                      <Text style={styles.clientInfoName}>{foundClient?.name}</Text>
+                      <Text style={styles.clientInfoAccount}>{foundClient?.accountNumber}</Text>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Last 4 digits of your phone number</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="1234"
+                        value={phoneLast4}
+                        onChangeText={(text) => {
+                          // Only allow digits, max 4
+                          const digits = text.replace(/\D/g, '').slice(0, 4);
+                          setPhoneLast4(digits);
+                          setError('');
+                        }}
+                        keyboardType="number-pad"
+                        maxLength={4}
+                      />
+                    </View>
+
+                    {error ? (
+                      <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{error}</Text>
+                      </View>
+                    ) : null}
+
+                    <Pressable
+                      style={[styles.submitButton, authLoading && styles.submitButtonDisabled]}
+                      onPress={handlePhoneVerification}
+                      disabled={authLoading}
+                    >
+                      {authLoading ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>Verify & Sign In</Text>
+                      )}
+                    </Pressable>
+
+                    <Pressable style={styles.backButton} onPress={handleBackToAccount}>
+                      <Text style={styles.backButtonText}>← Back to account number</Text>
+                    </Pressable>
+                  </>
+                )}
+
+                <View style={styles.formLinks}>
+                  <Text style={styles.helpText}>
+                    Need help? Contact {businessUser.businessName}
+                  </Text>
+                </View>
+              </View>
+            </>
+          )}
         </View>
       </View>
 
@@ -471,6 +614,105 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     color: '#111827',
   },
+
+  // Account number input with prefix
+  accountInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  accountPrefix: {
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRightWidth: 0,
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+  },
+  accountPrefixText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  accountInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+    padding: 16,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#111827',
+  },
+
+  // Step indicator
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  stepDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#e5e7eb',
+  },
+  stepDotActive: {
+    backgroundColor: '#4f46e5',
+  },
+  stepLine: {
+    width: 60,
+    height: 2,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 8,
+  },
+  stepLineActive: {
+    backgroundColor: '#4f46e5',
+  },
+
+  // Client info box (shown in step 2)
+  clientInfoBox: {
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+    borderRadius: 8,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  clientInfoLabel: {
+    fontSize: 12,
+    color: '#166534',
+    marginBottom: 4,
+  },
+  clientInfoName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  clientInfoAccount: {
+    fontSize: 14,
+    color: '#166534',
+    marginTop: 2,
+  },
+
+  // Error container
+  errorContainer: {
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+    borderRadius: 8,
+    padding: 12,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#dc2626',
+    textAlign: 'center',
+  },
+
   submitButton: {
     backgroundColor: '#4f46e5',
     paddingVertical: 16,
@@ -485,6 +727,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+
+  // Back button
+  backButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  backButtonText: {
+    fontSize: 14,
+    color: '#4f46e5',
+  },
+
+  // Success state
+  successContainer: {
+    alignItems: 'center',
+    paddingVertical: 48,
+  },
+  successIcon: {
+    fontSize: 64,
+    color: '#22c55e',
+    marginBottom: 24,
+  },
+  successTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#166534',
+    marginBottom: 8,
+  },
+  successSubtitle: {
+    fontSize: 18,
+    color: '#374151',
+    marginBottom: 4,
+  },
+  successAccount: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 
   // Form Links
