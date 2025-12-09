@@ -50,7 +50,8 @@ function AppContent() {
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 
     // Allow business portal routes (single path segments that could be business names)
-    const isBusinessRoute = pathname && pathname.length > 1 && !pathname.includes('/') && !pathname.startsWith('_');
+    // Matches paths like "/businessname" but not "/business/name" or "/_private"
+    const isBusinessRoute = pathname && /^\/[^\/_][^\/]*$/.test(pathname);
     
     if (!loggedIn) {
       console.log('🔑 Not logged in, checking if redirect needed for:', pathname);
@@ -59,8 +60,8 @@ function AppContent() {
       const shouldRedirectToLogin = !unauthAllowed.some(p => pathname.startsWith(p)) && !isBusinessRoute;
 
       if (shouldRedirectToLogin) {
-        if (previouslyHadUser) {
-          // Debounce redirect – give auth a moment to settle
+        if (previouslyHadUser && !isBusinessRoute) {
+          // Debounce redirect only for non-business routes – give auth a moment to settle
           if (!loginRedirectTimeoutRef.current) {
             loginRedirectTimeoutRef.current = setTimeout(() => {
               // Only redirect if still not logged in
