@@ -355,7 +355,6 @@ export default function ClientPortalScreen() {
                   <>
                     <View style={styles.clientInfoBox}>
                       <Text style={styles.clientInfoLabel}>Account found:</Text>
-                      <Text style={styles.clientInfoName}>{foundClient?.name}</Text>
                       <Text style={styles.clientInfoAccount}>{foundClient?.accountNumber}</Text>
                     </View>
 
