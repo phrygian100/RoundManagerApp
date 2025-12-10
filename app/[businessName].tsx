@@ -67,6 +67,8 @@ export default function ClientPortalScreen() {
   
   // Dashboard state
   const [servicePlans, setServicePlans] = useState<ServicePlan[]>([]);
+  const [nextServiceDate, setNextServiceDate] = useState<string | null>(null);
+  const [nextServiceType, setNextServiceType] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [balance, setBalance] = useState<number>(0);
   const [dashboardLoading, setDashboardLoading] = useState(false);
@@ -290,20 +292,36 @@ export default function ClientPortalScreen() {
       const pendingJobsSnapshot = await getDocs(pendingJobsQuery);
       const now = new Date();
       
-      // Find next job date for each service type
+      // Find next job date for each service type AND overall next service
       const nextServiceDates: Record<string, string> = {};
+      let overallNextDate: Date | null = null;
+      let overallNextType: string | null = null;
+      
       pendingJobsSnapshot.forEach(doc => {
         const job = doc.data();
-        if (job.scheduledTime && job.serviceId) {
+        if (job.scheduledTime) {
           const jobDate = new Date(job.scheduledTime);
           if (jobDate >= now) {
-            const existingDate = nextServiceDates[job.serviceId];
+            const serviceId = job.serviceId || 'Service';
+            
+            // Track per-service-type dates
+            const existingDate = nextServiceDates[serviceId];
             if (!existingDate || jobDate < new Date(existingDate)) {
-              nextServiceDates[job.serviceId] = job.scheduledTime;
+              nextServiceDates[serviceId] = job.scheduledTime;
+            }
+            
+            // Track overall next service
+            if (!overallNextDate || jobDate < overallNextDate) {
+              overallNextDate = jobDate;
+              overallNextType = serviceId;
             }
           }
         }
       });
+
+      // Set overall next service (shown if no service plans or as backup)
+      setNextServiceDate(overallNextDate ? overallNextDate.toISOString() : null);
+      setNextServiceType(overallNextType);
 
       // Attach next service dates to plans
       const plansWithDates = plans.map(plan => ({
@@ -573,8 +591,21 @@ export default function ClientPortalScreen() {
                 {/* Service Details Card */}
                 <View style={styles.dashboardCard}>
                   <Text style={styles.cardTitle}>Your Services</Text>
-                  {servicePlans.length === 0 ? (
+                  {servicePlans.length === 0 && !nextServiceDate ? (
                     <Text style={styles.emptyText}>No active services</Text>
+                  ) : servicePlans.length === 0 && nextServiceDate ? (
+                    // Show next service from jobs even if no service plans exist
+                    <View style={styles.serviceItem}>
+                      <View style={styles.serviceHeader}>
+                        <Text style={styles.serviceType}>{nextServiceType || 'Service'}</Text>
+                      </View>
+                      <View style={styles.serviceDetails}>
+                        <Text style={styles.serviceDetail}>
+                          <Text style={styles.serviceLabel}>Next Service: </Text>
+                          {formatDate(nextServiceDate)}
+                        </Text>
+                      </View>
+                    </View>
                   ) : (
                     servicePlans.map((plan) => (
                       <View key={plan.id} style={styles.serviceItem}>
