@@ -279,7 +279,6 @@ export default function HomeScreen() {
 
     const baseButtons = [
       { label: 'Client List', path: '/clients', permKey: 'viewClients' },
-      { label: 'Add New Client', path: '/add-client', permKey: 'viewClients' },
       { label: 'Rota', path: '/rota', permKey: null },
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
@@ -353,7 +352,6 @@ export default function HomeScreen() {
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },
-          { label: 'Add New Client', path: '/add-client', permKey: 'viewClients' },
           { label: 'Rota', path: '/rota', permKey: null },
           { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
