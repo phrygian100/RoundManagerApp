@@ -5,7 +5,7 @@ import { Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View }
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 
-const INVOICE_HEIGHT = 520;
+const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
 
 // Invoice Front Component
@@ -231,7 +231,7 @@ export default function MaterialsScreen() {
             }
             .invoice-container {
               width: 400px;
-              height: 520px;
+              height: 580px;
               padding: 16px;
               background: white;
               border: 1px solid #ddd;
