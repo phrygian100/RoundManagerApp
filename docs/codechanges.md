@@ -1,5 +1,57 @@
 # Code Changes Log
 
+## December 10, 2025
+
+### Implemented New Business Quote Requests Page
+
+**File**: `app/new-business.tsx`
+
+**Feature**: Complete page for viewing and managing quote requests submitted through the client portal.
+
+**Quote Request Cards Display**:
+- Customer name and submission date
+- Status badge (New, Quote Scheduled, Converted, Declined)
+- Phone number, email (if provided), and full address
+- Notes from the prospective customer (if any)
+
+**Action Buttons**:
+1. **Schedule Quote** (Blue)
+   - Opens a modal to create a new quote in the quotes system
+   - Pre-populates: Name, Address, Town, Phone Number, Notes
+   - Includes date picker for scheduling the quote visit
+   - Lead source auto-set to "Client Portal"
+   - Updates request status to "contacted" after creation
+   - Explainer tip: "Raise a visit to quote on a later date"
+
+2. **Add Client** (Green)
+   - Navigates directly to `/add-client` with pre-populated fields
+   - Pre-fills: Name, Address Line 1, Town, Postcode, Mobile Number, Email, Source
+   - Updates request status to "converted"
+   - For when you've already quoted and agreed terms
+
+3. **Delete Request** (Red text)
+   - Removes the quote request with confirmation prompt
+
+**Header Features**:
+- Title and subtitle explaining the page purpose
+- Home button to return to main dashboard
+- Pending count badge showing new unprocessed requests
+
+**Technical Implementation**:
+- Real-time Firestore listener for quote requests
+- Queries `quoteRequests` collection filtered by `businessId`
+- Creates quotes in the `quotes` collection (same format as /quotes page)
+- Logs quote creation to audit log
+- Updates request status on action completion
+
+### Removed Add New Client Button from Home Screen
+
+**File**: `app/(tabs)/index.tsx`
+
+**Change**: Removed the "Add New Client" button from the home screen grid since this functionality is accessible from within the Client List page. This creates a cleaner 2x4 grid layout with the new "New Business" button.
+
+---
+
 ## December 9, 2025
 
 ### Reworked Accounts Financial Summary
