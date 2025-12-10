@@ -7,6 +7,7 @@ import PermissionGate from '../components/PermissionGate';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
+const LEAFLET_WIDTH = 800; // Double width for New Business Leaflet
 
 // Invoice Front Component
 const InvoiceFront = () => {
@@ -197,6 +198,83 @@ const InvoiceBack = () => {
       {/* Bottom Half - Empty/Reserved */}
       <View style={invoiceStyles.backBottomHalf}>
         <Text style={invoiceStyles.businessNameFooter}>{businessName}</Text>
+      </View>
+    </View>
+  );
+};
+
+// Flyer Placeholder Components
+const FlyerFront = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="document-text-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>Flyer - Front</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+      </View>
+    </View>
+  );
+};
+
+const FlyerBack = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="document-text-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>Flyer - Back</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+      </View>
+    </View>
+  );
+};
+
+// Canvassing Flyer Placeholder Components
+const CanvassingFlyerFront = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="megaphone-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>Canvassing Flyer - Front</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+      </View>
+    </View>
+  );
+};
+
+const CanvassingFlyerBack = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="megaphone-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>Canvassing Flyer - Back</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+      </View>
+    </View>
+  );
+};
+
+// New Business Leaflet Placeholder Components (double width)
+const NewBusinessLeafletFront = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas, { width: LEAFLET_WIDTH }]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="briefcase-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>New Business Leaflet - Front</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+        <Text style={styles.placeholderSubtext}>Double-width format for tri-fold printing</Text>
+      </View>
+    </View>
+  );
+};
+
+const NewBusinessLeafletBack = () => {
+  return (
+    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas, { width: LEAFLET_WIDTH }]}>
+      <View style={styles.placeholderContent}>
+        <Ionicons name="briefcase-outline" size={48} color="#ccc" />
+        <Text style={styles.placeholderTitle}>New Business Leaflet - Back</Text>
+        <Text style={styles.placeholderText}>Coming soon</Text>
+        <Text style={styles.placeholderSubtext}>Double-width format for tri-fold printing</Text>
       </View>
     </View>
   );
@@ -422,6 +500,80 @@ export default function MaterialsScreen() {
               </View>
             </View>
           </View>
+
+          {/* Flyer Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Flyer</Text>
+                <Text style={styles.sectionSubtitle}>Promotional flyer for existing customers</Text>
+              </View>
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
+            </View>
+            
+            <View style={styles.invoiceRow}>
+              <View style={styles.invoiceWrapper}>
+                <Text style={styles.invoiceLabel}>Front</Text>
+                <FlyerFront />
+              </View>
+              <View style={styles.invoiceWrapper}>
+                <Text style={styles.invoiceLabel}>Back</Text>
+                <FlyerBack />
+              </View>
+            </View>
+          </View>
+
+          {/* Canvassing Flyer Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Canvassing Flyer</Text>
+                <Text style={styles.sectionSubtitle}>Door-to-door marketing flyer for new areas</Text>
+              </View>
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
+            </View>
+            
+            <View style={styles.invoiceRow}>
+              <View style={styles.invoiceWrapper}>
+                <Text style={styles.invoiceLabel}>Front</Text>
+                <CanvassingFlyerFront />
+              </View>
+              <View style={styles.invoiceWrapper}>
+                <Text style={styles.invoiceLabel}>Back</Text>
+                <CanvassingFlyerBack />
+              </View>
+            </View>
+          </View>
+
+          {/* New Business Leaflet Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>New Business Leaflet</Text>
+                <Text style={styles.sectionSubtitle}>Tri-fold leaflet for business introductions</Text>
+              </View>
+              <View style={styles.comingSoonBadge}>
+                <Text style={styles.comingSoonText}>Coming Soon</Text>
+              </View>
+            </View>
+            
+            <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.leafletScroll}>
+              <View style={styles.invoiceRow}>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Front</Text>
+                  <NewBusinessLeafletFront />
+                </View>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Back</Text>
+                  <NewBusinessLeafletBack />
+                </View>
+              </View>
+            </ScrollView>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </PermissionGate>
@@ -508,6 +660,52 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  comingSoonBadge: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#ddd',
+  },
+  comingSoonText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '600',
+  },
+  placeholderCanvas: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderStyle: 'dashed',
+    borderWidth: 2,
+    borderColor: '#ddd',
+    backgroundColor: '#fafafa',
+  },
+  placeholderContent: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  placeholderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#999',
+    marginTop: 12,
+  },
+  placeholderText: {
+    fontSize: 14,
+    color: '#bbb',
+    marginTop: 4,
+  },
+  placeholderSubtext: {
+    fontSize: 12,
+    color: '#ccc',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  leafletScroll: {
+    marginHorizontal: -16,
+    paddingHorizontal: 16,
   },
 });
 
