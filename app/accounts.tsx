@@ -1144,7 +1144,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'space-between',
     paddingTop: 12,
-    paddingBottom: 4,
+    paddingBottom: 40,
   },
   yAxisLabelContainer: {
     position: 'absolute',
@@ -1157,7 +1157,7 @@ const styles = StyleSheet.create({
   },
   chartArea: {
     flex: 1,
-    height: 200,
+    height: 220,
     position: 'relative',
     backgroundColor: '#fff',
     borderRadius: 12,
