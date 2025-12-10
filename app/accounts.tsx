@@ -505,23 +505,38 @@ export default function AccountsScreen() {
     </Pressable>
   );
 
-  const FinancialBarChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
+  // Single-series bar chart component
+  const SingleBarChart = ({ 
+    data, 
+    loading, 
+    valueKey, 
+    color, 
+    title,
+    showLabels = true,
+  }: { 
+    data: ChartPoint[]; 
+    loading: boolean; 
+    valueKey: 'jobs' | 'payments';
+    color: string;
+    title: string;
+    showLabels?: boolean;
+  }) => {
     const [chartWidth, setChartWidth] = useState(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const chartHeight = 280;
+    const chartHeight = 180;
     const topPadding = 12;
-    const bottomPadding = 4; // minimal padding since labels are in separate container
+    const bottomPadding = 4;
     const yAxisWidth = 64;
-    const startGap = 18; // inset so first bars sit comfortably inside plot
-    const endGap = 18; // symmetrical end inset to avoid right squish
+    const startGap = 14;
+    const endGap = 14;
     const verticalSpace = chartHeight - topPadding - bottomPadding;
 
     const safeMax = useMemo(() => {
-      const maxValue = data.reduce((max, point) => Math.max(max, point.jobs, point.payments), 0);
+      const maxValue = data.reduce((max, point) => Math.max(max, point[valueKey]), 0);
       return maxValue > 0 ? maxValue : 1;
-    }, [data]);
+    }, [data, valueKey]);
 
-    // Add 10% headroom and round up to nearest £100 to ensure bars never exceed chart height
+    // Add 10% headroom and round up to nearest £100
     const niceMax = useMemo(() => {
       const withHeadroom = safeMax * 1.1;
       return Math.ceil(withHeadroom / 100) * 100 || 100;
@@ -535,8 +550,7 @@ export default function AccountsScreen() {
 
     const barAreaWidth = Math.max(chartWidth - startGap - endGap, 1);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
-    const barWidth = Math.max(10, Math.min(32, slotWidth * 0.32));
-    const barGap = Math.min(12, slotWidth * 0.12);
+    const barWidth = Math.max(8, Math.min(28, slotWidth * 0.6));
 
     const formatCurrency = (value: number) => {
       if (value >= 1000) return `£${Math.round(value).toLocaleString()}`;
@@ -546,52 +560,32 @@ export default function AccountsScreen() {
     const maxLabels = 7;
     const labelSpacing = data.length > maxLabels ? Math.ceil(data.length / maxLabels) : 1;
 
-    // The baseline (£0 line) is at topPadding + verticalSpace from top
     const baseline = topPadding + verticalSpace;
+    const hasData = data.some(point => point[valueKey] > 0);
 
     const renderBars = () => {
       if (!data.length) return null;
 
       return data.map((point, idx) => {
         const centerX = startGap + slotWidth * idx + slotWidth / 2;
-
-        // Calculate bar heights as a proportion of verticalSpace
-        const jobsRatio = Math.min(1, point.jobs / niceMax);
-        const paymentsRatio = Math.min(1, point.payments / niceMax);
-        
-        const jobsHeight = Math.max(2, jobsRatio * verticalSpace);
-        const paymentsHeight = Math.max(2, paymentsRatio * verticalSpace);
-        
-        // Position bars from top (same reference as gridlines) to ensure alignment
-        const jobsTop = baseline - jobsHeight;
-        const paymentsTop = baseline - paymentsHeight;
+        const value = point[valueKey];
+        const ratio = Math.min(1, value / niceMax);
+        const barHeight = Math.max(2, ratio * verticalSpace);
+        const barTop = baseline - barHeight;
 
         return (
-          <React.Fragment key={`bars-${idx}`}>
+          <React.Fragment key={`bar-${idx}`}>
             <View
               style={{
                 position: 'absolute',
-                left: centerX - barWidth - barGap,
+                left: centerX - barWidth / 2,
                 width: barWidth,
-                top: jobsTop,
-                height: jobsHeight,
-                backgroundColor: '#1976d2',
-                borderRadius: 6,
+                top: barTop,
+                height: barHeight,
+                backgroundColor: color,
+                borderRadius: 4,
               }}
             />
-            <View
-              style={{
-                position: 'absolute',
-                left: centerX + barGap,
-                width: barWidth,
-                top: paymentsTop,
-                height: paymentsHeight,
-                backgroundColor: '#43a047',
-                borderRadius: 6,
-              }}
-            />
-
-            {/* Invisible touch-target area for tooltips */}
             <Pressable
               style={{
                 position: 'absolute',
@@ -612,6 +606,10 @@ export default function AccountsScreen() {
 
     return (
       <View style={styles.chartWrapper}>
+        <View style={styles.singleChartHeader}>
+          <View style={[styles.legendDot, { backgroundColor: color }]} />
+          <ThemedText style={styles.singleChartTitle}>{title}</ThemedText>
+        </View>
         <View style={styles.barChartRow}>
           <View style={[styles.yAxis, { width: yAxisWidth, height: chartHeight }]}>
             {ticks.map(tick => (
@@ -636,39 +634,37 @@ export default function AccountsScreen() {
                   style={[
                     styles.tooltip,
                     {
-                      left: startGap + slotWidth * activeIndex + slotWidth / 2 - 80,
+                      left: Math.max(0, startGap + slotWidth * activeIndex + slotWidth / 2 - 70),
                       top: 8,
                     },
                   ]}
                 >
                   <ThemedText style={styles.tooltipLabel}>{data[activeIndex].label}</ThemedText>
-                  <ThemedText style={styles.tooltipValue}>Jobs: {formatCurrency(data[activeIndex].jobs)}</ThemedText>
-                  <ThemedText style={styles.tooltipValue}>Payments: {formatCurrency(data[activeIndex].payments)}</ThemedText>
+                  <ThemedText style={styles.tooltipValue}>{formatCurrency(data[activeIndex][valueKey])}</ThemedText>
                 </View>
               )}
 
-              {loading && !hasChartData ? (
+              {loading && !hasData ? (
                 <View style={styles.chartEmptyState}>
                   <ActivityIndicator size="small" />
-                  <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
+                  <ThemedText style={styles.placeholderText}>Loading...</ThemedText>
                 </View>
-              ) : !hasChartData ? (
+              ) : !hasData ? (
                 <View style={styles.chartEmptyState}>
-                  <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
-                  <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
+                  <Ionicons name="bar-chart-outline" size={24} color="#90a4ae" />
+                  <ThemedText style={styles.placeholderText}>No data for this range.</ThemedText>
                 </View>
               ) : (
                 renderBars()
               )}
             </View>
 
-            {data.length > 0 && (
+            {showLabels && data.length > 0 && (
               <View style={styles.chartLabelRow}>
                 {data.map((point, idx) => {
                   if (data.length > maxLabels && idx % labelSpacing !== 0 && idx !== data.length - 1) {
                     return <View key={`label-${idx}`} style={{ width: slotWidth }} />;
                   }
-
                   return (
                     <View key={`label-${idx}`} style={[styles.chartLabel, { width: slotWidth }]}>
                       <ThemedText style={styles.chartLabelText}>{point.label}</ThemedText>
@@ -799,25 +795,32 @@ export default function AccountsScreen() {
                   icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
                 >
                   <View style={styles.chartHeaderRow}>
-                    <View style={styles.chartLegend}>
-                      <View style={[styles.legendDot, { backgroundColor: '#1976d2' }]} />
-                      <ThemedText style={styles.legendText}>Completed jobs</ThemedText>
-                      <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
-                      <ThemedText style={styles.legendText}>Payments received</ThemedText>
-                    </View>
+                    <ThemedText style={styles.chartSummaryText}>
+                      Totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
+                    </ThemedText>
                     <Pressable style={styles.timeframeCycleButton} onPress={cycleRange}>
                       <ThemedText style={styles.timeframeCycleText}>
                         {timeframeOptions.find(option => option.key === chartRange)?.label || 'Change range'}
                       </ThemedText>
                     </Pressable>
                   </View>
-                  <View style={styles.chartSummaryRow}>
-                    <ThemedText style={styles.chartSummaryText}>
-                      Range totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
-                    </ThemedText>
-                  </View>
 
-                  <FinancialBarChart data={chartData} loading={loading} />
+                  <SingleBarChart 
+                    data={chartData} 
+                    loading={loading} 
+                    valueKey="jobs" 
+                    color="#1976d2" 
+                    title="Completed Jobs"
+                    showLabels={false}
+                  />
+                  <SingleBarChart 
+                    data={chartData} 
+                    loading={loading} 
+                    valueKey="payments" 
+                    color="#43a047" 
+                    title="Payments Received"
+                    showLabels={true}
+                  />
                 </SectionCard>
               </View>
               
@@ -880,25 +883,32 @@ export default function AccountsScreen() {
                 icon={<Ionicons name="analytics-outline" size={22} color="#1976d2" />}
               >
                 <View style={styles.chartHeaderRow}>
-                  <View style={styles.chartLegend}>
-                    <View style={[styles.legendDot, { backgroundColor: '#1976d2' }]} />
-                    <ThemedText style={styles.legendText}>Completed jobs</ThemedText>
-                    <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
-                    <ThemedText style={styles.legendText}>Payments received</ThemedText>
-                  </View>
+                  <ThemedText style={styles.chartSummaryText}>
+                    Totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
+                  </ThemedText>
                   <Pressable style={styles.timeframeCycleButton} onPress={cycleRange}>
                     <ThemedText style={styles.timeframeCycleText}>
                       {timeframeOptions.find(option => option.key === chartRange)?.label || 'Change range'}
                     </ThemedText>
                   </Pressable>
                 </View>
-                <View style={styles.chartSummaryRow}>
-                  <ThemedText style={styles.chartSummaryText}>
-                    Range totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
-                  </ThemedText>
-                </View>
 
-                <FinancialBarChart data={chartData} loading={loading} />
+                <SingleBarChart 
+                  data={chartData} 
+                  loading={loading} 
+                  valueKey="jobs" 
+                  color="#1976d2" 
+                  title="Completed Jobs"
+                  showLabels={false}
+                />
+                <SingleBarChart 
+                  data={chartData} 
+                  loading={loading} 
+                  valueKey="payments" 
+                  color="#43a047" 
+                  title="Payments Received"
+                  showLabels={true}
+                />
               </SectionCard>
               
               <SectionCard 
@@ -1112,6 +1122,18 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     width: '100%',
+    marginBottom: 16,
+  },
+  singleChartHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+    gap: 8,
+  },
+  singleChartTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#37474f',
   },
   barChartRow: {
     flexDirection: 'row',

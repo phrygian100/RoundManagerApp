@@ -18,6 +18,7 @@
 - Fixed bar baseline so bars start from the £0 line instead of floating above it.
 - Changed y-axis scaling to use max value + 10%, rounded up to nearest £100, ensuring bars never exceed chart height.
 - Fixed bar/gridline alignment by using consistent top-based positioning so bar heights match y-axis values.
+- Split combined bar chart into two separate charts (Completed Jobs and Payments Received), each with its own y-axis scale for clearer reading.
 
 ### Added Bulk Payments Feature (UI Only)
 
