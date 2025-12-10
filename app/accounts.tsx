@@ -546,14 +546,25 @@ export default function AccountsScreen() {
     const maxLabels = 7;
     const labelSpacing = data.length > maxLabels ? Math.ceil(data.length / maxLabels) : 1;
 
+    // The baseline (£0 line) is at topPadding + verticalSpace from top
+    const baseline = topPadding + verticalSpace;
+
     const renderBars = () => {
       if (!data.length) return null;
 
       return data.map((point, idx) => {
         const centerX = startGap + slotWidth * idx + slotWidth / 2;
 
-        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
-        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
+        // Calculate bar heights as a proportion of verticalSpace
+        const jobsRatio = Math.min(1, point.jobs / niceMax);
+        const paymentsRatio = Math.min(1, point.payments / niceMax);
+        
+        const jobsHeight = Math.max(2, jobsRatio * verticalSpace);
+        const paymentsHeight = Math.max(2, paymentsRatio * verticalSpace);
+        
+        // Position bars from top (same reference as gridlines) to ensure alignment
+        const jobsTop = baseline - jobsHeight;
+        const paymentsTop = baseline - paymentsHeight;
 
         return (
           <React.Fragment key={`bars-${idx}`}>
@@ -562,7 +573,7 @@ export default function AccountsScreen() {
                 position: 'absolute',
                 left: centerX - barWidth - barGap,
                 width: barWidth,
-                bottom: bottomPadding,
+                top: jobsTop,
                 height: jobsHeight,
                 backgroundColor: '#1976d2',
                 borderRadius: 6,
@@ -573,20 +584,20 @@ export default function AccountsScreen() {
                 position: 'absolute',
                 left: centerX + barGap,
                 width: barWidth,
-                bottom: bottomPadding,
+                top: paymentsTop,
                 height: paymentsHeight,
                 backgroundColor: '#43a047',
                 borderRadius: 6,
               }}
             />
 
-            {/* Invisible touch-target area for future tooltips if needed */}
+            {/* Invisible touch-target area for tooltips */}
             <Pressable
               style={{
                 position: 'absolute',
                 left: centerX - slotWidth / 2,
                 width: slotWidth,
-                top: 0,
+                top: topPadding,
                 bottom: bottomPadding,
               }}
               onPressIn={() => setActiveIndex(idx)}
