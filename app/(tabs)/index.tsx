@@ -286,6 +286,7 @@ export default function HomeScreen() {
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
       { label: 'Activity Log', path: '/audit-log', permKey: null },
       { label: 'Quotes', path: '/quotes', permKey: null },
+      { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
     ];
 
     const allowed = baseButtons.filter((btn) => {
@@ -359,6 +360,7 @@ export default function HomeScreen() {
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
           { label: 'Activity Log', path: '/audit-log', permKey: null },
           { label: 'Quotes', path: '/quotes', permKey: null },
+          { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
         ];
 
         const allowed = buttonDefs.filter(b => {

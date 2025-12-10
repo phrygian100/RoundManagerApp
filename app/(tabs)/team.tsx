@@ -13,6 +13,7 @@ const PERM_KEYS = [
   { key: 'viewClients', label: 'Clients' },
   { key: 'viewRunsheet', label: 'Runsheets' },
   { key: 'viewPayments', label: 'Accounts' },
+  { key: 'viewNewBusiness', label: 'New Business' },
 ];
 
 export default function TeamScreen() {
