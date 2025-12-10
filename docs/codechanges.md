@@ -2,6 +2,19 @@
 
 ## December 10, 2025
 
+### Added Materials Page and Button
+
+**Files Changed**:
+- `app/(tabs)/index.tsx` - Added Materials button to homescreen
+- `app/materials.tsx` - New materials page (placeholder)
+
+**Changes**:
+- Added "Materials" button to the homescreen button grid (in both `baseButtons` and `buttonDefs` arrays)
+- Created new `/materials` route with placeholder content
+- Page includes home button, title, and placeholder message indicating feature is coming soon
+
+---
+
 ### Moved Activity Log Button from Homescreen to Rota Page
 
 **Files Changed**:

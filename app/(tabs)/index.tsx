@@ -286,6 +286,7 @@ export default function HomeScreen() {
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
+      { label: 'Materials', path: '/materials', permKey: null },
       { label: 'Quotes', path: '/quotes', permKey: null },
       { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
     ];
@@ -385,6 +386,7 @@ export default function HomeScreen() {
           { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
           { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
+          { label: 'Materials', path: '/materials', permKey: null },
           { label: 'Quotes', path: '/quotes', permKey: null },
           { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
         ];
