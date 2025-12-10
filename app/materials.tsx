@@ -1,13 +1,302 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useRef } from 'react';
-import { Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import React, { useEffect, useRef, useState } from 'react';
+import { Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
+import { db } from '../core/firebase';
+import { getDataOwnerId } from '../core/session';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
 const LEAFLET_WIDTH = 800; // Double width for New Business Leaflet
+
+// Materials Configuration Type
+interface MaterialsConfig {
+  businessName: string;
+  businessNameLine2: string;
+  tagline: string;
+  mobileNumber: string;
+  logoUrl: string;
+  bankAccountName: string;
+  sortCode: string;
+  accountNumber: string;
+  directDebitLink: string;
+  businessAddress: {
+    line1: string;
+    line2: string;
+    town: string;
+    postcode: string;
+  };
+  services: string[];
+  customerPortalLink: string;
+  websiteAddress: string;
+  facebookHandle: string;
+}
+
+const defaultConfig: MaterialsConfig = {
+  businessName: 'TGM',
+  businessNameLine2: 'Window Cleaning',
+  tagline: 'Local. Reliable. Professional.',
+  mobileNumber: '07814 804 759',
+  logoUrl: '',
+  bankAccountName: 'TGM Window Cleaning',
+  sortCode: '30-98-97',
+  accountNumber: '36215362',
+  directDebitLink: 'www.tgmwindowcleaning.co.uk/gocardless',
+  businessAddress: {
+    line1: 'TGM Window Cleaning',
+    line2: '16 Church Street',
+    town: 'Billinghay',
+    postcode: 'LN4 4HN',
+  },
+  services: [
+    'Exterior window cleaning',
+    'Gutter cleaning',
+    'Soffits and Facias',
+    'Conservatory roof clean',
+    'Solar panels',
+    'UPVc Restoration',
+    'Caravan softwash',
+  ],
+  customerPortalLink: 'guvnor.app/tgmwindowcleaning',
+  websiteAddress: 'www.tgmwindowcleaning.co.uk',
+  facebookHandle: 'tgmwindowcleaningUK',
+};
+
+// Configuration Modal Component
+const ConfigurationModal = ({ 
+  visible, 
+  onClose, 
+  config, 
+  onSave 
+}: { 
+  visible: boolean; 
+  onClose: () => void; 
+  config: MaterialsConfig;
+  onSave: (config: MaterialsConfig) => void;
+}) => {
+  const [formData, setFormData] = useState<MaterialsConfig>(config);
+  const [servicesText, setServicesText] = useState(config.services.join('\n'));
+
+  useEffect(() => {
+    setFormData(config);
+    setServicesText(config.services.filter(s => s).join('\n'));
+  }, [config, visible]);
+
+  const handleSave = () => {
+    const updatedConfig = {
+      ...formData,
+      services: servicesText.split('\n').map(s => s.trim()).filter(s => s),
+    };
+    onSave(updatedConfig);
+    onClose();
+  };
+
+  const updateField = (field: keyof MaterialsConfig, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateAddressField = (field: keyof MaterialsConfig['businessAddress'], value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      businessAddress: { ...prev.businessAddress, [field]: value },
+    }));
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={modalStyles.overlay}>
+        <View style={modalStyles.container}>
+          <View style={modalStyles.header}>
+            <Text style={modalStyles.title}>Configure Materials</Text>
+            <Pressable onPress={onClose} style={modalStyles.closeButton}>
+              <Ionicons name="close" size={24} color="#333" />
+            </Pressable>
+          </View>
+
+          <ScrollView style={modalStyles.content} showsVerticalScrollIndicator={false}>
+            {/* Business Identity */}
+            <Text style={modalStyles.sectionTitle}>Business Identity</Text>
+            
+            <Text style={modalStyles.label}>Business Name (Line 1)</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.businessName}
+              onChangeText={(v) => updateField('businessName', v)}
+              placeholder="e.g. TGM"
+            />
+
+            <Text style={modalStyles.label}>Business Name (Line 2)</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.businessNameLine2}
+              onChangeText={(v) => updateField('businessNameLine2', v)}
+              placeholder="e.g. Window Cleaning"
+            />
+
+            <Text style={modalStyles.label}>Tagline</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.tagline}
+              onChangeText={(v) => updateField('tagline', v)}
+              placeholder="e.g. Local. Reliable. Professional."
+            />
+
+            <Text style={modalStyles.label}>Mobile Number</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.mobileNumber}
+              onChangeText={(v) => updateField('mobileNumber', v)}
+              placeholder="e.g. 07814 804 759"
+              keyboardType="phone-pad"
+            />
+
+            <Text style={modalStyles.label}>Logo URL (optional)</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.logoUrl}
+              onChangeText={(v) => updateField('logoUrl', v)}
+              placeholder="https://example.com/logo.png"
+            />
+
+            {/* Online Presence */}
+            <Text style={modalStyles.sectionTitle}>Online Presence</Text>
+
+            <Text style={modalStyles.label}>Website Address</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.websiteAddress}
+              onChangeText={(v) => updateField('websiteAddress', v)}
+              placeholder="e.g. www.example.co.uk"
+            />
+
+            <Text style={modalStyles.label}>Facebook Handle</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.facebookHandle}
+              onChangeText={(v) => updateField('facebookHandle', v)}
+              placeholder="e.g. mybusinessUK"
+            />
+
+            <Text style={modalStyles.label}>Customer Portal Link</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.customerPortalLink}
+              onChangeText={(v) => updateField('customerPortalLink', v)}
+              placeholder="e.g. guvnor.app/yourbusiness"
+            />
+
+            {/* Banking Details */}
+            <Text style={modalStyles.sectionTitle}>Banking Details</Text>
+
+            <Text style={modalStyles.label}>Bank Account Name</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.bankAccountName}
+              onChangeText={(v) => updateField('bankAccountName', v)}
+              placeholder="e.g. My Business Ltd"
+            />
+
+            <View style={modalStyles.row}>
+              <View style={modalStyles.halfField}>
+                <Text style={modalStyles.label}>Sort Code</Text>
+                <TextInput
+                  style={modalStyles.input}
+                  value={formData.sortCode}
+                  onChangeText={(v) => updateField('sortCode', v)}
+                  placeholder="e.g. 30-98-97"
+                />
+              </View>
+              <View style={modalStyles.halfField}>
+                <Text style={modalStyles.label}>Account Number</Text>
+                <TextInput
+                  style={modalStyles.input}
+                  value={formData.accountNumber}
+                  onChangeText={(v) => updateField('accountNumber', v)}
+                  placeholder="e.g. 12345678"
+                />
+              </View>
+            </View>
+
+            <Text style={modalStyles.label}>Direct Debit Sign-up Link</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.directDebitLink}
+              onChangeText={(v) => updateField('directDebitLink', v)}
+              placeholder="e.g. www.example.co.uk/gocardless"
+            />
+
+            {/* Business Address */}
+            <Text style={modalStyles.sectionTitle}>Business Address</Text>
+
+            <Text style={modalStyles.label}>Address Line 1</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.businessAddress.line1}
+              onChangeText={(v) => updateAddressField('line1', v)}
+              placeholder="e.g. Business Name"
+            />
+
+            <Text style={modalStyles.label}>Address Line 2</Text>
+            <TextInput
+              style={modalStyles.input}
+              value={formData.businessAddress.line2}
+              onChangeText={(v) => updateAddressField('line2', v)}
+              placeholder="e.g. 123 High Street"
+            />
+
+            <View style={modalStyles.row}>
+              <View style={modalStyles.halfField}>
+                <Text style={modalStyles.label}>Town</Text>
+                <TextInput
+                  style={modalStyles.input}
+                  value={formData.businessAddress.town}
+                  onChangeText={(v) => updateAddressField('town', v)}
+                  placeholder="e.g. Lincoln"
+                />
+              </View>
+              <View style={modalStyles.halfField}>
+                <Text style={modalStyles.label}>Postcode</Text>
+                <TextInput
+                  style={modalStyles.input}
+                  value={formData.businessAddress.postcode}
+                  onChangeText={(v) => updateAddressField('postcode', v)}
+                  placeholder="e.g. LN4 4HN"
+                />
+              </View>
+            </View>
+
+            {/* Services */}
+            <Text style={modalStyles.sectionTitle}>Work Completed / Services</Text>
+            <Text style={modalStyles.hint}>Enter each service on a new line</Text>
+            <TextInput
+              style={[modalStyles.input, modalStyles.multilineInput]}
+              value={servicesText}
+              onChangeText={setServicesText}
+              placeholder="Exterior window cleaning&#10;Gutter cleaning&#10;..."
+              multiline
+              numberOfLines={8}
+            />
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          <View style={modalStyles.footer}>
+            <Pressable style={modalStyles.cancelButton} onPress={onClose}>
+              <Text style={modalStyles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={modalStyles.saveButton} onPress={handleSave}>
+              <Ionicons name="checkmark" size={20} color="#fff" />
+              <Text style={modalStyles.saveButtonText}>Save Configuration</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 // Invoice Front Component
 const InvoiceFront = () => {
@@ -723,6 +1012,47 @@ export default function MaterialsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const printRef = useRef<View>(null);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
+  const [loading, setLoading] = useState(true);
+
+  // Load configuration from Firestore
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          setLoading(false);
+          return;
+        }
+        const docRef = doc(db, 'materialsConfig', ownerId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setConfig({ ...defaultConfig, ...docSnap.data() as MaterialsConfig });
+        }
+      } catch (error) {
+        console.error('Error loading materials config:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadConfig();
+  }, []);
+
+  // Save configuration to Firestore
+  const handleSaveConfig = async (newConfig: MaterialsConfig) => {
+    try {
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) return;
+      const docRef = doc(db, 'materialsConfig', ownerId);
+      await setDoc(docRef, newConfig);
+      setConfig(newConfig);
+      alert('Configuration saved successfully!');
+    } catch (error) {
+      console.error('Error saving materials config:', error);
+      alert('Failed to save configuration. Please try again.');
+    }
+  };
 
   const handleDownloadPDF = () => {
     if (Platform.OS === 'web') {
@@ -907,8 +1237,18 @@ export default function MaterialsScreen() {
             <Ionicons name="home" size={24} color="#007AFF" />
           </Pressable>
           <Text style={styles.title}>Materials</Text>
-          <View style={{ width: 40 }} />
+          <Pressable onPress={() => setShowConfigModal(true)} style={styles.configButton} accessibilityLabel="Configure">
+            <Ionicons name="settings-outline" size={24} color="#007AFF" />
+          </Pressable>
         </View>
+
+        {/* Configuration Modal */}
+        <ConfigurationModal
+          visible={showConfigModal}
+          onClose={() => setShowConfigModal(false)}
+          config={config}
+          onSave={handleSaveConfig}
+        />
 
         {/* Content */}
         <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
@@ -1046,6 +1386,9 @@ const styles = StyleSheet.create({
   homeButton: {
     padding: 8,
   },
+  configButton: {
+    padding: 8,
+  },
   title: {
     fontSize: 20,
     fontWeight: 'bold',
@@ -1154,6 +1497,120 @@ const styles = StyleSheet.create({
   leafletScroll: {
     marginHorizontal: -16,
     paddingHorizontal: 16,
+  },
+});
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '90%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  content: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginTop: 16,
+    marginBottom: 12,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  hint: {
+    fontSize: 11,
+    color: '#666',
+    marginBottom: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 12,
+    backgroundColor: '#fafafa',
+  },
+  multilineInput: {
+    height: 150,
+    textAlignVertical: 'top',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  halfField: {
+    flex: 1,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    gap: 12,
+  },
+  cancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    gap: 8,
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
 
