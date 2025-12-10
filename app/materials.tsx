@@ -523,15 +523,130 @@ const CanvassingFlyerBack = () => {
   );
 };
 
-// New Business Leaflet Placeholder Components (double width)
+// New Business Leaflet Components (double width)
 const NewBusinessLeafletFront = () => {
+  const adhocServices = [
+    'Conservatory Roof',
+    'Gutter Clearance',
+    'Soffits and Fascias',
+    'Solar Panels',
+    '', '', '', '',
+  ];
+
+  const expectations = [
+    "You'll receive a text message the day before any visit with an estimated time of arrival.",
+    "After we complete a service, we will leave an invoice through your letterbox.",
+    "We'll leave any gates closed when we leave.",
+    "If we arrive and a gate is locked, we will consider using ladders to gain access if we're confident it is safe and reasonable to do so without risk to health or property.",
+  ];
+
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas, { width: LEAFLET_WIDTH }]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="briefcase-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>New Business Leaflet - Front</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
-        <Text style={styles.placeholderSubtext}>Double-width format for tri-fold printing</Text>
+    <View style={leafletStyles.container}>
+      {/* Left Panel - Quote Form */}
+      <View style={leafletStyles.leftPanel}>
+        {/* Quoted Header */}
+        <View style={leafletStyles.quotedHeader}>
+          <Text style={leafletStyles.quotedText}>Quoted on</Text>
+          <Text style={leafletStyles.quotedSlash}>/</Text>
+          <Text style={leafletStyles.quotedSlash}>/</Text>
+          <Text style={leafletStyles.quotedText}>By</Text>
+        </View>
+
+        {/* Pricing Box */}
+        <View style={leafletStyles.pricingBox}>
+          <View style={leafletStyles.pricingHeader}>
+            <View style={{ flex: 2 }} />
+            <Text style={leafletStyles.pricingHeaderText}>1st Service</Text>
+            <Text style={leafletStyles.pricingHeaderText}>Maintenance</Text>
+          </View>
+          <View style={leafletStyles.pricingRow}>
+            <Text style={leafletStyles.pricingLabel}>4 Weekly Window Cleaning</Text>
+            <Text style={leafletStyles.pricingValue}>£</Text>
+            <Text style={leafletStyles.pricingValue}>£</Text>
+          </View>
+          <View style={leafletStyles.pricingRow}>
+            <Text style={leafletStyles.pricingLabel}>8 Weekly Window Cleaning</Text>
+            <Text style={leafletStyles.pricingValue}>£</Text>
+            <Text style={leafletStyles.pricingValue}>£</Text>
+          </View>
+          <View style={leafletStyles.pricingRow}>
+            <Text style={leafletStyles.pricingLabel}>One-off Service</Text>
+            <Text style={leafletStyles.pricingValue}>£</Text>
+            <View style={{ flex: 1 }} />
+          </View>
+
+          {/* Adhoc Work */}
+          <Text style={leafletStyles.adhocTitle}>Adhoc Work</Text>
+          {adhocServices.map((service, idx) => (
+            <View key={idx} style={leafletStyles.adhocRow}>
+              <Text style={leafletStyles.adhocLabel}>{service}</Text>
+              <Text style={leafletStyles.adhocValue}>£</Text>
+            </View>
+          ))}
+
+          {/* Notes */}
+          <Text style={leafletStyles.notesTitle}>Notes</Text>
+          <View style={leafletStyles.notesArea} />
+        </View>
+
+        {/* Service Summary */}
+        <View style={leafletStyles.summarySection}>
+          <View style={leafletStyles.summaryRow}>
+            <View style={leafletStyles.bulletDot} />
+            <Text style={leafletStyles.summaryText}>Your windows will be cleaned every         weeks.</Text>
+          </View>
+          <View style={leafletStyles.summaryRow}>
+            <View style={leafletStyles.bulletDot} />
+            <Text style={leafletStyles.summaryText}>The cost per service is £</Text>
+          </View>
+          <View style={leafletStyles.summaryRow}>
+            <View style={leafletStyles.bulletDot} />
+            <Text style={leafletStyles.summaryText}>Your first service will be on</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Right Panel - Info */}
+      <View style={leafletStyles.rightPanel}>
+        {/* What to expect */}
+        <Text style={leafletStyles.sectionTitle}>What to expect next</Text>
+        {expectations.map((text, idx) => (
+          <View key={idx} style={leafletStyles.expectRow}>
+            <View style={leafletStyles.bulletDotSmall} />
+            <Text style={leafletStyles.expectText}>{text}</Text>
+          </View>
+        ))}
+
+        {/* Payment */}
+        <Text style={leafletStyles.sectionTitle}>Payment</Text>
+        
+        <Text style={leafletStyles.paymentMethod}>Bank Transfer</Text>
+        <Text style={leafletStyles.paymentDetail}>The invoice will have our banking information as follows</Text>
+        <Text style={leafletStyles.paymentDetail}>Sort Code: 30-98-97</Text>
+        <Text style={leafletStyles.paymentDetail}>Account number: 3 6 2 1 5 3 6 2</Text>
+        <View style={leafletStyles.referenceRow}>
+          <Text style={leafletStyles.paymentDetail}>Reference:</Text>
+          <View style={leafletStyles.referenceLine} />
+        </View>
+
+        <Text style={leafletStyles.paymentMethod}>Direct Debit</Text>
+        <Text style={leafletStyles.paymentDetail}>You can see details and set up via our website</Text>
+        <Text style={leafletStyles.paymentLink}>www.tgmwindowcleaning.co.uk</Text>
+
+        <Text style={leafletStyles.paymentMethod}>Cash and Cheque</Text>
+        <Text style={leafletStyles.paymentDetail}>We can take cash or cheque while we're at your Property</Text>
+        <Text style={leafletStyles.paymentDetail}>or you can post to:</Text>
+        <Text style={leafletStyles.paymentDetail}>TGM Window cleaning</Text>
+        <Text style={leafletStyles.paymentDetail}>16 Church street, Billinghay LN4 4HN</Text>
+
+        {/* Weather Guarantee */}
+        <Text style={leafletStyles.sectionTitle}>Weather & Service Guarantee</Text>
+        <Text style={leafletStyles.guaranteeText}>
+          We work all year round and into less pleasant weather. The commercial method we use is rain proof. Because of this we offer all our customers a service guarantee as follows:
+        </Text>
+        <Text style={leafletStyles.guaranteeBold}>
+          If you are unsatisfied with the service and get in touch within 24 hours, we will either return to do the service again or write off the cost of the service.
+        </Text>
       </View>
     </View>
   );
@@ -539,12 +654,66 @@ const NewBusinessLeafletFront = () => {
 
 const NewBusinessLeafletBack = () => {
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas, { width: LEAFLET_WIDTH }]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="briefcase-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>New Business Leaflet - Back</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
-        <Text style={styles.placeholderSubtext}>Double-width format for tri-fold printing</Text>
+    <View style={leafletStyles.container}>
+      {/* Left Panel - Map */}
+      <View style={leafletStyles.mapPanel}>
+        {/* Map representation */}
+        <View style={leafletStyles.mapBackground}>
+          {/* Grid pattern to represent map */}
+          <View style={leafletStyles.mapGrid}>
+            {[...Array(6)].map((_, i) => (
+              <View key={`h${i}`} style={[leafletStyles.mapGridLineH, { top: `${i * 20}%` }]} />
+            ))}
+            {[...Array(6)].map((_, i) => (
+              <View key={`v${i}`} style={[leafletStyles.mapGridLineV, { left: `${i * 20}%` }]} />
+            ))}
+          </View>
+          {/* Service area outline */}
+          <View style={leafletStyles.serviceAreaOutline}>
+            <Text style={leafletStyles.mapLabel}>Service Area</Text>
+          </View>
+          {/* Some town markers */}
+          <View style={[leafletStyles.townMarker, { top: '30%', left: '40%' }]}>
+            <Text style={leafletStyles.townName}>Sleaford</Text>
+          </View>
+          <View style={[leafletStyles.townMarker, { top: '60%', left: '35%' }]}>
+            <Text style={leafletStyles.townName}>Boston</Text>
+          </View>
+          <View style={[leafletStyles.townMarker, { top: '45%', left: '55%' }]}>
+            <Text style={leafletStyles.townName}>Billinghay</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Right Panel - Branding */}
+      <View style={leafletStyles.brandPanel}>
+        {/* Logo and Title */}
+        <View style={leafletStyles.brandHeader}>
+          <View style={leafletStyles.logoCircle}>
+            <Ionicons name="home" size={36} color="#fff" />
+          </View>
+          <View style={leafletStyles.brandText}>
+            <Text style={leafletStyles.brandName}>TGM <Text style={leafletStyles.brandNameLight}>Window Cleaning</Text></Text>
+            <Text style={leafletStyles.brandTagline}>Local. Reliable. Professional.</Text>
+          </View>
+        </View>
+
+        {/* Team Photo Placeholder */}
+        <View style={leafletStyles.photoPlaceholder}>
+          <View style={leafletStyles.photoInner}>
+            <Ionicons name="people" size={40} color="#888" />
+            <Text style={leafletStyles.photoText}>Team Photo</Text>
+            <View style={leafletStyles.vanIcon}>
+              <Ionicons name="car" size={24} color="#666" />
+            </View>
+          </View>
+        </View>
+
+        {/* Contact Info */}
+        <View style={leafletStyles.contactSection}>
+          <Text style={leafletStyles.phoneNumber}>07814 804 759</Text>
+          <Text style={leafletStyles.website}>www.tgmwindowcleaning.co.uk</Text>
+        </View>
       </View>
     </View>
   );
@@ -830,11 +999,14 @@ export default function MaterialsScreen() {
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>New Business Leaflet</Text>
-                <Text style={styles.sectionSubtitle}>Tri-fold leaflet for business introductions</Text>
+                <Text style={styles.sectionSubtitle}>Tri-fold leaflet for new customer quotes</Text>
               </View>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Coming Soon</Text>
-              </View>
+              {Platform.OS === 'web' && (
+                <Pressable style={styles.downloadButton} onPress={() => alert('New Business Leaflet PDF download coming soon')}>
+                  <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+                </Pressable>
+              )}
             </View>
             
             <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.leafletScroll}>
@@ -1765,5 +1937,343 @@ const canvassingStyles = StyleSheet.create({
   contactText: {
     fontSize: 11,
     color: '#fff',
+  },
+});
+
+const leafletStyles = StyleSheet.create({
+  container: {
+    width: LEAFLET_WIDTH,
+    height: INVOICE_HEIGHT,
+    backgroundColor: '#e8f0f5',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    flexDirection: 'row',
+  },
+  // Front - Left Panel
+  leftPanel: {
+    flex: 1,
+    padding: 12,
+    borderRightWidth: 1,
+    borderRightColor: '#ccc',
+  },
+  quotedHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    padding: 6,
+    marginBottom: 8,
+    backgroundColor: '#fff',
+    gap: 12,
+  },
+  quotedText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  quotedSlash: {
+    fontSize: 12,
+    color: '#333',
+  },
+  pricingBox: {
+    borderWidth: 2,
+    borderColor: '#333',
+    padding: 8,
+    backgroundColor: '#fff',
+    flex: 1,
+  },
+  pricingHeader: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  pricingHeaderText: {
+    flex: 1,
+    fontSize: 8,
+    textAlign: 'center',
+    color: '#333',
+  },
+  pricingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  pricingLabel: {
+    flex: 2,
+    fontSize: 10,
+    color: '#333',
+  },
+  pricingValue: {
+    flex: 1,
+    fontSize: 10,
+    textAlign: 'center',
+    color: '#333',
+  },
+  adhocTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  adhocRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 1,
+  },
+  adhocLabel: {
+    flex: 1,
+    fontSize: 9,
+    color: '#333',
+  },
+  adhocValue: {
+    fontSize: 9,
+    color: '#333',
+    width: 20,
+    textAlign: 'right',
+  },
+  notesTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  notesArea: {
+    flex: 1,
+    minHeight: 40,
+  },
+  summarySection: {
+    borderTopWidth: 2,
+    borderTopColor: '#333',
+    paddingTop: 8,
+    marginTop: 8,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 6,
+  },
+  bulletDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#333',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  summaryText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#333',
+  },
+  // Front - Right Panel
+  rightPanel: {
+    flex: 1,
+    padding: 12,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 6,
+    marginTop: 8,
+  },
+  expectRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  bulletDotSmall: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#333',
+    marginRight: 6,
+    marginTop: 4,
+  },
+  expectText: {
+    flex: 1,
+    fontSize: 8,
+    color: '#333',
+    lineHeight: 11,
+  },
+  paymentMethod: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 6,
+  },
+  paymentDetail: {
+    fontSize: 8,
+    color: '#333',
+    marginLeft: 8,
+    lineHeight: 11,
+  },
+  paymentLink: {
+    fontSize: 8,
+    color: '#333',
+    marginLeft: 8,
+  },
+  referenceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  referenceLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#333',
+    marginLeft: 4,
+  },
+  guaranteeText: {
+    fontSize: 8,
+    color: '#333',
+    lineHeight: 11,
+    marginBottom: 4,
+  },
+  guaranteeBold: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    color: '#333',
+    lineHeight: 11,
+  },
+  // Back - Map Panel
+  mapPanel: {
+    flex: 1,
+    backgroundColor: '#8B9A6B',
+  },
+  mapBackground: {
+    flex: 1,
+    position: 'relative',
+  },
+  mapGrid: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  mapGridLineH: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  mapGridLineV: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  serviceAreaOutline: {
+    position: 'absolute',
+    top: '15%',
+    left: '15%',
+    right: '15%',
+    bottom: '15%',
+    borderWidth: 3,
+    borderColor: 'rgba(100,150,255,0.6)',
+    backgroundColor: 'rgba(100,150,255,0.15)',
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mapLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: 'bold',
+  },
+  townMarker: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  townName: {
+    fontSize: 8,
+    color: '#333',
+  },
+  // Back - Brand Panel
+  brandPanel: {
+    flex: 1,
+    backgroundColor: '#e8f0f5',
+    padding: 16,
+  },
+  brandHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  brandText: {
+    flex: 1,
+  },
+  brandName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  brandNameLight: {
+    fontWeight: '400',
+    color: '#555',
+  },
+  brandTagline: {
+    fontSize: 11,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  photoPlaceholder: {
+    flex: 1,
+    backgroundColor: '#ddd',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#333',
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  photoInner: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ccc',
+  },
+  photoText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+  },
+  vanIcon: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+  },
+  contactSection: {
+    alignItems: 'center',
+  },
+  phoneNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  website: {
+    fontSize: 12,
+    color: '#333',
   },
 });
