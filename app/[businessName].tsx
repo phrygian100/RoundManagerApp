@@ -83,6 +83,8 @@ export default function ClientPortalScreen() {
   const [quoteName, setQuoteName] = useState('');
   const [quotePhone, setQuotePhone] = useState('');
   const [quoteAddress, setQuoteAddress] = useState('');
+  const [quoteTown, setQuoteTown] = useState('');
+  const [quotePostcode, setQuotePostcode] = useState('');
   const [quoteEmail, setQuoteEmail] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
@@ -465,6 +467,14 @@ export default function ClientPortalScreen() {
       setQuoteError('Please enter your address');
       return;
     }
+    if (!quoteTown.trim()) {
+      setQuoteError('Please enter your town');
+      return;
+    }
+    if (!quotePostcode.trim()) {
+      setQuoteError('Please enter your postcode');
+      return;
+    }
     if (!businessUser) {
       setQuoteError('Business information not available');
       return;
@@ -481,6 +491,8 @@ export default function ClientPortalScreen() {
         name: quoteName.trim(),
         phone: quotePhone.trim(),
         address: quoteAddress.trim(),
+        town: quoteTown.trim(),
+        postcode: quotePostcode.trim(),
         email: quoteEmail.trim() || null,
         notes: quoteNotes.trim() || null,
         status: 'pending',
@@ -493,6 +505,8 @@ export default function ClientPortalScreen() {
       setQuoteName('');
       setQuotePhone('');
       setQuoteAddress('');
+      setQuoteTown('');
+      setQuotePostcode('');
       setQuoteEmail('');
       setQuoteNotes('');
 
@@ -1001,13 +1015,41 @@ export default function ClientPortalScreen() {
                       <Text style={styles.label}>Address <Text style={styles.required}>*</Text></Text>
                       <TextInput
                         style={styles.input}
-                        placeholder="Your address"
+                        placeholder="First line of address"
                         value={quoteAddress}
                         onChangeText={(text) => {
                           setQuoteAddress(text);
                           setQuoteError('');
                         }}
                         autoComplete="street-address"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Town <Text style={styles.required}>*</Text></Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Town or city"
+                        value={quoteTown}
+                        onChangeText={(text) => {
+                          setQuoteTown(text);
+                          setQuoteError('');
+                        }}
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Postcode <Text style={styles.required}>*</Text></Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Postcode"
+                        value={quotePostcode}
+                        onChangeText={(text) => {
+                          setQuotePostcode(text.toUpperCase());
+                          setQuoteError('');
+                        }}
+                        autoCapitalize="characters"
+                        autoComplete="postal-code"
                       />
                     </View>
 
