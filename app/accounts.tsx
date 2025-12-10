@@ -518,7 +518,7 @@ export default function AccountsScreen() {
       y: topPadding + (1 - ratio) * verticalSpace,
     }));
 
-    const barAreaWidth = Math.max(chartWidth - yAxisWidth, 0);
+    const barAreaWidth = Math.max(chartWidth, 0);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
     const barWidth = Math.max(10, slotWidth * 0.28);
     const barGap = Math.min(10, slotWidth * 0.1);
