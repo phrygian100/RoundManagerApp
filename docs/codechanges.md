@@ -16,7 +16,7 @@
 - Fixed bar/label horizontal alignment so x-axis labels are directly under their corresponding bar groups.
 - Increased chart height for better visual separation and readability.
 - Fixed bar baseline so bars start from the £0 line instead of floating above it.
-- Added top buffer to bar scaling so bars never exceed the chart boundary.
+- Changed y-axis scaling to use max value + 10%, rounded up to nearest £100, ensuring bars never exceed chart height.
 
 ### Added Bulk Payments Feature (UI Only)
 

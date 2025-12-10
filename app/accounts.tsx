@@ -521,11 +521,10 @@ export default function AccountsScreen() {
       return maxValue > 0 ? maxValue : 1;
     }, [data]);
 
+    // Add 10% headroom and round up to nearest £100 to ensure bars never exceed chart height
     const niceMax = useMemo(() => {
-      if (safeMax <= 500) return Math.ceil(safeMax / 100) * 100 || 100;
-      if (safeMax <= 2000) return Math.ceil(safeMax / 250) * 250;
-      if (safeMax <= 5000) return Math.ceil(safeMax / 500) * 500;
-      return Math.ceil(safeMax / 1000) * 1000;
+      const withHeadroom = safeMax * 1.1;
+      return Math.ceil(withHeadroom / 100) * 100 || 100;
     }, [safeMax]);
 
     const ticks = [1, 0.75, 0.5, 0.25, 0].map(ratio => ({
@@ -550,14 +549,11 @@ export default function AccountsScreen() {
     const renderBars = () => {
       if (!data.length) return null;
 
-      // Leave a small buffer at the top so bars never exceed the chart boundary
-      const maxBarHeight = verticalSpace - 8;
-
       return data.map((point, idx) => {
         const centerX = startGap + slotWidth * idx + slotWidth / 2;
 
-        const jobsHeight = Math.max(2, Math.min(maxBarHeight, (point.jobs / niceMax) * maxBarHeight));
-        const paymentsHeight = Math.max(2, Math.min(maxBarHeight, (point.payments / niceMax) * maxBarHeight));
+        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
+        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
 
         return (
           <React.Fragment key={`bars-${idx}`}>
