@@ -510,7 +510,7 @@ export default function AccountsScreen() {
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const chartHeight = 280;
     const topPadding = 12;
-    const bottomPadding = 32;
+    const bottomPadding = 4; // minimal padding since labels are in separate container
     const yAxisWidth = 64;
     const startGap = 18; // inset so first bars sit comfortably inside plot
     const endGap = 18; // symmetrical end inset to avoid right squish
@@ -1112,7 +1112,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     justifyContent: 'space-between',
     paddingTop: 12,
-    paddingBottom: 32,
+    paddingBottom: 4,
   },
   yAxisLabelContainer: {
     position: 'absolute',

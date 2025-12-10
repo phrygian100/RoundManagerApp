@@ -15,6 +15,7 @@
 - Adjusted chart insets (symmetric start/end gaps) so bars center within the plot instead of appearing squashed to the right.
 - Fixed bar/label horizontal alignment so x-axis labels are directly under their corresponding bar groups.
 - Increased chart height for better visual separation and readability.
+- Fixed bar baseline so bars start from the £0 line instead of floating above it.
 
 ### Added Bulk Payments Feature (UI Only)
 
