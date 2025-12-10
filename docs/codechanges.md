@@ -2,24 +2,37 @@
 
 ## December 10, 2025
 
-### Added Materials Page with Permission Controls
+### Added Materials Page with Invoice Preview
 
 **Files Changed**:
 - `app/(tabs)/index.tsx` - Added Materials button to homescreen with permission key
 - `app/(tabs)/team.tsx` - Added Materials permission toggle for team members
-- `app/materials.tsx` - New materials page with PermissionGate
+- `app/materials.tsx` - Materials page with Invoice preview component
 
-**Changes**:
-- Added "Materials" button to the homescreen button grid with `permKey: 'viewMaterials'`
-- Added `{ key: 'viewMaterials', label: 'Materials' }` to `PERM_KEYS` in team page
-- Owner users can now toggle Materials access for team members via the Team page
-- Materials page wrapped with `PermissionGate` - shows permission error for unauthorized users
-- Page includes home button, title, and placeholder message indicating feature is coming soon
+**Purpose**: Materials page for users to find invoices, leaflets, and lead generation flyers.
+
+**Invoice Component Features**:
+- Two-column layout replicating physical invoice design
+- Left column:
+  - Services provided date header with checkmark icon
+  - Business logo/branding section (logo circle, business name, tagline)
+  - Phone number and social media links
+  - Direct Debit payment box with GoCardless URL
+  - Cash payment instructions box
+  - Business address footer
+- Right column:
+  - Bank Transfer details box (account name, sort code, account number, payment reference)
+  - Notes section
+  - Work completed table with 9 service line items and total row
+- Blue (#2E86AB) accent color for borders, links, and highlights
+- Clean, professional styling matching the physical invoice template
 
 **Permission System**:
 - Owner accounts always have access to Materials
 - Team members need the `viewMaterials` permission enabled by the owner
 - Permission can be toggled in Team → member card → Permissions section
+
+**Next Steps**: Invoice data will be populated from user settings/context (business name, bank details, services, etc.)
 
 ---
 
