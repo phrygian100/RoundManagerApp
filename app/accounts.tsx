@@ -551,7 +551,7 @@ export default function AccountsScreen() {
       if (!data.length) return null;
 
       return data.map((point, idx) => {
-        const centerX = yAxisWidth + startGap + slotWidth * idx + slotWidth / 2;
+        const centerX = startGap + slotWidth * idx + slotWidth / 2;
 
         const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
         const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
@@ -611,62 +611,64 @@ export default function AccountsScreen() {
             ))}
           </View>
 
-          <View
-            style={[styles.chartArea, { height: chartHeight }]}
-            onLayout={({ nativeEvent }) => setChartWidth(nativeEvent.layout.width)}
-          >
-            {ticks.map(tick => (
-              <View key={`grid-${tick.ratio}`} style={[styles.chartGridLine, { top: tick.y }]} />
-            ))}
+          <View style={{ flex: 1 }}>
+            <View
+              style={[styles.chartArea, { height: chartHeight }]}
+              onLayout={({ nativeEvent }) => setChartWidth(nativeEvent.layout.width)}
+            >
+              {ticks.map(tick => (
+                <View key={`grid-${tick.ratio}`} style={[styles.chartGridLine, { top: tick.y }]} />
+              ))}
 
-            {activeIndex !== null && data[activeIndex] && (
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.tooltip,
-                  {
-                    left: yAxisWidth + startGap + slotWidth * activeIndex + slotWidth / 2 - 80,
-                    top: 8,
-                  },
-                ]}
-              >
-                <ThemedText style={styles.tooltipLabel}>{data[activeIndex].label}</ThemedText>
-                <ThemedText style={styles.tooltipValue}>Jobs: {formatCurrency(data[activeIndex].jobs)}</ThemedText>
-                <ThemedText style={styles.tooltipValue}>Payments: {formatCurrency(data[activeIndex].payments)}</ThemedText>
-              </View>
-            )}
+              {activeIndex !== null && data[activeIndex] && (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.tooltip,
+                    {
+                      left: startGap + slotWidth * activeIndex + slotWidth / 2 - 80,
+                      top: 8,
+                    },
+                  ]}
+                >
+                  <ThemedText style={styles.tooltipLabel}>{data[activeIndex].label}</ThemedText>
+                  <ThemedText style={styles.tooltipValue}>Jobs: {formatCurrency(data[activeIndex].jobs)}</ThemedText>
+                  <ThemedText style={styles.tooltipValue}>Payments: {formatCurrency(data[activeIndex].payments)}</ThemedText>
+                </View>
+              )}
 
-            {loading && !hasChartData ? (
-              <View style={styles.chartEmptyState}>
-                <ActivityIndicator size="small" />
-                <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
+              {loading && !hasChartData ? (
+                <View style={styles.chartEmptyState}>
+                  <ActivityIndicator size="small" />
+                  <ThemedText style={styles.placeholderText}>Loading financial activity...</ThemedText>
+                </View>
+              ) : !hasChartData ? (
+                <View style={styles.chartEmptyState}>
+                  <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
+                  <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
+                </View>
+              ) : (
+                renderBars()
+              )}
+            </View>
+
+            {data.length > 0 && (
+              <View style={styles.chartLabelRow}>
+                {data.map((point, idx) => {
+                  if (data.length > maxLabels && idx % labelSpacing !== 0 && idx !== data.length - 1) {
+                    return <View key={`label-${idx}`} style={{ width: slotWidth }} />;
+                  }
+
+                  return (
+                    <View key={`label-${idx}`} style={[styles.chartLabel, { width: slotWidth }]}>
+                      <ThemedText style={styles.chartLabelText}>{point.label}</ThemedText>
+                    </View>
+                  );
+                })}
               </View>
-            ) : !hasChartData ? (
-              <View style={styles.chartEmptyState}>
-                <Ionicons name="bar-chart-outline" size={28} color="#90a4ae" />
-                <ThemedText style={styles.placeholderText}>No activity yet for this range.</ThemedText>
-              </View>
-            ) : (
-              renderBars()
             )}
           </View>
         </View>
-
-        {data.length > 0 && (
-          <View style={[styles.chartLabelRow, { paddingLeft: yAxisWidth + startGap, paddingRight: endGap + 4 }]}>
-            {data.map((point, idx) => {
-              if (data.length > 6 && idx % labelSpacing !== 0 && idx !== data.length - 1) {
-                return <View key={`label-${idx}`} style={{ flex: 1 }} />;
-              }
-
-              return (
-                <View key={`label-${idx}`} style={styles.chartLabel}>
-                  <ThemedText style={styles.chartLabelText}>{point.label}</ThemedText>
-                </View>
-              );
-            })}
-          </View>
-        )}
       </View>
     );
   };
@@ -1099,7 +1101,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chartWrapper: {
-    gap: 10,
     width: '100%',
   },
   barChartRow: {
@@ -1153,11 +1154,9 @@ const styles = StyleSheet.create({
   chartLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 4,
+    paddingTop: 10,
   },
   chartLabel: {
-    flex: 1,
     alignItems: 'center',
   },
   chartLabelText: {
