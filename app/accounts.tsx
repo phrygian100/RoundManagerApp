@@ -509,7 +509,7 @@ export default function AccountsScreen() {
     const [chartWidth, setChartWidth] = useState(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const chartHeight = 220;
-    const topPadding = 12;
+    const topPadding = 20; // Increased top padding
     const bottomPadding = 32;
     const yAxisWidth = 64;
     const startGap = 18; // inset so first bars sit comfortably inside plot
@@ -522,7 +522,8 @@ export default function AccountsScreen() {
     }, [data]);
 
     const niceMax = useMemo(() => {
-      if (safeMax <= 500) return Math.ceil(safeMax / 100) * 100 || 100;
+      if (safeMax <= 100) return 100;
+      if (safeMax <= 500) return Math.ceil(safeMax / 100) * 100;
       if (safeMax <= 2000) return Math.ceil(safeMax / 250) * 250;
       if (safeMax <= 5000) return Math.ceil(safeMax / 500) * 500;
       return Math.ceil(safeMax / 1000) * 1000;
