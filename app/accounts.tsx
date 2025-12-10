@@ -431,6 +431,12 @@ export default function AccountsScreen() {
     [chartData]
   );
 
+  const cycleRange = useCallback(() => {
+    const idx = timeframeOptions.findIndex(option => option.key === chartRange);
+    const next = timeframeOptions[(idx + 1) % timeframeOptions.length];
+    setChartRange(next.key);
+  }, [chartRange, timeframeOptions]);
+
   const handleOpenAccountDetails = (client: ClientWithBalance) => {
     setSelectedClient(client);
     setShowAccountModal(true);
@@ -506,6 +512,7 @@ export default function AccountsScreen() {
     const topPadding = 12;
     const bottomPadding = 32;
     const yAxisWidth = 64;
+    const startGap = 10; // small inset so first bars aren’t floating far left
     const verticalSpace = chartHeight - topPadding - bottomPadding;
 
     const safeMax = useMemo(() => {
@@ -526,7 +533,7 @@ export default function AccountsScreen() {
       y: topPadding + (1 - ratio) * verticalSpace,
     }));
 
-    const barAreaWidth = Math.max(chartWidth, 1);
+    const barAreaWidth = Math.max(chartWidth - startGap, 1);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
     const barWidth = Math.max(10, Math.min(32, slotWidth * 0.32));
     const barGap = Math.min(12, slotWidth * 0.12);
@@ -543,7 +550,7 @@ export default function AccountsScreen() {
       if (!data.length) return null;
 
       return data.map((point, idx) => {
-        const centerX = yAxisWidth + slotWidth * idx + slotWidth / 2;
+        const centerX = yAxisWidth + startGap + slotWidth * idx + slotWidth / 2;
 
         const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
         const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
@@ -645,7 +652,7 @@ export default function AccountsScreen() {
         </View>
 
         {data.length > 0 && (
-          <View style={styles.chartLabelRow}>
+          <View style={[styles.chartLabelRow, { paddingLeft: yAxisWidth + startGap, paddingRight: 8 }]}>
             {data.map((point, idx) => {
               if (data.length > 6 && idx % labelSpacing !== 0 && idx !== data.length - 1) {
                 return <View key={`label-${idx}`} style={{ flex: 1 }} />;
@@ -785,25 +792,11 @@ export default function AccountsScreen() {
                       <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
                       <ThemedText style={styles.legendText}>Payments received</ThemedText>
                     </View>
-                    <View style={styles.timeframeChips}>
-                      {timeframeOptions.map(option => (
-                        <Pressable
-                          key={option.key}
-                          style={[
-                            styles.timeframeChip,
-                            chartRange === option.key && styles.timeframeChipActive,
-                          ]}
-                          onPress={() => setChartRange(option.key)}
-                        >
-                          <ThemedText style={[
-                            styles.timeframeChipText,
-                            chartRange === option.key && styles.timeframeChipTextActive,
-                          ]}>
-                            {option.label}
-                          </ThemedText>
-                        </Pressable>
-                      ))}
-                    </View>
+                    <Pressable style={styles.timeframeCycleButton} onPress={cycleRange}>
+                      <ThemedText style={styles.timeframeCycleText}>
+                        {timeframeOptions.find(option => option.key === chartRange)?.label || 'Change range'}
+                      </ThemedText>
+                    </Pressable>
                   </View>
                   <View style={styles.chartSummaryRow}>
                     <ThemedText style={styles.chartSummaryText}>
@@ -880,25 +873,11 @@ export default function AccountsScreen() {
                     <View style={[styles.legendDot, { backgroundColor: '#43a047' }]} />
                     <ThemedText style={styles.legendText}>Payments received</ThemedText>
                   </View>
-                  <View style={styles.timeframeChips}>
-                    {timeframeOptions.map(option => (
-                      <Pressable
-                        key={option.key}
-                        style={[
-                          styles.timeframeChip,
-                          chartRange === option.key && styles.timeframeChipActive,
-                        ]}
-                        onPress={() => setChartRange(option.key)}
-                      >
-                        <ThemedText style={[
-                          styles.timeframeChipText,
-                          chartRange === option.key && styles.timeframeChipTextActive,
-                        ]}>
-                          {option.label}
-                        </ThemedText>
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Pressable style={styles.timeframeCycleButton} onPress={cycleRange}>
+                    <ThemedText style={styles.timeframeCycleText}>
+                      {timeframeOptions.find(option => option.key === chartRange)?.label || 'Change range'}
+                    </ThemedText>
+                  </Pressable>
                 </View>
                 <View style={styles.chartSummaryRow}>
                   <ThemedText style={styles.chartSummaryText}>
@@ -1105,31 +1084,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#546e7a',
   },
-  timeframeChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'flex-end',
-  },
-  timeframeChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  timeframeCycleButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#d0d7de',
     backgroundColor: '#fff',
   },
-  timeframeChipActive: {
-    backgroundColor: '#e3f2fd',
-    borderColor: '#90caf9',
-  },
-  timeframeChipText: {
-    fontSize: 12,
-    color: '#455a64',
-    fontWeight: '600',
-  },
-  timeframeChipTextActive: {
+  timeframeCycleText: {
+    fontSize: 13,
     color: '#0d47a1',
+    fontWeight: '600',
   },
   chartWrapper: {
     gap: 10,
