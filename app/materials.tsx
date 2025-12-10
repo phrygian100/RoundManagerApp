@@ -15,7 +15,6 @@ const LEAFLET_WIDTH = 800; // Double width for New Business Leaflet
 // Materials Configuration Type
 interface MaterialsConfig {
   businessName: string;
-  businessNameLine2: string;
   tagline: string;
   mobileNumber: string;
   logoUrl: string;
@@ -36,8 +35,7 @@ interface MaterialsConfig {
 }
 
 const defaultConfig: MaterialsConfig = {
-  businessName: 'TGM',
-  businessNameLine2: 'Window Cleaning',
+  businessName: 'TGM Window Cleaning',
   tagline: 'Local. Reliable. Professional.',
   mobileNumber: '07814 804 759',
   logoUrl: '',
@@ -120,20 +118,12 @@ const ConfigurationModal = ({
             {/* Business Identity */}
             <Text style={modalStyles.sectionTitle}>Business Identity</Text>
             
-            <Text style={modalStyles.label}>Business Name (Line 1)</Text>
+            <Text style={modalStyles.label}>Business Name</Text>
             <TextInput
               style={modalStyles.input}
               value={formData.businessName}
               onChangeText={(v) => updateField('businessName', v)}
-              placeholder="e.g. TGM"
-            />
-
-            <Text style={modalStyles.label}>Business Name (Line 2)</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.businessNameLine2}
-              onChangeText={(v) => updateField('businessNameLine2', v)}
-              placeholder="e.g. Window Cleaning"
+              placeholder="e.g. TGM Window Cleaning"
             />
 
             <Text style={modalStyles.label}>Tagline</Text>
