@@ -501,6 +501,7 @@ export default function AccountsScreen() {
 
   const FinancialBarChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
     const [chartWidth, setChartWidth] = useState(0);
+    const [activeIndex, setActiveIndex] = useState<number | null>(null);
     const chartHeight = 220;
     const topPadding = 12;
     const bottomPadding = 32;
@@ -512,23 +513,31 @@ export default function AccountsScreen() {
       return maxValue > 0 ? maxValue : 1;
     }, [data]);
 
+    const niceMax = useMemo(() => {
+      if (safeMax <= 500) return Math.ceil(safeMax / 100) * 100 || 100;
+      if (safeMax <= 2000) return Math.ceil(safeMax / 250) * 250;
+      if (safeMax <= 5000) return Math.ceil(safeMax / 500) * 500;
+      return Math.ceil(safeMax / 1000) * 1000;
+    }, [safeMax]);
+
     const ticks = [1, 0.75, 0.5, 0.25, 0].map(ratio => ({
       ratio,
-      value: safeMax * ratio,
+      value: niceMax * ratio,
       y: topPadding + (1 - ratio) * verticalSpace,
     }));
 
     const barAreaWidth = Math.max(chartWidth, 1);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
-    const barWidth = Math.max(10, slotWidth * 0.28);
-    const barGap = Math.min(10, slotWidth * 0.1);
+    const barWidth = Math.max(10, Math.min(32, slotWidth * 0.32));
+    const barGap = Math.min(12, slotWidth * 0.12);
 
     const formatCurrency = (value: number) => {
       if (value >= 1000) return `£${Math.round(value).toLocaleString()}`;
       return `£${value.toFixed(0)}`;
     };
 
-    const labelSpacing = data.length > 6 ? Math.ceil(data.length / 6) : 1;
+    const maxLabels = 7;
+    const labelSpacing = data.length > maxLabels ? Math.ceil(data.length / maxLabels) : 1;
 
     const renderBars = () => {
       if (!data.length) return null;
@@ -536,8 +545,8 @@ export default function AccountsScreen() {
       return data.map((point, idx) => {
         const centerX = yAxisWidth + slotWidth * idx + slotWidth / 2;
 
-        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / safeMax) * verticalSpace));
-        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / safeMax) * verticalSpace));
+        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
+        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
 
         return (
           <React.Fragment key={`bars-${idx}`}>
@@ -565,7 +574,7 @@ export default function AccountsScreen() {
             />
 
             {/* Invisible touch-target area for future tooltips if needed */}
-            <View
+            <Pressable
               style={{
                 position: 'absolute',
                 left: centerX - slotWidth / 2,
@@ -573,6 +582,10 @@ export default function AccountsScreen() {
                 top: 0,
                 bottom: bottomPadding,
               }}
+              onPressIn={() => setActiveIndex(idx)}
+              onPressOut={() => setActiveIndex(null)}
+              onHoverIn={() => setActiveIndex(idx)}
+              onHoverOut={() => setActiveIndex(null)}
             />
           </React.Fragment>
         );
@@ -597,6 +610,23 @@ export default function AccountsScreen() {
             {ticks.map(tick => (
               <View key={`grid-${tick.ratio}`} style={[styles.chartGridLine, { top: tick.y }]} />
             ))}
+
+            {activeIndex !== null && data[activeIndex] && (
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.tooltip,
+                  {
+                    left: yAxisWidth + slotWidth * activeIndex + slotWidth / 2 - 80,
+                    top: 8,
+                  },
+                ]}
+              >
+                <ThemedText style={styles.tooltipLabel}>{data[activeIndex].label}</ThemedText>
+                <ThemedText style={styles.tooltipValue}>Jobs: {formatCurrency(data[activeIndex].jobs)}</ThemedText>
+                <ThemedText style={styles.tooltipValue}>Payments: {formatCurrency(data[activeIndex].payments)}</ThemedText>
+              </View>
+            )}
 
             {loading && !hasChartData ? (
               <View style={styles.chartEmptyState}>
@@ -775,6 +805,11 @@ export default function AccountsScreen() {
                       ))}
                     </View>
                   </View>
+                  <View style={styles.chartSummaryRow}>
+                    <ThemedText style={styles.chartSummaryText}>
+                      Range totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
+                    </ThemedText>
+                  </View>
 
                   <FinancialBarChart data={chartData} loading={loading} />
                 </SectionCard>
@@ -864,6 +899,11 @@ export default function AccountsScreen() {
                       </Pressable>
                     ))}
                   </View>
+                </View>
+                <View style={styles.chartSummaryRow}>
+                  <ThemedText style={styles.chartSummaryText}>
+                    Range totals · Jobs: £{completedJobsTotal.toFixed(0)} · Payments: £{paymentsTotal.toFixed(0)}
+                  </ThemedText>
                 </View>
 
                 <FinancialBarChart data={chartData} loading={loading} />
@@ -1058,6 +1098,13 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#455a64',
   },
+  chartSummaryRow: {
+    marginBottom: 8,
+  },
+  chartSummaryText: {
+    fontSize: 12,
+    color: '#546e7a',
+  },
   timeframeChips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1150,6 +1197,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#607d8b',
     textAlign: 'center',
+  },
+  tooltip: {
+    position: 'absolute',
+    width: 160,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#dce3eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
+    zIndex: 5,
+  },
+  tooltipLabel: {
+    fontSize: 12,
+    color: '#455a64',
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  tooltipValue: {
+    fontSize: 12,
+    color: '#263238',
+    lineHeight: 16,
   },
   outstandingList: {
     gap: 12,
