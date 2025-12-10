@@ -289,36 +289,10 @@ const ConfigurationModal = ({
 };
 
 // Invoice Front Component
-const InvoiceFront = () => {
-  // Placeholder data - will be populated from user settings/context later
-  const businessName = 'TGM';
-  const businessNameLine2 = 'Window Cleaning';
-  const tagline = 'Local. Reliable. Professional.';
-  const phoneNumber = '07814 804 759';
-  const facebookHandle = 'tgmwindowcleaningUK';
-  const website = 'www.tgmwindowcleaning.co.uk';
-  const bankAccountName = 'TGM Window Cleaning';
-  const sortCode = '30-98-97';
-  const accountNo = '36215362';
-  const paymentReference = 'RWC';
-  const directDebitUrl = 'www.tgmwindowcleaning.co.uk/gocardless';
-  const businessAddress = {
-    line1: 'TGM Window Cleaning',
-    line2: '16 Church Street',
-    postcode: 'LN4 4HN',
-  };
-  
-  const services = [
-    'Exterior window cleaning',
-    'Gutter cleaning',
-    'Soffits and Facias',
-    'Conservatory roof clean',
-    'Solar panels',
-    'UPVc Restoration',
-    'Caravan softwash',
-    '',
-    '',
-  ];
+const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
+  // Pad services to 9 rows
+  const services = [...config.services];
+  while (services.length < 9) services.push('');
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
@@ -340,22 +314,21 @@ const InvoiceFront = () => {
               <Ionicons name="home" size={40} color="#fff" />
             </View>
             
-            <Text style={invoiceStyles.businessName}>{businessName}</Text>
-            <Text style={invoiceStyles.businessNameBlue}>{businessNameLine2}</Text>
-            <Text style={invoiceStyles.tagline}>{tagline}</Text>
-            <Text style={invoiceStyles.phoneNumber}>{phoneNumber}</Text>
+            <Text style={invoiceStyles.businessName}>{config.businessName}</Text>
+            <Text style={invoiceStyles.tagline}>{config.tagline}</Text>
+            <Text style={invoiceStyles.phoneNumber}>{config.mobileNumber}</Text>
             
             <View style={invoiceStyles.socialRow}>
-              <Text style={invoiceStyles.socialText}>f/{facebookHandle}</Text>
+              <Text style={invoiceStyles.socialText}>f/{config.facebookHandle}</Text>
             </View>
-            <Text style={invoiceStyles.websiteText}>{website}</Text>
+            <Text style={invoiceStyles.websiteText}>{config.websiteAddress}</Text>
           </View>
 
           {/* Direct Debit Box */}
           <View style={invoiceStyles.blueBox}>
             <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
             <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
-            <Text style={invoiceStyles.linkText}>{directDebitUrl}</Text>
+            <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
           </View>
 
           {/* Cash Box */}
@@ -368,9 +341,9 @@ const InvoiceFront = () => {
 
           {/* Business Address */}
           <View style={invoiceStyles.addressSection}>
-            <Text style={invoiceStyles.addressText}>{businessAddress.line1}</Text>
-            <Text style={invoiceStyles.addressText}>{businessAddress.line2}</Text>
-            <Text style={invoiceStyles.addressText}>{businessAddress.postcode}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
           </View>
         </View>
 
@@ -380,19 +353,19 @@ const InvoiceFront = () => {
           <View style={invoiceStyles.blueBox}>
             <Text style={invoiceStyles.boxTitle}>Bank Transfer</Text>
             <Text style={invoiceStyles.bankLabel}>Business Account Name:</Text>
-            <Text style={invoiceStyles.bankValueBlue}>{bankAccountName}</Text>
+            <Text style={invoiceStyles.bankValueBlue}>{config.bankAccountName}</Text>
             
             <View style={invoiceStyles.bankRow}>
               <Text style={invoiceStyles.bankLabel}>Sort Code:</Text>
-              <Text style={invoiceStyles.bankValue}>{sortCode}</Text>
+              <Text style={invoiceStyles.bankValue}>{config.sortCode}</Text>
             </View>
             <View style={invoiceStyles.bankRow}>
               <Text style={invoiceStyles.bankLabel}>Account No:</Text>
-              <Text style={invoiceStyles.bankValue}>{accountNo}</Text>
+              <Text style={invoiceStyles.bankValue}>{config.accountNumber}</Text>
             </View>
             
             <Text style={invoiceStyles.bankLabel}>Payment reference:</Text>
-            <Text style={invoiceStyles.paymentRef}>{paymentReference}</Text>
+            <Text style={invoiceStyles.paymentRef}>RWC</Text>
           </View>
 
           {/* Notes Box */}
@@ -426,11 +399,7 @@ const InvoiceFront = () => {
 };
 
 // Invoice Back Component
-const InvoiceBack = () => {
-  // Placeholder data - will be populated from user settings/context later
-  const portalUrl = 'guvnor.app/tgmwindowcleaning';
-  const businessName = 'TGM Window Cleaning';
-
+const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
   return (
     <View style={invoiceStyles.invoiceContainer}>
       {/* Top Half - Client Portal Instructions */}
@@ -451,7 +420,7 @@ const InvoiceBack = () => {
               <Text style={invoiceStyles.stepNumber}>1.</Text>
               <Text style={invoiceStyles.stepText}>Visit our customer portal at:</Text>
             </View>
-            <Text style={invoiceStyles.portalUrl}>{portalUrl}</Text>
+            <Text style={invoiceStyles.portalUrl}>{config.customerPortalLink}</Text>
             
             <View style={invoiceStyles.stepRow}>
               <Text style={invoiceStyles.stepNumber}>2.</Text>
@@ -476,14 +445,14 @@ const InvoiceBack = () => {
       
       {/* Bottom Half - Empty/Reserved */}
       <View style={invoiceStyles.backBottomHalf}>
-        <Text style={invoiceStyles.businessNameFooter}>{businessName}</Text>
+        <Text style={invoiceStyles.businessNameFooter}>{config.businessName}</Text>
       </View>
     </View>
   );
 };
 
 // Flyer Components
-const FlyerFront = () => {
+const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
   const services = [
     'Routine service every 4 or 8 weeks',
     'Full property, including doors, sills and frames',
@@ -501,9 +470,8 @@ const FlyerFront = () => {
             <Ionicons name="home" size={32} color="#fff" />
           </View>
           <View style={flyerStyles.brandingText}>
-            <Text style={flyerStyles.brandName}>TGM</Text>
-            <Text style={flyerStyles.brandNameBlue}>Window Cleaning</Text>
-            <Text style={flyerStyles.tagline}>Local. Reliable. Professional.</Text>
+            <Text style={flyerStyles.brandName}>{config.businessName}</Text>
+            <Text style={flyerStyles.tagline}>{config.tagline}</Text>
           </View>
         </View>
       </View>
@@ -537,15 +505,15 @@ const FlyerFront = () => {
           <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="call-outline" size={16} color="#fff" />
-            <Text style={flyerStyles.phoneNumber}>07814 804 759</Text>
+            <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="logo-facebook" size={14} color="#fff" />
-            <Text style={flyerStyles.contactText}>tgmwindowcleaningUK</Text>
+            <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
-            <Text style={flyerStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+            <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
         </View>
         {/* Water droplets decoration */}
@@ -562,7 +530,7 @@ const FlyerFront = () => {
   );
 };
 
-const FlyerBack = () => {
+const FlyerBack = ({ config }: { config: MaterialsConfig }) => {
   const additionalServices = [
     { left: 'UPVC Restoration', right: 'Solar panel cleaning' },
     { left: 'Gutter cleaning', right: 'Caravan cleaning' },
@@ -627,15 +595,15 @@ const FlyerBack = () => {
           <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="call-outline" size={16} color="#fff" />
-            <Text style={flyerStyles.phoneNumber}>07814 804 759</Text>
+            <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="logo-facebook" size={14} color="#fff" />
-            <Text style={flyerStyles.contactText}>tgmwindowcleaningUK</Text>
+            <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
-            <Text style={flyerStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+            <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
         </View>
         {/* Water droplets decoration */}
@@ -653,7 +621,7 @@ const FlyerBack = () => {
 };
 
 // Canvassing Flyer Components
-const CanvassingFlyerFront = () => {
+const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
   const services = [
     'Routine service every 4 or 8 weeks',
     'Full property including\ndoors sills and frames',
@@ -670,9 +638,8 @@ const CanvassingFlyerFront = () => {
             <Ionicons name="home" size={28} color="#fff" />
           </View>
           <View style={canvassingStyles.brandingText}>
-            <Text style={canvassingStyles.brandName}>TGM</Text>
-            <Text style={canvassingStyles.brandNameBlue}>Window Cleaning</Text>
-            <Text style={canvassingStyles.tagline}>Local. Reliable. Professional.</Text>
+            <Text style={canvassingStyles.brandName}>{config.businessName}</Text>
+            <Text style={canvassingStyles.tagline}>{config.tagline}</Text>
           </View>
         </View>
 
@@ -726,7 +693,7 @@ const CanvassingFlyerFront = () => {
   );
 };
 
-const CanvassingFlyerBack = () => {
+const CanvassingFlyerBack = ({ config }: { config: MaterialsConfig }) => {
   const additionalServices = [
     { left: 'Gutter cleaning', right: 'Solar panel cleaning' },
     { left: 'Gutter clearing', right: 'Fascias and Soffits' },
@@ -790,11 +757,11 @@ const CanvassingFlyerBack = () => {
           <Text style={canvassingStyles.footerCta}>Get in touch</Text>
           <View style={canvassingStyles.contactRow}>
             <Ionicons name="call-outline" size={16} color="#fff" />
-            <Text style={canvassingStyles.phoneNumber}>07814 804 759</Text>
+            <Text style={canvassingStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={canvassingStyles.contactRow}>
             <Ionicons name="globe-outline" size={14} color="#fff" />
-            <Text style={canvassingStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+            <Text style={canvassingStyles.contactText}>{config.websiteAddress}</Text>
           </View>
         </View>
       </View>
@@ -803,7 +770,7 @@ const CanvassingFlyerBack = () => {
 };
 
 // New Business Leaflet Components (double width)
-const NewBusinessLeafletFront = () => {
+const NewBusinessLeafletFront = ({ config }: { config: MaterialsConfig }) => {
   const adhocServices = [
     'Conservatory Roof',
     'Gutter Clearance',
@@ -901,8 +868,8 @@ const NewBusinessLeafletFront = () => {
         
         <Text style={leafletStyles.paymentMethod}>Bank Transfer</Text>
         <Text style={leafletStyles.paymentDetail}>The invoice will have our banking information as follows</Text>
-        <Text style={leafletStyles.paymentDetail}>Sort Code: 30-98-97</Text>
-        <Text style={leafletStyles.paymentDetail}>Account number: 3 6 2 1 5 3 6 2</Text>
+        <Text style={leafletStyles.paymentDetail}>Sort Code: {config.sortCode}</Text>
+        <Text style={leafletStyles.paymentDetail}>Account number: {config.accountNumber}</Text>
         <View style={leafletStyles.referenceRow}>
           <Text style={leafletStyles.paymentDetail}>Reference:</Text>
           <View style={leafletStyles.referenceLine} />
@@ -910,13 +877,13 @@ const NewBusinessLeafletFront = () => {
 
         <Text style={leafletStyles.paymentMethod}>Direct Debit</Text>
         <Text style={leafletStyles.paymentDetail}>You can see details and set up via our website</Text>
-        <Text style={leafletStyles.paymentLink}>www.tgmwindowcleaning.co.uk</Text>
+        <Text style={leafletStyles.paymentLink}>{config.websiteAddress}</Text>
 
         <Text style={leafletStyles.paymentMethod}>Cash and Cheque</Text>
         <Text style={leafletStyles.paymentDetail}>We can take cash or cheque while we're at your Property</Text>
         <Text style={leafletStyles.paymentDetail}>or you can post to:</Text>
-        <Text style={leafletStyles.paymentDetail}>TGM Window cleaning</Text>
-        <Text style={leafletStyles.paymentDetail}>16 Church street, Billinghay LN4 4HN</Text>
+        <Text style={leafletStyles.paymentDetail}>{config.businessName}</Text>
+        <Text style={leafletStyles.paymentDetail}>{config.businessAddress.line2}, {config.businessAddress.town} {config.businessAddress.postcode}</Text>
 
         {/* Weather Guarantee */}
         <Text style={leafletStyles.sectionTitle}>Weather & Service Guarantee</Text>
@@ -931,7 +898,7 @@ const NewBusinessLeafletFront = () => {
   );
 };
 
-const NewBusinessLeafletBack = () => {
+const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
   return (
     <View style={leafletStyles.container}>
       {/* Left Panel - Map */}
@@ -972,8 +939,8 @@ const NewBusinessLeafletBack = () => {
             <Ionicons name="home" size={36} color="#fff" />
           </View>
           <View style={leafletStyles.brandText}>
-            <Text style={leafletStyles.brandName}>TGM <Text style={leafletStyles.brandNameLight}>Window Cleaning</Text></Text>
-            <Text style={leafletStyles.brandTagline}>Local. Reliable. Professional.</Text>
+            <Text style={leafletStyles.brandName}>{config.businessName}</Text>
+            <Text style={leafletStyles.brandTagline}>{config.tagline}</Text>
           </View>
         </View>
 
@@ -990,8 +957,8 @@ const NewBusinessLeafletBack = () => {
 
         {/* Contact Info */}
         <View style={leafletStyles.contactSection}>
-          <Text style={leafletStyles.phoneNumber}>07814 804 759</Text>
-          <Text style={leafletStyles.website}>www.tgmwindowcleaning.co.uk</Text>
+          <Text style={leafletStyles.phoneNumber}>{config.mobileNumber}</Text>
+          <Text style={leafletStyles.website}>{config.websiteAddress}</Text>
         </View>
       </View>
     </View>
@@ -1261,11 +1228,11 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow} ref={printRef}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <InvoiceFront />
+                <InvoiceFront config={config} />
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <InvoiceBack />
+                <InvoiceBack config={config} />
               </View>
             </View>
           </View>
@@ -1288,11 +1255,11 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <FlyerFront />
+                <FlyerFront config={config} />
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <FlyerBack />
+                <FlyerBack config={config} />
               </View>
             </View>
           </View>
@@ -1315,11 +1282,11 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <CanvassingFlyerFront />
+                <CanvassingFlyerFront config={config} />
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <CanvassingFlyerBack />
+                <CanvassingFlyerBack config={config} />
               </View>
             </View>
           </View>
@@ -1343,11 +1310,11 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceRow}>
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Front</Text>
-                  <NewBusinessLeafletFront />
+                  <NewBusinessLeafletFront config={config} />
                 </View>
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Back</Text>
-                  <NewBusinessLeafletBack />
+                  <NewBusinessLeafletBack config={config} />
                 </View>
               </View>
             </ScrollView>

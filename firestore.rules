@@ -111,6 +111,11 @@ service cloud.firestore {
       allow read, update, delete: if isSignedIn() && request.auth.uid == resource.data.businessId;
     }
 
+    // Materials configuration - owner can read/write their own config
+    match /materialsConfig/{ownerId} {
+      allow read, write: if isSignedIn() && request.auth.uid == ownerId;
+    }
+
     match /accounts/{accountId} {
       allow read: if isSignedIn() && hasAccountAccess(accountId);
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;
