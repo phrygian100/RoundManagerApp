@@ -2,6 +2,21 @@
 
 ## December 10, 2025
 
+### Moved Activity Log Button from Homescreen to Rota Page
+
+**Files Changed**:
+- `app/(tabs)/index.tsx` - Removed Activity Log button from homescreen
+- `app/rota.tsx` - Added Activity Log button to rota page header
+
+**Changes**:
+- Removed the "Activity Log" button from the homescreen button grid (both in `baseButtons` and `buttonDefs` arrays)
+- Added an "Activity Log" link to the rota page header, positioned next to the existing "Rota History" link
+- The Activity Log remains accessible at `/audit-log` route
+
+**Reason**: Declutters the homescreen by moving less frequently used functionality to a more contextually appropriate location within the Rota page.
+
+---
+
 ### Implemented New Business Quote Requests Page
 
 **File**: `app/new-business.tsx`

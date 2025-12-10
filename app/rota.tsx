@@ -133,6 +133,9 @@ export default function RotaScreen() {
               <Pressable onPress={() => router.push('/rota-history' as any)} style={{ marginLeft: 16 }}>
                 <Text style={{ color: '#007AFF', textDecorationLine: 'underline' }}>Rota History</Text>
               </Pressable>
+              <Pressable onPress={() => router.push('/audit-log' as any)} style={{ marginLeft: 16 }}>
+                <Text style={{ color: '#007AFF', textDecorationLine: 'underline' }}>Activity Log</Text>
+              </Pressable>
             </View>
           );
         })()}
