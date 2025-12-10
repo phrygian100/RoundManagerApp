@@ -227,6 +227,8 @@ const invoiceStyles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    maxWidth: 400,
+    alignSelf: 'center',
   },
   columns: {
     flexDirection: 'row',
