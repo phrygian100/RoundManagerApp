@@ -523,9 +523,9 @@ export default function AccountsScreen() {
   }) => {
     const [chartWidth, setChartWidth] = useState(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const chartHeight = 200;
+    const chartHeight = 220;
     const topPadding = 12;
-    const bottomPadding = 24;
+    const bottomPadding = 40;
     const yAxisWidth = 64;
     const startGap = 14;
     const endGap = 14;
