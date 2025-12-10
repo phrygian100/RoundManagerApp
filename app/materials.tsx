@@ -203,26 +203,171 @@ const InvoiceBack = () => {
   );
 };
 
-// Flyer Placeholder Components
+// Flyer Components
 const FlyerFront = () => {
+  const services = [
+    'Routine service every 4 or 8 weeks',
+    'Full property, including doors, sills and frames',
+    'Simple payment system',
+    'A text when we\'re due,\nbut no need to be home',
+  ];
+
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="document-text-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>Flyer - Front</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
+    <View style={[flyerStyles.container]}>
+      {/* Gradient Header Background */}
+      <View style={flyerStyles.headerGradient}>
+        {/* Logo and Branding */}
+        <View style={flyerStyles.brandingRow}>
+          <View style={flyerStyles.logoCircle}>
+            <Ionicons name="home" size={32} color="#fff" />
+          </View>
+          <View style={flyerStyles.brandingText}>
+            <Text style={flyerStyles.brandName}>TGM</Text>
+            <Text style={flyerStyles.brandNameBlue}>Window Cleaning</Text>
+            <Text style={flyerStyles.tagline}>Local. Reliable. Professional.</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Main Content */}
+      <View style={flyerStyles.mainContent}>
+        <Text style={flyerStyles.sectionTitle}>Window Cleaning Services</Text>
+        
+        {services.map((service, index) => (
+          <View key={index} style={flyerStyles.bulletRow}>
+            <View style={flyerStyles.checkCircle}>
+              <Ionicons name="checkmark" size={14} color="#4A90A4" />
+            </View>
+            <Text style={flyerStyles.bulletText}>{service}</Text>
+          </View>
+        ))}
+
+        {/* FREE Quote Badge */}
+        <View style={flyerStyles.quoteContainer}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Blue Footer */}
+      <View style={flyerStyles.footer}>
+        <View style={flyerStyles.footerCurve} />
+        <View style={flyerStyles.footerContent}>
+          <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="call-outline" size={16} color="#fff" />
+            <Text style={flyerStyles.phoneNumber}>07814 804 759</Text>
+          </View>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="logo-facebook" size={14} color="#fff" />
+            <Text style={flyerStyles.contactText}>tgmwindowcleaningUK</Text>
+          </View>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Text style={flyerStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+          </View>
+        </View>
+        {/* Water droplets decoration */}
+        <View style={flyerStyles.dropletsLeft}>
+          <Ionicons name="water" size={16} color="rgba(255,255,255,0.4)" />
+          <Ionicons name="water" size={12} color="rgba(255,255,255,0.3)" />
+        </View>
+        <View style={flyerStyles.dropletsRight}>
+          <Ionicons name="water" size={14} color="rgba(255,255,255,0.3)" />
+          <Ionicons name="water" size={10} color="rgba(255,255,255,0.2)" />
+        </View>
       </View>
     </View>
   );
 };
 
 const FlyerBack = () => {
+  const additionalServices = [
+    { left: 'UPVC Restoration', right: 'Solar panel cleaning' },
+    { left: 'Gutter cleaning', right: 'Caravan cleaning' },
+    { left: 'Conservatory roof\ncleaning', right: '' },
+  ];
+
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="document-text-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>Flyer - Back</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
+    <View style={[flyerStyles.container]}>
+      {/* Background image placeholder - gradient */}
+      <View style={flyerStyles.backBackground}>
+        {/* Before/After labels */}
+        <View style={flyerStyles.beforeAfterRow}>
+          <Text style={flyerStyles.beforeLabel}>Before</Text>
+          <Text style={flyerStyles.afterLabel}>After</Text>
+        </View>
+        
+        {/* Decorative roof lines */}
+        <View style={flyerStyles.roofDecoration}>
+          <View style={flyerStyles.roofLine} />
+          <View style={flyerStyles.roofLine} />
+          <View style={flyerStyles.roofLine} />
+          <View style={flyerStyles.roofSpire} />
+        </View>
+      </View>
+
+      {/* Additional Services Section */}
+      <View style={flyerStyles.servicesSection}>
+        <Text style={flyerStyles.additionalTitle}>Additional Services</Text>
+        
+        {additionalServices.map((row, index) => (
+          <View key={index} style={flyerStyles.serviceRow}>
+            <View style={flyerStyles.serviceItem}>
+              <View style={flyerStyles.checkCircleSmall}>
+                <Ionicons name="checkmark" size={12} color="#4A90A4" />
+              </View>
+              <Text style={flyerStyles.serviceText}>{row.left}</Text>
+            </View>
+            {row.right ? (
+              <View style={flyerStyles.serviceItem}>
+                <View style={flyerStyles.checkCircleSmall}>
+                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                </View>
+                <Text style={flyerStyles.serviceText}>{row.right}</Text>
+              </View>
+            ) : <View style={flyerStyles.serviceItem} />}
+          </View>
+        ))}
+
+        {/* FREE Quote Badge */}
+        <View style={flyerStyles.quoteContainerBack}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Blue Footer */}
+      <View style={flyerStyles.footer}>
+        <View style={flyerStyles.footerCurve} />
+        <View style={flyerStyles.footerContent}>
+          <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="call-outline" size={16} color="#fff" />
+            <Text style={flyerStyles.phoneNumber}>07814 804 759</Text>
+          </View>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="logo-facebook" size={14} color="#fff" />
+            <Text style={flyerStyles.contactText}>tgmwindowcleaningUK</Text>
+          </View>
+          <View style={flyerStyles.contactRow}>
+            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Text style={flyerStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+          </View>
+        </View>
+        {/* Water droplets decoration */}
+        <View style={flyerStyles.dropletsLeft}>
+          <Ionicons name="water" size={16} color="rgba(255,255,255,0.4)" />
+          <Ionicons name="water" size={12} color="rgba(255,255,255,0.3)" />
+        </View>
+        <View style={flyerStyles.dropletsRight}>
+          <Ionicons name="water" size={14} color="rgba(255,255,255,0.3)" />
+          <Ionicons name="water" size={10} color="rgba(255,255,255,0.2)" />
+        </View>
       </View>
     </View>
   );
@@ -508,9 +653,12 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Promotional flyer for existing customers</Text>
               </View>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Coming Soon</Text>
-              </View>
+              {Platform.OS === 'web' && (
+                <Pressable style={styles.downloadButton} onPress={() => alert('Flyer PDF download coming soon')}>
+                  <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+                </Pressable>
+              )}
             </View>
             
             <View style={styles.invoiceRow}>
@@ -975,5 +1123,254 @@ const invoiceStyles = StyleSheet.create({
     fontSize: 10,
     color: '#999',
     fontStyle: 'italic',
+  },
+});
+
+const flyerStyles = StyleSheet.create({
+  container: {
+    width: INVOICE_WIDTH,
+    height: INVOICE_HEIGHT,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerGradient: {
+    backgroundColor: '#e8f4f8',
+    paddingTop: 16,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  brandingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  brandingText: {
+    flex: 1,
+  },
+  brandName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  brandNameBlue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#4A90A4',
+  },
+  tagline: {
+    fontSize: 10,
+    color: '#333',
+    marginTop: 2,
+  },
+  mainContent: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  checkCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#4A90A4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    marginTop: 2,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#333',
+    lineHeight: 16,
+  },
+  quoteContainer: {
+    alignItems: 'flex-end',
+    marginTop: 8,
+  },
+  quoteContainerBack: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+  },
+  quoteBadge: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quoteFree: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  quoteText: {
+    fontSize: 14,
+    color: '#fff',
+  },
+  footer: {
+    backgroundColor: '#4A90A4',
+    paddingTop: 24,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    position: 'relative',
+  },
+  footerCurve: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: '#4A90A4',
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 200,
+  },
+  footerContent: {
+    position: 'relative',
+    zIndex: 1,
+  },
+  footerCta: {
+    fontSize: 10,
+    color: '#fff',
+    marginBottom: 4,
+  },
+  phoneNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  contactText: {
+    fontSize: 10,
+    color: '#fff',
+  },
+  dropletsLeft: {
+    position: 'absolute',
+    bottom: 8,
+    left: 16,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  dropletsRight: {
+    position: 'absolute',
+    bottom: 12,
+    right: 16,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  // Back styles
+  backBackground: {
+    flex: 1,
+    backgroundColor: '#8B4513',
+    position: 'relative',
+  },
+  beforeAfterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 8,
+  },
+  beforeLabel: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  afterLabel: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  roofDecoration: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  roofLine: {
+    width: '80%',
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    marginVertical: 4,
+    transform: [{ skewY: '-5deg' }],
+  },
+  roofSpire: {
+    position: 'absolute',
+    top: '20%',
+    width: 0,
+    height: 0,
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 30,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: 'rgba(255,255,255,0.5)',
+  },
+  servicesSection: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    padding: 12,
+    position: 'relative',
+  },
+  additionalTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  serviceItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkCircleSmall: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#4A90A4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+    marginTop: 1,
+  },
+  serviceText: {
+    flex: 1,
+    fontSize: 9,
+    color: '#333',
+    lineHeight: 13,
   },
 });
