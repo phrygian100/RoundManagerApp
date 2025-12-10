@@ -550,11 +550,14 @@ export default function AccountsScreen() {
     const renderBars = () => {
       if (!data.length) return null;
 
+      // Leave a small buffer at the top so bars never exceed the chart boundary
+      const maxBarHeight = verticalSpace - 8;
+
       return data.map((point, idx) => {
         const centerX = startGap + slotWidth * idx + slotWidth / 2;
 
-        const jobsHeight = Math.max(2, Math.min(verticalSpace, (point.jobs / niceMax) * verticalSpace));
-        const paymentsHeight = Math.max(2, Math.min(verticalSpace, (point.payments / niceMax) * verticalSpace));
+        const jobsHeight = Math.max(2, Math.min(maxBarHeight, (point.jobs / niceMax) * maxBarHeight));
+        const paymentsHeight = Math.max(2, Math.min(maxBarHeight, (point.payments / niceMax) * maxBarHeight));
 
         return (
           <React.Fragment key={`bars-${idx}`}>
