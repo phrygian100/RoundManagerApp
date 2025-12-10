@@ -373,26 +373,151 @@ const FlyerBack = () => {
   );
 };
 
-// Canvassing Flyer Placeholder Components
+// Canvassing Flyer Components
 const CanvassingFlyerFront = () => {
+  const services = [
+    'Routine service every 4 or 8 weeks',
+    'Full property including\ndoors sills and frames',
+    'Receive a text notification the day\nbefore any visit with an ETA',
+  ];
+
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="megaphone-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>Canvassing Flyer - Front</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
+    <View style={canvassingStyles.container}>
+      {/* Header with gradient background */}
+      <View style={canvassingStyles.headerArea}>
+        {/* Logo and Branding */}
+        <View style={canvassingStyles.brandingRow}>
+          <View style={canvassingStyles.logoCircle}>
+            <Ionicons name="home" size={28} color="#fff" />
+          </View>
+          <View style={canvassingStyles.brandingText}>
+            <Text style={canvassingStyles.brandName}>TGM</Text>
+            <Text style={canvassingStyles.brandNameBlue}>Window Cleaning</Text>
+            <Text style={canvassingStyles.tagline}>Local. Reliable. Professional.</Text>
+          </View>
+        </View>
+
+        {/* Service bullet points */}
+        <View style={canvassingStyles.servicesSection}>
+          {services.map((service, index) => (
+            <View key={index} style={canvassingStyles.bulletRow}>
+              <View style={canvassingStyles.checkCircle}>
+                <Ionicons name="checkmark" size={14} color="#4A90A4" />
+              </View>
+              <Text style={canvassingStyles.bulletText}>{service}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Water droplets decoration */}
+        <View style={canvassingStyles.dropletsDecoration}>
+          <Ionicons name="water" size={20} color="rgba(74,144,164,0.3)" />
+          <Ionicons name="water" size={14} color="rgba(74,144,164,0.2)" />
+          <Ionicons name="water" size={16} color="rgba(74,144,164,0.25)" />
+        </View>
+      </View>
+
+      {/* Quote Section */}
+      <View style={canvassingStyles.quoteSection}>
+        <Text style={canvassingStyles.quoteExplanation}>
+          Below is a quote based on what we can see of your property from the curb.
+        </Text>
+        <Text style={canvassingStyles.quoteNote}>
+          The 8 weekly option is 1.5 of the 4 weekly cost.
+        </Text>
+
+        {/* Price boxes */}
+        <View style={canvassingStyles.priceBoxRow}>
+          <View style={canvassingStyles.priceBox}>
+            <Text style={canvassingStyles.priceLabel}>4 Weekly</Text>
+            <View style={canvassingStyles.priceField} />
+          </View>
+          <View style={canvassingStyles.priceBox}>
+            <Text style={canvassingStyles.priceLabel}>8 Weekly</Text>
+            <View style={canvassingStyles.priceFieldWithBadge}>
+              <View style={canvassingStyles.priceField} />
+              <View style={canvassingStyles.percentBadge}>
+                <Text style={canvassingStyles.percentText}>+50%</Text>
+              </View>
+            </View>
+          </View>
+        </View>
       </View>
     </View>
   );
 };
 
 const CanvassingFlyerBack = () => {
+  const additionalServices = [
+    { left: 'Gutter cleaning', right: 'Solar panel cleaning' },
+    { left: 'Gutter clearing', right: 'Fascias and Soffits' },
+    { left: 'Conservatory Roof', right: 'uPVC restoration' },
+  ];
+
   return (
-    <View style={[invoiceStyles.invoiceContainer, styles.placeholderCanvas]}>
-      <View style={styles.placeholderContent}>
-        <Ionicons name="megaphone-outline" size={48} color="#ccc" />
-        <Text style={styles.placeholderTitle}>Canvassing Flyer - Back</Text>
-        <Text style={styles.placeholderText}>Coming soon</Text>
+    <View style={canvassingStyles.container}>
+      {/* Background representing conservatory image */}
+      <View style={canvassingStyles.backBackground}>
+        {/* Decorative roof lines */}
+        <View style={canvassingStyles.roofPattern}>
+          <View style={canvassingStyles.roofSpireCenter} />
+          {[...Array(8)].map((_, i) => (
+            <View 
+              key={i} 
+              style={[
+                canvassingStyles.roofBeam,
+                { transform: [{ rotate: `${(i - 4) * 12}deg` }] }
+              ]} 
+            />
+          ))}
+        </View>
+
+        {/* Additional Services Box */}
+        <View style={canvassingStyles.servicesOverlay}>
+          <Text style={canvassingStyles.additionalTitle}>Additional Services</Text>
+          
+          {additionalServices.map((row, index) => (
+            <View key={index} style={canvassingStyles.serviceRow}>
+              <View style={canvassingStyles.serviceItem}>
+                <View style={canvassingStyles.checkCircleBack}>
+                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                </View>
+                <Text style={canvassingStyles.serviceText}>{row.left}</Text>
+              </View>
+              <View style={canvassingStyles.serviceItem}>
+                <View style={canvassingStyles.checkCircleBack}>
+                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                </View>
+                <Text style={canvassingStyles.serviceText}>{row.right}</Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
+        {/* Water droplets */}
+        <View style={canvassingStyles.waterDroplets}>
+          <Ionicons name="water" size={18} color="rgba(255,255,255,0.6)" />
+          <Ionicons name="water" size={12} color="rgba(255,255,255,0.5)" />
+          <Ionicons name="water" size={14} color="rgba(255,255,255,0.4)" />
+          <Ionicons name="water" size={10} color="rgba(255,255,255,0.5)" />
+          <Ionicons name="water" size={16} color="rgba(255,255,255,0.3)" />
+        </View>
+      </View>
+
+      {/* Blue Footer */}
+      <View style={canvassingStyles.footer}>
+        <View style={canvassingStyles.footerCurve} />
+        <View style={canvassingStyles.footerContent}>
+          <Text style={canvassingStyles.footerCta}>Get in touch</Text>
+          <View style={canvassingStyles.contactRow}>
+            <Ionicons name="call-outline" size={16} color="#fff" />
+            <Text style={canvassingStyles.phoneNumber}>07814 804 759</Text>
+          </View>
+          <View style={canvassingStyles.contactRow}>
+            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Text style={canvassingStyles.contactText}>tgmwindowcleaning.co.uk</Text>
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -680,9 +805,12 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>Canvassing Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Door-to-door marketing flyer for new areas</Text>
               </View>
-              <View style={styles.comingSoonBadge}>
-                <Text style={styles.comingSoonText}>Coming Soon</Text>
-              </View>
+              {Platform.OS === 'web' && (
+                <Pressable style={styles.downloadButton} onPress={() => alert('Canvassing Flyer PDF download coming soon')}>
+                  <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+                </Pressable>
+              )}
             </View>
             
             <View style={styles.invoiceRow}>
@@ -1372,5 +1500,270 @@ const flyerStyles = StyleSheet.create({
     fontSize: 9,
     color: '#333',
     lineHeight: 13,
+  },
+});
+
+const canvassingStyles = StyleSheet.create({
+  container: {
+    width: INVOICE_WIDTH,
+    height: INVOICE_HEIGHT,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  headerArea: {
+    flex: 1,
+    backgroundColor: '#f0f7fa',
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  brandingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  logoCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#555',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  brandingText: {
+    flex: 1,
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  brandNameBlue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4A90A4',
+  },
+  tagline: {
+    fontSize: 9,
+    color: '#333',
+    marginTop: 2,
+  },
+  servicesSection: {
+    marginBottom: 16,
+  },
+  bulletRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  checkCircle: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: '#4A90A4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+    marginTop: 2,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: 11,
+    color: '#333',
+    lineHeight: 15,
+  },
+  dropletsDecoration: {
+    position: 'absolute',
+    bottom: 10,
+    right: 20,
+    flexDirection: 'row',
+    gap: 4,
+  },
+  quoteSection: {
+    backgroundColor: '#e8f0f5',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#d0dde5',
+  },
+  quoteExplanation: {
+    fontSize: 10,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 4,
+    fontWeight: '600',
+  },
+  quoteNote: {
+    fontSize: 9,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  priceBoxRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  priceBox: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  priceField: {
+    height: 28,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 4,
+  },
+  priceFieldWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  percentBadge: {
+    backgroundColor: '#4A90A4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  percentText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  // Back styles
+  backBackground: {
+    flex: 1,
+    backgroundColor: '#a0a080',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  roofPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+  },
+  roofSpireCenter: {
+    width: 8,
+    height: 40,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    marginBottom: 10,
+  },
+  roofBeam: {
+    position: 'absolute',
+    top: 60,
+    width: 200,
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+  servicesOverlay: {
+    position: 'absolute',
+    top: '20%',
+    left: 16,
+    right: 16,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderRadius: 8,
+    padding: 14,
+  },
+  additionalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  serviceRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  serviceItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  checkCircleBack: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: '#4A90A4',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+    marginTop: 1,
+  },
+  serviceText: {
+    flex: 1,
+    fontSize: 10,
+    color: '#333',
+    lineHeight: 14,
+  },
+  waterDroplets: {
+    position: 'absolute',
+    bottom: 80,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  footer: {
+    backgroundColor: '#4A90A4',
+    paddingTop: 24,
+    paddingBottom: 16,
+    paddingHorizontal: 16,
+    position: 'relative',
+  },
+  footerCurve: {
+    position: 'absolute',
+    top: -20,
+    left: 0,
+    right: 0,
+    height: 40,
+    backgroundColor: '#4A90A4',
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 200,
+  },
+  footerContent: {
+    position: 'relative',
+    zIndex: 1,
+    alignItems: 'center',
+  },
+  footerCta: {
+    fontSize: 12,
+    color: '#fff',
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  phoneNumber: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  contactRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 2,
+  },
+  contactText: {
+    fontSize: 11,
+    color: '#fff',
   },
 });
