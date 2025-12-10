@@ -2,7 +2,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
@@ -41,6 +41,9 @@ export default function HomeScreen() {
     total: number;
   } | null>(null);
   const [jobStatsLoading, setJobStatsLoading] = useState(true);
+  
+  // Quote requests badge count
+  const [quoteRequestCount, setQuoteRequestCount] = useState(0);
 
   // Fetch user address for weather
   const fetchUserAddress = async () => {
@@ -325,6 +328,33 @@ export default function HomeScreen() {
     return () => unsub();
   }, [router]);
 
+  // Listen for quote request count (for badge)
+  useEffect(() => {
+    let unsubscribe: () => void;
+
+    const setupQuoteListener = async () => {
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) return;
+
+      const q = query(
+        collection(db, 'quoteRequests'),
+        where('businessId', '==', ownerId)
+      );
+
+      unsubscribe = onSnapshot(q, (snapshot) => {
+        setQuoteRequestCount(snapshot.size);
+      }, (error) => {
+        console.error('Error listening to quote requests:', error);
+      });
+    };
+
+    setupQuoteListener();
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, []);
+
   // Rebuild buttons whenever screen gains focus (permissions may have changed)
   useFocusEffect(
     useCallback(() => {
@@ -471,6 +501,11 @@ export default function HomeScreen() {
                 disabled={btn.disabled}
               >
                 <Text style={styles.buttonText}>{btn.label}</Text>
+                {btn.label === 'New Business' && quoteRequestCount > 0 && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{quoteRequestCount}</Text>
+                  </View>
+                )}
               </Pressable>
             ))}
           </View>
@@ -642,6 +677,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#dc2626',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   email: { 
     fontSize: 12, 

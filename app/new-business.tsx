@@ -306,9 +306,6 @@ export default function NewBusinessScreen() {
                     <Text style={styles.cardName}>{request.name}</Text>
                     <Text style={styles.cardDate}>{formatDate(request.createdAt)}</Text>
                   </View>
-                  <View style={[styles.statusBadge, { backgroundColor: getStatusColor(request.status) }]}>
-                    <Text style={styles.statusText}>{getStatusLabel(request.status)}</Text>
-                  </View>
                 </View>
 
                 {/* Card Body - Contact & Address Info */}
