@@ -512,7 +512,8 @@ export default function AccountsScreen() {
     const topPadding = 12;
     const bottomPadding = 32;
     const yAxisWidth = 64;
-    const startGap = 10; // small inset so first bars aren’t floating far left
+    const startGap = 14; // small inset so first bars aren’t floating far left
+    const endGap = 14; // symmetrical end inset to avoid right squish
     const verticalSpace = chartHeight - topPadding - bottomPadding;
 
     const safeMax = useMemo(() => {
@@ -533,7 +534,7 @@ export default function AccountsScreen() {
       y: topPadding + (1 - ratio) * verticalSpace,
     }));
 
-    const barAreaWidth = Math.max(chartWidth - startGap, 1);
+    const barAreaWidth = Math.max(chartWidth - startGap - endGap, 1);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
     const barWidth = Math.max(10, Math.min(32, slotWidth * 0.32));
     const barGap = Math.min(12, slotWidth * 0.12);
@@ -624,7 +625,7 @@ export default function AccountsScreen() {
                 style={[
                   styles.tooltip,
                   {
-                    left: yAxisWidth + slotWidth * activeIndex + slotWidth / 2 - 80,
+                    left: yAxisWidth + startGap + slotWidth * activeIndex + slotWidth / 2 - 80,
                     top: 8,
                   },
                 ]}
@@ -652,7 +653,7 @@ export default function AccountsScreen() {
         </View>
 
         {data.length > 0 && (
-          <View style={[styles.chartLabelRow, { paddingLeft: yAxisWidth + startGap, paddingRight: 8 }]}>
+          <View style={[styles.chartLabelRow, { paddingLeft: yAxisWidth + startGap, paddingRight: endGap + 4 }]}>
             {data.map((point, idx) => {
               if (data.length > 6 && idx % labelSpacing !== 0 && idx !== data.length - 1) {
                 return <View key={`label-${idx}`} style={{ flex: 1 }} />;
