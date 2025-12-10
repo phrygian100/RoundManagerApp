@@ -2,16 +2,24 @@
 
 ## December 10, 2025
 
-### Added Materials Page and Button
+### Added Materials Page with Permission Controls
 
 **Files Changed**:
-- `app/(tabs)/index.tsx` - Added Materials button to homescreen
-- `app/materials.tsx` - New materials page (placeholder)
+- `app/(tabs)/index.tsx` - Added Materials button to homescreen with permission key
+- `app/(tabs)/team.tsx` - Added Materials permission toggle for team members
+- `app/materials.tsx` - New materials page with PermissionGate
 
 **Changes**:
-- Added "Materials" button to the homescreen button grid (in both `baseButtons` and `buttonDefs` arrays)
-- Created new `/materials` route with placeholder content
+- Added "Materials" button to the homescreen button grid with `permKey: 'viewMaterials'`
+- Added `{ key: 'viewMaterials', label: 'Materials' }` to `PERM_KEYS` in team page
+- Owner users can now toggle Materials access for team members via the Team page
+- Materials page wrapped with `PermissionGate` - shows permission error for unauthorized users
 - Page includes home button, title, and placeholder message indicating feature is coming soon
+
+**Permission System**:
+- Owner accounts always have access to Materials
+- Team members need the `viewMaterials` permission enabled by the owner
+- Permission can be toggled in Team → member card → Permissions section
 
 ---
 
