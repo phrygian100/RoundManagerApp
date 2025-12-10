@@ -512,8 +512,8 @@ export default function AccountsScreen() {
     const topPadding = 12;
     const bottomPadding = 32;
     const yAxisWidth = 64;
-    const startGap = 14; // small inset so first bars aren’t floating far left
-    const endGap = 14; // symmetrical end inset to avoid right squish
+    const startGap = 18; // inset so first bars sit comfortably inside plot
+    const endGap = 18; // symmetrical end inset to avoid right squish
     const verticalSpace = chartHeight - topPadding - bottomPadding;
 
     const safeMax = useMemo(() => {
