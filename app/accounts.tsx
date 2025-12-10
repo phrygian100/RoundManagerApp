@@ -508,7 +508,7 @@ export default function AccountsScreen() {
   const FinancialBarChart = ({ data, loading }: { data: ChartPoint[]; loading: boolean }) => {
     const [chartWidth, setChartWidth] = useState(0);
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
-    const chartHeight = 250;
+    const chartHeight = 220;
     const topPadding = 12;
     const bottomPadding = 32;
     const yAxisWidth = 64;

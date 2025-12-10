@@ -13,8 +13,6 @@
 - Fixed bar rendering by correcting available width and making the chart area flex to its container.
 - Improved chart readability with nicer y-axis ticks, capped x-label density, range totals line, hover/tap tooltips showing exact £ values per bucket, and replaced the multi-chip timeframe selector with a single cycle button to avoid overflow on mobile.
 - Adjusted chart insets (symmetric start/end gaps) so bars center within the plot instead of appearing squashed to the right.
-- Fixed bar/label horizontal alignment so x-axis labels are directly under their corresponding bar groups.
-- Increased chart canvas height to prevent tall bars from being clipped at the top.
 
 ### Added Bulk Payments Feature (UI Only)
 
