@@ -103,6 +103,14 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn() && request.auth.uid == request.resource.data.ownerId;
     }
 
+    // Quote requests from client portal - public create for prospective customers
+    match /quoteRequests/{requestId} {
+      // Anyone can create a quote request (from client portal)
+      allow create: if true;
+      // Only the business owner can read/update/delete their quote requests
+      allow read, update, delete: if isSignedIn() && request.auth.uid == resource.data.businessId;
+    }
+
     match /accounts/{accountId} {
       allow read: if isSignedIn() && hasAccountAccess(accountId);
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;

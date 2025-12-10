@@ -1,7 +1,7 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
@@ -78,6 +78,16 @@ export default function ClientPortalScreen() {
   const [editName, setEditName] = useState('');
   const [editMobile, setEditMobile] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  
+  // Quote request form state
+  const [quoteName, setQuoteName] = useState('');
+  const [quotePhone, setQuotePhone] = useState('');
+  const [quoteAddress, setQuoteAddress] = useState('');
+  const [quoteEmail, setQuoteEmail] = useState('');
+  const [quoteNotes, setQuoteNotes] = useState('');
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [quoteError, setQuoteError] = useState('');
   
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
@@ -440,6 +450,60 @@ export default function ClientPortalScreen() {
     return `Every ${weeks} weeks`;
   };
 
+  // Handle quote request submission
+  const handleQuoteSubmit = async () => {
+    // Validate required fields
+    if (!quoteName.trim()) {
+      setQuoteError('Please enter your name');
+      return;
+    }
+    if (!quotePhone.trim()) {
+      setQuoteError('Please enter your contact number');
+      return;
+    }
+    if (!quoteAddress.trim()) {
+      setQuoteError('Please enter your address');
+      return;
+    }
+    if (!businessUser) {
+      setQuoteError('Business information not available');
+      return;
+    }
+
+    setQuoteError('');
+    setQuoteSubmitting(true);
+
+    try {
+      // Save quote request to Firestore
+      await addDoc(collection(db, 'quoteRequests'), {
+        businessId: businessUser.id,
+        businessName: businessUser.businessName,
+        name: quoteName.trim(),
+        phone: quotePhone.trim(),
+        address: quoteAddress.trim(),
+        email: quoteEmail.trim() || null,
+        notes: quoteNotes.trim() || null,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        source: 'client_portal'
+      });
+
+      setQuoteSubmitted(true);
+      // Clear form
+      setQuoteName('');
+      setQuotePhone('');
+      setQuoteAddress('');
+      setQuoteEmail('');
+      setQuoteNotes('');
+
+    } catch (err) {
+      console.error('Error submitting quote request:', err);
+      setQuoteError('Failed to submit request. Please try again.');
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
   // Go back to account step
   const handleBackToAccount = () => {
     setStep('account');
@@ -758,18 +822,15 @@ export default function ClientPortalScreen() {
             )}
           </View>
         ) : (
-          /* Login Form Card */
-          <View style={[styles.loginCard, isNarrowWeb && styles.loginCardMobile]}>
-            <View style={styles.formHeader}>
-                <Image
-                  source={require('../assets/images/logo_transparent.png')}
-                  style={[styles.formLogo, isNarrowWeb && styles.formLogoMobile]}
-                  resizeMode="contain"
-                />
-                <Text style={styles.formTitle}>Client Account Access</Text>
+          /* Login and Quote Forms Container */
+          <View style={[styles.formsContainer, isNarrowWeb && styles.formsContainerMobile]}>
+            {/* Login Form Card */}
+            <View style={[styles.loginCard, styles.formCard, isNarrowWeb && styles.loginCardMobile]}>
+              <View style={styles.formHeader}>
+                <Text style={styles.formTitle}>Existing Customer?</Text>
                 <Text style={styles.formSubtitle}>
                   {step === 'account' 
-                    ? 'Enter your account number to get started'
+                    ? 'Sign in to view your account'
                     : 'Verify your identity'}
                 </Text>
               </View>
@@ -873,11 +934,128 @@ export default function ClientPortalScreen() {
                   </>
                 )}
 
-              <View style={styles.formLinks}>
-                <Text style={styles.helpText}>
-                  Need help? Contact {businessUser.businessName}
-                </Text>
+                <View style={styles.formLinks}>
+                  <Text style={styles.helpText}>
+                    Need help? Contact {businessUser.businessName}
+                  </Text>
+                </View>
               </View>
+            </View>
+
+            {/* Get a Quote Card */}
+            <View style={[styles.quoteCard, styles.formCard, isNarrowWeb && styles.quoteCardMobile]}>
+              {quoteSubmitted ? (
+                <View style={styles.quoteSuccessContainer}>
+                  <Text style={styles.quoteSuccessIcon}>✓</Text>
+                  <Text style={styles.quoteSuccessTitle}>Request Sent!</Text>
+                  <Text style={styles.quoteSuccessText}>
+                    Thank you for your enquiry. {businessUser.businessName} will be in touch soon.
+                  </Text>
+                  <Pressable 
+                    style={styles.quoteAnotherButton}
+                    onPress={() => setQuoteSubmitted(false)}
+                  >
+                    <Text style={styles.quoteAnotherButtonText}>Submit Another Request</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.formHeader}>
+                    <Text style={styles.formTitle}>Get a Quote</Text>
+                    <Text style={styles.formSubtitle}>
+                      New customer? Request a free quote
+                    </Text>
+                  </View>
+
+                  <View style={styles.form}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Name <Text style={styles.required}>*</Text></Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Your full name"
+                        value={quoteName}
+                        onChangeText={(text) => {
+                          setQuoteName(text);
+                          setQuoteError('');
+                        }}
+                        autoComplete="name"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Contact Number <Text style={styles.required}>*</Text></Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Your phone number"
+                        value={quotePhone}
+                        onChangeText={(text) => {
+                          setQuotePhone(text);
+                          setQuoteError('');
+                        }}
+                        keyboardType="phone-pad"
+                        autoComplete="tel"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Address <Text style={styles.required}>*</Text></Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Your address"
+                        value={quoteAddress}
+                        onChangeText={(text) => {
+                          setQuoteAddress(text);
+                          setQuoteError('');
+                        }}
+                        autoComplete="street-address"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Email</Text>
+                      <TextInput
+                        style={styles.input}
+                        placeholder="Your email (optional)"
+                        value={quoteEmail}
+                        onChangeText={setQuoteEmail}
+                        keyboardType="email-address"
+                        autoComplete="email"
+                        autoCapitalize="none"
+                      />
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Notes</Text>
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        placeholder="Any additional information (optional)"
+                        value={quoteNotes}
+                        onChangeText={setQuoteNotes}
+                        multiline
+                        numberOfLines={3}
+                      />
+                    </View>
+
+                    {quoteError ? (
+                      <View style={styles.errorContainer}>
+                        <Text style={styles.errorText}>{quoteError}</Text>
+                      </View>
+                    ) : null}
+
+                    <Pressable
+                      style={[styles.quoteSubmitButton, quoteSubmitting && styles.submitButtonDisabled]}
+                      onPress={handleQuoteSubmit}
+                      disabled={quoteSubmitting}
+                    >
+                      {quoteSubmitting ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <Text style={styles.submitButtonText}>Request Quote</Text>
+                      )}
+                    </Pressable>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         )}
@@ -1015,15 +1193,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
+  // Forms Container (side by side layout)
+  formsContainer: {
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    gap: 24,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginBottom: 48,
+  },
+  formsContainerMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  formCard: {
+    flex: Platform.OS === 'web' ? 1 : undefined,
+    maxWidth: Platform.OS === 'web' ? 420 : '100%',
+  },
+
   // Login Card
   loginCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 32,
-    marginHorizontal: 'auto',
     width: '100%',
-    maxWidth: 480,
-    marginBottom: 48,
     ...Platform.select({
       web: {
         shadowColor: '#000',
@@ -1042,7 +1234,78 @@ const styles = StyleSheet.create({
   },
   loginCardMobile: {
     padding: 20,
-    marginBottom: 32,
+  },
+
+  // Quote Card
+  quoteCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    width: '100%',
+    ...Platform.select({
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 25,
+        borderWidth: 1,
+        borderColor: '#10b981',
+        borderTopWidth: 4,
+      },
+      default: {
+        elevation: 8,
+        borderWidth: 1,
+        borderColor: '#10b981',
+        borderTopWidth: 4,
+      },
+    }),
+  },
+  quoteCardMobile: {
+    padding: 20,
+  },
+  quoteSubmitButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  quoteSuccessContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  quoteSuccessIcon: {
+    fontSize: 48,
+    color: '#10b981',
+    marginBottom: 16,
+  },
+  quoteSuccessTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#065f46',
+    marginBottom: 8,
+  },
+  quoteSuccessText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  quoteAnotherButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  quoteAnotherButtonText: {
+    fontSize: 14,
+    color: '#10b981',
+    textDecorationLine: 'underline',
+  },
+  required: {
+    color: '#dc2626',
+  },
+  textArea: {
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   formHeader: {
     alignItems: 'center',
