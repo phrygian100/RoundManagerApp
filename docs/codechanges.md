@@ -10,7 +10,7 @@
 - Replaced the old financial summary grid with an over-time bar chart showing completed job value (blue) vs payments received (green), plus a £ axis for clarity.
 - Added timeframe chips (Daily, Weekly, Monthly, Year-to-date, Annual, Lifetime) to switch the chart aggregation, using existing Firestore job/payment data.
 - Included a simple legend and updated styling for the quick links to feel more prominent/clickable.
-- Fixed bar rendering on the chart by correcting available width calculation for the grouped bars.
+- Fixed bar rendering by correcting available width and making the chart area flex to its container.
 
 ### Added Bulk Payments Feature (UI Only)
 

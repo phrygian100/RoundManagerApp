@@ -518,7 +518,7 @@ export default function AccountsScreen() {
       y: topPadding + (1 - ratio) * verticalSpace,
     }));
 
-    const barAreaWidth = Math.max(chartWidth, 0);
+    const barAreaWidth = Math.max(chartWidth, 1);
     const slotWidth = data.length > 0 ? barAreaWidth / data.length : 0;
     const barWidth = Math.max(10, slotWidth * 0.28);
     const barGap = Math.min(10, slotWidth * 0.1);
@@ -1086,6 +1086,7 @@ const styles = StyleSheet.create({
   },
   chartWrapper: {
     gap: 10,
+    width: '100%',
   },
   barChartRow: {
     flexDirection: 'row',
@@ -1108,6 +1109,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   chartArea: {
+    flex: 1,
     height: 200,
     position: 'relative',
     backgroundColor: '#fff',
