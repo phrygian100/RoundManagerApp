@@ -1371,30 +1371,38 @@ export default function MaterialsScreen() {
     style.textContent = `
       [data-capture="true"] * {
         border-color: #2E86AB !important;
-      }
-      [data-capture="true"] [style*="color: rgb(46, 134, 171)"],
-      [data-capture="true"] [style*="color:#2E86AB"],
-      [data-capture="true"] [style*="color: #2E86AB"] {
-        color: #2E86AB !important;
+        border-top-color: #2E86AB !important;
+        border-bottom-color: #2E86AB !important;
+        border-left-color: #2E86AB !important;
+        border-right-color: #2E86AB !important;
       }
     `;
     document.head.appendChild(style);
     element.setAttribute('data-capture', 'true');
     
     // Also directly set inline styles on elements that should be blue
-    const blueTextSelectors = element.querySelectorAll('*');
-    const elementsToRestore: Array<{el: HTMLElement, original: string}> = [];
-    blueTextSelectors.forEach((el) => {
+    const allElements = element.querySelectorAll('*');
+    const elementsToRestore: Array<{el: HTMLElement, prop: string, original: string}> = [];
+    allElements.forEach((el) => {
       const htmlEl = el as HTMLElement;
       const computed = window.getComputedStyle(htmlEl);
-      // Check if this element has the blue color
+      
+      // Force blue text color where it should be blue
       if (computed.color === 'rgb(46, 134, 171)') {
-        elementsToRestore.push({ el: htmlEl, original: htmlEl.style.color });
+        elementsToRestore.push({ el: htmlEl, prop: 'color', original: htmlEl.style.color });
         htmlEl.style.setProperty('color', '#2E86AB', 'important');
       }
-      if (computed.borderBottomColor === 'rgb(46, 134, 171)') {
-        elementsToRestore.push({ el: htmlEl, original: htmlEl.style.borderBottomColor });
+      
+      // Force blue border-bottom where there's a border
+      if (computed.borderBottomWidth !== '0px' && computed.borderBottomStyle !== 'none') {
+        elementsToRestore.push({ el: htmlEl, prop: 'borderBottomColor', original: htmlEl.style.borderBottomColor });
         htmlEl.style.setProperty('border-bottom-color', '#2E86AB', 'important');
+      }
+      
+      // Force blue border where there's a border
+      if (computed.borderWidth !== '0px' && computed.borderStyle !== 'none') {
+        elementsToRestore.push({ el: htmlEl, prop: 'borderColor', original: htmlEl.style.borderColor });
+        htmlEl.style.setProperty('border-color', '#2E86AB', 'important');
       }
     });
 
@@ -1424,8 +1432,8 @@ export default function MaterialsScreen() {
       const tempStyle = document.getElementById(styleId);
       if (tempStyle) tempStyle.remove();
       // Restore original inline styles
-      elementsToRestore.forEach(({ el, original }) => {
-        el.style.color = original;
+      elementsToRestore.forEach(({ el, prop, original }) => {
+        (el.style as any)[prop] = original;
       });
     }
   };
