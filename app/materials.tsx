@@ -587,7 +587,11 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
           <View style={invoiceStyles.brandingSection}>
             {/* Logo Circle */}
             <View style={invoiceStyles.logoCircle}>
-              <Ionicons name="home" size={40} color="#fff" />
+              {config.logoUrl ? (
+                <Image source={{ uri: config.logoUrl }} style={invoiceStyles.logoImage} resizeMode="cover" />
+              ) : (
+                <Ionicons name="home" size={40} color="#fff" />
+              )}
             </View>
             
             <Text style={invoiceStyles.businessName}>{config.businessName}</Text>
@@ -744,7 +748,11 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
         {/* Logo and Branding */}
         <View style={flyerStyles.brandingRow}>
           <View style={flyerStyles.logoCircle}>
-            <Ionicons name="home" size={32} color="#fff" />
+            {config.logoUrl ? (
+              <Image source={{ uri: config.logoUrl }} style={flyerStyles.logoImage} resizeMode="cover" />
+            ) : (
+              <Ionicons name="home" size={32} color="#fff" />
+            )}
           </View>
           <View style={flyerStyles.brandingText}>
             <Text style={flyerStyles.brandName}>{config.businessName}</Text>
@@ -912,7 +920,11 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
         {/* Logo and Branding */}
         <View style={canvassingStyles.brandingRow}>
           <View style={canvassingStyles.logoCircle}>
-            <Ionicons name="home" size={28} color="#fff" />
+            {config.logoUrl ? (
+              <Image source={{ uri: config.logoUrl }} style={canvassingStyles.logoImage} resizeMode="cover" />
+            ) : (
+              <Ionicons name="home" size={28} color="#fff" />
+            )}
           </View>
           <View style={canvassingStyles.brandingText}>
             <Text style={canvassingStyles.brandName}>{config.businessName}</Text>
@@ -1213,7 +1225,11 @@ const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
         {/* Logo and Title */}
         <View style={leafletStyles.brandHeader}>
           <View style={leafletStyles.logoCircle}>
-            <Ionicons name="home" size={36} color="#fff" />
+            {config.logoUrl ? (
+              <Image source={{ uri: config.logoUrl }} style={leafletStyles.logoImage} resizeMode="cover" />
+            ) : (
+              <Ionicons name="home" size={36} color="#fff" />
+            )}
           </View>
           <View style={leafletStyles.brandText}>
             <Text style={leafletStyles.brandName}>{config.businessName}</Text>
@@ -2216,6 +2232,12 @@ const invoiceStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 8,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
   },
   businessName: {
     fontSize: 22,
@@ -2325,8 +2347,8 @@ const invoiceStyles = StyleSheet.create({
   priceText: {
     fontSize: 9,
     color: '#333',
-    width: 30,
-    textAlign: 'right',
+    width: 50,
+    textAlign: 'left',
   },
   totalRow: {
     flexDirection: 'row',
@@ -2465,6 +2487,12 @@ const flyerStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   brandingText: {
     flex: 1,
@@ -2716,6 +2744,12 @@ const canvassingStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   brandingText: {
     flex: 1,
@@ -3228,6 +3262,12 @@ const leafletStyles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
   },
   brandText: {
     flex: 1,
