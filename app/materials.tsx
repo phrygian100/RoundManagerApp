@@ -644,9 +644,13 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
 
 // Invoice Back Component
 const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
+  // Auto-generate customer portal link from business name
+  const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
+  const portalLink = `guvnor.app/${normalizedBusinessName}`;
+
   return (
     <View style={invoiceStyles.invoiceContainer}>
-      {/* Top Half - Client Portal Instructions */}
+      {/* Top Half - Client Portal Instructions (50% of space) */}
       <View style={invoiceStyles.backTopHalf}>
         <View style={invoiceStyles.portalBox}>
           <Ionicons name="person-circle-outline" size={48} color="#2E86AB" style={{ alignSelf: 'center', marginBottom: 12 }} />
@@ -664,7 +668,7 @@ const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
               <Text style={invoiceStyles.stepNumber}>1.</Text>
               <Text style={invoiceStyles.stepText}>Visit our customer portal at:</Text>
             </View>
-            <Text style={invoiceStyles.portalUrl}>{config.customerPortalLink}</Text>
+            <Text style={invoiceStyles.portalUrl}>{portalLink}</Text>
             
             <View style={invoiceStyles.stepRow}>
               <Text style={invoiceStyles.stepNumber}>2.</Text>
@@ -676,18 +680,10 @@ const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
               <Text style={invoiceStyles.stepText}>Verify with the last 4 digits of your phone number</Text>
             </View>
           </View>
-          
-          <View style={invoiceStyles.portalFeatures}>
-            <Text style={invoiceStyles.featuresTitle}>You can:</Text>
-            <Text style={invoiceStyles.featureItem}>• View your account balance</Text>
-            <Text style={invoiceStyles.featureItem}>• See your service history</Text>
-            <Text style={invoiceStyles.featureItem}>• Check upcoming visits</Text>
-            <Text style={invoiceStyles.featureItem}>• Update your contact details</Text>
-          </View>
         </View>
       </View>
       
-      {/* Bottom Half - Empty/Reserved */}
+      {/* Bottom Half - Reserved for other content */}
       <View style={invoiceStyles.backBottomHalf}>
         <Text style={invoiceStyles.businessNameFooter}>{config.businessName}</Text>
       </View>
@@ -2264,6 +2260,7 @@ const invoiceStyles = StyleSheet.create({
     flex: 1,
   },
   backBottomHalf: {
+    flex: 1,
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: 8,
