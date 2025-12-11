@@ -305,8 +305,8 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
           </View>
 
-          {/* Logo and Branding */}
-          <View style={invoiceStyles.brandingSection}>
+          {/* Logo and Branding - flex to push payment boxes down */}
+          <View style={invoiceStyles.brandingSectionFlex}>
             {/* Logo Circle */}
             <View style={invoiceStyles.logoCircle}>
               <Ionicons name="home" size={40} color="#fff" />
@@ -337,8 +337,9 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             </Text>
           </View>
 
-          {/* Business Address */}
-          <View style={invoiceStyles.addressSection}>
+          {/* Post Box - Business Address */}
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Post</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
@@ -1664,6 +1665,13 @@ const invoiceStyles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
     paddingBottom: 12,
+  },
+  brandingSectionFlex: {
+    alignItems: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    flex: 1,
+    justifyContent: 'center',
   },
   logoCircle: {
     width: 70,

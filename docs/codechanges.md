@@ -31,6 +31,20 @@
 
 ---
 
+### Invoice Front Layout Improvements
+
+**File**: `app/materials.tsx`
+
+**Changes**:
+1. **Aligned Direct Debit with Work Completed**: Changed the branding section to use `flex: 1` so it expands and pushes the payment boxes (Direct Debit, Cash, Post) down to align with the Work Completed box on the right column.
+
+2. **Added "Post" Box**: The business address section is now in a blue-bordered box with the title "Post" instead of just plain text, matching the design pattern of other sections.
+
+**Styles Added**:
+- `brandingSectionFlex` - Same as brandingSection but with `flex: 1` and `justifyContent: 'center'` to push payment boxes down
+
+---
+
 ## December 10, 2025
 
 ### Added Materials Page with Invoice Preview
