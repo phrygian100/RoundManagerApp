@@ -1279,6 +1279,8 @@ export default function MaterialsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const printRef = useRef<View>(null);
+  const invoiceFrontRef = useRef<View>(null);
+  const invoiceBackRef = useRef<View>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
@@ -1352,151 +1354,22 @@ export default function MaterialsScreen() {
       return;
     }
 
-    // Generate portal link from business name
-    const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
-    const portalLink = `guvnor.app/${normalizedBusinessName}`;
+    // Get the actual rendered element
+    const ref = side === 'front' ? invoiceFrontRef : invoiceBackRef;
+    const element = ref.current as unknown as HTMLElement;
     
-    // Pad services to 9 rows
-    const services = [...config.services];
-    while (services.length < 9) services.push('');
-    
-    // Get item config options
-    const showDirectDebit = invoiceItemConfig.showDirectDebit;
-    const showCash = invoiceItemConfig.showCash;
-    const showBusinessAddress = invoiceItemConfig.showBusinessAddress;
-    const hasLeftColumn = showDirectDebit || showCash || showBusinessAddress;
-    
-    // Generate logo HTML - larger size for print
-    const logoHtml = config.logoUrl 
-      ? `<img src="${config.logoUrl}" crossorigin="anonymous" style="width: 140px; height: 140px; border-radius: 50%; object-fit: cover;" />`
-      : `<div style="width: 140px; height: 140px; border-radius: 50%; background: #555; display: flex; align-items: center; justify-content: center;"><svg viewBox="0 0 24 24" width="80" height="80"><path fill="white" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></div>`;
-    
-    // Generate services HTML with proper sizing
-    const servicesHtml = services.map(s => 
-      `<div style="display: flex; border-bottom: 2px solid #2E86AB; padding: 12px 0; font-size: 24px;"><span style="flex: 1;">${s}</span><span style="width: 80px; text-align: right;">£</span></div>`
-    ).join('');
-    
-    // A5 at 300 DPI = 1748 x 2480 pixels
-    const W = 1748;
-    const H = 2480;
-    const PAD = 80;
-    const GAP = 40;
-    const BORDER = '4px solid #2E86AB';
-    const RADIUS = '12px';
-
-    // Create temporary container
-    const container = document.createElement('div');
-    container.style.cssText = `position: fixed; left: -9999px; top: 0; width: ${W}px; height: ${H}px; background: white; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;`;
-    
-    if (side === 'front') {
-      // Calculate heights - Top section 35%, Bottom section 65%
-      const topHeight = Math.floor((H - PAD * 2 - GAP) * 0.35);
-      const bottomHeight = H - PAD * 2 - GAP - topHeight;
-      const colWidth = Math.floor((W - PAD * 2 - GAP) / 2);
-
-      container.innerHTML = `
-        <div style="width: ${W}px; height: ${H}px; padding: ${PAD}px; box-sizing: border-box;">
-          <!-- TOP ROW -->
-          <div style="display: flex; gap: ${GAP}px; height: ${topHeight}px; margin-bottom: ${GAP}px;">
-            <!-- TOP LEFT: Header + Branding -->
-            <div style="width: ${colWidth}px; display: flex; flex-direction: column;">
-              <div style="font-size: 28px; font-weight: bold; margin-bottom: 24px;">
-                Services provided on: ✓ &nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp;&nbsp;
-              </div>
-              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
-                ${logoHtml}
-                <div style="font-size: 48px; font-weight: bold; margin-top: 16px;">${config.businessName}</div>
-                <div style="font-size: 24px; color: #666; margin-top: 8px;">${config.tagline}</div>
-                <div style="font-size: 36px; font-weight: bold; color: #2E86AB; margin-top: 16px;">${config.mobileNumber}</div>
-                <div style="font-size: 20px; color: #666;">f/${config.facebookHandle}</div>
-                <div style="font-size: 20px; color: #666;">${config.websiteAddress}</div>
-              </div>
-            </div>
-            <!-- TOP RIGHT: Bank + Notes -->
-            <div style="width: ${colWidth}px; display: flex; flex-direction: column; gap: ${GAP/2}px;">
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px;">
-                <div style="font-size: 28px; font-weight: bold; margin-bottom: 16px;">Bank Transfer</div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span style="font-size: 22px; font-weight: bold;">Sort Code:</span><span style="font-size: 24px; color: #2E86AB;">${config.sortCode}</span></div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span style="font-size: 22px; font-weight: bold;">Account No:</span><span style="font-size: 24px; color: #2E86AB;">${config.accountNumber}</span></div>
-                <div style="font-size: 22px; font-weight: bold; margin-top: 8px;">Payment reference:</div>
-                <div style="font-size: 32px; font-weight: bold; color: #2E86AB;">RWC</div>
-              </div>
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px; flex: 1;">
-                <div style="font-size: 28px; font-weight: bold;">Notes</div>
-              </div>
-            </div>
-          </div>
-          <!-- BOTTOM ROW -->
-          <div style="display: flex; gap: ${GAP}px; height: ${bottomHeight}px;">
-            ${hasLeftColumn ? `
-            <!-- BOTTOM LEFT: Payment options -->
-            <div style="width: ${colWidth}px; display: flex; flex-direction: column; gap: ${GAP/2}px;">
-              ${showDirectDebit ? `
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px;">
-                <div style="font-size: 28px; font-weight: bold; margin-bottom: 12px;">Direct Debit</div>
-                <div style="font-size: 22px; line-height: 1.4;">With your card details at hand go to:</div>
-                <div style="font-size: 22px; color: #2E86AB; margin-top: 8px;">${config.directDebitLink}</div>
-              </div>` : ''}
-              ${showCash ? `
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px;">
-                <div style="font-size: 28px; font-weight: bold; margin-bottom: 12px;">Cash</div>
-                <div style="font-size: 22px; line-height: 1.4;">Let us know to knock on your door or look somewhere for an envelope.</div>
-              </div>` : ''}
-              ${showBusinessAddress ? `
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px; flex: 1; display: flex; flex-direction: column; justify-content: flex-end;">
-                <div style="font-size: 24px; line-height: 1.6;">${config.businessAddress.line1}</div>
-                <div style="font-size: 24px; line-height: 1.6;">${config.businessAddress.town}</div>
-                <div style="font-size: 24px; line-height: 1.6;">${config.businessAddress.postcode}</div>
-              </div>` : ''}
-            </div>` : ''}
-            <!-- BOTTOM RIGHT: Work Completed -->
-            <div style="width: ${hasLeftColumn ? colWidth : W - PAD * 2}px; display: flex; flex-direction: column;">
-              <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 24px; height: 100%; display: flex; flex-direction: column;">
-                <div style="font-size: 28px; font-weight: bold; margin-bottom: 16px;">Work completed</div>
-                <div style="flex: 1; display: flex; flex-direction: column;">
-                  ${servicesHtml}
-                </div>
-                <div style="display: flex; border-top: 3px solid #2E86AB; padding-top: 16px; margin-top: 16px; font-size: 28px; font-weight: bold;"><span style="flex: 1;">Total</span><span style="width: 80px; text-align: right;">£</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-    } else {
-      container.innerHTML = `
-        <div style="width: ${W}px; height: ${H}px; padding: ${PAD}px; box-sizing: border-box; display: flex; flex-direction: column;">
-          <div style="height: 50%; display: flex; flex-direction: column;">
-            <div style="border: ${BORDER}; border-radius: ${RADIUS}; padding: 60px; height: 100%; display: flex; flex-direction: column;">
-              <div style="text-align: center; margin-bottom: 32px;">
-                <svg width="120" height="120" viewBox="0 0 24 24" fill="#2E86AB"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
-              </div>
-              <div style="font-size: 44px; font-weight: bold; color: #2E86AB; text-align: center; margin-bottom: 32px;">Manage Your Account Online</div>
-              <div style="font-size: 26px; text-align: center; line-height: 1.5; margin-bottom: 48px; color: #444;">View your statement, check your balance, and manage your account details online through our customer portal.</div>
-              <div style="font-size: 30px; font-weight: bold; margin-bottom: 20px;">How to access:</div>
-              <div style="display: flex; margin-bottom: 16px; font-size: 26px;"><span style="font-weight: bold; color: #2E86AB; width: 40px;">1.</span><span>Visit our customer portal at:</span></div>
-              <div style="font-size: 32px; font-weight: bold; color: #2E86AB; text-align: center; margin: 16px 0 16px 40px;">${portalLink}</div>
-              <div style="display: flex; margin-bottom: 16px; font-size: 26px;"><span style="font-weight: bold; color: #2E86AB; width: 40px;">2.</span><span>Enter your account number (Shown on front, starting with RWC)</span></div>
-              <div style="display: flex; margin-bottom: 16px; font-size: 26px;"><span style="font-weight: bold; color: #2E86AB; width: 40px;">3.</span><span>Verify with the last 4 digits of your phone number</span></div>
-            </div>
-          </div>
-          <div style="flex: 1;"></div>
-        </div>
-      `;
+    if (!element) {
+      alert('Could not find invoice element to capture.');
+      return;
     }
 
-    document.body.appendChild(container);
-
     try {
-      // Wait a moment for images to load
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const canvas = await html2canvas(container, {
-        scale: 1,
+      // Capture the actual rendered element with high scale for print quality
+      const canvas = await html2canvas(element, {
+        scale: 4, // 4x scale for high resolution
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: 1748,
-        height: 2480
       });
 
       // Download the PNG
@@ -1507,8 +1380,6 @@ export default function MaterialsScreen() {
     } catch (error) {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
-    } finally {
-      document.body.removeChild(container);
     }
   };
 
@@ -1598,11 +1469,15 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow} ref={printRef}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <InvoiceFront config={config} itemConfig={invoiceItemConfig} />
+                <View ref={invoiceFrontRef}>
+                  <InvoiceFront config={config} itemConfig={invoiceItemConfig} />
+                </View>
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <InvoiceBack config={config} />
+                <View ref={invoiceBackRef}>
+                  <InvoiceBack config={config} />
+                </View>
               </View>
             </View>
           </View>
