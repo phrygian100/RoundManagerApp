@@ -565,10 +565,18 @@ const ItemConfigurationModal = ({
 };
 
 // Invoice Front Component
-const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
+const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig?: InvoiceItemConfig }) => {
   // Pad services to 9 rows
   const services = [...config.services];
   while (services.length < 9) services.push('');
+
+  // Default to showing all sections if no itemConfig provided
+  const showDirectDebit = itemConfig?.showDirectDebit ?? true;
+  const showCash = itemConfig?.showCash ?? true;
+  const showBusinessAddress = itemConfig?.showBusinessAddress ?? true;
+
+  // Check if any left column content is visible
+  const hasLeftColumnContent = showDirectDebit || showCash || showBusinessAddress;
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
@@ -634,30 +642,38 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
 
       {/* BOTTOM SECTION: Direct Debit + Cash + Post (left) | Work Completed (right) - ALIGNED */}
       <View style={invoiceStyles.bottomSection}>
-        {/* Left: Payment method boxes */}
-        <View style={invoiceStyles.bottomLeftColumn}>
-          {/* Direct Debit Box */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
-            <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
-            <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
-          </View>
+        {/* Left: Payment method boxes - only show if at least one option is enabled */}
+        {hasLeftColumnContent && (
+          <View style={invoiceStyles.bottomLeftColumn}>
+            {/* Direct Debit Box */}
+            {showDirectDebit && (
+              <View style={invoiceStyles.blueBox}>
+                <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
+                <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
+                <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
+              </View>
+            )}
 
-          {/* Cash Box */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Cash</Text>
-            <Text style={invoiceStyles.boxText}>
-              Let us know to knock on your door or look somewhere for an envelope.
-            </Text>
-          </View>
+            {/* Cash Box */}
+            {showCash && (
+              <View style={invoiceStyles.blueBox}>
+                <Text style={invoiceStyles.boxTitle}>Cash</Text>
+                <Text style={invoiceStyles.boxText}>
+                  Let us know to knock on your door or look somewhere for an envelope.
+                </Text>
+              </View>
+            )}
 
-          {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
-          <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.town}</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
+            {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
+            {showBusinessAddress && (
+              <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
+                <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
+                <Text style={invoiceStyles.addressText}>{config.businessAddress.town}</Text>
+                <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
+              </View>
+            )}
           </View>
-        </View>
+        )}
 
         {/* Right: Work Completed */}
         <View style={invoiceStyles.bottomRightColumn}>
@@ -1583,7 +1599,7 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow} ref={printRef}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <InvoiceFront config={config} />
+                <InvoiceFront config={config} itemConfig={invoiceItemConfig} />
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
