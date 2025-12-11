@@ -1370,27 +1370,6 @@ export default function MaterialsScreen() {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        // Fix color capture by forcing computed styles to inline
-        onclone: (clonedDoc, clonedElement) => {
-          // Force all elements to have their computed colors as inline styles
-          const allElements = clonedElement.querySelectorAll('*');
-          allElements.forEach((el) => {
-            const htmlEl = el as HTMLElement;
-            const computed = window.getComputedStyle(htmlEl);
-            // Force border color
-            if (computed.borderColor) {
-              htmlEl.style.borderColor = computed.borderColor;
-            }
-            // Force text color
-            if (computed.color) {
-              htmlEl.style.color = computed.color;
-            }
-            // Force background color
-            if (computed.backgroundColor && computed.backgroundColor !== 'rgba(0, 0, 0, 0)') {
-              htmlEl.style.backgroundColor = computed.backgroundColor;
-            }
-          });
-        },
       });
 
       // Download the PNG
