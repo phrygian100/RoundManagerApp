@@ -1406,17 +1406,33 @@ export default function MaterialsScreen() {
       }
     });
 
-    // Temporarily remove height constraint to capture full content
-    const originalHeight = element.style.height;
-    const originalOverflow = element.style.overflow;
-    element.style.height = 'auto';
-    element.style.overflow = 'visible';
+    // Temporarily remove ALL height constraints to capture full content
+    // The invoiceContainer inside has a fixed height that clips content
+    const elementsWithHeight: Array<{el: HTMLElement, originalHeight: string, originalOverflow: string, originalMaxHeight: string}> = [];
+    
+    // Find all elements and remove height constraints
+    const allElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+    allElements.forEach((el) => {
+      const computed = window.getComputedStyle(el);
+      // If element has a fixed height or max-height, temporarily remove it
+      if (computed.height !== 'auto' || computed.maxHeight !== 'none' || computed.overflow === 'hidden') {
+        elementsWithHeight.push({
+          el,
+          originalHeight: el.style.height,
+          originalOverflow: el.style.overflow,
+          originalMaxHeight: el.style.maxHeight,
+        });
+        el.style.height = 'auto';
+        el.style.maxHeight = 'none';
+        el.style.overflow = 'visible';
+      }
+    });
     
     try {
       // Small delay to let styles apply
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Get the full dimensions now that height is auto
+      // Get the full dimensions now that heights are auto
       const fullWidth = element.scrollWidth;
       const fullHeight = element.scrollHeight;
       
@@ -1439,9 +1455,12 @@ export default function MaterialsScreen() {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
     } finally {
-      // Restore height constraint
-      element.style.height = originalHeight;
-      element.style.overflow = originalOverflow;
+      // Restore all height constraints
+      elementsWithHeight.forEach(({ el, originalHeight, originalOverflow, originalMaxHeight }) => {
+        el.style.height = originalHeight;
+        el.style.overflow = originalOverflow;
+        el.style.maxHeight = originalMaxHeight;
+      });
       // Clean up temporary styles
       element.removeAttribute('data-capture');
       const tempStyle = document.getElementById(styleId);
