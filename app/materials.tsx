@@ -1410,12 +1410,20 @@ export default function MaterialsScreen() {
       // Small delay to let styles apply
       await new Promise(resolve => setTimeout(resolve, 50));
       
+      // Get the full dimensions including any overflow
+      const fullWidth = Math.max(element.scrollWidth, element.offsetWidth);
+      const fullHeight = Math.max(element.scrollHeight, element.offsetHeight);
+      
       // Capture the actual rendered element with high scale for print quality
       const canvas = await html2canvas(element, {
         scale: 4, // 4x scale for high resolution
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        width: fullWidth,
+        height: fullHeight,
+        windowWidth: fullWidth,
+        windowHeight: fullHeight,
       });
 
       // Download the PNG
