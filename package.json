@@ -29,6 +29,7 @@
     "@react-navigation/native": "^7.1.6",
     "@stripe/stripe-js": "^7.6.1",
     "date-fns": "^4.1.0",
+    "dom-to-image-more": "^3.7.2",
     "dotenv": "^16.0.3",
     "expo": "^53.0.20",
     "expo-blur": "~14.1.5",
