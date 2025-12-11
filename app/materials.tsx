@@ -258,14 +258,6 @@ const ConfigurationModal = ({
               style={modalStyles.input}
               value={formData.businessAddress.line1}
               onChangeText={(v) => updateAddressField('line1', v)}
-              placeholder="e.g. Business Name"
-            />
-
-            <Text style={modalStyles.label}>Address Line 2</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.businessAddress.line2}
-              onChangeText={(v) => updateAddressField('line2', v)}
               placeholder="e.g. 123 High Street"
             />
 
@@ -596,7 +588,7 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
           {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
           <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.town}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
           </View>
         </View>
@@ -657,7 +649,7 @@ const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
             
             <View style={invoiceStyles.stepRow}>
               <Text style={invoiceStyles.stepNumber}>2.</Text>
-              <Text style={invoiceStyles.stepText}>Enter your account number (shown on front as payment reference)</Text>
+              <Text style={invoiceStyles.stepText}>Enter your account number (Shown on front, starting with RWC)</Text>
             </View>
             
             <View style={invoiceStyles.stepRow}>
@@ -669,9 +661,7 @@ const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
       </View>
       
       {/* Bottom Half - Reserved for other content */}
-      <View style={invoiceStyles.backBottomHalf}>
-        <Text style={invoiceStyles.businessNameFooter}>{config.businessName}</Text>
-      </View>
+      <View style={invoiceStyles.backBottomHalf} />
     </View>
   );
 };
