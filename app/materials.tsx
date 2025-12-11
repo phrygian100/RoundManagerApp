@@ -1192,10 +1192,26 @@ export default function MaterialsScreen() {
             <Ionicons name="home" size={24} color="#007AFF" />
           </Pressable>
           <Text style={styles.title}>Materials</Text>
-          <Pressable onPress={() => setShowConfigModal(true)} style={styles.configButton} accessibilityLabel="Configure">
-            <Ionicons name="settings-outline" size={24} color="#007AFF" />
-          </Pressable>
+          <View style={{ width: 40 }} />
         </View>
+
+        {/* Prominent Configuration Button */}
+        <Pressable 
+          style={styles.configBanner} 
+          onPress={() => setShowConfigModal(true)}
+          accessibilityLabel="Configure your business details"
+        >
+          <View style={styles.configBannerContent}>
+            <View style={styles.configBannerIcon}>
+              <Ionicons name="settings" size={24} color="#fff" />
+            </View>
+            <View style={styles.configBannerText}>
+              <Text style={styles.configBannerTitle}>Configure Your Business Details</Text>
+              <Text style={styles.configBannerSubtitle}>Set up your business name, contact info, banking details & services</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#fff" />
+          </View>
+        </Pressable>
 
         {/* Configuration Modal */}
         <ConfigurationModal
@@ -1341,8 +1357,44 @@ const styles = StyleSheet.create({
   homeButton: {
     padding: 8,
   },
-  configButton: {
-    padding: 8,
+  configBanner: {
+    backgroundColor: '#007AFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  configBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  configBannerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  configBannerText: {
+    flex: 1,
+  },
+  configBannerTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  configBannerSubtitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
   },
   title: {
     fontSize: 20,

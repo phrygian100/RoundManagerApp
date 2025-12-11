@@ -1,5 +1,36 @@
 # Code Changes Log
 
+## December 11, 2025
+
+### Made Materials Page Settings Button More Prominent
+
+**File**: `app/materials.tsx`
+
+**Problem**: The settings button on the materials page was just a small icon in the top right corner of the header, making it too hidden when it's actually a very important feature for configuring business details.
+
+**Solution**: Added a prominent configuration banner below the header that clearly highlights the settings functionality.
+
+**Changes**:
+- Removed the small settings icon from the header
+- Added a large, eye-catching blue banner with:
+  - Settings icon in a circular container
+  - "Configure Your Business Details" title
+  - Subtitle explaining what can be configured (business name, contact info, banking details & services)
+  - Chevron arrow indicating it's tappable
+  - Blue background (#007AFF) with shadow for visual prominence
+
+**New Styles Added**:
+- `configBanner` - Main banner container with blue background and shadow
+- `configBannerContent` - Flexbox row layout for icon, text, and chevron
+- `configBannerIcon` - Circular icon container with semi-transparent background
+- `configBannerText` - Container for title and subtitle
+- `configBannerTitle` - Bold white title text
+- `configBannerSubtitle` - Slightly transparent white subtitle text
+
+**User Impact**: The configuration modal is now much more discoverable, making it easier for users to set up their business details for invoice and flyer generation.
+
+---
+
 ## December 10, 2025
 
 ### Added Materials Page with Invoice Preview
