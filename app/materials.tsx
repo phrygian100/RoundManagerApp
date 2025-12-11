@@ -373,7 +373,6 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
 
           {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
           <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
-            <Text style={invoiceStyles.boxTitle}>Post</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
