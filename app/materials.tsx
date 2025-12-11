@@ -1363,7 +1363,22 @@ export default function MaterialsScreen() {
       return;
     }
 
+    // Inject temporary CSS to force blue borders for capture
+    const styleId = 'temp-capture-styles';
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      [data-capture="true"] * {
+        border-color: #2E86AB !important;
+      }
+    `;
+    document.head.appendChild(style);
+    element.setAttribute('data-capture', 'true');
+
     try {
+      // Small delay to let styles apply
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       // Capture the actual rendered element with high scale for print quality
       const canvas = await html2canvas(element, {
         scale: 4, // 4x scale for high resolution
@@ -1380,6 +1395,11 @@ export default function MaterialsScreen() {
     } catch (error) {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
+    } finally {
+      // Clean up temporary styles
+      element.removeAttribute('data-capture');
+      const tempStyle = document.getElementById(styleId);
+      if (tempStyle) tempStyle.remove();
     }
   };
 
