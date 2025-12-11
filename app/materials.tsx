@@ -6,7 +6,8 @@ import { Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { getDataOwnerId, getSession } from '../core/session';
+import { getUserProfile } from '../services/userService';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
@@ -1210,7 +1211,7 @@ export default function MaterialsScreen() {
     setShowItemConfigModal(true);
   };
 
-  // Load configuration from Firestore
+  // Load configuration from Firestore and user profile
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -1219,11 +1220,26 @@ export default function MaterialsScreen() {
           setLoading(false);
           return;
         }
+        
+        // Load materials config
         const docRef = doc(db, 'materialsConfig', ownerId);
         const docSnap = await getDoc(docRef);
+        let materialsConfig = defaultConfig;
         if (docSnap.exists()) {
-          setConfig({ ...defaultConfig, ...docSnap.data() as MaterialsConfig });
+          materialsConfig = { ...defaultConfig, ...docSnap.data() as MaterialsConfig };
         }
+        
+        // Load business name from user profile (Bank & Business Info)
+        const session = await getSession();
+        if (session?.uid) {
+          const userProfile = await getUserProfile(session.uid);
+          if (userProfile?.businessName) {
+            // Use business name from profile settings
+            materialsConfig = { ...materialsConfig, businessName: userProfile.businessName };
+          }
+        }
+        
+        setConfig(materialsConfig);
       } catch (error) {
         console.error('Error loading materials config:', error);
       } finally {
