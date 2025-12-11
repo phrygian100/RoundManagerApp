@@ -371,8 +371,8 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             </Text>
           </View>
 
-          {/* Post Box - Business Address */}
-          <View style={invoiceStyles.blueBox}>
+          {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
+          <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
             <Text style={invoiceStyles.boxTitle}>Post</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
             <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
@@ -383,7 +383,7 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
         {/* Right: Work Completed */}
         <View style={invoiceStyles.bottomRightColumn}>
           {/* Work Completed Box */}
-          <View style={invoiceStyles.blueBox}>
+          <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
             <Text style={invoiceStyles.boxTitle}>Work completed</Text>
             
             {/* Service Rows */}
@@ -1663,6 +1663,7 @@ const invoiceStyles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     flex: 1,
+    alignItems: 'stretch',
   },
   topLeftColumn: {
     flex: 1,
