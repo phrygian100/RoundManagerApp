@@ -6,7 +6,7 @@ import { Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text,
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
-import { getDataOwnerId, getSession } from '../core/session';
+import { getDataOwnerId } from '../core/session';
 import { getUserProfile } from '../services/userService';
 
 const INVOICE_HEIGHT = 580;
@@ -1229,14 +1229,11 @@ export default function MaterialsScreen() {
           materialsConfig = { ...defaultConfig, ...docSnap.data() as MaterialsConfig };
         }
         
-        // Load business name from user profile (Bank & Business Info)
-        const session = await getSession();
-        if (session?.uid) {
-          const userProfile = await getUserProfile(session.uid);
-          if (userProfile?.businessName) {
-            // Use business name from profile settings
-            materialsConfig = { ...materialsConfig, businessName: userProfile.businessName };
-          }
+        // Load business name from owner's profile (Bank & Business Info)
+        const ownerProfile = await getUserProfile(ownerId);
+        if (ownerProfile?.businessName) {
+          // Use business name from profile settings
+          materialsConfig = { ...materialsConfig, businessName: ownerProfile.businessName };
         }
         
         setConfig(materialsConfig);
