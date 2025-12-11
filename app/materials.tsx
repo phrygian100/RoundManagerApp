@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import domtoimage from 'dom-to-image-more';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import html2canvas from 'html2canvas';
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -1364,26 +1364,18 @@ export default function MaterialsScreen() {
     }
 
     try {
-      // Get element dimensions and scale up for print quality
-      const scale = 4;
-      const width = element.offsetWidth * scale;
-      const height = element.offsetHeight * scale;
-
-      // Capture using dom-to-image-more (better color handling)
-      const dataUrl = await domtoimage.toPng(element, {
-        width,
-        height,
-        style: {
-          transform: `scale(${scale})`,
-          transformOrigin: 'top left',
-        },
-        bgcolor: '#ffffff',
+      // Capture the actual rendered element with high scale for print quality
+      const canvas = await html2canvas(element, {
+        scale: 4, // 4x scale for high resolution
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
       });
 
       // Download the PNG
       const link = document.createElement('a');
       link.download = `invoice-${side}-${config.businessName.replace(/\s+/g, '-').toLowerCase()}.png`;
-      link.href = dataUrl;
+      link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (error) {
       console.error('Error generating PNG:', error);
