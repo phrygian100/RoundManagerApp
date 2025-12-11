@@ -165,14 +165,6 @@ const ConfigurationModal = ({
             {/* Business Identity */}
             <Text style={modalStyles.sectionTitle}>Business Identity</Text>
             
-            <Text style={modalStyles.label}>Business Name</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.businessName}
-              onChangeText={(v) => updateField('businessName', v)}
-              placeholder="e.g. TGM Window Cleaning"
-            />
-
             <Text style={modalStyles.label}>Tagline</Text>
             <TextInput
               style={modalStyles.input}
@@ -215,14 +207,6 @@ const ConfigurationModal = ({
               value={formData.facebookHandle}
               onChangeText={(v) => updateField('facebookHandle', v)}
               placeholder="e.g. mybusinessUK"
-            />
-
-            <Text style={modalStyles.label}>Customer Portal Link</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.customerPortalLink}
-              onChangeText={(v) => updateField('customerPortalLink', v)}
-              placeholder="e.g. guvnor.app/yourbusiness"
             />
 
             {/* Banking Details */}
