@@ -294,10 +294,10 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
-      {/* Two Column Layout */}
-      <View style={invoiceStyles.columns}>
-        {/* Left Column */}
-        <View style={invoiceStyles.leftColumn}>
+      {/* TOP SECTION: Header + Branding (left) | Bank Transfer + Notes (right) */}
+      <View style={invoiceStyles.topSection}>
+        {/* Left: Header + Branding */}
+        <View style={invoiceStyles.topLeftColumn}>
           {/* Services Provided Header */}
           <View style={invoiceStyles.servicesHeader}>
             <Text style={invoiceStyles.servicesHeaderText}>Services provided on: </Text>
@@ -305,8 +305,8 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
           </View>
 
-          {/* Logo and Branding - flex to push payment boxes down */}
-          <View style={invoiceStyles.brandingSectionFlex}>
+          {/* Logo and Branding */}
+          <View style={invoiceStyles.brandingSection}>
             {/* Logo Circle */}
             <View style={invoiceStyles.logoCircle}>
               <Ionicons name="home" size={40} color="#fff" />
@@ -321,33 +321,10 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             </View>
             <Text style={invoiceStyles.websiteText}>{config.websiteAddress}</Text>
           </View>
-
-          {/* Direct Debit Box */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
-            <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
-            <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
-          </View>
-
-          {/* Cash Box */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Cash</Text>
-            <Text style={invoiceStyles.boxText}>
-              Let us know to knock on your door or look somewhere for an envelope.
-            </Text>
-          </View>
-
-          {/* Post Box - Business Address */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Post</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
-            <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
-          </View>
         </View>
 
-        {/* Right Column */}
-        <View style={invoiceStyles.rightColumn}>
+        {/* Right: Bank Transfer + Notes */}
+        <View style={invoiceStyles.topRightColumn}>
           {/* Bank Transfer Box */}
           <View style={invoiceStyles.blueBox}>
             <Text style={invoiceStyles.boxTitle}>Bank Transfer</Text>
@@ -372,7 +349,39 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
             <Text style={invoiceStyles.boxTitle}>Notes</Text>
             <View style={invoiceStyles.notesArea} />
           </View>
+        </View>
+      </View>
 
+      {/* BOTTOM SECTION: Direct Debit + Cash + Post (left) | Work Completed (right) - ALIGNED */}
+      <View style={invoiceStyles.bottomSection}>
+        {/* Left: Payment method boxes */}
+        <View style={invoiceStyles.bottomLeftColumn}>
+          {/* Direct Debit Box */}
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
+            <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
+            <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
+          </View>
+
+          {/* Cash Box */}
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Cash</Text>
+            <Text style={invoiceStyles.boxText}>
+              Let us know to knock on your door or look somewhere for an envelope.
+            </Text>
+          </View>
+
+          {/* Post Box - Business Address */}
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Post</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.line2}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
+          </View>
+        </View>
+
+        {/* Right: Work Completed */}
+        <View style={invoiceStyles.bottomRightColumn}>
           {/* Work Completed Box */}
           <View style={invoiceStyles.blueBox}>
             <Text style={invoiceStyles.boxTitle}>Work completed</Text>
@@ -1644,6 +1653,27 @@ const invoiceStyles = StyleSheet.create({
     flex: 1,
   },
   rightColumn: {
+    flex: 1,
+  },
+  topSection: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  bottomSection: {
+    flexDirection: 'row',
+    gap: 12,
+    flex: 1,
+  },
+  topLeftColumn: {
+    flex: 1,
+  },
+  topRightColumn: {
+    flex: 1,
+  },
+  bottomLeftColumn: {
+    flex: 1,
+  },
+  bottomRightColumn: {
     flex: 1,
   },
   servicesHeader: {

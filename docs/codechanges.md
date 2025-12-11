@@ -36,12 +36,19 @@
 **File**: `app/materials.tsx`
 
 **Changes**:
-1. **Aligned Direct Debit with Work Completed**: Changed the branding section to use `flex: 1` so it expands and pushes the payment boxes (Direct Debit, Cash, Post) down to align with the Work Completed box on the right column.
+1. **Restructured to row-based layout**: Changed from two independent columns to a two-section layout:
+   - **Top Section (row)**: Header + Branding (left) | Bank Transfer + Notes (right)
+   - **Bottom Section (row)**: Direct Debit + Cash + Post (left) | Work Completed (right)
+   
+2. **Proper alignment**: Direct Debit and Work Completed now start at exactly the same vertical position because they're in the same row container.
 
-2. **Added "Post" Box**: The business address section is now in a blue-bordered box with the title "Post" instead of just plain text, matching the design pattern of other sections.
+3. **Added "Post" Box**: The business address section is now in a blue-bordered box with the title "Post" instead of just plain text, matching the design pattern of other sections.
 
-**Styles Added**:
-- `brandingSectionFlex` - Same as brandingSection but with `flex: 1` and `justifyContent: 'center'` to push payment boxes down
+**New Styles Added**:
+- `topSection` - Flex row for top portion (branding + bank/notes)
+- `bottomSection` - Flex row for bottom portion (payment methods + work completed)
+- `topLeftColumn`, `topRightColumn` - Column containers for top section
+- `bottomLeftColumn`, `bottomRightColumn` - Column containers for bottom section
 
 ---
 
