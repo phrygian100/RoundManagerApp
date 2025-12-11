@@ -1363,7 +1363,8 @@ export default function MaterialsScreen() {
       return;
     }
 
-    // Inject temporary CSS to force blue borders for capture
+    // Inject temporary CSS to force blue colors for capture
+    // html2canvas doesn't properly read React Native Web's color styles
     const styleId = 'temp-capture-styles';
     const style = document.createElement('style');
     style.id = styleId;
@@ -1371,9 +1372,31 @@ export default function MaterialsScreen() {
       [data-capture="true"] * {
         border-color: #2E86AB !important;
       }
+      [data-capture="true"] [style*="color: rgb(46, 134, 171)"],
+      [data-capture="true"] [style*="color:#2E86AB"],
+      [data-capture="true"] [style*="color: #2E86AB"] {
+        color: #2E86AB !important;
+      }
     `;
     document.head.appendChild(style);
     element.setAttribute('data-capture', 'true');
+    
+    // Also directly set inline styles on elements that should be blue
+    const blueTextSelectors = element.querySelectorAll('*');
+    const elementsToRestore: Array<{el: HTMLElement, original: string}> = [];
+    blueTextSelectors.forEach((el) => {
+      const htmlEl = el as HTMLElement;
+      const computed = window.getComputedStyle(htmlEl);
+      // Check if this element has the blue color
+      if (computed.color === 'rgb(46, 134, 171)') {
+        elementsToRestore.push({ el: htmlEl, original: htmlEl.style.color });
+        htmlEl.style.setProperty('color', '#2E86AB', 'important');
+      }
+      if (computed.borderBottomColor === 'rgb(46, 134, 171)') {
+        elementsToRestore.push({ el: htmlEl, original: htmlEl.style.borderBottomColor });
+        htmlEl.style.setProperty('border-bottom-color', '#2E86AB', 'important');
+      }
+    });
 
     try {
       // Small delay to let styles apply
@@ -1400,6 +1423,10 @@ export default function MaterialsScreen() {
       element.removeAttribute('data-capture');
       const tempStyle = document.getElementById(styleId);
       if (tempStyle) tempStyle.remove();
+      // Restore original inline styles
+      elementsToRestore.forEach(({ el, original }) => {
+        el.style.color = original;
+      });
     }
   };
 
