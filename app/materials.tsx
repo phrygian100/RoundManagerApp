@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
@@ -125,6 +125,7 @@ const ConfigurationModal = ({
 }) => {
   const [formData, setFormData] = useState<MaterialsConfig>(config);
   const [servicesText, setServicesText] = useState(config.services.join('\n'));
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     setFormData(config);
@@ -149,6 +150,53 @@ const ConfigurationModal = ({
       ...prev,
       businessAddress: { ...prev.businessAddress, [field]: value },
     }));
+  };
+
+  const handleLogoUpload = () => {
+    if (Platform.OS !== 'web') {
+      alert('Logo upload is only available on web');
+      return;
+    }
+    
+    // Create a file input and trigger it
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      // Check file size (max 500KB for base64 storage)
+      if (file.size > 500 * 1024) {
+        alert('Image too large. Please choose an image under 500KB.');
+        return;
+      }
+      
+      setUploadingLogo(true);
+      try {
+        // Convert to base64
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setFormData(prev => ({ ...prev, logoUrl: base64 }));
+          setUploadingLogo(false);
+        };
+        reader.onerror = () => {
+          alert('Failed to read image file');
+          setUploadingLogo(false);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error uploading logo:', error);
+        alert('Failed to upload logo');
+        setUploadingLogo(false);
+      }
+    };
+    input.click();
+  };
+
+  const handleRemoveLogo = () => {
+    setFormData(prev => ({ ...prev, logoUrl: '' }));
   };
 
   return (
@@ -183,13 +231,37 @@ const ConfigurationModal = ({
               keyboardType="phone-pad"
             />
 
-            <Text style={modalStyles.label}>Logo URL (optional)</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.logoUrl}
-              onChangeText={(v) => updateField('logoUrl', v)}
-              placeholder="https://example.com/logo.png"
-            />
+            <Text style={modalStyles.label}>Logo (optional)</Text>
+            <View style={modalStyles.logoUploadContainer}>
+              {formData.logoUrl ? (
+                <View style={modalStyles.logoPreviewContainer}>
+                  <Image 
+                    source={{ uri: formData.logoUrl }} 
+                    style={modalStyles.logoPreview}
+                    resizeMode="contain"
+                  />
+                  <Pressable style={modalStyles.removeLogoButton} onPress={handleRemoveLogo}>
+                    <Ionicons name="close-circle" size={24} color="#ff4444" />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable 
+                  style={modalStyles.uploadLogoButton} 
+                  onPress={handleLogoUpload}
+                  disabled={uploadingLogo}
+                >
+                  {uploadingLogo ? (
+                    <Text style={modalStyles.uploadLogoText}>Uploading...</Text>
+                  ) : (
+                    <>
+                      <Ionicons name="cloud-upload-outline" size={24} color="#007AFF" />
+                      <Text style={modalStyles.uploadLogoText}>Upload Logo</Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
+              <Text style={modalStyles.logoHint}>Max 500KB. Square images work best.</Text>
+            </View>
 
             {/* Online Presence */}
             <Text style={modalStyles.sectionTitle}>Online Presence</Text>
@@ -212,14 +284,6 @@ const ConfigurationModal = ({
 
             {/* Banking Details */}
             <Text style={modalStyles.sectionTitle}>Banking Details</Text>
-
-            <Text style={modalStyles.label}>Bank Account Name</Text>
-            <TextInput
-              style={modalStyles.input}
-              value={formData.bankAccountName}
-              onChangeText={(v) => updateField('bankAccountName', v)}
-              placeholder="e.g. My Business Ltd"
-            />
 
             <View style={modalStyles.row}>
               <View style={modalStyles.halfField}>
@@ -542,8 +606,6 @@ const InvoiceFront = ({ config }: { config: MaterialsConfig }) => {
           {/* Bank Transfer Box */}
           <View style={invoiceStyles.blueBox}>
             <Text style={invoiceStyles.boxTitle}>Bank Transfer</Text>
-            <Text style={invoiceStyles.bankLabel}>Business Account Name:</Text>
-            <Text style={invoiceStyles.bankValueBlue}>{config.bankAccountName}</Text>
             
             <View style={invoiceStyles.bankRow}>
               <Text style={invoiceStyles.bankLabel}>Sort Code:</Text>
@@ -1867,6 +1929,50 @@ const modalStyles = StyleSheet.create({
     fontSize: 11,
     color: '#666',
     marginBottom: 4,
+  },
+  logoUploadContainer: {
+    marginBottom: 12,
+  },
+  logoPreviewContainer: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+    marginBottom: 8,
+  },
+  logoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  removeLogoButton: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  uploadLogoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    backgroundColor: '#f8fbff',
+    gap: 8,
+    marginBottom: 8,
+  },
+  uploadLogoText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  logoHint: {
+    fontSize: 11,
+    color: '#999',
   },
   input: {
     borderWidth: 1,
