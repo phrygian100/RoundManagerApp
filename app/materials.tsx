@@ -34,6 +34,55 @@ interface MaterialsConfig {
   facebookHandle: string;
 }
 
+// Item-specific configuration types
+interface InvoiceItemConfig {
+  showDirectDebit: boolean;
+  showCash: boolean;
+  showBusinessAddress: boolean;
+}
+
+interface FlyerItemConfig {
+  showContactDetails: boolean;
+  showServices: boolean;
+  showQuoteBadge: boolean;
+}
+
+interface CanvassingFlyerItemConfig {
+  showPriceBoxes: boolean;
+  showAdditionalServices: boolean;
+  showContactInfo: boolean;
+}
+
+interface LeafletItemConfig {
+  showPricingTable: boolean;
+  showPaymentMethods: boolean;
+  showServiceArea: boolean;
+}
+
+const defaultInvoiceItemConfig: InvoiceItemConfig = {
+  showDirectDebit: true,
+  showCash: true,
+  showBusinessAddress: true,
+};
+
+const defaultFlyerItemConfig: FlyerItemConfig = {
+  showContactDetails: true,
+  showServices: true,
+  showQuoteBadge: true,
+};
+
+const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
+  showPriceBoxes: true,
+  showAdditionalServices: true,
+  showContactInfo: true,
+};
+
+const defaultLeafletItemConfig: LeafletItemConfig = {
+  showPricingTable: true,
+  showPaymentMethods: true,
+  showServiceArea: true,
+};
+
 const defaultConfig: MaterialsConfig = {
   businessName: 'Your Business Name',
   tagline: 'Your tagline here',
@@ -278,6 +327,194 @@ const ConfigurationModal = ({
             <Pressable style={modalStyles.saveButton} onPress={handleSave}>
               <Ionicons name="checkmark" size={20} color="#fff" />
               <Text style={modalStyles.saveButtonText}>Save Configuration</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+// Item Configuration Modal Component
+type ItemConfigType = 'invoice' | 'flyer' | 'canvassing' | 'leaflet';
+
+const ItemConfigurationModal = ({ 
+  visible, 
+  onClose, 
+  itemType,
+  invoiceConfig,
+  flyerConfig,
+  canvassingConfig,
+  leafletConfig,
+  onSaveInvoice,
+  onSaveFlyer,
+  onSaveCanvassing,
+  onSaveLeaflet,
+}: { 
+  visible: boolean; 
+  onClose: () => void; 
+  itemType: ItemConfigType;
+  invoiceConfig: InvoiceItemConfig;
+  flyerConfig: FlyerItemConfig;
+  canvassingConfig: CanvassingFlyerItemConfig;
+  leafletConfig: LeafletItemConfig;
+  onSaveInvoice: (config: InvoiceItemConfig) => void;
+  onSaveFlyer: (config: FlyerItemConfig) => void;
+  onSaveCanvassing: (config: CanvassingFlyerItemConfig) => void;
+  onSaveLeaflet: (config: LeafletItemConfig) => void;
+}) => {
+  const [invoiceForm, setInvoiceForm] = useState<InvoiceItemConfig>(invoiceConfig);
+  const [flyerForm, setFlyerForm] = useState<FlyerItemConfig>(flyerConfig);
+  const [canvassingForm, setCanvassingForm] = useState<CanvassingFlyerItemConfig>(canvassingConfig);
+  const [leafletForm, setLeafletForm] = useState<LeafletItemConfig>(leafletConfig);
+
+  useEffect(() => {
+    setInvoiceForm(invoiceConfig);
+    setFlyerForm(flyerConfig);
+    setCanvassingForm(canvassingConfig);
+    setLeafletForm(leafletConfig);
+  }, [invoiceConfig, flyerConfig, canvassingConfig, leafletConfig, visible]);
+
+  const handleSave = () => {
+    switch (itemType) {
+      case 'invoice':
+        onSaveInvoice(invoiceForm);
+        break;
+      case 'flyer':
+        onSaveFlyer(flyerForm);
+        break;
+      case 'canvassing':
+        onSaveCanvassing(canvassingForm);
+        break;
+      case 'leaflet':
+        onSaveLeaflet(leafletForm);
+        break;
+    }
+    onClose();
+  };
+
+  const getTitle = () => {
+    switch (itemType) {
+      case 'invoice': return 'Invoice Options';
+      case 'flyer': return 'Flyer Options';
+      case 'canvassing': return 'Canvassing Flyer Options';
+      case 'leaflet': return 'New Business Leaflet Options';
+    }
+  };
+
+  const CheckboxRow = ({ label, checked, onToggle }: { label: string; checked: boolean; onToggle: () => void }) => (
+    <Pressable style={itemConfigStyles.checkboxRow} onPress={onToggle}>
+      <View style={[itemConfigStyles.checkbox, checked && itemConfigStyles.checkboxChecked]}>
+        {checked && <Ionicons name="checkmark" size={16} color="#fff" />}
+      </View>
+      <Text style={itemConfigStyles.checkboxLabel}>{label}</Text>
+    </Pressable>
+  );
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent>
+      <View style={itemConfigStyles.overlay}>
+        <View style={itemConfigStyles.container}>
+          <View style={itemConfigStyles.header}>
+            <Text style={itemConfigStyles.title}>{getTitle()}</Text>
+            <Pressable onPress={onClose} style={itemConfigStyles.closeButton}>
+              <Ionicons name="close" size={24} color="#333" />
+            </Pressable>
+          </View>
+
+          <View style={itemConfigStyles.content}>
+            {itemType === 'invoice' && (
+              <>
+                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                <CheckboxRow 
+                  label="Direct Debit" 
+                  checked={invoiceForm.showDirectDebit} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showDirectDebit: !prev.showDirectDebit }))} 
+                />
+                <CheckboxRow 
+                  label="Cash" 
+                  checked={invoiceForm.showCash} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showCash: !prev.showCash }))} 
+                />
+                <CheckboxRow 
+                  label="Include Business Address" 
+                  checked={invoiceForm.showBusinessAddress} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
+                />
+              </>
+            )}
+
+            {itemType === 'flyer' && (
+              <>
+                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                <CheckboxRow 
+                  label="Contact Details" 
+                  checked={flyerForm.showContactDetails} 
+                  onToggle={() => setFlyerForm(prev => ({ ...prev, showContactDetails: !prev.showContactDetails }))} 
+                />
+                <CheckboxRow 
+                  label="Services List" 
+                  checked={flyerForm.showServices} 
+                  onToggle={() => setFlyerForm(prev => ({ ...prev, showServices: !prev.showServices }))} 
+                />
+                <CheckboxRow 
+                  label="FREE Quote Badge" 
+                  checked={flyerForm.showQuoteBadge} 
+                  onToggle={() => setFlyerForm(prev => ({ ...prev, showQuoteBadge: !prev.showQuoteBadge }))} 
+                />
+              </>
+            )}
+
+            {itemType === 'canvassing' && (
+              <>
+                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                <CheckboxRow 
+                  label="Price Boxes" 
+                  checked={canvassingForm.showPriceBoxes} 
+                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showPriceBoxes: !prev.showPriceBoxes }))} 
+                />
+                <CheckboxRow 
+                  label="Additional Services" 
+                  checked={canvassingForm.showAdditionalServices} 
+                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showAdditionalServices: !prev.showAdditionalServices }))} 
+                />
+                <CheckboxRow 
+                  label="Contact Information" 
+                  checked={canvassingForm.showContactInfo} 
+                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showContactInfo: !prev.showContactInfo }))} 
+                />
+              </>
+            )}
+
+            {itemType === 'leaflet' && (
+              <>
+                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                <CheckboxRow 
+                  label="Pricing Table" 
+                  checked={leafletForm.showPricingTable} 
+                  onToggle={() => setLeafletForm(prev => ({ ...prev, showPricingTable: !prev.showPricingTable }))} 
+                />
+                <CheckboxRow 
+                  label="Payment Methods" 
+                  checked={leafletForm.showPaymentMethods} 
+                  onToggle={() => setLeafletForm(prev => ({ ...prev, showPaymentMethods: !prev.showPaymentMethods }))} 
+                />
+                <CheckboxRow 
+                  label="Service Area Map" 
+                  checked={leafletForm.showServiceArea} 
+                  onToggle={() => setLeafletForm(prev => ({ ...prev, showServiceArea: !prev.showServiceArea }))} 
+                />
+              </>
+            )}
+          </View>
+
+          <View style={itemConfigStyles.footer}>
+            <Pressable style={itemConfigStyles.cancelButton} onPress={onClose}>
+              <Text style={itemConfigStyles.cancelButtonText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={itemConfigStyles.saveButton} onPress={handleSave}>
+              <Ionicons name="checkmark" size={20} color="#fff" />
+              <Text style={itemConfigStyles.saveButtonText}>Save</Text>
             </Pressable>
           </View>
         </View>
@@ -979,6 +1216,19 @@ export default function MaterialsScreen() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
+  
+  // Item-specific configuration state
+  const [showItemConfigModal, setShowItemConfigModal] = useState(false);
+  const [currentItemType, setCurrentItemType] = useState<ItemConfigType>('invoice');
+  const [invoiceItemConfig, setInvoiceItemConfig] = useState<InvoiceItemConfig>(defaultInvoiceItemConfig);
+  const [flyerItemConfig, setFlyerItemConfig] = useState<FlyerItemConfig>(defaultFlyerItemConfig);
+  const [canvassingItemConfig, setCanvassingItemConfig] = useState<CanvassingFlyerItemConfig>(defaultCanvassingFlyerItemConfig);
+  const [leafletItemConfig, setLeafletItemConfig] = useState<LeafletItemConfig>(defaultLeafletItemConfig);
+
+  const openItemConfig = (type: ItemConfigType) => {
+    setCurrentItemType(type);
+    setShowItemConfigModal(true);
+  };
 
   // Load configuration from Firestore
   useEffect(() => {
@@ -1230,6 +1480,21 @@ export default function MaterialsScreen() {
           onSave={handleSaveConfig}
         />
 
+        {/* Item Configuration Modal */}
+        <ItemConfigurationModal
+          visible={showItemConfigModal}
+          onClose={() => setShowItemConfigModal(false)}
+          itemType={currentItemType}
+          invoiceConfig={invoiceItemConfig}
+          flyerConfig={flyerItemConfig}
+          canvassingConfig={canvassingItemConfig}
+          leafletConfig={leafletItemConfig}
+          onSaveInvoice={setInvoiceItemConfig}
+          onSaveFlyer={setFlyerItemConfig}
+          onSaveCanvassing={setCanvassingItemConfig}
+          onSaveLeaflet={setLeafletItemConfig}
+        />
+
         {/* Content */}
         <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
           {/* Invoice Section */}
@@ -1239,12 +1504,18 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>Invoice</Text>
                 <Text style={styles.sectionSubtitle}>Preview of your customizable invoice template</Text>
               </View>
-              {Platform.OS === 'web' && (
-                <Pressable style={styles.downloadButton} onPress={handleDownloadPDF}>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+              <View style={styles.sectionButtons}>
+                <Pressable style={styles.configureButton} onPress={() => openItemConfig('invoice')}>
+                  <Ionicons name="options-outline" size={18} color="#007AFF" />
+                  <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-              )}
+                {Platform.OS === 'web' && (
+                  <Pressable style={styles.downloadButton} onPress={handleDownloadPDF}>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={styles.downloadButtonText}>Download PDF</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
             
             {/* Side by side invoice previews */}
@@ -1267,12 +1538,18 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Promotional flyer for existing customers</Text>
               </View>
-              {Platform.OS === 'web' && (
-                <Pressable style={styles.downloadButton} onPress={() => alert('Flyer PDF download coming soon')}>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+              <View style={styles.sectionButtons}>
+                <Pressable style={styles.configureButton} onPress={() => openItemConfig('flyer')}>
+                  <Ionicons name="options-outline" size={18} color="#007AFF" />
+                  <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-              )}
+                {Platform.OS === 'web' && (
+                  <Pressable style={styles.downloadButton} onPress={() => alert('Flyer PDF download coming soon')}>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={styles.downloadButtonText}>Download PDF</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
             
             <View style={styles.invoiceRow}>
@@ -1294,12 +1571,18 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>Canvassing Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Door-to-door marketing flyer for new areas</Text>
               </View>
-              {Platform.OS === 'web' && (
-                <Pressable style={styles.downloadButton} onPress={() => alert('Canvassing Flyer PDF download coming soon')}>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+              <View style={styles.sectionButtons}>
+                <Pressable style={styles.configureButton} onPress={() => openItemConfig('canvassing')}>
+                  <Ionicons name="options-outline" size={18} color="#007AFF" />
+                  <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-              )}
+                {Platform.OS === 'web' && (
+                  <Pressable style={styles.downloadButton} onPress={() => alert('Canvassing Flyer PDF download coming soon')}>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={styles.downloadButtonText}>Download PDF</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
             
             <View style={styles.invoiceRow}>
@@ -1321,12 +1604,18 @@ export default function MaterialsScreen() {
                 <Text style={styles.sectionTitle}>New Business Leaflet</Text>
                 <Text style={styles.sectionSubtitle}>Tri-fold leaflet for new customer quotes</Text>
               </View>
-              {Platform.OS === 'web' && (
-                <Pressable style={styles.downloadButton} onPress={() => alert('New Business Leaflet PDF download coming soon')}>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                  <Text style={styles.downloadButtonText}>Download PDF</Text>
+              <View style={styles.sectionButtons}>
+                <Pressable style={styles.configureButton} onPress={() => openItemConfig('leaflet')}>
+                  <Ionicons name="options-outline" size={18} color="#007AFF" />
+                  <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-              )}
+                {Platform.OS === 'web' && (
+                  <Pressable style={styles.downloadButton} onPress={() => alert('New Business Leaflet PDF download coming soon')}>
+                    <Ionicons name="download-outline" size={18} color="#fff" />
+                    <Text style={styles.downloadButtonText}>Download PDF</Text>
+                  </Pressable>
+                )}
+              </View>
             </View>
             
             <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.leafletScroll}>
@@ -1426,6 +1715,27 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     flexWrap: 'wrap',
     gap: 12,
+  },
+  sectionButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+  },
+  configureButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    gap: 6,
+  },
+  configureButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+    fontSize: 14,
   },
   sectionTitle: {
     fontSize: 18,
@@ -1594,6 +1904,112 @@ const modalStyles = StyleSheet.create({
   },
   halfField: {
     flex: 1,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    gap: 12,
+  },
+  cancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  cancelButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  saveButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    gap: 8,
+  },
+  saveButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
+  },
+});
+
+const itemConfigStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  container: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  closeButton: {
+    padding: 4,
+  },
+  content: {
+    padding: 16,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#007AFF',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  checkboxLabel: {
+    fontSize: 16,
+    color: '#333',
   },
   footer: {
     flexDirection: 'row',

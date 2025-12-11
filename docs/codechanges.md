@@ -2,6 +2,42 @@
 
 ## December 11, 2025
 
+### Added Item-Specific Configuration Modals for Materials
+
+**File**: `app/materials.tsx`
+
+**Feature**: Each material type (Invoice, Flyer, Canvassing Flyer, New Business Leaflet) now has an "Options" button that opens a configuration modal with checkboxes to customize what sections to include.
+
+**Invoice Options**:
+- Direct Debit (show/hide)
+- Cash (show/hide)
+- Include Business Address (show/hide)
+
+**Flyer Options** (placeholder):
+- Contact Details
+- Services List
+- FREE Quote Badge
+
+**Canvassing Flyer Options** (placeholder):
+- Price Boxes
+- Additional Services
+- Contact Information
+
+**New Business Leaflet Options** (placeholder):
+- Pricing Table
+- Payment Methods
+- Service Area Map
+
+**Implementation**:
+- Added item configuration interfaces: `InvoiceItemConfig`, `FlyerItemConfig`, `CanvassingFlyerItemConfig`, `LeafletItemConfig`
+- Added `ItemConfigurationModal` component with checkbox UI
+- Added "Options" button next to "Download PDF" for each material section
+- Added `itemConfigStyles` stylesheet for the modal
+
+**Note**: The options UI is complete but the actual toggle functionality to show/hide sections in the previews will be implemented next.
+
+---
+
 ### Made Materials Page Settings Button More Prominent
 
 **File**: `app/materials.tsx`
