@@ -99,8 +99,10 @@ service cloud.firestore {
     match /businessPortals/{portalId} {
       // Anyone can read business portal info (needed for unauthenticated client login)
       allow read: if true;
-      // Only the business owner can create/update/delete their portal
-      allow create, update, delete: if isSignedIn() && request.auth.uid == request.resource.data.ownerId;
+      // Only the business owner can create their portal
+      allow create: if isSignedIn() && request.auth.uid == request.resource.data.ownerId;
+      // Only the business owner can update/delete their existing portal
+      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.ownerId;
     }
 
     // Quote requests from client portal - public create for prospective customers
