@@ -1354,66 +1354,134 @@ export default function MaterialsScreen() {
         return;
       }
       
+      // Generate portal link from business name
+      const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
+      const portalLink = `guvnor.app/${normalizedBusinessName}`;
+      
+      // Pad services to 9 rows
+      const services = [...config.services];
+      while (services.length < 9) services.push('');
+      
+      // Get item config options
+      const showDirectDebit = invoiceItemConfig.showDirectDebit;
+      const showCash = invoiceItemConfig.showCash;
+      const showBusinessAddress = invoiceItemConfig.showBusinessAddress;
+      const hasLeftColumn = showDirectDebit || showCash || showBusinessAddress;
+      
+      // Generate logo HTML
+      const logoHtml = config.logoUrl 
+        ? `<img src="${config.logoUrl}" style="width: 70px; height: 70px; border-radius: 50%; object-fit: cover;" />`
+        : `<svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>`;
+      
+      // Generate services HTML
+      const servicesHtml = services.map(s => 
+        `<div class="service-row"><span>${s}</span><span>£</span></div>`
+      ).join('');
+      
+      // Generate left column content
+      let leftColumnHtml = '';
+      if (showDirectDebit) {
+        leftColumnHtml += `
+          <div class="blue-box">
+            <div class="box-title">Direct Debit</div>
+            <div class="box-text">With your card details at hand go to:</div>
+            <div class="link-text">${config.directDebitLink}</div>
+          </div>`;
+      }
+      if (showCash) {
+        leftColumnHtml += `
+          <div class="blue-box">
+            <div class="box-title">Cash</div>
+            <div class="box-text">Let us know to knock on your door or look somewhere for an envelope.</div>
+          </div>`;
+      }
+      if (showBusinessAddress) {
+        leftColumnHtml += `
+          <div class="blue-box address-box">
+            <div class="address-text">${config.businessAddress.line1}</div>
+            <div class="address-text">${config.businessAddress.town}</div>
+            <div class="address-text">${config.businessAddress.postcode}</div>
+          </div>`;
+      }
+      
       printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-          <title>Invoice - Print</title>
+          <title>Invoice - ${config.businessName}</title>
           <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
             @media print {
-              @page { size: A5 landscape; margin: 10mm; }
+              @page { size: A5; margin: 0; }
+              body { margin: 0; }
               .page-break { page-break-after: always; }
-              .no-print { display: none; }
+              .no-print { display: none !important; }
+              .invoice-container { 
+                width: 148mm; 
+                height: 210mm; 
+                margin: 0; 
+                border: none;
+                page-break-inside: avoid;
+              }
+            }
+            @media screen {
+              .invoice-container {
+                width: 148mm;
+                height: 210mm;
+                border: 1px solid #ddd;
+                margin: 10px auto;
+              }
             }
             .invoice-container {
-              width: 400px;
-              height: 580px;
-              padding: 16px;
+              padding: 8mm;
               background: white;
-              border: 1px solid #ddd;
-              margin: 20px auto;
+              display: flex;
+              flex-direction: column;
             }
-            .columns { display: flex; gap: 12px; height: 100%; }
-            .column { flex: 1; display: flex; flex-direction: column; }
-            .blue-box { border: 2px solid #2E86AB; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
-            .box-title { font-size: 14px; font-weight: bold; margin-bottom: 6px; }
-            .box-text { font-size: 10px; line-height: 1.4; }
-            .link-text { font-size: 10px; color: #2E86AB; margin-top: 4px; }
-            .branding { text-align: center; margin-bottom: 12px; }
-            .logo-circle { width: 70px; height: 70px; border-radius: 50%; background: #555; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; }
+            .top-section { display: flex; gap: 4mm; margin-bottom: 4mm; }
+            .top-left { flex: 1; display: flex; flex-direction: column; }
+            .top-right { flex: 1; display: flex; flex-direction: column; }
+            .bottom-section { display: flex; gap: 4mm; flex: 1; }
+            .bottom-left { flex: 1; display: flex; flex-direction: column; }
+            .bottom-right { flex: 1; display: flex; flex-direction: column; }
+            .blue-box { border: 2px solid #2E86AB; border-radius: 6px; padding: 8px; margin-bottom: 4px; }
+            .box-title { font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+            .box-text { font-size: 9px; line-height: 1.3; }
+            .link-text { font-size: 9px; color: #2E86AB; margin-top: 2px; }
+            .services-header { font-size: 10px; font-weight: bold; margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+            .branding { text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+            .logo-circle { width: 70px; height: 70px; border-radius: 50%; background: #555; margin-bottom: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
             .logo-circle svg { width: 40px; height: 40px; fill: white; }
-            .business-name { font-size: 22px; font-weight: bold; }
-            .business-name-blue { font-size: 18px; font-weight: 600; color: #2E86AB; }
-            .tagline { font-size: 10px; margin-top: 2px; }
-            .phone { font-size: 16px; font-weight: bold; color: #2E86AB; margin-top: 6px; }
-            .social, .website { font-size: 9px; }
-            .address { font-size: 10px; line-height: 1.4; padding-top: 8px; }
-            .bank-label { font-size: 10px; font-weight: bold; }
-            .bank-value { font-size: 11px; color: #2E86AB; }
+            .business-name { font-size: 18px; font-weight: bold; }
+            .tagline { font-size: 9px; margin-top: 2px; }
+            .phone { font-size: 14px; font-weight: bold; color: #2E86AB; margin-top: 4px; }
+            .social, .website { font-size: 8px; }
             .bank-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
-            .payment-ref { font-size: 14px; font-weight: bold; color: #2E86AB; }
-            .notes-area { height: 60px; }
-            .service-row { display: flex; justify-content: space-between; border-bottom: 1px solid #2E86AB; padding: 4px 0; font-size: 9px; }
-            .total-row { display: flex; justify-content: space-between; padding-top: 6px; font-size: 10px; font-weight: bold; }
-            .services-header { font-size: 11px; font-weight: bold; margin-bottom: 12px; }
-            .portal-box { border: 2px solid #2E86AB; border-radius: 8px; padding: 16px; }
-            .portal-title { font-size: 16px; font-weight: bold; color: #2E86AB; text-align: center; margin-bottom: 10px; }
-            .portal-text { font-size: 10px; text-align: center; line-height: 1.4; margin-bottom: 12px; }
-            .step-title { font-size: 11px; font-weight: bold; margin-bottom: 6px; }
-            .step-row { display: flex; margin-bottom: 4px; font-size: 10px; }
-            .step-number { font-weight: bold; color: #2E86AB; width: 16px; }
-            .portal-url { font-size: 11px; font-weight: bold; color: #2E86AB; text-align: center; margin-bottom: 8px; margin-left: 16px; }
-            .features-box { background: #f0f8ff; border-radius: 6px; padding: 10px; margin-top: 12px; }
-            .features-title { font-size: 10px; font-weight: bold; margin-bottom: 4px; }
-            .feature-item { font-size: 9px; line-height: 1.4; }
-            .back-content { height: 100%; display: flex; flex-direction: column; }
+            .bank-label { font-size: 9px; font-weight: bold; }
+            .bank-value { font-size: 10px; color: #2E86AB; }
+            .payment-ref { font-size: 12px; font-weight: bold; color: #2E86AB; }
+            .notes-area { height: 50px; }
+            .work-completed-box { flex: 1; display: flex; flex-direction: column; }
+            .service-row { display: flex; justify-content: space-between; border-bottom: 1px solid #2E86AB; padding: 3px 0; font-size: 8px; }
+            .service-row span:last-child { width: 40px; }
+            .total-row { display: flex; justify-content: space-between; padding-top: 4px; font-size: 9px; font-weight: bold; margin-top: auto; }
+            .address-box { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+            .address-text { font-size: 9px; line-height: 1.4; }
+            .back-container { display: flex; flex-direction: column; height: 100%; }
             .back-top { flex: 1; }
-            .back-bottom { text-align: center; padding-bottom: 16px; font-size: 10px; color: #999; font-style: italic; }
-            .print-btn { display: block; margin: 20px auto; padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
+            .back-bottom { flex: 1; }
+            .portal-box { border: 2px solid #2E86AB; border-radius: 6px; padding: 12px; height: 100%; }
+            .portal-icon { text-align: center; margin-bottom: 8px; }
+            .portal-title { font-size: 14px; font-weight: bold; color: #2E86AB; text-align: center; margin-bottom: 8px; }
+            .portal-text { font-size: 9px; text-align: center; line-height: 1.3; margin-bottom: 10px; }
+            .step-title { font-size: 10px; font-weight: bold; margin-bottom: 4px; }
+            .step-row { display: flex; margin-bottom: 3px; font-size: 9px; }
+            .step-number { font-weight: bold; color: #2E86AB; width: 14px; }
+            .portal-url { font-size: 10px; font-weight: bold; color: #2E86AB; text-align: center; margin: 4px 0 4px 14px; }
+            .print-btn { display: block; margin: 15px auto; padding: 12px 24px; background: #007AFF; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
             .print-btn:hover { background: #0056b3; }
-            h2 { text-align: center; margin: 20px 0 10px; color: #666; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+            h2.no-print { text-align: center; margin: 15px 0 5px; color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
           </style>
         </head>
         <body>
@@ -1421,42 +1489,23 @@ export default function MaterialsScreen() {
           
           <h2 class="no-print">Front</h2>
           <div class="invoice-container">
-            <div class="columns">
-              <div class="column">
-                <div class="services-header">Services provided on: ✓ &nbsp;&nbsp;/&nbsp;&nbsp;/&nbsp;&nbsp;</div>
+            <div class="top-section">
+              <div class="top-left">
+                <div class="services-header">Services provided on: ✓ &nbsp;/&nbsp;/&nbsp;</div>
                 <div class="branding">
-                  <div class="logo-circle">
-                    <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
-                  </div>
-                  <div class="business-name">TGM</div>
-                  <div class="business-name-blue">Window Cleaning</div>
-                  <div class="tagline">Local. Reliable. Professional.</div>
-                  <div class="phone">07814 804 759</div>
-                  <div class="social">f/tgmwindowcleaningUK</div>
-                  <div class="website">www.tgmwindowcleaning.co.uk</div>
-                </div>
-                <div class="blue-box">
-                  <div class="box-title">Direct Debit</div>
-                  <div class="box-text">With your card details at hand go to:</div>
-                  <div class="link-text">www.tgmwindowcleaning.co.uk/gocardless</div>
-                </div>
-                <div class="blue-box">
-                  <div class="box-title">Cash</div>
-                  <div class="box-text">Let us know to knock on your door or look somewhere for an envelope.</div>
-                </div>
-                <div class="address">
-                  TGM Window Cleaning<br>
-                  16 Church Street<br>
-                  LN4 4HN
+                  <div class="logo-circle">${logoHtml}</div>
+                  <div class="business-name">${config.businessName}</div>
+                  <div class="tagline">${config.tagline}</div>
+                  <div class="phone">${config.mobileNumber}</div>
+                  <div class="social">f/${config.facebookHandle}</div>
+                  <div class="website">${config.websiteAddress}</div>
                 </div>
               </div>
-              <div class="column">
+              <div class="top-right">
                 <div class="blue-box">
                   <div class="box-title">Bank Transfer</div>
-                  <div class="bank-label">Business Account Name:</div>
-                  <div class="bank-value">TGM Window Cleaning</div>
-                  <div class="bank-row"><span class="bank-label">Sort Code:</span><span class="bank-value">30-98-97</span></div>
-                  <div class="bank-row"><span class="bank-label">Account No:</span><span class="bank-value">36215362</span></div>
+                  <div class="bank-row"><span class="bank-label">Sort Code:</span><span class="bank-value">${config.sortCode}</span></div>
+                  <div class="bank-row"><span class="bank-label">Account No:</span><span class="bank-value">${config.accountNumber}</span></div>
                   <div class="bank-label">Payment reference:</div>
                   <div class="payment-ref">RWC</div>
                 </div>
@@ -1464,17 +1513,14 @@ export default function MaterialsScreen() {
                   <div class="box-title">Notes</div>
                   <div class="notes-area"></div>
                 </div>
-                <div class="blue-box">
+              </div>
+            </div>
+            <div class="bottom-section">
+              ${hasLeftColumn ? `<div class="bottom-left">${leftColumnHtml}</div>` : ''}
+              <div class="bottom-right" style="${hasLeftColumn ? '' : 'flex: 2;'}">
+                <div class="blue-box work-completed-box">
                   <div class="box-title">Work completed</div>
-                  <div class="service-row"><span>Exterior window cleaning</span><span>£</span></div>
-                  <div class="service-row"><span>Gutter cleaning</span><span>£</span></div>
-                  <div class="service-row"><span>Soffits and Facias</span><span>£</span></div>
-                  <div class="service-row"><span>Conservatory roof clean</span><span>£</span></div>
-                  <div class="service-row"><span>Solar panels</span><span>£</span></div>
-                  <div class="service-row"><span>UPVc Restoration</span><span>£</span></div>
-                  <div class="service-row"><span>Caravan softwash</span><span>£</span></div>
-                  <div class="service-row"><span></span><span>£</span></div>
-                  <div class="service-row"><span></span><span>£</span></div>
+                  ${servicesHtml}
                   <div class="total-row"><span>Total</span><span>£</span></div>
                 </div>
               </div>
@@ -1485,29 +1531,22 @@ export default function MaterialsScreen() {
           
           <h2 class="no-print">Back</h2>
           <div class="invoice-container">
-            <div class="back-content">
+            <div class="back-container">
               <div class="back-top">
                 <div class="portal-box">
-                  <div style="text-align: center; margin-bottom: 12px;">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="#2E86AB"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                  <div class="portal-icon">
+                    <svg width="40" height="40" viewBox="0 0 24 24" fill="#2E86AB"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
                   </div>
                   <div class="portal-title">Manage Your Account Online</div>
                   <div class="portal-text">View your statement, check your balance, and manage your account details online through our customer portal.</div>
                   <div class="step-title">How to access:</div>
                   <div class="step-row"><span class="step-number">1.</span><span>Visit our customer portal at:</span></div>
-                  <div class="portal-url">guvnor.app/tgmwindowcleaning</div>
-                  <div class="step-row"><span class="step-number">2.</span><span>Enter your account number (shown on front as payment reference)</span></div>
+                  <div class="portal-url">${portalLink}</div>
+                  <div class="step-row"><span class="step-number">2.</span><span>Enter your account number (Shown on front, starting with RWC)</span></div>
                   <div class="step-row"><span class="step-number">3.</span><span>Verify with the last 4 digits of your phone number</span></div>
-                  <div class="features-box">
-                    <div class="features-title">You can:</div>
-                    <div class="feature-item">• View your account balance</div>
-                    <div class="feature-item">• See your service history</div>
-                    <div class="feature-item">• Check upcoming visits</div>
-                    <div class="feature-item">• Update your contact details</div>
-                  </div>
                 </div>
               </div>
-              <div class="back-bottom">TGM Window Cleaning</div>
+              <div class="back-bottom"></div>
             </div>
           </div>
         </body>
