@@ -72,11 +72,14 @@ async function updateBusinessPortal(
   const normalizedName = normalizeBusinessName(businessName);
   const portalRef = doc(db, BUSINESS_PORTALS_COLLECTION, normalizedName);
   
+  // Use setDoc without merge to ensure full document creation/replacement
   await setDoc(portalRef, {
     ownerId,
     businessName,
+    normalizedName,
     ownerName: ownerName || '',
     email: email || '',
+    createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
-  }, { merge: true });
+  });
 } 
