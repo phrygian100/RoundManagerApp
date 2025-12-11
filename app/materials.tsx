@@ -1406,13 +1406,19 @@ export default function MaterialsScreen() {
       }
     });
 
+    // Temporarily remove height constraint to capture full content
+    const originalHeight = element.style.height;
+    const originalOverflow = element.style.overflow;
+    element.style.height = 'auto';
+    element.style.overflow = 'visible';
+    
     try {
       // Small delay to let styles apply
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Get the full dimensions including any overflow
-      const fullWidth = Math.max(element.scrollWidth, element.offsetWidth);
-      const fullHeight = Math.max(element.scrollHeight, element.offsetHeight);
+      // Get the full dimensions now that height is auto
+      const fullWidth = element.scrollWidth;
+      const fullHeight = element.scrollHeight;
       
       // Capture the actual rendered element with high scale for print quality
       const canvas = await html2canvas(element, {
@@ -1422,8 +1428,6 @@ export default function MaterialsScreen() {
         backgroundColor: '#ffffff',
         width: fullWidth,
         height: fullHeight,
-        windowWidth: fullWidth,
-        windowHeight: fullHeight,
       });
 
       // Download the PNG
@@ -1435,6 +1439,9 @@ export default function MaterialsScreen() {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
     } finally {
+      // Restore height constraint
+      element.style.height = originalHeight;
+      element.style.overflow = originalOverflow;
       // Clean up temporary styles
       element.removeAttribute('data-capture');
       const tempStyle = document.getElementById(styleId);
