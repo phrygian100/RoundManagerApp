@@ -47,6 +47,9 @@ interface InvoiceItemConfig {
   showManageAccountOnline: boolean;
   showReferralScheme: boolean;
   referralReward: ReferralReward;
+  showNotesWhitespace: boolean;
+  showCustomText: boolean;
+  customText: string;
 }
 
 interface FlyerItemConfig {
@@ -74,6 +77,9 @@ const defaultInvoiceItemConfig: InvoiceItemConfig = {
   showManageAccountOnline: true,
   showReferralScheme: false,
   referralReward: '£5',
+  showNotesWhitespace: false,
+  showCustomText: false,
+  customText: '',
 };
 
 const defaultFlyerItemConfig: FlyerItemConfig = {
@@ -493,7 +499,7 @@ const ItemConfigurationModal = ({
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
                 />
                 <View style={itemConfigStyles.divider} />
-                <Text style={itemConfigStyles.sectionTitle}>Referral Scheme (Invoice Back)</Text>
+                <Text style={itemConfigStyles.sectionTitle}>ON THE BACK</Text>
                 <CheckboxRow 
                   label="Manage Your Account Online" 
                   checked={invoiceForm.showManageAccountOnline} 
@@ -519,6 +525,37 @@ const ItemConfigurationModal = ({
                         <Picker.Item label="One free service" value="One free service" />
                       </Picker>
                     </View>
+                  </View>
+                )}
+
+                <View style={itemConfigStyles.divider} />
+                <Text style={itemConfigStyles.sectionTitle}>OTHER</Text>
+                <CheckboxRow
+                  label="White space for notes"
+                  checked={invoiceForm.showNotesWhitespace}
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showNotesWhitespace: !prev.showNotesWhitespace }))}
+                />
+                <CheckboxRow
+                  label="CUSTOM TEXT"
+                  checked={invoiceForm.showCustomText}
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showCustomText: !prev.showCustomText }))}
+                />
+                {invoiceForm.showCustomText && (
+                  <View style={itemConfigStyles.pickerRow}>
+                    <Text style={itemConfigStyles.pickerLabel}>
+                      Custom text (max 250 characters)
+                    </Text>
+                    <TextInput
+                      style={[itemConfigStyles.customTextInput]}
+                      value={invoiceForm.customText}
+                      onChangeText={(t) => setInvoiceForm(prev => ({ ...prev, customText: t.slice(0, 250) }))}
+                      placeholder="Enter custom message..."
+                      multiline
+                      numberOfLines={5}
+                    />
+                    <Text style={itemConfigStyles.charCount}>
+                      {invoiceForm.customText.length}/250
+                    </Text>
                   </View>
                 )}
               </>
@@ -758,6 +795,9 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   const showManageAccountOnline = itemConfig?.showManageAccountOnline ?? true;
   const showReferralScheme = itemConfig?.showReferralScheme ?? false;
   const referralReward = itemConfig?.referralReward ?? '£5';
+  const showNotesWhitespace = itemConfig?.showNotesWhitespace ?? false;
+  const showCustomText = itemConfig?.showCustomText ?? false;
+  const customText = itemConfig?.customText ?? '';
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
@@ -796,6 +836,20 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
       
       {/* Bottom Half - Reserved for other content */}
       <View style={invoiceStyles.backBottomHalf}>
+        {showCustomText && !!customText.trim() && (
+          <View style={[invoiceStyles.referralBox, { marginBottom: 10 }]}>
+            <Text style={invoiceStyles.referralText}>{customText.trim()}</Text>
+          </View>
+        )}
+        {showNotesWhitespace && (
+          <View style={[invoiceStyles.referralBox, { marginBottom: showReferralScheme ? 10 : 0 }]}>
+            <View style={invoiceStyles.dottedLines}>
+              {Array.from({ length: 7 }).map((_, i) => (
+                <View key={i} style={invoiceStyles.dottedLine} />
+              ))}
+            </View>
+          </View>
+        )}
         {showReferralScheme && (
           <View style={invoiceStyles.referralBox}>
             <Text style={invoiceStyles.referralTitle}>Referral Scheme</Text>
@@ -2199,6 +2253,22 @@ const itemConfigStyles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#fafafa',
   },
+  customTextInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    backgroundColor: '#fafafa',
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
+  charCount: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'right',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -2426,7 +2496,9 @@ const invoiceStyles = StyleSheet.create({
     marginTop: 2,
   },
   notesArea: {
-    height: 60,
+    // Slightly smaller to increase the whitespace between Notes (top half)
+    // and Work completed (bottom half), matching the center gutter visually.
+    height: 48,
   },
   serviceRow: {
     flexDirection: 'row',
@@ -2505,6 +2577,16 @@ const invoiceStyles = StyleSheet.create({
   referralReward: {
     fontWeight: 'bold',
     color: '#2E86AB',
+  },
+  dottedLines: {
+    width: '100%',
+    justifyContent: 'center',
+  },
+  dottedLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#2E86AB',
+    borderStyle: 'dotted',
+    marginVertical: 6,
   },
   portalTitle: {
     fontSize: 16,
