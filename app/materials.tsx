@@ -1371,9 +1371,28 @@ export default function MaterialsScreen() {
         await fontsReady;
       }
 
-      // Tag element so we can find its clone inside html2canvas's cloned document.
+      // Capture strategy:
+      // 1) Read computed styles from the *real* preview DOM (RNW styles applied)
+      // 2) In html2canvas onclone(), apply those computed styles onto the cloned nodes
+      // This avoids clone-side style loss (which caused black borders / wrong layout).
       const captureId = `capture-${side}-${Date.now()}`;
-      element.setAttribute('data-capture-id', captureId);
+
+      const originalNodes = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+      const styleMap = new Map<string, Array<[string, string, string]>>();
+
+      for (let idx = 0; idx < originalNodes.length; idx++) {
+        const node = originalNodes[idx];
+        const nodeId = `${captureId}-${idx}`;
+        node.setAttribute('data-capture-node', nodeId);
+
+        const cs = window.getComputedStyle(node);
+        const props: Array<[string, string, string]> = [];
+        for (let i = 0; i < cs.length; i++) {
+          const prop = cs[i];
+          props.push([prop, cs.getPropertyValue(prop), cs.getPropertyPriority(prop)]);
+        }
+        styleMap.set(nodeId, props);
+      }
       
       // Capture the element at its natural size, scaled up for print quality
       const canvas = await html2canvas(element, {
@@ -1381,25 +1400,18 @@ export default function MaterialsScreen() {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        // Inline computed styles *in the cloned DOM only* so colors/fonts match the preview.
-        // This avoids mutating the live DOM (which can trigger layout changes).
         onclone: (clonedDoc) => {
-          const clonedEl = clonedDoc.querySelector(`[data-capture-id="${captureId}"]`) as HTMLElement | null;
-          if (!clonedEl) return;
-          const view = clonedDoc.defaultView;
-          if (!view) return;
-
-          const nodes = [clonedEl, ...Array.from(clonedEl.querySelectorAll('*'))] as HTMLElement[];
-          for (const node of nodes) {
-            const cs = view.getComputedStyle(node);
-            // Copy every computed CSS property to inline style
-            for (let i = 0; i < cs.length; i++) {
-              const prop = cs[i];
-              const val = cs.getPropertyValue(prop);
-              const prio = cs.getPropertyPriority(prop);
-              node.style.setProperty(prop, val, prio);
+          const clonedNodes = clonedDoc.querySelectorAll(`[data-capture-node^="${captureId}-"]`);
+          clonedNodes.forEach((n) => {
+            const el = n as HTMLElement;
+            const nodeId = el.getAttribute('data-capture-node');
+            if (!nodeId) return;
+            const props = styleMap.get(nodeId);
+            if (!props) return;
+            for (const [prop, val, prio] of props) {
+              el.style.setProperty(prop, val, prio);
             }
-          }
+          });
         },
       });
 
@@ -1412,7 +1424,9 @@ export default function MaterialsScreen() {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
     } finally {
-      element.removeAttribute('data-capture-id');
+      // Clean up node tagging (don’t leave attributes around)
+      const tagged = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+      tagged.forEach((n) => n.removeAttribute('data-capture-node'));
     }
   };
 
