@@ -41,6 +41,7 @@ interface MaterialsConfig {
 type ReferralReward = '£5' | '£10' | '£15' | '£20' | 'One free service';
 
 interface InvoiceItemConfig {
+  showServicesProvidedOn: boolean;
   showDirectDebit: boolean;
   showCash: boolean;
   showBusinessAddress: boolean;
@@ -71,6 +72,7 @@ interface LeafletItemConfig {
 }
 
 const defaultInvoiceItemConfig: InvoiceItemConfig = {
+  showServicesProvidedOn: true,
   showDirectDebit: true,
   showCash: true,
   showBusinessAddress: true,
@@ -484,6 +486,11 @@ const ItemConfigurationModal = ({
               <>
                 <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
                 <CheckboxRow 
+                  label="Services provided on" 
+                  checked={invoiceForm.showServicesProvidedOn} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showServicesProvidedOn: !prev.showServicesProvidedOn }))} 
+                />
+                <CheckboxRow 
                   label="Direct Debit" 
                   checked={invoiceForm.showDirectDebit} 
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showDirectDebit: !prev.showDirectDebit }))} 
@@ -728,6 +735,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
   const businessNameIsLong = (config.businessName || '').length > 18;
 
   // Default to showing all sections if no itemConfig provided
+  const showServicesProvidedOn = itemConfig?.showServicesProvidedOn ?? true;
   const showDirectDebit = itemConfig?.showDirectDebit ?? true;
   const showCash = itemConfig?.showCash ?? true;
   const showBusinessAddress = itemConfig?.showBusinessAddress ?? true;
@@ -742,11 +750,13 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
         {/* Left: Header + Branding */}
         <View style={invoiceStyles.topLeftColumn}>
           {/* Services Provided Header */}
-          <View style={invoiceStyles.servicesHeader}>
-            <Text style={invoiceStyles.servicesHeaderText}>Services provided on: </Text>
-            <Ionicons name="checkmark-circle" size={16} color="#2E86AB" />
-            <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
-          </View>
+          {showServicesProvidedOn && (
+            <View style={invoiceStyles.servicesHeader}>
+              <Text style={invoiceStyles.servicesHeaderText}>Services provided on: </Text>
+              <Ionicons name="checkmark-circle" size={16} color="#2E86AB" />
+              <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
+            </View>
+          )}
 
           {/* Logo and Branding */}
           <View style={invoiceStyles.brandingSection}>
