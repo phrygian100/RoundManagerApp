@@ -751,7 +751,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
           {/* Logo and Branding */}
           <View style={invoiceStyles.brandingSection}>
             {/* Logo Circle */}
-            <View style={invoiceStyles.logoCircle}>
+            <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
               {config.logoUrl ? (
                 <Image source={{ uri: config.logoUrl }} style={invoiceStyles.logoImage} resizeMode="cover" />
               ) : (
@@ -1001,7 +1001,7 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={flyerStyles.headerGradient}>
         {/* Logo and Branding */}
         <View style={flyerStyles.brandingRow}>
-          <View style={flyerStyles.logoCircle}>
+          <View style={[flyerStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
               <Image source={{ uri: config.logoUrl }} style={flyerStyles.logoImage} resizeMode="cover" />
             ) : (
@@ -1173,7 +1173,7 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={canvassingStyles.headerArea}>
         {/* Logo and Branding */}
         <View style={canvassingStyles.brandingRow}>
-          <View style={canvassingStyles.logoCircle}>
+          <View style={[canvassingStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
               <Image source={{ uri: config.logoUrl }} style={canvassingStyles.logoImage} resizeMode="cover" />
             ) : (
@@ -1478,7 +1478,7 @@ const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
       <View style={leafletStyles.brandPanel}>
         {/* Logo and Title */}
         <View style={leafletStyles.brandHeader}>
-          <View style={leafletStyles.logoCircle}>
+          <View style={[leafletStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
               <Image source={{ uri: config.logoUrl }} style={leafletStyles.logoImage} resizeMode="cover" />
             ) : (
