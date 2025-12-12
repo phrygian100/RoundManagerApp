@@ -531,22 +531,41 @@ const ItemConfigurationModal = ({
                 <CheckboxRow
                   label="White space for notes"
                   checked={invoiceForm.showNotesWhitespace}
-                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showNotesWhitespace: !prev.showNotesWhitespace }))}
+                  onToggle={() => setInvoiceForm(prev => ({ 
+                    ...prev, 
+                    showNotesWhitespace: !prev.showNotesWhitespace,
+                    showCustomText: !prev.showNotesWhitespace ? false : prev.showCustomText
+                  }))}
                 />
                 <CheckboxRow
-                  label="CUSTOM TEXT"
+                  label="Custom Text"
                   checked={invoiceForm.showCustomText}
-                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showCustomText: !prev.showCustomText }))}
+                  onToggle={() => setInvoiceForm(prev => ({ 
+                    ...prev, 
+                    showCustomText: !prev.showCustomText,
+                    showNotesWhitespace: !prev.showCustomText ? false : prev.showNotesWhitespace
+                  }))}
                 />
                 {invoiceForm.showCustomText && (
                   <View style={itemConfigStyles.pickerRow}>
                     <Text style={itemConfigStyles.pickerLabel}>
-                      Custom text (max 250 characters)
+                      Custom text (max 250 characters, 7 lines)
                     </Text>
                     <TextInput
                       style={[itemConfigStyles.customTextInput]}
                       value={invoiceForm.customText}
-                      onChangeText={(t) => setInvoiceForm(prev => ({ ...prev, customText: t.slice(0, 250) }))}
+                      onChangeText={(t) => {
+                        // Limit to 250 characters
+                        let text = t.slice(0, 250);
+                        // Limit to 7 newlines
+                        const newlineCount = (text.match(/\n/g) || []).length;
+                        if (newlineCount > 7) {
+                          // Remove excess newlines from the end
+                          const lines = text.split('\n');
+                          text = lines.slice(0, 8).join('\n');
+                        }
+                        setInvoiceForm(prev => ({ ...prev, customText: text }));
+                      }}
                       placeholder="Enter custom message..."
                       multiline
                       numberOfLines={5}
