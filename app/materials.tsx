@@ -1363,27 +1363,17 @@ export default function MaterialsScreen() {
       return;
     }
 
-    // Inject temporary CSS to force blue colors for capture
-    // html2canvas doesn't properly read React Native Web's color styles
-    // Use ONLY CSS rules - don't modify elements directly to avoid layout recalculation
-    const styleId = 'temp-capture-styles';
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      [data-capture="true"] * {
-        border-color: #2E86AB !important;
-        border-top-color: #2E86AB !important;
-        border-bottom-color: #2E86AB !important;
-        border-left-color: #2E86AB !important;
-        border-right-color: #2E86AB !important;
-      }
-    `;
-    document.head.appendChild(style);
-    element.setAttribute('data-capture', 'true');
-
     try {
-      // Small delay to let styles apply
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Ensure fonts are loaded before capture (prevents text reflow vs preview)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const fontsReady = (document as any).fonts?.ready;
+      if (fontsReady && typeof fontsReady.then === 'function') {
+        await fontsReady;
+      }
+
+      // Tag element so we can find its clone inside html2canvas's cloned document.
+      const captureId = `capture-${side}-${Date.now()}`;
+      element.setAttribute('data-capture-id', captureId);
       
       // Capture the element at its natural size, scaled up for print quality
       const canvas = await html2canvas(element, {
@@ -1391,6 +1381,26 @@ export default function MaterialsScreen() {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        // Inline computed styles *in the cloned DOM only* so colors/fonts match the preview.
+        // This avoids mutating the live DOM (which can trigger layout changes).
+        onclone: (clonedDoc) => {
+          const clonedEl = clonedDoc.querySelector(`[data-capture-id="${captureId}"]`) as HTMLElement | null;
+          if (!clonedEl) return;
+          const view = clonedDoc.defaultView;
+          if (!view) return;
+
+          const nodes = [clonedEl, ...Array.from(clonedEl.querySelectorAll('*'))] as HTMLElement[];
+          for (const node of nodes) {
+            const cs = view.getComputedStyle(node);
+            // Copy every computed CSS property to inline style
+            for (let i = 0; i < cs.length; i++) {
+              const prop = cs[i];
+              const val = cs.getPropertyValue(prop);
+              const prio = cs.getPropertyPriority(prop);
+              node.style.setProperty(prop, val, prio);
+            }
+          }
+        },
       });
 
       // Download the PNG
@@ -1402,10 +1412,7 @@ export default function MaterialsScreen() {
       console.error('Error generating PNG:', error);
       alert('Error generating image. Please try again.');
     } finally {
-      // Clean up temporary styles
-      element.removeAttribute('data-capture');
-      const tempStyle = document.getElementById(styleId);
-      if (tempStyle) tempStyle.remove();
+      element.removeAttribute('data-capture-id');
     }
   };
 
