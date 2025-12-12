@@ -811,11 +811,11 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
             
             <View style={{ marginBottom: 10 }}>
               <Text style={[invoiceStyles.bankLabel, { fontSize: 12 }]}>Sort Code:</Text>
-              <Text style={[invoiceStyles.bankValue, { fontSize: 14 }]}>{config.sortCode}</Text>
+              <Text style={[invoiceStyles.bankValue, { fontSize: 14, fontWeight: 'bold' }]}>{config.sortCode}</Text>
             </View>
             <View style={{ marginBottom: 10 }}>
               <Text style={[invoiceStyles.bankLabel, { fontSize: 12 }]}>Account No:</Text>
-              <Text style={[invoiceStyles.bankValue, { fontSize: 14 }]}>{config.accountNumber}</Text>
+              <Text style={[invoiceStyles.bankValue, { fontSize: 14, fontWeight: 'bold' }]}>{config.accountNumber}</Text>
             </View>
             
             <View>
@@ -931,7 +931,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
       {/* Top Half - Client Portal Instructions (50% of space) */}
       <View style={invoiceStyles.backTopHalf}>
         {showManageAccountOnline && (
-          <View style={[invoiceStyles.portalBox, { flex: 1 }]}>
+          <View style={[invoiceStyles.portalBox, { flex: 1, marginBottom: 32 }]}>
             <Text style={[invoiceStyles.portalTitle, { fontSize: 18 }]}>Manage Your Account Online</Text>
             
             <Text style={[invoiceStyles.portalText, { fontSize: 12, lineHeight: 16 }]}>
