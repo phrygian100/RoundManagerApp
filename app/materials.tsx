@@ -528,8 +528,6 @@ const ItemConfigurationModal = ({
                   </View>
                 )}
 
-                <View style={itemConfigStyles.divider} />
-                <Text style={itemConfigStyles.sectionTitle}>OTHER</Text>
                 <CheckboxRow
                   label="White space for notes"
                   checked={invoiceForm.showNotesWhitespace}
@@ -799,6 +797,15 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   const showCustomText = itemConfig?.showCustomText ?? false;
   const customText = itemConfig?.customText ?? '';
 
+  // Count visible items in bottom half
+  const visibleBottomItems = [
+    showCustomText && !!customText.trim(),
+    showNotesWhitespace,
+    showReferralScheme,
+  ].filter(Boolean).length;
+
+  const shouldScaleItems = visibleBottomItems >= 2;
+
   return (
     <View style={invoiceStyles.invoiceContainer}>
       {/* Top Half - Client Portal Instructions (50% of space) */}
@@ -837,12 +844,20 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
       {/* Bottom Half - Reserved for other content */}
       <View style={invoiceStyles.backBottomHalf}>
         {showCustomText && !!customText.trim() && (
-          <View style={[invoiceStyles.referralBox, { marginBottom: 10 }]}>
+          <View style={[
+            invoiceStyles.referralBox, 
+            shouldScaleItems ? { flex: 1, marginBottom: 10 } : { marginBottom: 10 }
+          ]}>
             <Text style={invoiceStyles.referralText}>{customText.trim()}</Text>
           </View>
         )}
         {showNotesWhitespace && (
-          <View style={[invoiceStyles.referralBox, { marginBottom: showReferralScheme ? 10 : 0 }]}>
+          <View style={[
+            invoiceStyles.referralBox, 
+            shouldScaleItems 
+              ? { flex: 1, marginBottom: showReferralScheme ? 10 : 0 } 
+              : { marginBottom: showReferralScheme ? 10 : 0 }
+          ]}>
             <View style={invoiceStyles.dottedLines}>
               {Array.from({ length: 7 }).map((_, i) => (
                 <View key={i} style={invoiceStyles.dottedLine} />
@@ -851,7 +866,10 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
           </View>
         )}
         {showReferralScheme && (
-          <View style={invoiceStyles.referralBox}>
+          <View style={[
+            invoiceStyles.referralBox,
+            shouldScaleItems ? { flex: 1 } : {}
+          ]}>
             <Text style={invoiceStyles.referralTitle}>Referral Scheme</Text>
             <Text style={invoiceStyles.referralText}>
               Refer a friend and receive{' '}
@@ -2359,7 +2377,7 @@ const invoiceStyles = StyleSheet.create({
   servicesHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
   servicesHeaderText: {
     fontSize: 11,
@@ -2373,8 +2391,8 @@ const invoiceStyles = StyleSheet.create({
   },
   brandingSection: {
     alignItems: 'center',
-    marginBottom: 12,
-    paddingBottom: 12,
+    marginBottom: 6,
+    paddingBottom: 6,
   },
   brandingSectionFlex: {
     alignItems: 'center',
@@ -2390,7 +2408,7 @@ const invoiceStyles = StyleSheet.create({
     backgroundColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 4,
     overflow: 'hidden',
   },
   logoImage: {
