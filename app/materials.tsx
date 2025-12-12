@@ -931,7 +931,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
       {/* Top Half - Client Portal Instructions (50% of space) */}
       <View style={[invoiceStyles.backTopHalf, { paddingTop: 32 }]}>
         {showManageAccountOnline && (
-          <View style={[invoiceStyles.portalBox, { flex: 1 }]}>
+          <View style={[invoiceStyles.portalBox, { flex: 1, borderWidth: 0 }]}>
             <Text style={[invoiceStyles.portalTitle, { fontSize: 18 }]}>Manage Your Account Online</Text>
             
             <Text style={[invoiceStyles.portalText, { fontSize: 12, lineHeight: 16 }]}>
@@ -966,7 +966,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
         {showCustomText && !!customText.trim() && (
           <View style={[
             invoiceStyles.referralBox, 
-            shouldScaleItems ? { flex: 1, marginBottom: 10 } : { marginBottom: 10 }
+            shouldScaleItems ? { flex: 1, marginBottom: 10, borderWidth: 0 } : { marginBottom: 10, borderWidth: 0 }
           ]}>
             <Text style={invoiceStyles.referralText}>{customText.trim()}</Text>
           </View>
@@ -975,8 +975,8 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
           <View style={[
             invoiceStyles.referralBox, 
             shouldScaleItems 
-              ? { flex: 1, marginBottom: showReferralScheme ? 10 : 0 } 
-              : { marginBottom: showReferralScheme ? 10 : 0 }
+              ? { flex: 1, marginBottom: showReferralScheme ? 10 : 0, borderWidth: 0 } 
+              : { marginBottom: showReferralScheme ? 10 : 0, borderWidth: 0 }
           ]}>
             <View style={invoiceStyles.dottedLines}>
               {Array.from({ length: dottedLineCount }).map((_, i) => (
@@ -991,7 +991,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
         {showReferralScheme && (
           <View style={[
             invoiceStyles.referralBox,
-            shouldScaleItems ? { flex: 1 } : {}
+            shouldScaleItems ? { flex: 1, borderWidth: 0 } : { borderWidth: 0 }
           ]}>
             <Text style={invoiceStyles.referralTitle}>Referral Scheme</Text>
             <Text style={invoiceStyles.referralText}>
