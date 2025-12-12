@@ -803,29 +803,25 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
           </View>
         </View>
 
-        {/* Right: Bank Transfer + Notes */}
+        {/* Right: Bank Transfer */}
         <View style={invoiceStyles.topRightColumn}>
           {/* Bank Transfer Box */}
-          <View style={invoiceStyles.blueBox}>
+          <View style={[invoiceStyles.blueBox, { flex: 1, paddingTop: 16 }]}>
             <Text style={invoiceStyles.boxTitle}>Bank Transfer</Text>
             
-            <View style={invoiceStyles.bankRow}>
+            <View style={{ marginBottom: 8 }}>
               <Text style={invoiceStyles.bankLabel}>Sort Code:</Text>
               <Text style={invoiceStyles.bankValue}>{config.sortCode}</Text>
             </View>
-            <View style={invoiceStyles.bankRow}>
+            <View style={{ marginBottom: 8 }}>
               <Text style={invoiceStyles.bankLabel}>Account No:</Text>
               <Text style={invoiceStyles.bankValue}>{config.accountNumber}</Text>
             </View>
             
-            <Text style={invoiceStyles.bankLabel}>Payment reference:</Text>
-            <Text style={invoiceStyles.paymentRef}>RWC</Text>
-          </View>
-
-          {/* Notes Box */}
-          <View style={invoiceStyles.blueBox}>
-            <Text style={invoiceStyles.boxTitle}>Notes</Text>
-            <View style={invoiceStyles.notesArea} />
+            <View>
+              <Text style={invoiceStyles.bankLabel}>Payment reference:</Text>
+              <Text style={invoiceStyles.paymentRef}>RWC</Text>
+            </View>
           </View>
         </View>
       </View>
