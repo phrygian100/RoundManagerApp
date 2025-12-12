@@ -1411,8 +1411,8 @@ export default function MaterialsScreen() {
     const elementsWithHeight: Array<{el: HTMLElement, originalHeight: string, originalOverflow: string, originalMaxHeight: string}> = [];
     
     // Find all elements and remove height constraints
-    const allElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
-    allElements.forEach((el) => {
+    const heightElements = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
+    heightElements.forEach((el) => {
       const computed = window.getComputedStyle(el);
       // If element has a fixed height or max-height, temporarily remove it
       if (computed.height !== 'auto' || computed.maxHeight !== 'none' || computed.overflow === 'hidden') {
