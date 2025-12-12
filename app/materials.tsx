@@ -38,7 +38,7 @@ interface MaterialsConfig {
 }
 
 // Item-specific configuration types
-type ReferralReward = '£5' | '£10' | '£15' | '£20' | 'One free service';
+type ReferralReward = '£5' | '£10' | '£15' | '£20' | 'One free service' | 'Other...';
 
 interface InvoiceItemConfig {
   showServicesProvidedOn: boolean;
@@ -48,6 +48,7 @@ interface InvoiceItemConfig {
   showManageAccountOnline: boolean;
   showReferralScheme: boolean;
   referralReward: ReferralReward;
+  customRewardText: string;
   showNotesWhitespace: boolean;
   showCustomText: boolean;
   customText: string;
@@ -79,6 +80,7 @@ const defaultInvoiceItemConfig: InvoiceItemConfig = {
   showManageAccountOnline: true,
   showReferralScheme: false,
   referralReward: '£5',
+  customRewardText: '',
   showNotesWhitespace: false,
   showCustomText: false,
   customText: '',
@@ -541,21 +543,35 @@ const ItemConfigurationModal = ({
                   }} 
                 />
                 {invoiceForm.showReferralScheme && (
-                  <View style={itemConfigStyles.pickerRow}>
-                    <Text style={itemConfigStyles.pickerLabel}>Reward</Text>
-                    <View style={itemConfigStyles.pickerContainer}>
-                      <Picker
-                        selectedValue={invoiceForm.referralReward}
-                        onValueChange={(value) => setInvoiceForm(prev => ({ ...prev, referralReward: value as any }))}
-                      >
-                        <Picker.Item label="£5" value="£5" />
-                        <Picker.Item label="£10" value="£10" />
-                        <Picker.Item label="£15" value="£15" />
-                        <Picker.Item label="£20" value="£20" />
-                        <Picker.Item label="One free service" value="One free service" />
-                      </Picker>
+                  <>
+                    <View style={itemConfigStyles.pickerRow}>
+                      <Text style={itemConfigStyles.pickerLabel}>Reward</Text>
+                      <View style={itemConfigStyles.pickerContainer}>
+                        <Picker
+                          selectedValue={invoiceForm.referralReward}
+                          onValueChange={(value) => setInvoiceForm(prev => ({ ...prev, referralReward: value as any }))}
+                        >
+                          <Picker.Item label="£5" value="£5" />
+                          <Picker.Item label="£10" value="£10" />
+                          <Picker.Item label="£15" value="£15" />
+                          <Picker.Item label="£20" value="£20" />
+                          <Picker.Item label="One free service" value="One free service" />
+                          <Picker.Item label="Other..." value="Other..." />
+                        </Picker>
+                      </View>
                     </View>
-                  </View>
+                    {invoiceForm.referralReward === 'Other...' && (
+                      <View style={itemConfigStyles.pickerRow}>
+                        <Text style={itemConfigStyles.pickerLabel}>Custom reward text</Text>
+                        <TextInput
+                          style={itemConfigStyles.textInput}
+                          value={invoiceForm.customRewardText}
+                          onChangeText={(text) => setInvoiceForm(prev => ({ ...prev, customRewardText: text }))}
+                          placeholder="e.g., £25, Two free services, etc."
+                        />
+                      </View>
+                    )}
+                  </>
                 )}
 
                 <CheckboxRow
@@ -884,6 +900,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   const showManageAccountOnline = itemConfig?.showManageAccountOnline ?? true;
   const showReferralScheme = itemConfig?.showReferralScheme ?? false;
   const referralReward = itemConfig?.referralReward ?? '£5';
+  const customRewardText = itemConfig?.customRewardText ?? '';
   const showNotesWhitespace = itemConfig?.showNotesWhitespace ?? false;
   const showCustomText = itemConfig?.showCustomText ?? false;
   const customText = itemConfig?.customText ?? '';
@@ -984,7 +1001,11 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
             <Text style={invoiceStyles.referralText}>
               Refer a friend and receive{' '}
               <Text style={invoiceStyles.referralReward}>
-                {referralReward === 'One free service' ? 'one free service' : referralReward}
+                {referralReward === 'Other...' 
+                  ? customRewardText 
+                  : referralReward === 'One free service' 
+                    ? 'one free service' 
+                    : referralReward}
               </Text>{' '}
               when they become a regular customer. Simply instruct them to reference your address when they go to{' '}
               <Text style={invoiceStyles.referralReward}>{portalLink}</Text>
