@@ -806,21 +806,21 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
         {/* Right: Bank Transfer */}
         <View style={invoiceStyles.topRightColumn}>
           {/* Bank Transfer Box */}
-          <View style={[invoiceStyles.blueBox, { flex: 1, paddingTop: 16 }]}>
-            <Text style={invoiceStyles.boxTitle}>Bank Transfer</Text>
+          <View style={[invoiceStyles.blueBox, { flex: 1, paddingTop: 28 }]}>
+            <Text style={[invoiceStyles.boxTitle, { fontSize: 16 }]}>Bank Transfer</Text>
             
-            <View style={{ marginBottom: 8 }}>
-              <Text style={invoiceStyles.bankLabel}>Sort Code:</Text>
-              <Text style={invoiceStyles.bankValue}>{config.sortCode}</Text>
+            <View style={{ marginBottom: 10 }}>
+              <Text style={[invoiceStyles.bankLabel, { fontSize: 12 }]}>Sort Code:</Text>
+              <Text style={[invoiceStyles.bankValue, { fontSize: 14 }]}>{config.sortCode}</Text>
             </View>
-            <View style={{ marginBottom: 8 }}>
-              <Text style={invoiceStyles.bankLabel}>Account No:</Text>
-              <Text style={invoiceStyles.bankValue}>{config.accountNumber}</Text>
+            <View style={{ marginBottom: 10 }}>
+              <Text style={[invoiceStyles.bankLabel, { fontSize: 12 }]}>Account No:</Text>
+              <Text style={[invoiceStyles.bankValue, { fontSize: 14 }]}>{config.accountNumber}</Text>
             </View>
             
             <View>
-              <Text style={invoiceStyles.bankLabel}>Payment reference:</Text>
-              <Text style={invoiceStyles.paymentRef}>RWC</Text>
+              <Text style={[invoiceStyles.bankLabel, { fontSize: 12 }]}>Payment reference:</Text>
+              <Text style={[invoiceStyles.paymentRef, { fontSize: 16 }]}>RWC</Text>
             </View>
           </View>
         </View>
@@ -931,30 +931,30 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
       {/* Top Half - Client Portal Instructions (50% of space) */}
       <View style={invoiceStyles.backTopHalf}>
         {showManageAccountOnline && (
-          <View style={invoiceStyles.portalBox}>
-            <Text style={invoiceStyles.portalTitle}>Manage Your Account Online</Text>
+          <View style={[invoiceStyles.portalBox, { flex: 1 }]}>
+            <Text style={[invoiceStyles.portalTitle, { fontSize: 18 }]}>Manage Your Account Online</Text>
             
-            <Text style={invoiceStyles.portalText}>
+            <Text style={[invoiceStyles.portalText, { fontSize: 12, lineHeight: 16 }]}>
               View your statement, check your balance, and manage your account details online through our customer portal.
             </Text>
             
             <View style={invoiceStyles.portalSteps}>
-              <Text style={invoiceStyles.stepTitle}>How to access:</Text>
+              <Text style={[invoiceStyles.stepTitle, { fontSize: 13 }]}>How to access:</Text>
               
               <View style={invoiceStyles.stepRow}>
-                <Text style={invoiceStyles.stepNumber}>1.</Text>
-                <Text style={invoiceStyles.stepText}>Visit our customer portal at:</Text>
+                <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>1.</Text>
+                <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Visit our customer portal at:</Text>
               </View>
-              <Text style={invoiceStyles.portalUrl}>{portalLink}</Text>
+              <Text style={[invoiceStyles.portalUrl, { fontSize: 13 }]}>{portalLink}</Text>
               
               <View style={invoiceStyles.stepRow}>
-                <Text style={invoiceStyles.stepNumber}>2.</Text>
-                <Text style={invoiceStyles.stepText}>Enter your account number (Shown on front, starting with RWC)</Text>
+                <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>2.</Text>
+                <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Enter your account number (Shown on front, starting with RWC)</Text>
               </View>
               
               <View style={invoiceStyles.stepRow}>
-                <Text style={invoiceStyles.stepNumber}>3.</Text>
-                <Text style={invoiceStyles.stepText}>Verify with the last 4 digits of your phone number</Text>
+                <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>3.</Text>
+                <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Verify with the last 4 digits of your phone number</Text>
               </View>
             </View>
           </View>
