@@ -499,16 +499,39 @@ const ItemConfigurationModal = ({
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
                 />
                 <View style={itemConfigStyles.divider} />
-                <Text style={itemConfigStyles.sectionTitle}>ON THE BACK</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={itemConfigStyles.sectionTitle}>ON THE BACK</Text>
+                  <Text style={{ fontSize: 11, color: '#666', fontStyle: 'italic' }}>(choose up to 3)</Text>
+                </View>
                 <CheckboxRow 
                   label="Manage Your Account Online" 
                   checked={invoiceForm.showManageAccountOnline} 
-                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showManageAccountOnline: !prev.showManageAccountOnline }))} 
+                  onToggle={() => {
+                    const currentCount = [
+                      invoiceForm.showManageAccountOnline,
+                      invoiceForm.showReferralScheme,
+                      invoiceForm.showNotesWhitespace,
+                      invoiceForm.showCustomText,
+                    ].filter(Boolean).length;
+                    
+                    if (!invoiceForm.showManageAccountOnline && currentCount >= 3) return;
+                    setInvoiceForm(prev => ({ ...prev, showManageAccountOnline: !prev.showManageAccountOnline }));
+                  }} 
                 />
                 <CheckboxRow 
                   label="Enable Referral Scheme" 
                   checked={invoiceForm.showReferralScheme} 
-                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showReferralScheme: !prev.showReferralScheme }))} 
+                  onToggle={() => {
+                    const currentCount = [
+                      invoiceForm.showManageAccountOnline,
+                      invoiceForm.showReferralScheme,
+                      invoiceForm.showNotesWhitespace,
+                      invoiceForm.showCustomText,
+                    ].filter(Boolean).length;
+                    
+                    if (!invoiceForm.showReferralScheme && currentCount >= 3) return;
+                    setInvoiceForm(prev => ({ ...prev, showReferralScheme: !prev.showReferralScheme }));
+                  }} 
                 />
                 {invoiceForm.showReferralScheme && (
                   <View style={itemConfigStyles.pickerRow}>
@@ -531,50 +554,89 @@ const ItemConfigurationModal = ({
                 <CheckboxRow
                   label="White space for notes"
                   checked={invoiceForm.showNotesWhitespace}
-                  onToggle={() => setInvoiceForm(prev => ({ 
-                    ...prev, 
-                    showNotesWhitespace: !prev.showNotesWhitespace,
-                    showCustomText: !prev.showNotesWhitespace ? false : prev.showCustomText
-                  }))}
+                  onToggle={() => {
+                    const currentCount = [
+                      invoiceForm.showManageAccountOnline,
+                      invoiceForm.showReferralScheme,
+                      invoiceForm.showNotesWhitespace,
+                      invoiceForm.showCustomText,
+                    ].filter(Boolean).length;
+                    
+                    if (!invoiceForm.showNotesWhitespace && currentCount >= 3) return;
+                    setInvoiceForm(prev => ({ ...prev, showNotesWhitespace: !prev.showNotesWhitespace }));
+                  }}
                 />
                 <CheckboxRow
                   label="Custom Text"
                   checked={invoiceForm.showCustomText}
-                  onToggle={() => setInvoiceForm(prev => ({ 
-                    ...prev, 
-                    showCustomText: !prev.showCustomText,
-                    showNotesWhitespace: !prev.showCustomText ? false : prev.showNotesWhitespace
-                  }))}
+                  onToggle={() => {
+                    const currentCount = [
+                      invoiceForm.showManageAccountOnline,
+                      invoiceForm.showReferralScheme,
+                      invoiceForm.showNotesWhitespace,
+                      invoiceForm.showCustomText,
+                    ].filter(Boolean).length;
+                    
+                    if (!invoiceForm.showCustomText && currentCount >= 3) return;
+                    setInvoiceForm(prev => ({ ...prev, showCustomText: !prev.showCustomText }));
+                  }}
                 />
-                {invoiceForm.showCustomText && (
-                  <View style={itemConfigStyles.pickerRow}>
-                    <Text style={itemConfigStyles.pickerLabel}>
-                      Custom text (max 250 characters, 7 lines)
-                    </Text>
-                    <TextInput
-                      style={[itemConfigStyles.customTextInput]}
-                      value={invoiceForm.customText}
-                      onChangeText={(t) => {
-                        // Limit to 250 characters
-                        let text = t.slice(0, 250);
-                        // Limit to 7 newlines
-                        const newlineCount = (text.match(/\n/g) || []).length;
-                        if (newlineCount > 7) {
-                          // Remove excess newlines from the end
-                          const lines = text.split('\n');
-                          text = lines.slice(0, 8).join('\n');
-                        }
-                        setInvoiceForm(prev => ({ ...prev, customText: text }));
-                      }}
-                      placeholder="Enter custom message..."
-                      multiline
-                      numberOfLines={5}
-                    />
-                    <Text style={itemConfigStyles.charCount}>
-                      {invoiceForm.customText.length}/250
-                    </Text>
-                  </View>
-                )}
+                {invoiceForm.showCustomText && (() => {
+                  // Calculate dynamic limits based on number of selected ON THE BACK items
+                  const backItemCount = [
+                    invoiceForm.showManageAccountOnline,
+                    invoiceForm.showReferralScheme,
+                    invoiceForm.showNotesWhitespace,
+                    invoiceForm.showCustomText,
+                  ].filter(Boolean).length;
+                  
+                  let maxChars = 250;
+                  let maxLines = 7;
+                  if (backItemCount === 1) {
+                    maxChars = 750;
+                    maxLines = 21;
+                  } else if (backItemCount === 2) {
+                    maxChars = 500;
+                    maxLines = 14;
+                  }
+                  
+                  const currentNewlines = (invoiceForm.customText.match(/\n/g) || []).length;
+                  
+                  return (
+                    <View style={itemConfigStyles.pickerRow}>
+                      <Text style={itemConfigStyles.pickerLabel}>
+                        Custom text (max {maxChars} characters, {maxLines} lines)
+                      </Text>
+                      <TextInput
+                        style={[itemConfigStyles.customTextInput]}
+                        value={invoiceForm.customText}
+                        onChangeText={(t) => {
+                          // Limit to max characters
+                          let text = t.slice(0, maxChars);
+                          // Limit to max newlines
+                          const newlineCount = (text.match(/\n/g) || []).length;
+                          if (newlineCount > maxLines) {
+                            // Remove excess newlines from the end
+                            const lines = text.split('\n');
+                            text = lines.slice(0, maxLines + 1).join('\n');
+                          }
+                          setInvoiceForm(prev => ({ ...prev, customText: text }));
+                        }}
+                        placeholder="Enter custom message..."
+                        multiline
+                        numberOfLines={5}
+                      />
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+                        <Text style={itemConfigStyles.charCount}>
+                          {invoiceForm.customText.length}/{maxChars} chars
+                        </Text>
+                        <Text style={itemConfigStyles.charCount}>
+                          {currentNewlines}/{maxLines} lines
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })()}
               </>
             )}
 
@@ -816,7 +878,15 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   const showCustomText = itemConfig?.showCustomText ?? false;
   const customText = itemConfig?.customText ?? '';
 
-  // Count visible items in bottom half
+  // Count all visible items on the back (top + bottom)
+  const totalVisibleItems = [
+    showManageAccountOnline,
+    showCustomText && !!customText.trim(),
+    showNotesWhitespace,
+    showReferralScheme,
+  ].filter(Boolean).length;
+
+  // Count visible items in bottom half only
   const visibleBottomItems = [
     showCustomText && !!customText.trim(),
     showNotesWhitespace,
@@ -824,6 +894,14 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   ].filter(Boolean).length;
 
   const shouldScaleItems = visibleBottomItems >= 2;
+  
+  // Adjust dotted lines based on total items (more lines if fewer items)
+  let dottedLineCount = 7;
+  if (totalVisibleItems === 1) {
+    dottedLineCount = 21; // Full back, more lines
+  } else if (totalVisibleItems === 2) {
+    dottedLineCount = 14; // Half back, medium lines
+  }
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
@@ -878,8 +956,11 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
               : { marginBottom: showReferralScheme ? 10 : 0 }
           ]}>
             <View style={invoiceStyles.dottedLines}>
-              {Array.from({ length: 7 }).map((_, i) => (
-                <View key={i} style={invoiceStyles.dottedLine} />
+              {Array.from({ length: dottedLineCount }).map((_, i) => (
+                <View 
+                  key={i} 
+                  style={i % 2 === 0 ? invoiceStyles.dottedLine : invoiceStyles.dottedLineEmpty} 
+                />
               ))}
             </View>
           </View>
@@ -2624,6 +2705,10 @@ const invoiceStyles = StyleSheet.create({
     borderBottomColor: '#2E86AB',
     borderStyle: 'dotted',
     marginVertical: 6,
+  },
+  dottedLineEmpty: {
+    marginVertical: 6,
+    height: 1,
   },
   portalTitle: {
     fontSize: 16,
