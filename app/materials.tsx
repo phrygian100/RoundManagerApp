@@ -929,9 +929,9 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
   return (
     <View style={invoiceStyles.invoiceContainer}>
       {/* Top Half - Client Portal Instructions (50% of space) */}
-      <View style={invoiceStyles.backTopHalf}>
+      <View style={[invoiceStyles.backTopHalf, { paddingTop: 32 }]}>
         {showManageAccountOnline && (
-          <View style={[invoiceStyles.portalBox, { flex: 1, marginTop: 32 }]}>
+          <View style={[invoiceStyles.portalBox, { flex: 1 }]}>
             <Text style={[invoiceStyles.portalTitle, { fontSize: 18 }]}>Manage Your Account Online</Text>
             
             <Text style={[invoiceStyles.portalText, { fontSize: 12, lineHeight: 16 }]}>
