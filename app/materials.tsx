@@ -759,7 +759,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
           )}
 
           {/* Logo and Branding */}
-          <View style={invoiceStyles.brandingSection}>
+          <View style={[invoiceStyles.brandingSection, !showServicesProvidedOn && { marginTop: 22 }]}>
             {/* Logo Circle */}
             <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
               {config.logoUrl ? (
