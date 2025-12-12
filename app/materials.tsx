@@ -492,14 +492,13 @@ const ItemConfigurationModal = ({
                   checked={invoiceForm.showBusinessAddress} 
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
                 />
+                <View style={itemConfigStyles.divider} />
+                <Text style={itemConfigStyles.sectionTitle}>Referral Scheme (Invoice Back)</Text>
                 <CheckboxRow 
-                  label="Manage Your Account Online (Invoice Back)" 
+                  label="Manage Your Account Online" 
                   checked={invoiceForm.showManageAccountOnline} 
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showManageAccountOnline: !prev.showManageAccountOnline }))} 
                 />
-
-                <View style={itemConfigStyles.divider} />
-                <Text style={itemConfigStyles.sectionTitle}>Referral Scheme (Invoice Back)</Text>
                 <CheckboxRow 
                   label="Enable Referral Scheme" 
                   checked={invoiceForm.showReferralScheme} 
@@ -642,7 +641,15 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
               )}
             </View>
             
-            <Text style={invoiceStyles.businessName}>{config.businessName}</Text>
+            <Text
+              style={invoiceStyles.businessName}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {config.businessName}
+            </Text>
             <Text style={invoiceStyles.tagline}>{config.tagline}</Text>
             <Text style={invoiceStyles.phoneNumber}>{config.mobileNumber}</Text>
             
@@ -796,7 +803,8 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
               <Text style={invoiceStyles.referralReward}>
                 {referralReward === 'One free service' ? 'one free service' : referralReward}
               </Text>{' '}
-              when they become a regular customer.
+              when they become a regular customer. Simply instruct them to reference your address when they go to{' '}
+              <Text style={invoiceStyles.referralReward}>{portalLink}</Text>
             </Text>
           </View>
         )}
@@ -2251,25 +2259,29 @@ const invoiceStyles = StyleSheet.create({
   },
   topSection: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
   },
   bottomSection: {
     flexDirection: 'row',
-    gap: 12,
+    justifyContent: 'space-between',
     flex: 1,
     alignItems: 'stretch',
   },
   topLeftColumn: {
     flex: 1,
+    marginRight: 6,
   },
   topRightColumn: {
     flex: 1,
+    marginLeft: 6,
   },
   bottomLeftColumn: {
     flex: 1,
+    marginRight: 6,
   },
   bottomRightColumn: {
     flex: 1,
+    marginLeft: 6,
   },
   servicesHeader: {
     flexDirection: 'row',
