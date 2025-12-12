@@ -806,7 +806,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
         {/* Right: Bank Transfer */}
         <View style={invoiceStyles.topRightColumn}>
           {/* Bank Transfer Box */}
-          <View style={[invoiceStyles.blueBox, { flex: 1, marginTop: 20, paddingTop: 12 }]}>
+          <View style={[invoiceStyles.blueBox, { flex: 1, marginTop: 32, paddingTop: 12 }]}>
             <Text style={[invoiceStyles.boxTitle, { fontSize: 16 }]}>Bank Transfer</Text>
             
             <View style={{ marginBottom: 10 }}>
