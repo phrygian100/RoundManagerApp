@@ -1281,6 +1281,12 @@ export default function MaterialsScreen() {
   const printRef = useRef<View>(null);
   const invoiceFrontRef = useRef<View>(null);
   const invoiceBackRef = useRef<View>(null);
+  const flyerFrontRef = useRef<View>(null);
+  const flyerBackRef = useRef<View>(null);
+  const canvassingFrontRef = useRef<View>(null);
+  const canvassingBackRef = useRef<View>(null);
+  const leafletFrontRef = useRef<View>(null);
+  const leafletBackRef = useRef<View>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
@@ -1348,18 +1354,14 @@ export default function MaterialsScreen() {
     }
   };
 
-  const handleDownloadPNG = async (side: 'front' | 'back') => {
+  const downloadPreviewPng = async (element: HTMLElement, filename: string) => {
     if (Platform.OS !== 'web') {
       alert('PNG download is only available on web.');
       return;
     }
 
-    // Get the actual rendered element
-    const ref = side === 'front' ? invoiceFrontRef : invoiceBackRef;
-    const element = ref.current as unknown as HTMLElement;
-    
     if (!element) {
-      alert('Could not find invoice element to capture.');
+      alert('Could not find preview element to capture.');
       return;
     }
 
@@ -1375,7 +1377,7 @@ export default function MaterialsScreen() {
       // 1) Read computed styles from the *real* preview DOM (RNW styles applied)
       // 2) In html2canvas onclone(), apply those computed styles onto the cloned nodes
       // This avoids clone-side style loss (which caused black borders / wrong layout).
-      const captureId = `capture-${side}-${Date.now()}`;
+      const captureId = `capture-${Date.now()}`;
 
       const originalNodes = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
       const styleMap = new Map<string, Array<[string, string, string]>>();
@@ -1417,7 +1419,7 @@ export default function MaterialsScreen() {
 
       // Download the PNG
       const link = document.createElement('a');
-      link.download = `invoice-${side}-${config.businessName.replace(/\s+/g, '-').toLowerCase()}.png`;
+      link.download = filename;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (error) {
@@ -1428,6 +1430,34 @@ export default function MaterialsScreen() {
       const tagged = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
       tagged.forEach((n) => n.removeAttribute('data-capture-node'));
     }
+  };
+
+  const handleInvoiceDownloadPNG = async (side: 'front' | 'back') => {
+    const ref = side === 'front' ? invoiceFrontRef : invoiceBackRef;
+    const element = ref.current as unknown as HTMLElement;
+    const businessSlug = config.businessName.replace(/\s+/g, '-').toLowerCase();
+    await downloadPreviewPng(element, `invoice-${side}-${businessSlug}.png`);
+  };
+
+  const handleFlyerDownloadPNG = async (side: 'front' | 'back') => {
+    const ref = side === 'front' ? flyerFrontRef : flyerBackRef;
+    const element = ref.current as unknown as HTMLElement;
+    const businessSlug = config.businessName.replace(/\s+/g, '-').toLowerCase();
+    await downloadPreviewPng(element, `flyer-${side}-${businessSlug}.png`);
+  };
+
+  const handleCanvassingDownloadPNG = async (side: 'front' | 'back') => {
+    const ref = side === 'front' ? canvassingFrontRef : canvassingBackRef;
+    const element = ref.current as unknown as HTMLElement;
+    const businessSlug = config.businessName.replace(/\s+/g, '-').toLowerCase();
+    await downloadPreviewPng(element, `canvassing-flyer-${side}-${businessSlug}.png`);
+  };
+
+  const handleLeafletDownloadPNG = async (side: 'front' | 'back') => {
+    const ref = side === 'front' ? leafletFrontRef : leafletBackRef;
+    const element = ref.current as unknown as HTMLElement;
+    const businessSlug = config.businessName.replace(/\s+/g, '-').toLowerCase();
+    await downloadPreviewPng(element, `new-business-leaflet-${side}-${businessSlug}.png`);
   };
 
   return (
@@ -1499,11 +1529,11 @@ export default function MaterialsScreen() {
                 </Pressable>
                 {Platform.OS === 'web' && (
                   <>
-                    <Pressable style={styles.downloadButton} onPress={() => handleDownloadPNG('front')}>
+                    <Pressable style={styles.downloadButton} onPress={() => handleInvoiceDownloadPNG('front')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Front PNG</Text>
                     </Pressable>
-                    <Pressable style={styles.downloadButton} onPress={() => handleDownloadPNG('back')}>
+                    <Pressable style={styles.downloadButton} onPress={() => handleInvoiceDownloadPNG('back')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Back PNG</Text>
                     </Pressable>
@@ -1542,10 +1572,16 @@ export default function MaterialsScreen() {
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
                 {Platform.OS === 'web' && (
-                  <Pressable style={styles.downloadButton} onPress={() => alert('Flyer PDF download coming soon')}>
-                    <Ionicons name="download-outline" size={18} color="#fff" />
-                    <Text style={styles.downloadButtonText}>Download PDF</Text>
-                  </Pressable>
+                  <>
+                    <Pressable style={styles.downloadButton} onPress={() => handleFlyerDownloadPNG('front')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Front PNG</Text>
+                    </Pressable>
+                    <Pressable style={styles.downloadButton} onPress={() => handleFlyerDownloadPNG('back')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Back PNG</Text>
+                    </Pressable>
+                  </>
                 )}
               </View>
             </View>
@@ -1553,11 +1589,15 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <FlyerFront config={config} />
+                <View ref={flyerFrontRef}>
+                  <FlyerFront config={config} />
+                </View>
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <FlyerBack config={config} />
+                <View ref={flyerBackRef}>
+                  <FlyerBack config={config} />
+                </View>
               </View>
             </View>
           </View>
@@ -1575,10 +1615,16 @@ export default function MaterialsScreen() {
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
                 {Platform.OS === 'web' && (
-                  <Pressable style={styles.downloadButton} onPress={() => alert('Canvassing Flyer PDF download coming soon')}>
-                    <Ionicons name="download-outline" size={18} color="#fff" />
-                    <Text style={styles.downloadButtonText}>Download PDF</Text>
-                  </Pressable>
+                  <>
+                    <Pressable style={styles.downloadButton} onPress={() => handleCanvassingDownloadPNG('front')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Front PNG</Text>
+                    </Pressable>
+                    <Pressable style={styles.downloadButton} onPress={() => handleCanvassingDownloadPNG('back')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Back PNG</Text>
+                    </Pressable>
+                  </>
                 )}
               </View>
             </View>
@@ -1586,11 +1632,15 @@ export default function MaterialsScreen() {
             <View style={styles.invoiceRow}>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
-                <CanvassingFlyerFront config={config} />
+                <View ref={canvassingFrontRef}>
+                  <CanvassingFlyerFront config={config} />
+                </View>
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
-                <CanvassingFlyerBack config={config} />
+                <View ref={canvassingBackRef}>
+                  <CanvassingFlyerBack config={config} />
+                </View>
               </View>
             </View>
           </View>
@@ -1608,10 +1658,16 @@ export default function MaterialsScreen() {
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
                 {Platform.OS === 'web' && (
-                  <Pressable style={styles.downloadButton} onPress={() => alert('New Business Leaflet PDF download coming soon')}>
-                    <Ionicons name="download-outline" size={18} color="#fff" />
-                    <Text style={styles.downloadButtonText}>Download PDF</Text>
-                  </Pressable>
+                  <>
+                    <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('front')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Front PNG</Text>
+                    </Pressable>
+                    <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('back')}>
+                      <Ionicons name="download-outline" size={18} color="#fff" />
+                      <Text style={styles.downloadButtonText}>Back PNG</Text>
+                    </Pressable>
+                  </>
                 )}
               </View>
             </View>
@@ -1620,11 +1676,15 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceRow}>
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Front</Text>
-                  <NewBusinessLeafletFront config={config} />
+                  <View ref={leafletFrontRef}>
+                    <NewBusinessLeafletFront config={config} />
+                  </View>
                 </View>
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Back</Text>
-                  <NewBusinessLeafletBack config={config} />
+                  <View ref={leafletBackRef}>
+                    <NewBusinessLeafletBack config={config} />
+                  </View>
                 </View>
               </View>
             </ScrollView>
