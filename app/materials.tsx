@@ -186,9 +186,9 @@ const ConfigurationModal = ({
       const file = e.target.files?.[0];
       if (!file) return;
       
-      // Check file size (max 500KB for base64 storage)
-      if (file.size > 500 * 1024) {
-        alert('Image too large. Please choose an image under 500KB.');
+      // Check file size (max 2MB for base64 storage to support high-res logos)
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Image too large. Please choose an image under 2MB.');
         return;
       }
       
@@ -779,7 +779,11 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
             {/* Logo Circle */}
             <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
               {config.logoUrl ? (
-                <Image source={{ uri: config.logoUrl }} style={invoiceStyles.logoImage} resizeMode="cover" />
+                <Image 
+                  source={{ uri: config.logoUrl }} 
+                  style={[invoiceStyles.logoImage, Platform.OS === 'web' && { imageRendering: 'crisp-edges' as any }]} 
+                  resizeMode="cover" 
+                />
               ) : (
                 <Ionicons name="home" size={40} color="#fff" />
               )}
@@ -1662,7 +1666,7 @@ export default function MaterialsScreen() {
       
       // Capture the element at its natural size, scaled up for print quality
       const canvas = await html2canvas(element, {
-        scale: 4, // 4x scale for high resolution
+        scale: 8, // 8x scale for ultra high resolution (especially for logos)
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
