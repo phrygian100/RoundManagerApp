@@ -1410,17 +1410,12 @@ export default function MaterialsScreen() {
       // Small delay to let styles apply
       await new Promise(resolve => setTimeout(resolve, 50));
       
-      // Capture with fixed dimensions matching the invoice preview size
-      // INVOICE_HEIGHT = 580, INVOICE_WIDTH = 400
+      // Capture the element at its natural size, scaled up for print quality
       const canvas = await html2canvas(element, {
         scale: 4, // 4x scale for high resolution
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        width: 400,
-        height: 580,
-        windowWidth: 400,
-        windowHeight: 580,
       });
 
       // Download the PNG
