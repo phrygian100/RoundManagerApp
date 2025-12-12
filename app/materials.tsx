@@ -609,6 +609,8 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
   const services = [...config.services];
   while (services.length < 9) services.push('');
 
+  const businessNameIsLong = (config.businessName || '').length > 18;
+
   // Default to showing all sections if no itemConfig provided
   const showDirectDebit = itemConfig?.showDirectDebit ?? true;
   const showCash = itemConfig?.showCash ?? true;
@@ -642,11 +644,10 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
             </View>
             
             <Text
-              style={invoiceStyles.businessName}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-              adjustsFontSizeToFit
-              minimumFontScale={0.6}
+              style={[
+                invoiceStyles.businessName,
+                businessNameIsLong && invoiceStyles.businessNameLong,
+              ]}
             >
               {config.businessName}
             </Text>
@@ -2260,6 +2261,8 @@ const invoiceStyles = StyleSheet.create({
   topSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    flex: 1,
+    alignItems: 'stretch',
   },
   bottomSection: {
     flexDirection: 'row',
@@ -2329,6 +2332,13 @@ const invoiceStyles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#333',
+    textAlign: 'center',
+  },
+  businessNameLong: {
+    // User rule: if >18 chars, reduce font size by 40%
+    fontSize: 13.2,
+    lineHeight: 15,
+    paddingHorizontal: 6,
   },
   businessNameBlue: {
     fontSize: 18,
