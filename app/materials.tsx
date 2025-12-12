@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
@@ -37,10 +38,15 @@ interface MaterialsConfig {
 }
 
 // Item-specific configuration types
+type ReferralReward = '£5' | '£10' | '£15' | '£20' | 'One free service';
+
 interface InvoiceItemConfig {
   showDirectDebit: boolean;
   showCash: boolean;
   showBusinessAddress: boolean;
+  showManageAccountOnline: boolean;
+  showReferralScheme: boolean;
+  referralReward: ReferralReward;
 }
 
 interface FlyerItemConfig {
@@ -65,6 +71,9 @@ const defaultInvoiceItemConfig: InvoiceItemConfig = {
   showDirectDebit: true,
   showCash: true,
   showBusinessAddress: true,
+  showManageAccountOnline: true,
+  showReferralScheme: false,
+  referralReward: '£5',
 };
 
 const defaultFlyerItemConfig: FlyerItemConfig = {
@@ -483,6 +492,36 @@ const ItemConfigurationModal = ({
                   checked={invoiceForm.showBusinessAddress} 
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
                 />
+                <CheckboxRow 
+                  label="Manage Your Account Online (Invoice Back)" 
+                  checked={invoiceForm.showManageAccountOnline} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showManageAccountOnline: !prev.showManageAccountOnline }))} 
+                />
+
+                <View style={itemConfigStyles.divider} />
+                <Text style={itemConfigStyles.sectionTitle}>Referral Scheme (Invoice Back)</Text>
+                <CheckboxRow 
+                  label="Enable Referral Scheme" 
+                  checked={invoiceForm.showReferralScheme} 
+                  onToggle={() => setInvoiceForm(prev => ({ ...prev, showReferralScheme: !prev.showReferralScheme }))} 
+                />
+                {invoiceForm.showReferralScheme && (
+                  <View style={itemConfigStyles.pickerRow}>
+                    <Text style={itemConfigStyles.pickerLabel}>Reward</Text>
+                    <View style={itemConfigStyles.pickerContainer}>
+                      <Picker
+                        selectedValue={invoiceForm.referralReward}
+                        onValueChange={(value) => setInvoiceForm(prev => ({ ...prev, referralReward: value as any }))}
+                      >
+                        <Picker.Item label="£5" value="£5" />
+                        <Picker.Item label="£10" value="£10" />
+                        <Picker.Item label="£15" value="£15" />
+                        <Picker.Item label="£20" value="£20" />
+                        <Picker.Item label="One free service" value="One free service" />
+                      </Picker>
+                    </View>
+                  </View>
+                )}
               </>
             )}
 
@@ -703,48 +742,65 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
 };
 
 // Invoice Back Component
-const InvoiceBack = ({ config }: { config: MaterialsConfig }) => {
+const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig?: InvoiceItemConfig }) => {
   // Auto-generate customer portal link from business name
   const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
   const portalLink = `guvnor.app/${normalizedBusinessName}`;
+
+  const showManageAccountOnline = itemConfig?.showManageAccountOnline ?? true;
+  const showReferralScheme = itemConfig?.showReferralScheme ?? false;
+  const referralReward = itemConfig?.referralReward ?? '£5';
 
   return (
     <View style={invoiceStyles.invoiceContainer}>
       {/* Top Half - Client Portal Instructions (50% of space) */}
       <View style={invoiceStyles.backTopHalf}>
-        <View style={invoiceStyles.portalBox}>
-          <Ionicons name="person-circle-outline" size={48} color="#2E86AB" style={{ alignSelf: 'center', marginBottom: 12 }} />
-          
-          <Text style={invoiceStyles.portalTitle}>Manage Your Account Online</Text>
-          
-          <Text style={invoiceStyles.portalText}>
-            View your statement, check your balance, and manage your account details online through our customer portal.
-          </Text>
-          
-          <View style={invoiceStyles.portalSteps}>
-            <Text style={invoiceStyles.stepTitle}>How to access:</Text>
+        {showManageAccountOnline && (
+          <View style={invoiceStyles.portalBox}>
+            <Text style={invoiceStyles.portalTitle}>Manage Your Account Online</Text>
             
-            <View style={invoiceStyles.stepRow}>
-              <Text style={invoiceStyles.stepNumber}>1.</Text>
-              <Text style={invoiceStyles.stepText}>Visit our customer portal at:</Text>
-            </View>
-            <Text style={invoiceStyles.portalUrl}>{portalLink}</Text>
+            <Text style={invoiceStyles.portalText}>
+              View your statement, check your balance, and manage your account details online through our customer portal.
+            </Text>
             
-            <View style={invoiceStyles.stepRow}>
-              <Text style={invoiceStyles.stepNumber}>2.</Text>
-              <Text style={invoiceStyles.stepText}>Enter your account number (Shown on front, starting with RWC)</Text>
-            </View>
-            
-            <View style={invoiceStyles.stepRow}>
-              <Text style={invoiceStyles.stepNumber}>3.</Text>
-              <Text style={invoiceStyles.stepText}>Verify with the last 4 digits of your phone number</Text>
+            <View style={invoiceStyles.portalSteps}>
+              <Text style={invoiceStyles.stepTitle}>How to access:</Text>
+              
+              <View style={invoiceStyles.stepRow}>
+                <Text style={invoiceStyles.stepNumber}>1.</Text>
+                <Text style={invoiceStyles.stepText}>Visit our customer portal at:</Text>
+              </View>
+              <Text style={invoiceStyles.portalUrl}>{portalLink}</Text>
+              
+              <View style={invoiceStyles.stepRow}>
+                <Text style={invoiceStyles.stepNumber}>2.</Text>
+                <Text style={invoiceStyles.stepText}>Enter your account number (Shown on front, starting with RWC)</Text>
+              </View>
+              
+              <View style={invoiceStyles.stepRow}>
+                <Text style={invoiceStyles.stepNumber}>3.</Text>
+                <Text style={invoiceStyles.stepText}>Verify with the last 4 digits of your phone number</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
       </View>
       
       {/* Bottom Half - Reserved for other content */}
-      <View style={invoiceStyles.backBottomHalf} />
+      <View style={invoiceStyles.backBottomHalf}>
+        {showReferralScheme && (
+          <View style={invoiceStyles.referralBox}>
+            <Text style={invoiceStyles.referralTitle}>Referral Scheme</Text>
+            <Text style={invoiceStyles.referralText}>
+              Refer a friend and receive{' '}
+              <Text style={invoiceStyles.referralReward}>
+                {referralReward === 'One free service' ? 'one free service' : referralReward}
+              </Text>{' '}
+              when they become a regular customer.
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 };
@@ -1553,7 +1609,7 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
                 <View ref={invoiceBackRef}>
-                  <InvoiceBack config={config} />
+                  <InvoiceBack config={config} itemConfig={invoiceItemConfig} />
                 </View>
               </View>
             </View>
@@ -2113,6 +2169,27 @@ const itemConfigStyles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
   },
+  divider: {
+    height: 1,
+    backgroundColor: '#e6e6e6',
+    marginVertical: 12,
+  },
+  pickerRow: {
+    marginTop: 10,
+  },
+  pickerLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 6,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#fafafa',
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -2382,6 +2459,30 @@ const invoiceStyles = StyleSheet.create({
     borderColor: '#2E86AB',
     borderRadius: 8,
     padding: 16,
+  },
+  referralBox: {
+    borderWidth: 2,
+    borderColor: '#2E86AB',
+    borderRadius: 8,
+    padding: 16,
+    width: '100%',
+  },
+  referralTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2E86AB',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  referralText: {
+    fontSize: 10,
+    color: '#333',
+    textAlign: 'center',
+    lineHeight: 14,
+  },
+  referralReward: {
+    fontWeight: 'bold',
+    color: '#2E86AB',
   },
   portalTitle: {
     fontSize: 16,
