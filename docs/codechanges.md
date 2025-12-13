@@ -11,12 +11,13 @@
 - Footer content was cut off at the bottom
 - "Start free with up to 20 clients →" text was clipped on the right
 - No proper overflow constraints on containers
+- Navigation links were cut off on mobile
 
 **Solution**: 
-1. **Reduced logo sizes** to fit mobile viewports:
-   - Nav logo: 520px → 320px (mobile: 240px)
-   - Form logo: 480px → 280px (mobile: 200px) 
-   - Footer logo: 360px → 240px (mobile: 180px)
+1. **Optimized logo sizes** for better mobile/desktop balance:
+   - Nav logo: 520px → 400px (mobile: 320px)
+   - Form logo: 480px → 360px (mobile: 280px) 
+   - Footer logo: 360px → 300px (mobile: 240px)
 
 2. **Fixed container overflow**: Added overflow hidden and proper constraints to prevent content spilling
 
@@ -30,7 +31,12 @@
    - Added horizontal padding for mobile
    - Prevented pricing link from being cut off
 
-**Impact**: The login page now fits properly within mobile viewports without horizontal scrolling or cut-off content.
+5. **Fixed navigation for mobile**:
+   - Hide full navigation on narrow mobile screens
+   - Show only Home and Pricing links on mobile to prevent overflow
+   - Full navigation remains visible on desktop/tablet
+
+**Impact**: The login page now fits properly within mobile viewports without horizontal scrolling or cut-off content, with appropriately sized logos and responsive navigation.
 
 ---
 
