@@ -12,6 +12,7 @@
 - Implemented a shared, mobile-friendly marketing navigation with a hamburger menu.
 - Fixed a non-wrapping flex row on `/pricing` that could force horizontal scrolling.
 - Routed the site root (`/`) to the marketing home page.
+- Updated Vercel rewrites to support marketing routes with and without trailing slashes.
 
 **Files Changed**:
 - `vercel.json`
