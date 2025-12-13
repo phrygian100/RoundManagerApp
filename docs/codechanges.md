@@ -42,6 +42,36 @@
 
 ## December 13, 2025
 
+### Past Date Validation for Job Deferral in Runsheets
+
+**Problem**: Jobs could potentially be moved to past dates through the date picker, which doesn't make sense for scheduling future work.
+
+**Solution**: Added validation to prevent moving jobs to dates that have already passed.
+
+**Changes Made**:
+
+**File**: `app/runsheet/[week].tsx`
+
+1. **Backend Validation in handleDeferDateChange()**:
+   - Added date comparison check before processing job move
+   - Compares selected date with today's date (both normalized to midnight)
+   - Shows alert "Cannot Move to Past Date" with message "You cannot move jobs to a date that has already passed."
+   - Prevents the job move action and resets the deferral state
+
+2. **UI Prevention (Already Existed)**:
+   - Web: HTML date input already had `min={format(new Date(), 'yyyy-MM-dd')}` attribute
+   - Mobile: DateTimePicker already had `minimumDate={new Date()}` property
+   - These UI restrictions prevent selecting past dates in the date picker itself
+
+**User Experience**:
+- Date pickers only allow selecting today or future dates
+- If a past date is somehow selected (e.g., edge cases, developer tools manipulation), a clear error message is shown
+- Jobs can only be scheduled for today or future dates, maintaining logical scheduling flow
+
+---
+
+## December 13, 2025
+
 ### Fixed Marketing Site Mobile Layout Overflow + Missing Navigation Links
 
 **Problem**: On narrow smartphone screens the marketing pages could overflow horizontally (spilling to the right) and the header navigation links were not accessible on mobile.

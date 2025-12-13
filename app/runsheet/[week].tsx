@@ -1010,11 +1010,21 @@ export default function RunsheetWeekScreen() {
       setDeferSelectedVehicle('auto');
       return;
     }
-    // Prevent deferring to today if today is marked as complete
+    // Prevent deferring to past dates
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const selected = new Date(selectedDate);
     selected.setHours(0, 0, 0, 0);
+    
+    // Check if the selected date is in the past
+    if (selected < today) {
+      Alert.alert('Cannot Move to Past Date', 'You cannot move jobs to a date that has already passed.');
+      setDeferJob(null);
+      setDeferSelectedVehicle('auto');
+      return;
+    }
+    
+    // Prevent deferring to today if today is marked as complete
     const isToday = selected.toDateString() === today.toDateString();
     const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
     const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
