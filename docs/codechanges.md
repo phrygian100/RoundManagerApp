@@ -1,5 +1,33 @@
 # Code Changes Log
 
+## December 13, 2025
+
+### Fixed Marketing Site Mobile Layout Overflow + Missing Navigation Links
+
+**Problem**: On narrow smartphone screens the marketing pages could overflow horizontally (spilling to the right) and the header navigation links were not accessible on mobile.
+
+**Solution**:
+- Added an explicit viewport configuration for correct mobile scaling.
+- Added global CSS guardrails to prevent horizontal overflow.
+- Implemented a shared, mobile-friendly marketing navigation with a hamburger menu.
+- Fixed a non-wrapping flex row on `/pricing` that could force horizontal scrolling.
+- Routed the site root (`/`) to the marketing home page.
+
+**Files Changed**:
+- `web/src/app/layout.tsx`
+- `web/src/app/globals.css`
+- `web/src/components/MarketingNav.tsx`
+- `web/src/app/page.tsx`
+- `web/src/app/home/page.tsx`
+- `web/src/app/about/page.tsx`
+- `web/src/app/contact/page.tsx`
+- `web/src/app/pricing/page.tsx`
+- `web/src/app/feature-tour/page.tsx`
+- `web/src/app/terms/page.tsx`
+- `web/src/app/privacy-policy/page.tsx`
+
+---
+
 ## December 11, 2025
 
 ### Added Item-Specific Configuration Modals for Materials

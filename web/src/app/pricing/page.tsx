@@ -1,49 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
+import { MarketingNav } from "@/components/MarketingNav";
 
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/home">
-                <Image
-                  src="/logo_transparent.png"
-                  alt="Guvnor Logo"
-                  width={384}
-                  height={128}
-                  className="h-20 sm:h-24 md:h-32 w-auto"
-                />
-              </Link>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/home" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Home
-                </Link>
-                <Link href="/feature-tour" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Features
-                </Link>
-                <Link href="/pricing" className="text-gray-900 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Pricing
-                </Link>
-                <Link href="/about" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  About
-                </Link>
-                <Link href="/contact" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Contact
-                </Link>
-                <Link href="/" className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-medium">
-                  Sign In
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <MarketingNav current="pricing" />
 
       {/* Header */}
       <div className="py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -54,7 +16,7 @@ export default function PricingPage() {
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             Start your cleaning business management journey for free. Upgrade when you&apos;re ready to scale beyond 20 clients.
           </p>
-          <div className="flex justify-center items-center space-x-4">
+          <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2">
             <span className="text-gray-500">Monthly billing</span>
             <span className="text-green-600 font-semibold">✓ No setup fees</span>
             <span className="text-green-600 font-semibold">✓ Cancel anytime</span>

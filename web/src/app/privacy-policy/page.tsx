@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { MarketingNav } from "@/components/MarketingNav";
 
 export const metadata = {
   title: "Privacy Policy - Guvnor",
@@ -10,43 +11,7 @@ export const metadata = {
 export default function PrivacyPolicyPage() {
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <Link href="/home">
-                <Image
-                  src="/logo_transparent.png"
-                  alt="Guvnor Logo"
-                  width={384}
-                  height={128}
-                  className="h-20 sm:h-24 md:h-32 w-auto"
-                />
-              </Link>
-            </div>
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-4">
-                <Link href="/home" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Home
-                </Link>
-                <Link href="/pricing" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Pricing
-                </Link>
-                <Link href="/about" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  About
-                </Link>
-                <Link href="/contact" className="text-gray-600 hover:text-indigo-600 px-3 py-2 text-sm font-medium">
-                  Contact
-                </Link>
-                <Link href="/" className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-medium">
-                  Sign In
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <MarketingNav current="legal" />
 
       {/* Hero Section */}
       <div className="py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
