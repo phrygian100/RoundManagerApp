@@ -14,6 +14,7 @@
 - Routed the site root (`/`) to the marketing home page.
 
 **Files Changed**:
+- `vercel.json`
 - `web/src/app/layout.tsx`
 - `web/src/app/globals.css`
 - `web/src/components/MarketingNav.tsx`

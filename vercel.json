@@ -7,7 +7,15 @@
       "destination": "/_marketing/home/index.html"
     },
     {
+      "source": "/home/",
+      "destination": "/_marketing/home/index.html"
+    },
+    {
       "source": "/pricing", 
+      "destination": "/_marketing/pricing/index.html"
+    },
+    {
+      "source": "/pricing/",
       "destination": "/_marketing/pricing/index.html"
     },
     {
@@ -15,7 +23,15 @@
       "destination": "/_marketing/about/index.html"
     },
     {
+      "source": "/about/",
+      "destination": "/_marketing/about/index.html"
+    },
+    {
       "source": "/feature-tour",
+      "destination": "/_marketing/feature-tour/index.html"
+    },
+    {
+      "source": "/feature-tour/",
       "destination": "/_marketing/feature-tour/index.html"
     },
     {
@@ -23,11 +39,23 @@
       "destination": "/_marketing/contact/index.html"
     },
     {
+      "source": "/contact/",
+      "destination": "/_marketing/contact/index.html"
+    },
+    {
       "source": "/privacy-policy",
       "destination": "/_marketing/privacy-policy/index.html"
     },
     {
+      "source": "/privacy-policy/",
+      "destination": "/_marketing/privacy-policy/index.html"
+    },
+    {
       "source": "/terms",
+      "destination": "/_marketing/terms/index.html"
+    },
+    {
+      "source": "/terms/",
       "destination": "/_marketing/terms/index.html"
     },
     {
