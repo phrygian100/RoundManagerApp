@@ -381,12 +381,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 440,
-    height: 110,
+    width: 880,
+    height: 220,
   },
   navLogoMobile: {
-    width: 360,
-    height: 90,
+    width: 720,
+    height: 180,
   },
   navLinks: {
     flexDirection: 'row',
