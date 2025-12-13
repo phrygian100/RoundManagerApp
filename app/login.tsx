@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { auth } from '../core/firebase';
 
@@ -12,9 +12,29 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
+
+  // Close menu when clicking outside on web
+  useEffect(() => {
+    if (Platform.OS === 'web' && menuOpen) {
+      const handleClickOutside = () => {
+        setMenuOpen(false);
+      };
+      
+      // Add a small delay to prevent immediate closing when opening
+      const timer = setTimeout(() => {
+        document.addEventListener('click', handleClickOutside);
+      }, 100);
+      
+      return () => {
+        clearTimeout(timer);
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [menuOpen]);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -140,19 +160,33 @@ export default function LoginScreen() {
           )}
           
           {Platform.OS === 'web' && isNarrowWeb && (
-            <View style={styles.mobileNavLinks}>
-              <Pressable onPress={() => handleNavigation('/home')} style={styles.mobileNavLink}>
-                <Text style={styles.mobileNavLinkText}>Home</Text>
+            <View style={styles.mobileMenu}>
+              <Pressable onPress={() => setMenuOpen(!menuOpen)} style={styles.hamburgerButton}>
+                <View style={styles.hamburgerLine} />
+                <View style={styles.hamburgerLine} />
+                <View style={styles.hamburgerLine} />
               </Pressable>
-              <Pressable onPress={() => handleNavigation('/pricing')} style={styles.mobileNavLink}>
-                <Text style={styles.mobileNavLinkText}>Pricing</Text>
-              </Pressable>
-              <Pressable onPress={() => handleNavigation('/about')} style={styles.mobileNavLink}>
-                <Text style={styles.mobileNavLinkText}>About</Text>
-              </Pressable>
-              <Pressable onPress={() => handleNavigation('/contact')} style={styles.mobileNavLink}>
-                <Text style={styles.mobileNavLinkText}>Contact</Text>
-              </Pressable>
+              
+              {menuOpen && (
+                <View style={styles.mobileDropdown}>
+                  <Pressable onPress={() => { handleNavigation('/home'); setMenuOpen(false); }} style={styles.mobileDropdownLink}>
+                    <Text style={styles.mobileDropdownText}>Home</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { handleNavigation('/pricing'); setMenuOpen(false); }} style={styles.mobileDropdownLink}>
+                    <Text style={styles.mobileDropdownText}>Pricing</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { handleNavigation('/about'); setMenuOpen(false); }} style={styles.mobileDropdownLink}>
+                    <Text style={styles.mobileDropdownText}>About</Text>
+                  </Pressable>
+                  <Pressable onPress={() => { handleNavigation('/contact'); setMenuOpen(false); }} style={styles.mobileDropdownLink}>
+                    <Text style={styles.mobileDropdownText}>Contact</Text>
+                  </Pressable>
+                  <View style={styles.mobileDropdownDivider} />
+                  <Pressable onPress={() => setMenuOpen(false)} style={styles.mobileDropdownLink}>
+                    <Text style={[styles.mobileDropdownText, styles.mobileDropdownSignIn]}>Sign In</Text>
+                  </Pressable>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -378,20 +412,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
-  mobileNavLinks: {
-    flexDirection: 'row',
+  mobileMenu: {
+    position: 'relative',
+  },
+  hamburgerButton: {
+    padding: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
   },
-  mobileNavLink: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
+  hamburgerLine: {
+    width: 24,
+    height: 2,
+    backgroundColor: '#6b7280',
+    marginVertical: 2,
   },
-  mobileNavLinkText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6b7280',
+  mobileDropdown: {
+    position: 'absolute',
+    top: 40,
+    right: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    minWidth: 200,
+    ...Platform.select({
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      default: {
+        elevation: 4,
+      },
+    }),
+    zIndex: 1000,
+  },
+  mobileDropdownLink: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  mobileDropdownText: {
+    fontSize: 14,
+    color: '#374151',
+  },
+  mobileDropdownSignIn: {
+    color: '#4f46e5',
+    fontWeight: '600',
+  },
+  mobileDropdownDivider: {
+    height: 1,
+    backgroundColor: '#e5e7eb',
+    marginVertical: 4,
   },
 
   // Main Content
