@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   navContent: {
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
-    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
+    paddingHorizontal: Platform.OS === 'web' ? 20 : 12,
     paddingVertical: Platform.OS === 'web' ? 16 : 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -379,14 +379,18 @@ const styles = StyleSheet.create({
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    justifyContent: 'center',
   },
   navLogo: {
-    width: 880,
-    height: 220,
+    width: 600,
+    height: 150,
+    maxWidth: '100%',
   },
   navLogoMobile: {
-    width: 720,
-    height: 180,
+    width: 480,
+    height: 120,
+    maxWidth: '100%',
   },
   navLinks: {
     flexDirection: 'row',
@@ -416,6 +420,7 @@ const styles = StyleSheet.create({
   mobileMenu: {
     position: 'relative',
     zIndex: 3000,
+    flexShrink: 0,
   },
   hamburgerButton: {
     padding: 10,
