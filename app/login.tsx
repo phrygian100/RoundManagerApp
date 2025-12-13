@@ -353,6 +353,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    zIndex: 2000,
     ...Platform.select({
       web: {
         shadowColor: '#000',
@@ -368,7 +369,7 @@ const styles = StyleSheet.create({
   navContent: {
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
-    paddingHorizontal: Platform.OS === 'web' ? 24 : 12,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
     paddingVertical: Platform.OS === 'web' ? 16 : 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -414,11 +415,13 @@ const styles = StyleSheet.create({
   },
   mobileMenu: {
     position: 'relative',
+    zIndex: 3000,
   },
   hamburgerButton: {
-    padding: 8,
+    padding: 10,
     justifyContent: 'center',
     alignItems: 'center',
+    zIndex: 3001,
   },
   hamburgerLine: {
     width: 24,
@@ -429,7 +432,7 @@ const styles = StyleSheet.create({
   mobileDropdown: {
     position: 'absolute',
     top: 36,
-    right: 8,
+    right: 0,
     backgroundColor: '#fff',
     borderRadius: 10,
     borderWidth: 1,
@@ -443,10 +446,10 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
       },
       default: {
-        elevation: 6,
+        elevation: 12,
       },
     }),
-    zIndex: 1000,
+    zIndex: 3002,
     overflow: 'hidden',
   },
   mobileDropdownLink: {
