@@ -2,6 +2,40 @@
 
 ## December 13, 2025
 
+### Fixed Mobile Overflow Issues in Expo App Login Screen
+
+**File**: `app/login.tsx`
+
+**Problem**: The login screen was cutting off content and overflowing on mobile devices:
+- Logos were way too large (520px width) causing horizontal overflow
+- Footer content was cut off at the bottom
+- "Start free with up to 20 clients →" text was clipped on the right
+- No proper overflow constraints on containers
+
+**Solution**: 
+1. **Reduced logo sizes** to fit mobile viewports:
+   - Nav logo: 520px → 320px (mobile: 240px)
+   - Form logo: 480px → 280px (mobile: 200px) 
+   - Footer logo: 360px → 240px (mobile: 180px)
+
+2. **Fixed container overflow**: Added overflow hidden and proper constraints to prevent content spilling
+
+3. **Improved footer responsiveness**:
+   - Added proper padding and flex-wrap for mobile
+   - Centered footer columns on mobile
+   - Reduced gaps and padding for smaller screens
+
+4. **Fixed features section**:
+   - Made feature text wrap properly
+   - Added horizontal padding for mobile
+   - Prevented pricing link from being cut off
+
+**Impact**: The login page now fits properly within mobile viewports without horizontal scrolling or cut-off content.
+
+---
+
+## December 13, 2025
+
 ### Fixed Marketing Site Mobile Layout Overflow + Missing Navigation Links
 
 **Problem**: On narrow smartphone screens the marketing pages could overflow horizontally (spilling to the right) and the header navigation links were not accessible on mobile.

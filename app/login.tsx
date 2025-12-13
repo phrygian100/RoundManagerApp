@@ -6,7 +6,7 @@ import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextIn
 import { auth } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
-const BUILD_ID = '30ec56e';
+const BUILD_ID = '9a50efa';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -286,9 +286,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+    ...Platform.select({
+      web: {
+        overflow: 'hidden',
+      },
+    }),
   },
   contentContainer: {
     flexGrow: 1,
+    minHeight: '100%',
   },
   
   // Navigation
@@ -322,12 +328,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navLogo: {
-    width: 520,
-    height: 140,
+    width: 320,
+    height: 80,
   },
   navLogoMobile: {
-    width: 440,
-    height: 120,
+    width: 240,
+    height: 60,
   },
   navLinks: {
     flexDirection: 'row',
@@ -360,7 +366,9 @@ const styles = StyleSheet.create({
     flex: 1,
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
-    paddingHorizontal: 24,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 16,
+    width: '100%',
+    overflow: 'hidden',
   },
   
   // Hero Section
@@ -426,13 +434,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 480,
-    height: 192,
+    width: 280,
+    height: 112,
     marginBottom: 16,
   },
   formLogoMobile: {
-    width: 360,
-    height: 144,
+    width: 200,
+    height: 80,
   },
   formTitle: {
     fontSize: 24,
@@ -525,9 +533,11 @@ const styles = StyleSheet.create({
   features: {
     alignItems: 'center',
     marginBottom: 48,
+    paddingHorizontal: Platform.OS === 'web' ? 0 : 16,
+    width: '100%',
   },
   featuresTitle: {
-    fontSize: 24,
+    fontSize: Platform.OS === 'web' ? 24 : 20,
     fontWeight: 'bold',
     color: '#111827',
     marginBottom: 24,
@@ -536,52 +546,64 @@ const styles = StyleSheet.create({
   featuresList: {
     gap: 16,
     marginBottom: 24,
+    width: '100%',
+    paddingHorizontal: Platform.OS === 'web' ? 0 : 8,
   },
   feature: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 12,
+    maxWidth: '100%',
+    paddingRight: 8,
   },
   featureIcon: {
     fontSize: 20,
+    flexShrink: 0,
   },
   featureText: {
-    fontSize: 16,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
     color: '#6b7280',
+    flex: 1,
+    flexWrap: 'wrap',
   },
   pricingLink: {
     paddingVertical: 8,
+    paddingHorizontal: 16,
   },
   pricingLinkText: {
     color: '#4f46e5',
-    fontSize: 16,
+    fontSize: Platform.OS === 'web' ? 16 : 14,
     fontWeight: '500',
+    textAlign: 'center',
   },
 
   // Footer
   footer: {
     backgroundColor: '#111827',
-    paddingVertical: 48,
+    paddingVertical: 32,
+    paddingHorizontal: 16,
   },
   footerContent: {
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
-    paddingHorizontal: 24,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 8,
     flexDirection: Platform.OS === 'web' ? 'row' : 'column',
-    gap: 32,
-  },
-  footerSection: {
-    flex: 1,
+    gap: Platform.OS === 'web' ? 32 : 24,
     alignItems: 'center',
   },
+  footerSection: {
+    flex: Platform.OS === 'web' ? 1 : undefined,
+    alignItems: 'center',
+    width: Platform.OS === 'web' ? 'auto' : '100%',
+  },
   footerLogo: {
-    width: 360,
-    height: 112,
+    width: 240,
+    height: 75,
     marginBottom: 16,
   },
   footerLogoMobile: {
-    width: 288,
-    height: 96,
+    width: 180,
+    height: 56,
   },
   footerDescription: {
     color: '#9ca3af',
@@ -590,10 +612,14 @@ const styles = StyleSheet.create({
   },
   footerLinks: {
     flexDirection: 'row',
-    gap: 48,
+    gap: Platform.OS === 'web' ? 48 : 32,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
   footerColumn: {
     gap: 8,
+    minWidth: 100,
+    alignItems: Platform.OS === 'web' ? 'flex-start' : 'center',
   },
   footerColumnTitle: {
     color: '#fff',
