@@ -147,6 +147,12 @@ export default function LoginScreen() {
               <Pressable onPress={() => handleNavigation('/pricing')} style={styles.mobileNavLink}>
                 <Text style={styles.mobileNavLinkText}>Pricing</Text>
               </Pressable>
+              <Pressable onPress={() => handleNavigation('/about')} style={styles.mobileNavLink}>
+                <Text style={styles.mobileNavLinkText}>About</Text>
+              </Pressable>
+              <Pressable onPress={() => handleNavigation('/contact')} style={styles.mobileNavLink}>
+                <Text style={styles.mobileNavLinkText}>Contact</Text>
+              </Pressable>
             </View>
           )}
         </View>
@@ -328,23 +334,24 @@ const styles = StyleSheet.create({
   navContent: {
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
+    paddingHorizontal: Platform.OS === 'web' ? 24 : 12,
+    paddingVertical: Platform.OS === 'web' ? 16 : 8,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    width: '100%',
   },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   navLogo: {
-    width: 400,
-    height: 100,
+    width: 440,
+    height: 110,
   },
   navLogoMobile: {
-    width: 320,
-    height: 80,
+    width: 360,
+    height: 90,
   },
   navLinks: {
     flexDirection: 'row',
@@ -374,14 +381,15 @@ const styles = StyleSheet.create({
   mobileNavLinks: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
+    flexWrap: 'wrap',
   },
   mobileNavLink: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
   },
   mobileNavLinkText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     color: '#6b7280',
   },
@@ -459,13 +467,13 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   formLogo: {
-    width: 360,
-    height: 144,
+    width: 400,
+    height: 160,
     marginBottom: 16,
   },
   formLogoMobile: {
-    width: 280,
-    height: 112,
+    width: 320,
+    height: 128,
   },
   formTitle: {
     fontSize: 24,
@@ -622,13 +630,13 @@ const styles = StyleSheet.create({
     width: Platform.OS === 'web' ? 'auto' : '100%',
   },
   footerLogo: {
-    width: 300,
-    height: 94,
+    width: 340,
+    height: 106,
     marginBottom: 16,
   },
   footerLogoMobile: {
-    width: 240,
-    height: 75,
+    width: 280,
+    height: 88,
   },
   footerDescription: {
     color: '#9ca3af',
