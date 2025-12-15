@@ -194,14 +194,26 @@ const ConfigurationModal = ({
       
       setUploadingLogo(true);
       try {
-        // Load image and preserve full quality
+        // Load image and preserve high quality while managing file size
         const img = new Image();
         img.onload = () => {
           try {
-            // Create canvas at original image dimensions to preserve quality
+            // Determine optimal dimensions
+            // Max 1024px for high quality while keeping file size reasonable
+            const maxDimension = 1024;
+            let targetWidth = img.width;
+            let targetHeight = img.height;
+            
+            if (img.width > maxDimension || img.height > maxDimension) {
+              const scale = maxDimension / Math.max(img.width, img.height);
+              targetWidth = Math.round(img.width * scale);
+              targetHeight = Math.round(img.height * scale);
+            }
+            
+            // Create canvas at target dimensions
             const canvas = document.createElement('canvas');
-            canvas.width = img.width;
-            canvas.height = img.height;
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
             
             const ctx = canvas.getContext('2d');
             if (!ctx) {
@@ -210,26 +222,18 @@ const ConfigurationModal = ({
               return;
             }
             
-            // Draw image at full resolution
-            ctx.drawImage(img, 0, 0);
+            // Draw image (resized if needed)
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
             
-            // Export as PNG with maximum quality (lossless)
-            const base64 = canvas.toDataURL('image/png', 1.0);
+            // Try JPEG first with high quality (better compression for photos)
+            let base64 = canvas.toDataURL('image/jpeg', 0.92);
             
-            // Check if resulting base64 is under Firestore limits (~1MB for a single field)
-            if (base64.length > 1024 * 1024) {
-              // If too large, try JPEG with high quality
-              const jpegBase64 = canvas.toDataURL('image/jpeg', 0.95);
-              if (jpegBase64.length > 1024 * 1024) {
-                alert('Image results in too large file size even after compression. Please use a smaller image or reduce dimensions.');
-                setUploadingLogo(false);
-                return;
-              }
-              setFormData(prev => ({ ...prev, logoUrl: jpegBase64 }));
-            } else {
-              setFormData(prev => ({ ...prev, logoUrl: base64 }));
+            // If still too large (very rare), try lower quality
+            if (base64.length > 1.5 * 1024 * 1024) {
+              base64 = canvas.toDataURL('image/jpeg', 0.85);
             }
             
+            setFormData(prev => ({ ...prev, logoUrl: base64 }));
             setUploadingLogo(false);
           } catch (error) {
             console.error('Error processing image:', error);
