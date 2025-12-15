@@ -480,7 +480,6 @@ export default function AccountsScreen() {
     const accountRef = client.accountNumber ? displayAccountNumber(client.accountNumber) : 'Account';
 
     const bankLines = [
-      `Account Name: ${userProfile.businessName}`,
       `Sort Code: ${userProfile.bankSortCode}`,
       `Account No: ${userProfile.bankAccountNumber}`,
     ];
@@ -492,18 +491,22 @@ export default function AccountsScreen() {
     const signOff = ['Thank you', userProfile.businessName, userProfile.businessWebsite]
       .filter(Boolean)
       .join('\n');
+    const unmatchedPaymentsNote =
+      "If you believe you've made payments that aren't reflected on your account due to using references other than your account number, please get in touch and let us know how these payments appear on your statement so we can link these unknown payments to your account.";
 
     const template = `Invoice Reminder - ${userProfile.businessName}
 ------------------------------
 Client: ${client.name || 'Customer'}
 Account: ${accountRef}
 
-Amount Due: £${amountDue.toFixed(2)} (due on receipt)
+Amount Due: £${amountDue.toFixed(2)}
 
 Payment Details:
 ${bankLines.join('\n')}
 
 ${portalLine ? `${portalLine}\n\n` : ''}This SMS serves as your invoice for the outstanding balance.
+
+${unmatchedPaymentsNote}
 
 ${signOff}`;
 

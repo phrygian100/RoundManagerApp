@@ -7,8 +7,9 @@
 **File**: `app/accounts.tsx`
 
 - Load owner profile (business name + bank details) for the accounts screen.
-- Added a "Send SMS Invoice" button on each outstanding account card that opens the native SMS app with a pre-filled invoice-style reminder including balance due, bank transfer details, and account reference.
+- Added a "Send SMS Invoice" button on each outstanding account card that opens the native SMS app with a pre-filled invoice-style reminder including balance due, bank transfer details (sort code, account number, reference), and account reference.
 - The SMS also links to the client portal so the customer can view their full statement online.
+- Updated copy: removed “due on receipt” and the “Account Name” bank line; added a note asking customers to contact if they paid with a different reference so unknown payments can be linked.
 
 ---
 
