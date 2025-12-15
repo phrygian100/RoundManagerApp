@@ -1773,83 +1773,62 @@ export default function MaterialsScreen() {
             }
           });
 
-          // RNW + html2canvas can intermittently drop <img> rendering in the cloned DOM.
-          // For small images (logos), render as a background-image on the parent container instead.
+          // Fix logo images for reliable html2canvas capture
+          // Replace <img> with a canvas element that has the image pre-drawn
           const clonedImgs = Array.from(clonedDoc.querySelectorAll('img')) as HTMLImageElement[];
-          clonedImgs.forEach((img) => {
+          for (const img of clonedImgs) {
             const w = img.width || parseInt(img.style.width) || 0;
             const h = img.height || parseInt(img.style.height) || 0;
-            if (w <= 0 || h <= 0) return;
-            if (w >= 200 || h >= 200) return; // only treat small images as "logos"
+            if (w <= 0 || h <= 0) continue;
+            if (w >= 200 || h >= 200) continue; // only treat small images as "logos"
 
             const src = img.currentSrc || img.src;
-            if (!src) return;
+            if (!src || !src.startsWith('data:')) continue; // only handle data URLs (uploaded logos)
 
-            const parent = img.parentElement as HTMLElement | null;
-            if (!parent) return;
-
-            // If the parent is a logo circle/container, background-image capture is more reliable.
-            // Match the preview’s intent by mapping <img> object-fit/object-position to background-size/position.
-            const objectFit = (img.style.getPropertyValue('object-fit') || 'cover').trim();
-            const objectPosition = (img.style.getPropertyValue('object-position') || '50% 50%').trim();
-
-            let backgroundSize = 'cover';
-            if (objectFit === 'contain') backgroundSize = 'contain';
-            else if (objectFit === 'cover') backgroundSize = 'cover';
-            else if (objectFit === 'fill') backgroundSize = '100% 100%';
-            else if (objectFit === 'none') backgroundSize = 'auto';
-            else if (objectFit === 'scale-down') backgroundSize = 'contain';
-
-            parent.style.setProperty('background-image', `url("${src}")`, 'important');
-            parent.style.setProperty('background-repeat', 'no-repeat', 'important');
-            parent.style.setProperty('background-position', objectPosition, 'important');
-            parent.style.setProperty('background-size', backgroundSize, 'important');
-            parent.style.setProperty('background-color', 'transparent', 'important');
-
-            // Hide the <img> itself (avoid double-render and object-fit issues)
-            img.style.setProperty('opacity', '0', 'important');
-          });
-          
-          // Scale up logo images to their natural/original resolution
-          // This prevents browser downsampling from causing blurry logos
-          const images = clonedDoc.querySelectorAll('img');
-          images.forEach((img) => {
-            // Get the natural (original) dimensions of the image
-            const naturalWidth = img.naturalWidth || 0;
-            const naturalHeight = img.naturalHeight || 0;
-            const currentWidth = img.width || parseInt(img.style.width) || 0;
-            const currentHeight = img.height || parseInt(img.style.height) || 0;
-            
-            // Only scale up smaller images (likely logos) - anything under 200px displayed size
-            // And only if natural size is significantly larger (indicating it's been downscaled)
-            if (currentWidth > 0 && currentWidth < 200 && naturalWidth > currentWidth * 2) {
-              // Calculate scale factor to use more of the original resolution
-              // Cap at 4x of current size to avoid making layout too large
-              const maxScale = 4;
-              const naturalScale = Math.min(naturalWidth / currentWidth, naturalHeight / currentHeight);
-              const scaleFactor = Math.min(maxScale, Math.floor(naturalScale));
+            try {
+              // Create a canvas with the logo pre-rendered
+              const canvas = clonedDoc.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              canvas.style.cssText = img.style.cssText;
+              canvas.style.width = `${w}px`;
+              canvas.style.height = `${h}px`;
+              canvas.style.borderRadius = img.style.borderRadius || '50%';
               
-              if (scaleFactor > 1) {
-                const newWidth = currentWidth * scaleFactor;
-                const newHeight = currentHeight * scaleFactor;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                // Create a temporary image to draw from
+                const tempImg = new (window as any).Image();
+                tempImg.src = src;
                 
-                img.style.width = `${newWidth}px`;
-                img.style.height = `${newHeight}px`;
-                img.width = newWidth;
-                img.height = newHeight;
+                // Draw the image centered and scaled to fit (contain behavior)
+                const imgAspect = tempImg.naturalWidth / tempImg.naturalHeight || 1;
+                const canvasAspect = w / h;
                 
-                // Also scale up the parent container if it's the logo circle
-                const parent = img.parentElement;
-                if (parent && parent.style.borderRadius) {
-                  const parentWidth = parseInt(parent.style.width) || currentWidth;
-                  const parentHeight = parseInt(parent.style.height) || currentHeight;
-                  parent.style.width = `${parentWidth * scaleFactor}px`;
-                  parent.style.height = `${parentHeight * scaleFactor}px`;
-                  parent.style.borderRadius = `${(parseInt(parent.style.borderRadius) || (parentWidth / 2)) * scaleFactor}px`;
+                let drawW = w;
+                let drawH = h;
+                let drawX = 0;
+                let drawY = 0;
+                
+                if (imgAspect > canvasAspect) {
+                  // Image is wider - fit to width
+                  drawH = w / imgAspect;
+                  drawY = (h - drawH) / 2;
+                } else {
+                  // Image is taller - fit to height
+                  drawW = h * imgAspect;
+                  drawX = (w - drawW) / 2;
                 }
+                
+                ctx.drawImage(tempImg, drawX, drawY, drawW, drawH);
               }
+              
+              // Replace the img with the canvas
+              img.parentElement?.replaceChild(canvas, img);
+            } catch (e) {
+              console.warn('Failed to convert logo img to canvas:', e);
             }
-          });
+          }
         },
       });
 
