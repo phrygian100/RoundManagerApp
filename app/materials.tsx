@@ -194,12 +194,58 @@ const ConfigurationModal = ({
       
       setUploadingLogo(true);
       try {
-        // Convert to base64
+        // Load image and preserve full quality
+        const img = new Image();
+        img.onload = () => {
+          try {
+            // Create canvas at original image dimensions to preserve quality
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              alert('Failed to process image');
+              setUploadingLogo(false);
+              return;
+            }
+            
+            // Draw image at full resolution
+            ctx.drawImage(img, 0, 0);
+            
+            // Export as PNG with maximum quality (lossless)
+            const base64 = canvas.toDataURL('image/png', 1.0);
+            
+            // Check if resulting base64 is under Firestore limits (~1MB for a single field)
+            if (base64.length > 1024 * 1024) {
+              // If too large, try JPEG with high quality
+              const jpegBase64 = canvas.toDataURL('image/jpeg', 0.95);
+              if (jpegBase64.length > 1024 * 1024) {
+                alert('Image results in too large file size even after compression. Please use a smaller image or reduce dimensions.');
+                setUploadingLogo(false);
+                return;
+              }
+              setFormData(prev => ({ ...prev, logoUrl: jpegBase64 }));
+            } else {
+              setFormData(prev => ({ ...prev, logoUrl: base64 }));
+            }
+            
+            setUploadingLogo(false);
+          } catch (error) {
+            console.error('Error processing image:', error);
+            alert('Failed to process image');
+            setUploadingLogo(false);
+          }
+        };
+        img.onerror = () => {
+          alert('Failed to load image file');
+          setUploadingLogo(false);
+        };
+        
+        // Read file and set as image source
         const reader = new FileReader();
         reader.onloadend = () => {
-          const base64 = reader.result as string;
-          setFormData(prev => ({ ...prev, logoUrl: base64 }));
-          setUploadingLogo(false);
+          img.src = reader.result as string;
         };
         reader.onerror = () => {
           alert('Failed to read image file');
