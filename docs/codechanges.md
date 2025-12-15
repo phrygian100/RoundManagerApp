@@ -2,6 +2,18 @@
 
 ## December 15, 2025
 
+### Reimagined Dashboard UI
+
+**Files**: `app/(tabs)/index.tsx`, `package.json`, `package-lock.json`
+
+- Redesigned the home dashboard to match the new graphical concept: gradient background, hero progress card, weather pill, and icon-driven tile grid with responsive sizing for web and mobile.
+- Added outlined icons per tile plus badge support for New Business requests; preserved existing navigation and permission gating.
+- Introduced `expo-linear-gradient` for the cross-platform background treatment.
+
+---
+
+## December 15, 2025
+
 ### Added SMS Invoice Shortcut for Outstanding Accounts
 
 **File**: `app/accounts.tsx`

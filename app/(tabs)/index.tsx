@@ -1,20 +1,30 @@
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 
+const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
+  'Client List': 'people-outline',
+  'Rota': 'calendar-outline',
+  'Workload Forecast': 'stats-chart-outline',
+  'Runsheet': 'clipboard-outline',
+  'Accounts': 'wallet-outline',
+  'Materials': 'construct-outline',
+  'Quotes': 'chatbubble-ellipses-outline',
+  'New Business': 'briefcase-outline',
+};
+
 export default function HomeScreen() {
   const router = useRouter();
-  const { width, height } = useWindowDimensions();
-  const aspectRatio = width > 0 && height > 0 ? width / height : 1;
-  const isDesktopLike = Platform.OS === 'web' && width >= 1024 && aspectRatio >= 1.6;
-  const buttonMaxWidth = Platform.OS === 'web' ? (isDesktopLike ? 200 : 240) : 250;
+  const { width } = useWindowDimensions();
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -24,7 +34,6 @@ export default function HomeScreen() {
   const [email, setEmail] = useState<string | null>(null);
   const [navigationInProgress, setNavigationInProgress] = useState(false);
   const [showFirstTimeSetup, setShowFirstTimeSetup] = useState(false);
-  const [checkingFirstTime, setCheckingFirstTime] = useState(true);
   
   // Weather widget state
   const [weather, setWeather] = useState<{
@@ -245,8 +254,6 @@ export default function HomeScreen() {
       }
     } catch (error) {
       console.error('Error checking first time setup:', error);
-    } finally {
-      setCheckingFirstTime(false);
     }
   };
 
@@ -409,279 +416,332 @@ export default function HomeScreen() {
     }, [router])
   );
 
-  // Determine how many buttons per row based on aspect ratio and width
-  const buttonsPerRow = isDesktopLike ? 4 : (Platform.OS === 'web' ? 3 : 2);
-  const rowMaxWidth = buttonsPerRow * buttonMaxWidth + (buttonsPerRow - 1) * 16; // includes horizontal margins
-
-  // Split buttons into rows
-  const rows: {
-    label: string;
-    onPress: () => void;
-    disabled?: boolean;
-  }[][] = [];
-  for (let i = 0; i < buttons.length; i += buttonsPerRow) {
-    rows.push(buttons.slice(i, i + buttonsPerRow));
-  }
+  const safeWidth = Math.max(width || 360, 360);
+  const gridColumns = safeWidth >= 1200 ? 4 : safeWidth >= 900 ? 3 : 2;
+  const gridMaxWidth = Math.min(safeWidth - 32, 1180);
+  const tileGap = 16;
+  const tileSize = Math.max(
+    140,
+    Math.min(240, Math.floor((gridMaxWidth - tileGap * (gridColumns - 1)) / gridColumns))
+  );
+  const progressPercent = jobStats && jobStats.total > 0
+    ? Math.min(100, Math.round((jobStats.completed / jobStats.total) * 100))
+    : 0;
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
-        <Text>Loading...</Text>
+      <View style={[styles.loadingContainer, { justifyContent: 'center' }]}>
+        <Text style={styles.loadingText}>Loading...</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {/* Header with settings gear icon */}
-      <View style={styles.header}>
-        <Pressable style={styles.settingsButton} onPress={() => handleNavigation('/settings')}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
-        </Pressable>
-        <View style={styles.headerContent}>
-          {/* Weather widget */}
-          {weatherLoading ? (
-            <Text style={styles.weatherPlaceholder}>Weather loading...</Text>
-          ) : weather ? (
-            <View style={styles.weatherWidget}>
-              <Text style={styles.weatherIcon}>{weather.icon}</Text>
-              <Text style={styles.weatherText}>{weather.temp}°C {weather.condition}</Text>
-            </View>
-          ) : (
-            <Text style={styles.weatherPlaceholder}>Weather unavailable</Text>
-          )}
+    <LinearGradient
+      colors={['#0c1b3c', '#060d1f']}
+      style={styles.background}
+      locations={[0, 1]}
+    >
+      <View style={styles.accentOne} />
+      <View style={styles.accentTwo} />
+      <View style={styles.accentThree} />
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          Platform.OS === 'web' ? { minHeight: '100vh' } : null
+        ]}
+        bounces={false}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.topBar, { paddingHorizontal: 24 }]}>
+          <Pressable
+            style={styles.settingsButton}
+            onPress={() => handleNavigation('/settings')}
+            android_ripple={{ color: 'rgba(255,255,255,0.15)', borderless: true }}
+          >
+            <Ionicons name="settings-outline" size={20} color="#e8ecf8" />
+          </Pressable>
+          <View style={styles.weatherWrapper}>
+            {weatherLoading ? (
+              <Text style={styles.weatherPlaceholder}>Loading weather...</Text>
+            ) : weather ? (
+              <View style={styles.weatherPill}>
+                <Text style={styles.weatherEmoji}>{weather.icon}</Text>
+                <Text style={styles.weatherText}>{weather.temp}°C {weather.condition}</Text>
+              </View>
+            ) : (
+              <Text style={styles.weatherPlaceholder}>Weather unavailable</Text>
+            )}
+          </View>
+          <View style={styles.topBarSpacer} />
         </View>
-      </View>
 
-      {/* Dashboard stats section */}
-      <View style={styles.statsSection}>
-        {jobStatsLoading ? (
-          <Text style={styles.statsPlaceholder}>Job stats loading...</Text>
-        ) : jobStats ? (
-          <View style={styles.jobStatsWidget}>
-            <Text style={styles.jobStatsText}>
-              📋 Today's Progress: {jobStats.completed}/{jobStats.total} jobs completed
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroTitleRow}>
+              <Ionicons name="document-text-outline" size={22} color="#e8ecf8" />
+              <Text style={styles.heroTitle}>Today's Progress</Text>
+            </View>
+            <Text style={styles.heroSubText}>
+              {jobStatsLoading
+                ? 'Calculating...'
+                : jobStats
+                  ? `${jobStats.completed}/${jobStats.total} jobs completed`
+                  : 'No jobs scheduled today'}
             </Text>
-            {jobStats.total > 0 && (
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${Math.round((jobStats.completed / jobStats.total) * 100)}%` }
-                  ]} 
+          </View>
+
+          <View style={styles.progressSection}>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            </View>
+            <Text style={styles.progressLabel}>
+              {jobStatsLoading
+                ? 'Loading...'
+                : `${progressPercent}% complete`}
+            </Text>
+          </View>
+        </View>
+
+        <View style={[
+          styles.grid,
+          { maxWidth: gridMaxWidth, gap: tileGap }
+        ]}>
+          {buttons.map((btn) => (
+            <Pressable
+              key={btn.label}
+              style={({ pressed }) => [
+                styles.tile,
+                {
+                  width: tileSize,
+                  height: tileSize,
+                  opacity: pressed ? 0.92 : 1,
+                },
+                btn.disabled && styles.tileDisabled,
+              ]}
+              onPress={btn.onPress}
+              disabled={btn.disabled}
+              android_ripple={{ color: 'rgba(255,255,255,0.12)' }}
+            >
+              <View style={styles.tileIconWrap}>
+                <Ionicons
+                  name={tileIcons[btn.label] ?? 'grid-outline'}
+                  size={32}
+                  color="#e8ecf8"
                 />
               </View>
-            )}
-            {jobStats.total > 0 && (
-              <Text style={styles.progressPercentage}>
-                {jobStats.completed === jobStats.total ? '✅ ' : '🔄 '}{Math.round((jobStats.completed / jobStats.total) * 100)}% complete
-              </Text>
-            )}
-          </View>
-        ) : (
-          <Text style={styles.statsPlaceholder}>📋 No jobs scheduled for today</Text>
-        )}
-      </View>
-
-      {/* Main buttons grid */}
-      <View style={styles.buttonsContainer}>
-        {rows.map((row, rowIndex) => (
-          <View
-            key={rowIndex}
-            style={[
-              styles.row,
-              Platform.OS === 'web' && { maxWidth: rowMaxWidth, alignSelf: 'center' }
-            ]}
-          >
-            {row.map((btn, idx) => (
-              <Pressable
-                key={idx}
-                style={[styles.button, Platform.OS === 'web' && { maxWidth: buttonMaxWidth }, btn.disabled && styles.buttonDisabled]}
-                onPress={btn.onPress}
-                disabled={btn.disabled}
-              >
-                <Text style={styles.buttonText}>{btn.label}</Text>
-                {btn.label === 'New Business' && quoteRequestCount > 0 && (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{quoteRequestCount}</Text>
-                  </View>
-                )}
-              </Pressable>
-            ))}
-          </View>
-        ))}
-      </View>
-
-      {email && (
-        <View style={styles.emailContainer}>
-          <Text style={styles.email}>Logged in as {email}</Text>
+              <Text style={styles.tileLabel}>{btn.label}</Text>
+              {btn.label === 'New Business' && quoteRequestCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{quoteRequestCount}</Text>
+                </View>
+              )}
+            </Pressable>
+          ))}
         </View>
-      )}
+
+        {email && (
+          <Text style={styles.email}>Logged in as {email}</Text>
+        )}
+      </ScrollView>
+
       {showFirstTimeSetup && (
-        <FirstTimeSetupModal 
-          visible={showFirstTimeSetup} 
-          onComplete={handleFirstTimeSetupComplete} 
+        <FirstTimeSetupModal
+          visible={showFirstTimeSetup}
+          onComplete={handleFirstTimeSetupComplete}
         />
       )}
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-    backgroundColor: '#fff',
-    paddingTop: 40,
   },
-  header: {
+  accentOne: {
+    position: 'absolute',
+    top: -180,
+    right: -140,
+    width: 360,
+    height: 360,
+    borderRadius: 180,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+  },
+  accentTwo: {
+    position: 'absolute',
+    bottom: -200,
+    left: -120,
+    width: 420,
+    height: 420,
+    borderRadius: 210,
+    backgroundColor: 'rgba(0, 122, 255, 0.12)',
+  },
+  accentThree: {
+    position: 'absolute',
+    bottom: 60,
+    right: 80,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(76, 201, 240, 0.12)',
+  },
+  scrollContent: {
+    paddingTop: 36,
+    paddingBottom: 40,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    gap: 24,
+  },
+  topBar: {
+    width: '100%',
+    maxWidth: 1180,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    justifyContent: 'space-between',
   },
   settingsButton: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  settingsIcon: {
-    fontSize: 20,
-  },
-  headerContent: {
+  weatherWrapper: {
     flex: 1,
     alignItems: 'center',
-    marginLeft: 16,
   },
-  weatherPlaceholder: {
-    fontSize: 14,
-    color: '#666',
+  topBarSpacer: {
+    width: 40,
+    height: 40,
   },
-  weatherWidget: {
+  weatherPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    padding: 10,
-    width: '100%',
-    maxWidth: 250,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
-  weatherIcon: {
-    fontSize: 24,
-    marginRight: 8,
+  weatherEmoji: {
+    fontSize: 18,
   },
   weatherText: {
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#e8ecf8',
+    fontSize: 15,
+    fontWeight: '600',
   },
-  statsSection: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-  },
-  statsPlaceholder: {
+  weatherPlaceholder: {
+    color: '#cfd5e6',
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
   },
-  jobStatsWidget: {
-    borderRadius: 16,
-    padding: 20,
-    margin: 8,
+  heroCard: {
     width: '100%',
-    maxWidth: 320,
-    alignSelf: 'center',
-    // iOS shadow
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    // Android shadow
-    elevation: 8,
-    // Border for definition
+    maxWidth: 1180,
+    borderRadius: 20,
+    padding: 20,
+    gap: 16,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderWidth: 1,
-    borderColor: '#e8e8e8',
-    // Platform-specific styling
+    borderColor: 'rgba(255,255,255,0.14)',
     ...Platform.select({
       web: {
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-        backgroundColor: '#ffffff',
+        boxShadow: '0 12px 40px rgba(0,0,0,0.25)',
       },
       default: {
-        backgroundColor: '#ffffff',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
+        elevation: 8,
       },
     }),
   },
-  jobStatsText: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginBottom: 16,
-    textAlign: 'center',
-    color: '#2c3e50',
+  heroHeader: {
+    gap: 4,
   },
-  progressBar: {
-    height: 8,
-    backgroundColor: '#f0f2f5',
-    borderRadius: 4,
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroTitle: {
+    color: '#f6f8ff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  heroSubText: {
+    color: '#cfd5e6',
+    fontSize: 14,
+  },
+  progressSection: {
+    gap: 10,
+  },
+  progressTrack: {
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     overflow: 'hidden',
-    marginBottom: 12,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#34c759',
-    borderRadius: 4,
+    borderRadius: 999,
+    backgroundColor: '#4ade80',
   },
-  progressPercentage: {
-    fontSize: 16,
-    color: '#34c759',
-    textAlign: 'center',
-    fontWeight: '600',
+  progressLabel: {
+    color: '#4ade80',
+    fontWeight: '700',
+    fontSize: 15,
   },
-  buttonsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    paddingTop: 32,
-  },
-  row: {
-    flexDirection: 'row',
+  grid: {
     width: '100%',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  button: {
-    flex: 1,
-    aspectRatio: 1,
-    marginHorizontal: 8,
-    backgroundColor: '#007AFF',
-    borderRadius: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'center',
+  },
+  tile: {
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
     alignItems: 'center',
-    elevation: 2,
-    minWidth: 0,
-    maxWidth: 250,
+    justifyContent: 'center',
+    position: 'relative',
+    ...Platform.select({
+      web: {
+        backdropFilter: 'blur(6px)',
+      },
+      default: {},
+    }),
   },
-  buttonDisabled: {
-    backgroundColor: '#eee',
+  tileDisabled: {
+    opacity: 0.6,
   },
-  buttonText: {
-    color: '#fff',
+  tileIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginBottom: 12,
+  },
+  tileLabel: {
+    color: '#f6f8ff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
     textAlign: 'center',
   },
   badge: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: 10,
+    right: 10,
     backgroundColor: '#dc2626',
     borderRadius: 12,
     minWidth: 24,
@@ -690,22 +750,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 6,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: 'rgba(255,255,255,0.85)',
   },
   badgeText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
   },
-  email: { 
-    fontSize: 12, 
-    color: '#666',
+  email: {
+    color: '#cfd5e6',
+    fontSize: 13,
     textAlign: 'center',
+    marginTop: 12,
   },
-  emailContainer: {
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0c1b3c',
     alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 16,
+  },
+  loadingText: {
+    color: '#f6f8ff',
+    fontSize: 16,
   },
 });
 
