@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import html2canvas from 'html2canvas';
 import React, { useEffect, useRef, useState } from 'react';
-import { Image, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image as RNImage, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
@@ -194,8 +194,8 @@ const ConfigurationModal = ({
       
       setUploadingLogo(true);
       try {
-        // Load image and preserve high quality while managing file size
-        const img = new Image();
+        // Load image (use DOM img element; avoid shadowing RN `Image` component)
+        const img = document.createElement('img');
         img.onload = () => {
           try {
             // Determine optimal dimensions
@@ -305,7 +305,7 @@ const ConfigurationModal = ({
             <View style={modalStyles.logoUploadContainer}>
               {formData.logoUrl ? (
                 <View style={modalStyles.logoPreviewContainer}>
-                  <Image 
+                  <RNImage 
                     source={{ uri: formData.logoUrl }} 
                     style={modalStyles.logoPreview}
                     resizeMode="contain"
@@ -330,7 +330,7 @@ const ConfigurationModal = ({
                   )}
                 </Pressable>
               )}
-              <Text style={modalStyles.logoHint}>Max 500KB. Square images work best.</Text>
+              <Text style={modalStyles.logoHint}>Max 2MB. Square images work best.</Text>
             </View>
 
             {/* Online Presence */}
@@ -829,7 +829,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
             {/* Logo Circle */}
             <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
               {config.logoUrl ? (
-                <Image 
+                <RNImage 
                   source={{ uri: config.logoUrl }} 
                   style={[invoiceStyles.logoImage, Platform.OS === 'web' && { imageRendering: 'crisp-edges' as any }]} 
                   resizeMode="cover" 
@@ -1084,7 +1084,7 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
         <View style={flyerStyles.brandingRow}>
           <View style={[flyerStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
-              <Image source={{ uri: config.logoUrl }} style={flyerStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={flyerStyles.logoImage} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={32} color="#fff" />
             )}
@@ -1256,7 +1256,7 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
         <View style={canvassingStyles.brandingRow}>
           <View style={[canvassingStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
-              <Image source={{ uri: config.logoUrl }} style={canvassingStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={canvassingStyles.logoImage} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={28} color="#fff" />
             )}
@@ -1561,7 +1561,7 @@ const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
         <View style={leafletStyles.brandHeader}>
           <View style={[leafletStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
             {config.logoUrl ? (
-              <Image source={{ uri: config.logoUrl }} style={leafletStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={leafletStyles.logoImage} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={36} color="#fff" />
             )}

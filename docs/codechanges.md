@@ -2,6 +2,14 @@
 
 ## December 15, 2025
 
+### Materials: Fix logo upload crash (web)
+
+**File**: `app/materials.tsx`
+
+- Fixed Configure Materials logo upload failing on web due to React Native `Image` import shadowing the browser `Image()` constructor.
+- Aliased React Native `Image` to `RNImage` and used a DOM `<img>` element for upload processing.
+- Updated modal helper text to reflect 2MB limit.
+
 ### Reimagined Dashboard UI
 
 **Files**: `app/(tabs)/index.tsx`, `package.json`, `package-lock.json`
