@@ -3,14 +3,15 @@ import { addMonths, addYears, differenceInMonths, endOfDay, endOfMonth, endOfWee
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { getDataOwnerId, getUserSession } from '../core/session';
+import { getUserProfile } from '../services/userService';
 import type { Client } from '../types/client';
-import type { Job, Payment } from '../types/models';
+import type { Job, Payment, User } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
 
 type ClientWithBalance = Client & { balance: number; startingBalance?: number };
@@ -177,8 +178,24 @@ export default function AccountsScreen() {
   const [loadingOutstanding, setLoadingOutstanding] = useState(true);
   const [selectedClient, setSelectedClient] = useState<ClientWithBalance | null>(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [userProfile, setUserProfile] = useState<User | null>(null);
   const router = useRouter();
   const { width } = useWindowDimensions();
+
+  // Load owner profile (bank/business info for invoicing)
+  useEffect(() => {
+    (async () => {
+      try {
+        const session = await getUserSession();
+        if (session?.accountId) {
+          const profile = await getUserProfile(session.accountId);
+          setUserProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error loading user profile:', error);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let completedJobsUnsubscribe: (() => void) | undefined;
@@ -442,6 +459,59 @@ export default function AccountsScreen() {
     setShowAccountModal(true);
   };
 
+  const handleSendOutstandingSms = (client: ClientWithBalance) => {
+    const mobileNumber = client.mobileNumber?.replace(/\s+/g, '');
+    if (!mobileNumber) {
+      Alert.alert('No mobile number', 'No mobile number available for this client.');
+      return;
+    }
+
+    if (!userProfile?.businessName || !userProfile.bankSortCode || !userProfile.bankAccountNumber) {
+      Alert.alert(
+        'Add bank details',
+        'Please add your business name, sort code, and account number in Settings → Bank & Business Info before sending invoice texts.'
+      );
+      return;
+    }
+
+    const normalizedBusinessName = userProfile.businessName.replace(/\s+/g, '').toLowerCase();
+    const portalLink = normalizedBusinessName ? `https://guvnor.app/${normalizedBusinessName}` : '';
+    const amountDue = Math.abs(client.balance);
+    const accountRef = client.accountNumber ? displayAccountNumber(client.accountNumber) : 'Account';
+
+    const bankLines = [
+      `Account Name: ${userProfile.businessName}`,
+      `Sort Code: ${userProfile.bankSortCode}`,
+      `Account No: ${userProfile.bankAccountNumber}`,
+    ];
+    if (client.accountNumber) {
+      bankLines.push(`Reference: ${accountRef}`);
+    }
+
+    const portalLine = portalLink ? `View full statement: ${portalLink}` : '';
+    const signOff = ['Thank you', userProfile.businessName, userProfile.businessWebsite]
+      .filter(Boolean)
+      .join('\n');
+
+    const template = `Invoice Reminder - ${userProfile.businessName}
+------------------------------
+Client: ${client.name || 'Customer'}
+Account: ${accountRef}
+
+Amount Due: £${amountDue.toFixed(2)} (due on receipt)
+
+Payment Details:
+${bankLines.join('\n')}
+
+${portalLine ? `${portalLine}\n\n` : ''}This SMS serves as your invoice for the outstanding balance.
+
+${signOff}`;
+
+    const scheme = Platform.OS === 'ios' ? 'sms' : 'smsto';
+    const smsUrl = `${scheme}:${mobileNumber}?body=${encodeURIComponent(template)}`;
+    Linking.openURL(smsUrl);
+  };
+
   const handleChasePayment = (client: ClientWithBalance) => {
     setShowAccountModal(false);
     router.push({
@@ -690,27 +760,42 @@ export default function AccountsScreen() {
         style={styles.outstandingClientCard}
         onPress={() => handleOpenAccountDetails(client)}
       >
-        <View style={[
-          styles.balanceBadge, 
-          client.gocardlessEnabled 
-            ? { backgroundColor: '#FFD700' } // Yellow for DD
-            : { backgroundColor: '#f44336' } // Red for outstanding balance
-        ]}>
-          <ThemedText style={[
-            styles.balanceText,
-            client.gocardlessEnabled && { color: '#000000' } // Black text for DD
+        <View style={styles.outstandingCardHeader}>
+          <View style={[
+            styles.balanceBadge, 
+            client.gocardlessEnabled 
+              ? { backgroundColor: '#FFD700' } // Yellow for DD
+              : { backgroundColor: '#f44336' } // Red for outstanding balance
           ]}>
-            {client.gocardlessEnabled ? 'DD' : `£${Math.abs(client.balance).toFixed(2)}`}
-          </ThemedText>
+            <ThemedText style={[
+              styles.balanceText,
+              client.gocardlessEnabled && { color: '#000000' } // Black text for DD
+            ]}>
+              {client.gocardlessEnabled ? 'DD' : `£${Math.abs(client.balance).toFixed(2)}`}
+            </ThemedText>
+          </View>
+          <View style={styles.clientInfo}>
+            <ThemedText style={styles.modalClientName}>{client.name || 'No name'}</ThemedText>
+            <ThemedText style={styles.modalClientAddress}>{displayAddress}</ThemedText>
+            {client.accountNumber && (
+              <ThemedText style={styles.accountNumberText}>Account: {displayAccountNumber(client.accountNumber)}</ThemedText>
+            )}
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </View>
-        <View style={styles.clientInfo}>
-          <ThemedText style={styles.modalClientName}>{client.name || 'No name'}</ThemedText>
-                      <ThemedText style={styles.modalClientAddress}>{displayAddress}</ThemedText>
-          {client.accountNumber && (
-            <ThemedText style={styles.accountNumberText}>Account: {displayAccountNumber(client.accountNumber)}</ThemedText>
-          )}
+
+        <View style={styles.outstandingActions}>
+          <Pressable
+            style={styles.smsButton}
+            onPress={(event) => {
+              event?.stopPropagation?.();
+              handleSendOutstandingSms(client);
+            }}
+          >
+            <Ionicons name="chatbubbles-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+            <ThemedText style={styles.smsButtonText}>Send SMS Invoice</ThemedText>
+          </Pressable>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#ccc" />
       </Pressable>
     );
   };
@@ -1226,8 +1311,8 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   outstandingClientCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    gap: 10,
     backgroundColor: '#fff',
     borderRadius: 8,
     padding: 12,
@@ -1238,6 +1323,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
+  },
+  outstandingCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   balanceBadge: {
     paddingHorizontal: 8,
@@ -1252,6 +1342,24 @@ const styles = StyleSheet.create({
   },
   clientInfo: {
     flex: 1,
+  },
+  outstandingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  smsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  smsButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
   },
 
 

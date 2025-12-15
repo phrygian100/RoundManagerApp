@@ -2,6 +2,18 @@
 
 ## December 15, 2025
 
+### Added SMS Invoice Shortcut for Outstanding Accounts
+
+**File**: `app/accounts.tsx`
+
+- Load owner profile (business name + bank details) for the accounts screen.
+- Added a "Send SMS Invoice" button on each outstanding account card that opens the native SMS app with a pre-filled invoice-style reminder including balance due, bank transfer details, and account reference.
+- The SMS also links to the client portal so the customer can view their full statement online.
+
+---
+
+## December 15, 2025
+
 ### Added Multi-Select Move for Runsheet Jobs
 
 **File**: `app/runsheet/[week].tsx`
