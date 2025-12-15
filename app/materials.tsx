@@ -1697,13 +1697,40 @@ export default function MaterialsScreen() {
       // This avoids clone-side style loss (which caused black borders / wrong layout).
       const captureId = `capture-${Date.now()}`;
 
+      // Ensure images are loaded/decoded before capture (prevents missing images in output)
+      const originalImgs = Array.from(element.querySelectorAll('img')) as HTMLImageElement[];
+      await Promise.all(originalImgs.map(async (img) => {
+        try {
+          if (!img.complete) {
+            await new Promise<void>((resolve) => {
+              const done = () => resolve();
+              img.addEventListener('load', done, { once: true });
+              img.addEventListener('error', done, { once: true });
+            });
+          }
+          // decode() helps ensure the bitmap is ready (best effort)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const decodeFn = (img as any).decode;
+          if (typeof decodeFn === 'function') {
+            await decodeFn.call(img);
+          }
+        } catch {
+          // best-effort only; don't block capture
+        }
+      }));
+
       const originalNodes = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
       const styleMap = new Map<string, Array<[string, string, string]>>();
+      const imgSrcMap = new Map<string, string>();
 
       for (let idx = 0; idx < originalNodes.length; idx++) {
         const node = originalNodes[idx];
         const nodeId = `${captureId}-${idx}`;
         node.setAttribute('data-capture-node', nodeId);
+
+        if (node instanceof HTMLImageElement) {
+          imgSrcMap.set(nodeId, node.currentSrc || node.src);
+        }
 
         const cs = window.getComputedStyle(node);
         const props: Array<[string, string, string]> = [];
@@ -1731,6 +1758,18 @@ export default function MaterialsScreen() {
             if (!props) return;
             for (const [prop, val, prio] of props) {
               el.style.setProperty(prop, val, prio);
+            }
+
+            // Ensure images in the cloned DOM keep the correct src and load eagerly
+            if (el instanceof HTMLImageElement) {
+              const src = imgSrcMap.get(nodeId);
+              if (src) {
+                el.src = src;
+              }
+              el.loading = 'eager';
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              (el as any).decoding = 'sync';
+              el.setAttribute('crossorigin', 'anonymous');
             }
           });
           

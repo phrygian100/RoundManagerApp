@@ -10,6 +10,12 @@
 - Aliased React Native `Image` to `RNImage` and used a DOM `<img>` element for upload processing.
 - Updated modal helper text to reflect 2MB limit.
 
+### Materials: Fix missing logos in PNG export
+
+**File**: `app/materials.tsx`
+
+- Fixed exported PNGs sometimes missing uploaded logos by waiting for images to load/decode before capture and preserving `<img>` `src`/eager-loading behavior in the `html2canvas` clone.
+
 ### Reimagined Dashboard UI
 
 **Files**: `app/(tabs)/index.tsx`, `package.json`, `package-lock.json`
