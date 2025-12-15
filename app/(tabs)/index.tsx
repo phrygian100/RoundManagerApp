@@ -446,6 +446,7 @@ export default function HomeScreen() {
       <View style={styles.accentTwo} />
       <View style={styles.accentThree} />
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
           Platform.OS === 'web' ? { minHeight: '100vh' } : null
@@ -558,33 +559,38 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   background: {
     flex: 1,
+    overflow: 'hidden',
   },
   accentOne: {
     position: 'absolute',
-    top: -180,
-    right: -140,
-    width: 360,
-    height: 360,
-    borderRadius: 180,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    top: -140,
+    right: -120,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
   accentTwo: {
     position: 'absolute',
-    bottom: -200,
-    left: -120,
-    width: 420,
-    height: 420,
-    borderRadius: 210,
-    backgroundColor: 'rgba(0, 122, 255, 0.12)',
+    bottom: -160,
+    left: -80,
+    width: 340,
+    height: 340,
+    borderRadius: 170,
+    backgroundColor: 'rgba(120, 170, 255, 0.07)',
   },
   accentThree: {
     position: 'absolute',
-    bottom: 60,
-    right: 80,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    backgroundColor: 'rgba(76, 201, 240, 0.12)',
+    bottom: 80,
+    right: 60,
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(76, 201, 240, 0.08)',
+  },
+  scrollView: {
+    flex: 1,
+    width: '100%',
   },
   scrollContent: {
     paddingTop: 36,

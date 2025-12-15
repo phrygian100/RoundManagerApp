@@ -10,6 +10,10 @@
 - Added outlined icons per tile plus badge support for New Business requests; preserved existing navigation and permission gating.
 - Introduced `expo-linear-gradient` for the cross-platform background treatment.
 
+### Mobile visual fixes
+
+- Reduced gradient accent sizes/opacity and added overflow clipping to stop the light overlay washing out tiles and to prevent horizontal scrolling on mobile.
+
 ---
 
 ## December 15, 2025
