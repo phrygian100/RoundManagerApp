@@ -827,7 +827,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
           {/* Logo and Branding */}
           <View style={[invoiceStyles.brandingSection, { marginTop: !showServicesProvidedOn ? 36 : 16 }]}>
             {/* Logo Circle */}
-            <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
+            <View style={[invoiceStyles.logoCircle, config.logoUrl && invoiceStyles.logoCircleWithLogo]}>
               {config.logoUrl ? (
                 <RNImage 
                   source={{ uri: config.logoUrl }} 
@@ -835,7 +835,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
                   resizeMode="cover" 
                 />
               ) : (
-                <Ionicons name="home" size={40} color="#fff" />
+                <Ionicons name="home" size={44} color="#fff" />
               )}
             </View>
             
@@ -1082,11 +1082,11 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={flyerStyles.headerGradient}>
         {/* Logo and Branding */}
         <View style={flyerStyles.brandingRow}>
-          <View style={[flyerStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
+          <View style={[flyerStyles.logoCircle, config.logoUrl && flyerStyles.logoCircleWithLogo]}>
             {config.logoUrl ? (
               <RNImage source={{ uri: config.logoUrl }} style={[flyerStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
-              <Ionicons name="home" size={32} color="#fff" />
+              <Ionicons name="home" size={35} color="#fff" />
             )}
           </View>
           <View style={flyerStyles.brandingText}>
@@ -1254,11 +1254,11 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={canvassingStyles.headerArea}>
         {/* Logo and Branding */}
         <View style={canvassingStyles.brandingRow}>
-          <View style={[canvassingStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
+          <View style={[canvassingStyles.logoCircle, config.logoUrl && canvassingStyles.logoCircleWithLogo]}>
             {config.logoUrl ? (
               <RNImage source={{ uri: config.logoUrl }} style={[canvassingStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
-              <Ionicons name="home" size={28} color="#fff" />
+              <Ionicons name="home" size={31} color="#fff" />
             )}
           </View>
           <View style={canvassingStyles.brandingText}>
@@ -1559,11 +1559,11 @@ const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
       <View style={leafletStyles.brandPanel}>
         {/* Logo and Title */}
         <View style={leafletStyles.brandHeader}>
-          <View style={[leafletStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
+          <View style={[leafletStyles.logoCircle, config.logoUrl && leafletStyles.logoCircleWithLogo]}>
             {config.logoUrl ? (
               <RNImage source={{ uri: config.logoUrl }} style={[leafletStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
-              <Ionicons name="home" size={36} color="#fff" />
+              <Ionicons name="home" size={40} color="#fff" />
             )}
           </View>
           <View style={leafletStyles.brandText}>
@@ -2682,19 +2682,22 @@ const invoiceStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   logoCircle: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 77,
+    height: 77,
+    borderRadius: 39,
     backgroundColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 4,
     overflow: 'hidden',
   },
+  logoCircleWithLogo: {
+    backgroundColor: '#fff',
+  },
   logoImage: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
+    width: 77,
+    height: 77,
+    borderRadius: 39,
   },
   businessName: {
     fontSize: 22,
@@ -2984,19 +2987,22 @@ const flyerStyles = StyleSheet.create({
     alignItems: 'center',
   },
   logoCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
   },
+  logoCircleWithLogo: {
+    backgroundColor: '#fff',
+  },
   logoImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
   },
   brandingText: {
     flex: 1,
@@ -3241,19 +3247,22 @@ const canvassingStyles = StyleSheet.create({
     marginBottom: 20,
   },
   logoCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 53,
+    height: 53,
+    borderRadius: 27,
     backgroundColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
   },
+  logoCircleWithLogo: {
+    backgroundColor: '#fff',
+  },
   logoImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 53,
+    height: 53,
+    borderRadius: 27,
   },
   brandingText: {
     flex: 1,
@@ -3759,19 +3768,22 @@ const leafletStyles = StyleSheet.create({
     marginBottom: 20,
   },
   logoCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: '#555',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
     overflow: 'hidden',
   },
+  logoCircleWithLogo: {
+    backgroundColor: '#fff',
+  },
   logoImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
   },
   brandText: {
     flex: 1,
