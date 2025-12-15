@@ -1772,6 +1772,32 @@ export default function MaterialsScreen() {
               el.setAttribute('crossorigin', 'anonymous');
             }
           });
+
+          // RNW + html2canvas can intermittently drop <img> rendering in the cloned DOM.
+          // For small images (logos), render as a background-image on the parent container instead.
+          const clonedImgs = Array.from(clonedDoc.querySelectorAll('img')) as HTMLImageElement[];
+          clonedImgs.forEach((img) => {
+            const w = img.width || parseInt(img.style.width) || 0;
+            const h = img.height || parseInt(img.style.height) || 0;
+            if (w <= 0 || h <= 0) return;
+            if (w >= 200 || h >= 200) return; // only treat small images as "logos"
+
+            const src = img.currentSrc || img.src;
+            if (!src) return;
+
+            const parent = img.parentElement as HTMLElement | null;
+            if (!parent) return;
+
+            // If the parent is a logo circle/container, background-image capture is more reliable.
+            parent.style.setProperty('background-image', `url("${src}")`, 'important');
+            parent.style.setProperty('background-repeat', 'no-repeat', 'important');
+            parent.style.setProperty('background-position', 'center', 'important');
+            parent.style.setProperty('background-size', 'cover', 'important');
+            parent.style.setProperty('background-color', 'transparent', 'important');
+
+            // Hide the <img> itself (avoid double-render and object-fit issues)
+            img.style.setProperty('opacity', '0', 'important');
+          });
           
           // Scale up logo images to their natural/original resolution
           // This prevents browser downsampling from causing blurry logos

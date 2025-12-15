@@ -15,6 +15,7 @@
 **File**: `app/materials.tsx`
 
 - Fixed exported PNGs sometimes missing uploaded logos by waiting for images to load/decode before capture and preserving `<img>` `src`/eager-loading behavior in the `html2canvas` clone.
+- Added a fallback for small images (logos) to be rendered as `background-image` on their parent container in the clone, avoiding intermittent `<img>` drops in `html2canvas`.
 
 ### Reimagined Dashboard UI
 
