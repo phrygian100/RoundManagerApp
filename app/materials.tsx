@@ -827,11 +827,11 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
           {/* Logo and Branding */}
           <View style={[invoiceStyles.brandingSection, { marginTop: !showServicesProvidedOn ? 36 : 16 }]}>
             {/* Logo Circle */}
-            <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
+            <View style={[invoiceStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
               {config.logoUrl ? (
                 <RNImage 
                   source={{ uri: config.logoUrl }} 
-                  style={[invoiceStyles.logoImage, Platform.OS === 'web' && { imageRendering: 'crisp-edges' as any }]} 
+                  style={[invoiceStyles.logoImage, { backgroundColor: '#fff' }, Platform.OS === 'web' && { imageRendering: 'crisp-edges' as any }]} 
                   resizeMode="cover" 
                 />
               ) : (
@@ -1082,9 +1082,9 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={flyerStyles.headerGradient}>
         {/* Logo and Branding */}
         <View style={flyerStyles.brandingRow}>
-          <View style={[flyerStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
+          <View style={[flyerStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
             {config.logoUrl ? (
-              <RNImage source={{ uri: config.logoUrl }} style={flyerStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={[flyerStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={32} color="#fff" />
             )}
@@ -1254,9 +1254,9 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={canvassingStyles.headerArea}>
         {/* Logo and Branding */}
         <View style={canvassingStyles.brandingRow}>
-          <View style={[canvassingStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
+          <View style={[canvassingStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
             {config.logoUrl ? (
-              <RNImage source={{ uri: config.logoUrl }} style={canvassingStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={[canvassingStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={28} color="#fff" />
             )}
@@ -1559,9 +1559,9 @@ const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
       <View style={leafletStyles.brandPanel}>
         {/* Logo and Title */}
         <View style={leafletStyles.brandHeader}>
-          <View style={[leafletStyles.logoCircle, config.logoUrl && { backgroundColor: 'transparent' }]}>
+          <View style={[leafletStyles.logoCircle, config.logoUrl && { backgroundColor: '#fff' }]}>
             {config.logoUrl ? (
-              <RNImage source={{ uri: config.logoUrl }} style={leafletStyles.logoImage} resizeMode="cover" />
+              <RNImage source={{ uri: config.logoUrl }} style={[leafletStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
             ) : (
               <Ionicons name="home" size={36} color="#fff" />
             )}
@@ -1774,57 +1774,59 @@ export default function MaterialsScreen() {
           });
 
           // Fix logo images for reliable html2canvas capture
-          // Replace <img> with a canvas element that has the image pre-drawn
+          // Replace <img> with a HIGH-RES canvas element that has the image pre-drawn
           const clonedImgs = Array.from(clonedDoc.querySelectorAll('img')) as HTMLImageElement[];
           for (const img of clonedImgs) {
-            const w = img.width || parseInt(img.style.width) || 0;
-            const h = img.height || parseInt(img.style.height) || 0;
-            if (w <= 0 || h <= 0) continue;
-            if (w >= 200 || h >= 200) continue; // only treat small images as "logos"
+            const displayW = img.width || parseInt(img.style.width) || 0;
+            const displayH = img.height || parseInt(img.style.height) || 0;
+            if (displayW <= 0 || displayH <= 0) continue;
+            if (displayW >= 200 || displayH >= 200) continue; // only treat small images as "logos"
 
             const src = img.currentSrc || img.src;
             if (!src || !src.startsWith('data:')) continue; // only handle data URLs (uploaded logos)
 
             try {
-              // Create a canvas with the logo pre-rendered
+              // Create a temporary image to get the source dimensions
+              const tempImg = new (window as any).Image();
+              tempImg.src = src;
+              
+              // Use high resolution: either the natural image size or 8x display size
+              const naturalW = tempImg.naturalWidth || displayW;
+              const naturalH = tempImg.naturalHeight || displayH;
+              const hiResScale = 8;
+              const canvasW = Math.max(naturalW, displayW * hiResScale);
+              const canvasH = Math.max(naturalH, displayH * hiResScale);
+              
+              // Create a HIGH-RES canvas
               const canvas = clonedDoc.createElement('canvas');
-              canvas.width = w;
-              canvas.height = h;
-              canvas.style.cssText = img.style.cssText;
-              canvas.style.width = `${w}px`;
-              canvas.style.height = `${h}px`;
+              canvas.width = canvasW;
+              canvas.height = canvasH;
+              // CSS dimensions control DISPLAY size (small), canvas dimensions control RESOLUTION (large)
+              canvas.style.width = `${displayW}px`;
+              canvas.style.height = `${displayH}px`;
               canvas.style.borderRadius = img.style.borderRadius || '50%';
+              canvas.style.display = 'block';
               
               const ctx = canvas.getContext('2d');
               if (ctx) {
-                // Create a temporary image to draw from
-                const tempImg = new (window as any).Image();
-                tempImg.src = src;
+                // Fill with white background first (prevents gray placeholder showing through)
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvasW, canvasH);
                 
-                // Draw the image centered and scaled to fit (contain behavior)
-                const imgAspect = tempImg.naturalWidth / tempImg.naturalHeight || 1;
-                const canvasAspect = w / h;
-                
-                let drawW = w;
-                let drawH = h;
-                let drawX = 0;
-                let drawY = 0;
-                
-                if (imgAspect > canvasAspect) {
-                  // Image is wider - fit to width
-                  drawH = w / imgAspect;
-                  drawY = (h - drawH) / 2;
-                } else {
-                  // Image is taller - fit to height
-                  drawW = h * imgAspect;
-                  drawX = (w - drawW) / 2;
-                }
-                
-                ctx.drawImage(tempImg, drawX, drawY, drawW, drawH);
+                // Draw the image to fill the canvas (cover behavior for same aspect ratio)
+                // For a square logo in a square canvas, this fills perfectly
+                ctx.drawImage(tempImg, 0, 0, canvasW, canvasH);
               }
               
-              // Replace the img with the canvas
-              img.parentElement?.replaceChild(canvas, img);
+              // Hide the parent's background (the #555 placeholder circle)
+              const parent = img.parentElement as HTMLElement | null;
+              if (parent) {
+                parent.style.setProperty('background-color', 'transparent', 'important');
+                parent.style.setProperty('background', 'none', 'important');
+              }
+              
+              // Replace the img with the high-res canvas
+              parent?.replaceChild(canvas, img);
             } catch (e) {
               console.warn('Failed to convert logo img to canvas:', e);
             }
