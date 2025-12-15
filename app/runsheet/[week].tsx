@@ -84,6 +84,13 @@ export default function RunsheetWeekScreen() {
   const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
   const [summaryProcessing, setSummaryProcessing] = useState<boolean>(false);
 
+  // Multi-select & bulk move
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
+  const [showBulkMovePicker, setShowBulkMovePicker] = useState(false);
+  const [bulkMoveDate, setBulkMoveDate] = useState<Date>(startOfToday());
+  const [bulkMoveLoading, setBulkMoveLoading] = useState(false);
+
   // Real-time swap proposals listener - TEMPORARILY DISABLED DUE TO WHITE SCREEN
   // useEffect(() => {
   //   let unsubscribe: (() => void) | null = null;
@@ -153,6 +160,7 @@ export default function RunsheetWeekScreen() {
   // Helper functions
   const isQuoteJob = (job: any) => job && job.serviceId === 'quote';
   const isNoteJob = (job: any) => job && job.serviceId === 'note';
+  const isSelectableJob = (job: any) => job && !isNoteJob(job) && !isQuoteJob(job) && job.status !== 'completed';
 
   // Parse week param
   const weekStart = week ? parseISO(week as string) : startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -713,6 +721,14 @@ export default function RunsheetWeekScreen() {
     };
   });
 
+  useEffect(() => {
+    // Drop selections that are no longer present or movable
+    setSelectedJobIds(prev => prev.filter(id => {
+      const job = jobs.find(j => j.id === id);
+      return job && isSelectableJob(job);
+    }));
+  }, [jobs]);
+
   const handleComplete = async (jobId: string, isCompleted: boolean, section?: any) => {
     setLoading(true);
     
@@ -897,6 +913,53 @@ export default function RunsheetWeekScreen() {
     setShowDeferDatePicker(true);
   };
 
+  const buildMoveUpdateData = async (
+    job: Job & { client: Client | null },
+    targetDate: Date,
+    vehicleChoice?: string,
+  ) => {
+    const normalizedDate = new Date(targetDate);
+    normalizedDate.setHours(0, 0, 0, 0);
+
+    const updateData: any = {
+      scheduledTime: format(normalizedDate, 'yyyy-MM-dd') + 'T09:00:00',
+    };
+
+    const currentJobDate = parseISO(job.scheduledTime);
+    const currentWeekStart = startOfWeek(currentJobDate, { weekStartsOn: 1 });
+    const newWeekStart = startOfWeek(normalizedDate, { weekStartsOn: 1 });
+    const isDifferentWeek = currentWeekStart.getTime() !== newWeekStart.getTime();
+
+    if (isDifferentWeek) {
+      let originalTimeToStore = job.originalScheduledTime;
+      if (!originalTimeToStore) {
+        try {
+          const { getServicePlansForClient } = await import('../../services/servicePlanService');
+          const plans = await getServicePlansForClient(job.clientId);
+          const matchingPlan = plans.find(p => p.serviceType === job.serviceId && p.isActive);
+          if (matchingPlan?.startDate) {
+            originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
+          } else {
+            // Fallback to current scheduledTime
+            originalTimeToStore = job.scheduledTime;
+          }
+        } catch (error) {
+          console.error('Error fetching service plan for original date:', error);
+          originalTimeToStore = job.scheduledTime;
+        }
+      }
+
+      updateData.originalScheduledTime = originalTimeToStore;
+      updateData.isDeferred = true;
+    }
+
+    if (vehicleChoice !== undefined) {
+      updateData.vehicleId = vehicleChoice === 'auto' ? null : vehicleChoice;
+    }
+
+    return updateData;
+  };
+
   const handleDeferToNextWeek = async (job: Job & { client: Client | null }) => {
     try {
       // Calculate next Monday
@@ -1011,8 +1074,7 @@ export default function RunsheetWeekScreen() {
       return;
     }
     // Prevent deferring to past dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfToday();
     const selected = new Date(selectedDate);
     selected.setHours(0, 0, 0, 0);
     
@@ -1034,55 +1096,8 @@ export default function RunsheetWeekScreen() {
       setDeferSelectedVehicle('auto');
       return;
     }
-    // Move job to selected date (09:00) and update vehicle if specified
-    const newDateString = format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00';
-    
-    // Check if moving to a different WEEK (not just a different day)
-    const currentJobDate = parseISO(deferJob.scheduledTime);
-    const newJobDate = selectedDate;
-    const currentWeekStart = startOfWeek(currentJobDate, { weekStartsOn: 1 });
-    const newWeekStart = startOfWeek(newJobDate, { weekStartsOn: 1 });
-    const isDifferentWeek = currentWeekStart.getTime() !== newWeekStart.getTime();
-    
-    const updateData: any = { 
-      scheduledTime: newDateString
-    };
-    
-    // Only mark as deferred if moving to a different week
-    if (isDifferentWeek) {
-      // If job doesn't have originalScheduledTime, calculate it from service plan
-      let originalTimeToStore = deferJob.originalScheduledTime;
-      if (!originalTimeToStore) {
-        try {
-          // Fetch service plans for this client to get the canonical anchor
-          const { getServicePlansForClient } = await import('../../services/servicePlanService');
-          const plans = await getServicePlansForClient(deferJob.clientId);
-          const matchingPlan = plans.find(p => p.serviceType === deferJob.serviceId && p.isActive);
-          if (matchingPlan?.startDate) {
-            originalTimeToStore = matchingPlan.startDate + 'T09:00:00';
-          } else {
-            // Fallback to current scheduledTime
-            originalTimeToStore = deferJob.scheduledTime;
-          }
-        } catch (error) {
-          console.error('Error fetching service plan for original date:', error);
-          originalTimeToStore = deferJob.scheduledTime;
-        }
-      }
-      
-      updateData.originalScheduledTime = originalTimeToStore;
-      updateData.isDeferred = true;
-    }
-    
-    // Update vehicle assignment
-    if (deferSelectedVehicle === 'auto') {
-      // Clear manual assignment to use automatic allocation
-      updateData.vehicleId = null;
-    } else {
-      // Set manual vehicle assignment
-      updateData.vehicleId = deferSelectedVehicle;
-    }
-    
+    const updateData = await buildMoveUpdateData(deferJob, selectedDate, deferSelectedVehicle);
+
     await updateDoc(doc(db, 'jobs', deferJob.id), updateData);
     setJobs(prevJobs => prevJobs.map(j =>
       j.id === deferJob.id ? { ...j, ...updateData } : j
@@ -1090,6 +1105,119 @@ export default function RunsheetWeekScreen() {
     setDeferJob(null);
     setDeferSelectedVehicle('auto');
     Alert.alert('Success', 'Job moved to selected date' + (deferSelectedVehicle !== 'auto' ? ' and assigned to vehicle' : ''));
+  };
+
+  const toggleMultiSelectMode = () => {
+    setMultiSelectMode(prev => {
+      if (prev) {
+        setSelectedJobIds([]);
+        setShowBulkMovePicker(false);
+      }
+      return !prev;
+    });
+  };
+
+  const toggleJobSelection = (jobId: string) => {
+    setSelectedJobIds(prev => {
+      const job = jobs.find(j => j.id === jobId);
+      if (!job || !isSelectableJob(job)) return prev;
+      return prev.includes(jobId) ? prev.filter(id => id !== jobId) : [...prev, jobId];
+    });
+  };
+
+  const openBulkMovePicker = () => {
+    if (!selectedJobIds.length) {
+      if (Platform.OS === 'web') {
+        window.alert('Select at least one job to move.');
+      } else {
+        Alert.alert('No jobs selected', 'Select at least one job to move.');
+      }
+      return;
+    }
+
+    const firstJob = jobs.find(j => selectedJobIds.includes(j.id));
+    const baseDate = firstJob?.scheduledTime ? new Date(firstJob.scheduledTime) : startOfToday();
+    setBulkMoveDate(baseDate);
+    setShowBulkMovePicker(true);
+  };
+
+  const handleBulkMoveJobs = async () => {
+    const targetDate = new Date(bulkMoveDate);
+    targetDate.setHours(0, 0, 0, 0);
+    const today = startOfToday();
+
+    if (targetDate < today) {
+      if (Platform.OS === 'web') {
+        window.alert('You cannot move jobs to a past date.');
+      } else {
+        Alert.alert('Cannot Move to Past Date', 'You cannot move jobs to a date that has already passed.');
+      }
+      return;
+    }
+
+    const isToday = targetDate.toDateString() === today.toDateString();
+    const todaySection = sections.find(s => s.dayDate.toDateString() === today.toDateString());
+    const todayIsCompleted = todaySection && completedDays.includes(todaySection.title);
+    if (isToday && todayIsCompleted) {
+      if (Platform.OS === 'web') {
+        window.alert('Today is marked as complete. You cannot move jobs to today.');
+      } else {
+        Alert.alert('Cannot Move to Today', 'Today is marked as complete. You cannot move jobs to today.');
+      }
+      return;
+    }
+
+    const jobsToMove = jobs.filter(job => selectedJobIds.includes(job.id) && isSelectableJob(job));
+    if (!jobsToMove.length) {
+      if (Platform.OS === 'web') {
+        window.alert('No eligible jobs selected to move.');
+      } else {
+        Alert.alert('No eligible jobs', 'No eligible jobs selected to move.');
+      }
+      setShowBulkMovePicker(false);
+      return;
+    }
+
+    setBulkMoveLoading(true);
+
+    try {
+      const updates: Array<{ jobId: string; updateData: any }> = [];
+      for (const job of jobsToMove) {
+        const updateData = await buildMoveUpdateData(job, targetDate);
+        updates.push({ jobId: job.id, updateData });
+      }
+
+      const batch = writeBatch(db);
+      updates.forEach(({ jobId, updateData }) => {
+        batch.update(doc(db, 'jobs', jobId), updateData);
+      });
+      await batch.commit();
+
+      setJobs(prev => prev.map(job => {
+        const match = updates.find(u => u.jobId === job.id);
+        return match ? { ...job, ...match.updateData } : job;
+      }));
+
+      setShowBulkMovePicker(false);
+      setBulkMoveLoading(false);
+      setSelectedJobIds([]);
+      setMultiSelectMode(false);
+
+      const successMessage = `${updates.length} job${updates.length === 1 ? '' : 's'} moved to ${format(targetDate, 'EEEE, MMMM d')}.`;
+      if (Platform.OS === 'web') {
+        window.alert(successMessage);
+      } else {
+        Alert.alert('Jobs moved', successMessage);
+      }
+    } catch (error) {
+      console.error('Error moving selected jobs:', error);
+      setBulkMoveLoading(false);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to move selected jobs. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to move selected jobs. Please try again.');
+      }
+    }
   };
 
   const handleJobPress = (job: any) => {
@@ -2103,6 +2231,8 @@ ${signOff}`;
     const isCompleted = item.status === 'completed';
     const isDayCompleted = completedDays.includes(section.title);
     const client: any = item.client;
+    const selectionEnabled = multiSelectMode && isSelectableJob(item);
+    const isSelected = selectedJobIds.includes(item.id);
     
     // Calculate the job's position based on round order within today's jobs
     // This number should stay with the job even if it's reordered by ETA
@@ -2185,11 +2315,23 @@ ${signOff}`;
         isCompleted && styles.completedRow,
         isDeferred && !isCompleted && styles.deferredRow,
         shouldUseOneOffStyling && !isCompleted && !isDeferred && styles.oneOffJobRow,
-        isAdditionalService && !isCompleted && !isDeferred && styles.additionalServiceRow
+        isAdditionalService && !isCompleted && !isDeferred && styles.additionalServiceRow,
+        selectionEnabled && isSelected && styles.selectedJobRow
       ]}>
         <View style={{ flex: 1 }}>
           {/* Quick Action Buttons */}
           <View style={styles.quickActionsRow}>
+            {selectionEnabled && (
+              <Pressable
+                style={[styles.selectionToggle, isSelected && styles.selectionToggleActive]}
+                onPress={() => toggleJobSelection(item.id)}
+                accessibilityLabel={isSelected ? 'Deselect job' : 'Select job'}
+              >
+                <Text style={[styles.selectionToggleText, isSelected && styles.selectionToggleTextActive]}>
+                  {isSelected ? '✓' : '○'}
+                </Text>
+              </Pressable>
+            )}
             <Pressable 
               style={styles.quickActionBtn}
               onPress={() => handleNavigate(client)}
@@ -2222,7 +2364,7 @@ ${signOff}`;
             </Pressable>
           </View>
           
-          <Pressable onPress={() => handleJobPress(item)}>
+          <Pressable onPress={() => selectionEnabled ? toggleJobSelection(item.id) : handleJobPress(item)}>
             <View style={[styles.addressBlock, isDeferred && !isCompleted && styles.deferredAddressBlock]}>
               <View style={styles.addressBlockContent}>
                 {/* Day position badge - shows job's order in today's runsheet */}
@@ -2243,6 +2385,13 @@ ${signOff}`;
                 )}
               </View>
             </View>
+            {selectionEnabled && (
+              <View style={[styles.selectionTag, isSelected && styles.selectionTagActive]}>
+                <Text style={[styles.selectionTagText, isSelected && styles.selectionTagTextActive]}>
+                  {isSelected ? 'Selected' : 'Tap to select'}
+                </Text>
+              </View>
+            )}
             {isDeferred && !isCompleted && (
               <View style={styles.deferredLabel}>
                 <Text style={styles.deferredLabelText}>ROLLOVER</Text>
@@ -2446,8 +2595,40 @@ ${signOff}`;
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
             </Pressable>
+            <Pressable
+              style={[styles.multiSelectButton, multiSelectMode && styles.multiSelectButtonActive]}
+              onPress={toggleMultiSelectMode}
+            >
+              <Text style={styles.multiSelectButtonText}>Select multiple</Text>
+              {selectedJobIds.length > 0 && (
+                <View style={styles.selectionCountBadge}>
+                  <Text style={styles.selectionCountText}>{selectedJobIds.length}</Text>
+                </View>
+              )}
+            </Pressable>
+            {multiSelectMode && (
+              <Pressable
+                style={[
+                  styles.moveJobsButton,
+                  (!selectedJobIds.length || bulkMoveLoading) && styles.moveJobsButtonDisabled
+                ]}
+                onPress={openBulkMovePicker}
+                disabled={!selectedJobIds.length || bulkMoveLoading}
+              >
+                <Text style={styles.moveJobsButtonText}>{bulkMoveLoading ? 'Moving...' : 'Move jobs'}</Text>
+              </Pressable>
+            )}
           </View>
         </View>
+        {multiSelectMode && (
+          <View style={styles.selectionNotice}>
+            <Text style={styles.selectionNoticeText}>
+              {selectedJobIds.length
+                ? `${selectedJobIds.length} job${selectedJobIds.length === 1 ? '' : 's'} selected`
+                : 'Tap jobs to select them.'}
+            </Text>
+          </View>
+        )}
         {loading ? (
           <ActivityIndicator size="large" />
         ) : (
@@ -2978,6 +3159,86 @@ ${signOff}`;
             </Modal>
           )
         )}
+        {showBulkMovePicker && (
+          Platform.OS === 'web' ? (
+            <Modal
+              visible={showBulkMovePicker}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setShowBulkMovePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <Text style={styles.datePickerTitle}>Move selected jobs to:</Text>
+                  <input
+                    type="date"
+                    value={format(bulkMoveDate, 'yyyy-MM-dd')}
+                    min={format(new Date(), 'yyyy-MM-dd')}
+                    onChange={e => {
+                      const nextDate = new Date(e.target.value + 'T00:00:00');
+                      setBulkMoveDate(nextDate);
+                    }}
+                    style={{
+                      padding: 10,
+                      fontSize: 16,
+                      borderRadius: 6,
+                      border: '1px solid #ccc',
+                      marginBottom: 16,
+                      width: '100%',
+                    }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                    <Button
+                      title={bulkMoveLoading ? 'Moving...' : 'Move jobs'}
+                      onPress={handleBulkMoveJobs}
+                      disabled={bulkMoveLoading}
+                    />
+                    <Button title="Cancel" onPress={() => setShowBulkMovePicker(false)} color="red" />
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <Modal
+              visible={showBulkMovePicker}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowBulkMovePicker(false)}
+            >
+              <View style={styles.modalOverlay}>
+                <View style={styles.datePickerModal}>
+                  <Text style={styles.datePickerTitle}>Move selected jobs to:</Text>
+                  <DateTimePicker
+                    value={bulkMoveDate}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    minimumDate={new Date()}
+                    onChange={(event, date) => {
+                      if (date) {
+                        setBulkMoveDate(date);
+                      }
+                    }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
+                    <Pressable
+                      style={[styles.modalButton, styles.modalButtonPrimary, bulkMoveLoading && styles.moveJobsButtonDisabled]}
+                      onPress={handleBulkMoveJobs}
+                      disabled={bulkMoveLoading}
+                    >
+                      <Text style={styles.modalButtonPrimaryText}>{bulkMoveLoading ? 'Moving...' : 'Move jobs'}</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.modalButton, styles.modalButtonSecondary]}
+                      onPress={() => setShowBulkMovePicker(false)}
+                    >
+                      <Text style={styles.modalButtonSecondaryText}>Cancel</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          )
+        )}
         {/* Quote Completion Modal */}
         <Modal visible={quoteCompleteModal.visible} transparent animationType="fade" onRequestClose={() => setQuoteCompleteModal({ job: null, visible: false })}>
           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' }}>
@@ -3263,6 +3524,67 @@ const styles = StyleSheet.create({
   headerButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+  },
+  multiSelectButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  multiSelectButtonActive: {
+    backgroundColor: '#e6f0ff',
+    borderColor: '#007AFF',
+  },
+  multiSelectButtonText: {
+    fontWeight: '600',
+    color: '#333',
+  },
+  selectionCountBadge: {
+    minWidth: 22,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionCountText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  moveJobsButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    borderWidth: 1,
+    borderColor: '#005bb5',
+  },
+  moveJobsButtonDisabled: {
+    opacity: 0.6,
+  },
+  moveJobsButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  selectionNotice: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#e6f0ff',
+    borderRadius: 8,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  selectionNoticeText: {
+    color: '#0a3d91',
+    fontWeight: '600',
   },
   capacityRefreshButton: {
     backgroundColor: '#007AFF',
@@ -3326,6 +3648,10 @@ const styles = StyleSheet.create({
     elevation: 1,
     minHeight: 0,
   },
+  selectedJobRow: {
+    borderWidth: 2,
+    borderColor: '#007AFF',
+  },
   quickActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3337,6 +3663,27 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.03)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0,0,0,0.05)',
+  },
+  selectionToggle: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectionToggleActive: {
+    borderColor: '#007AFF',
+    backgroundColor: '#e6f0ff',
+  },
+  selectionToggleText: {
+    fontWeight: '700',
+    color: '#555',
+  },
+  selectionToggleTextActive: {
+    color: '#0a3d91',
   },
   quickActionBtn: {
     paddingHorizontal: 12,
@@ -3371,6 +3718,28 @@ const styles = StyleSheet.create({
     borderBottomColor: '#005bb5',
     marginBottom: 4,
     alignSelf: 'stretch',
+  },
+  selectionTag: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginLeft: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#f0f0f0',
+  },
+  selectionTagActive: {
+    backgroundColor: '#e6f0ff',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  selectionTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#555',
+  },
+  selectionTagTextActive: {
+    color: '#0a3d91',
   },
   addressBlockContent: {
     flexDirection: 'row',
