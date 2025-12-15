@@ -1789,10 +1789,21 @@ export default function MaterialsScreen() {
             if (!parent) return;
 
             // If the parent is a logo circle/container, background-image capture is more reliable.
+            // Match the preview’s intent by mapping <img> object-fit/object-position to background-size/position.
+            const objectFit = (img.style.getPropertyValue('object-fit') || 'cover').trim();
+            const objectPosition = (img.style.getPropertyValue('object-position') || '50% 50%').trim();
+
+            let backgroundSize = 'cover';
+            if (objectFit === 'contain') backgroundSize = 'contain';
+            else if (objectFit === 'cover') backgroundSize = 'cover';
+            else if (objectFit === 'fill') backgroundSize = '100% 100%';
+            else if (objectFit === 'none') backgroundSize = 'auto';
+            else if (objectFit === 'scale-down') backgroundSize = 'contain';
+
             parent.style.setProperty('background-image', `url("${src}")`, 'important');
             parent.style.setProperty('background-repeat', 'no-repeat', 'important');
-            parent.style.setProperty('background-position', 'center', 'important');
-            parent.style.setProperty('background-size', 'cover', 'important');
+            parent.style.setProperty('background-position', objectPosition, 'important');
+            parent.style.setProperty('background-size', backgroundSize, 'important');
             parent.style.setProperty('background-color', 'transparent', 'important');
 
             // Hide the <img> itself (avoid double-render and object-fit issues)
