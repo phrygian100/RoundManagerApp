@@ -1717,6 +1717,7 @@ export default function MaterialsScreen() {
         allowTaint: true,
         backgroundColor: '#ffffff',
         onclone: (clonedDoc) => {
+          // Apply computed styles from the real DOM
           const clonedNodes = clonedDoc.querySelectorAll(`[data-capture-node^="${captureId}-"]`);
           clonedNodes.forEach((n) => {
             const el = n as HTMLElement;
@@ -1726,6 +1727,47 @@ export default function MaterialsScreen() {
             if (!props) return;
             for (const [prop, val, prio] of props) {
               el.style.setProperty(prop, val, prio);
+            }
+          });
+          
+          // Scale up logo images to their natural/original resolution
+          // This prevents browser downsampling from causing blurry logos
+          const images = clonedDoc.querySelectorAll('img');
+          images.forEach((img) => {
+            // Get the natural (original) dimensions of the image
+            const naturalWidth = img.naturalWidth || 0;
+            const naturalHeight = img.naturalHeight || 0;
+            const currentWidth = img.width || parseInt(img.style.width) || 0;
+            const currentHeight = img.height || parseInt(img.style.height) || 0;
+            
+            // Only scale up smaller images (likely logos) - anything under 200px displayed size
+            // And only if natural size is significantly larger (indicating it's been downscaled)
+            if (currentWidth > 0 && currentWidth < 200 && naturalWidth > currentWidth * 2) {
+              // Calculate scale factor to use more of the original resolution
+              // Cap at 4x of current size to avoid making layout too large
+              const maxScale = 4;
+              const naturalScale = Math.min(naturalWidth / currentWidth, naturalHeight / currentHeight);
+              const scaleFactor = Math.min(maxScale, Math.floor(naturalScale));
+              
+              if (scaleFactor > 1) {
+                const newWidth = currentWidth * scaleFactor;
+                const newHeight = currentHeight * scaleFactor;
+                
+                img.style.width = `${newWidth}px`;
+                img.style.height = `${newHeight}px`;
+                img.width = newWidth;
+                img.height = newHeight;
+                
+                // Also scale up the parent container if it's the logo circle
+                const parent = img.parentElement;
+                if (parent && parent.style.borderRadius) {
+                  const parentWidth = parseInt(parent.style.width) || currentWidth;
+                  const parentHeight = parseInt(parent.style.height) || currentHeight;
+                  parent.style.width = `${parentWidth * scaleFactor}px`;
+                  parent.style.height = `${parentHeight * scaleFactor}px`;
+                  parent.style.borderRadius = `${(parseInt(parent.style.borderRadius) || (parentWidth / 2)) * scaleFactor}px`;
+                }
+              }
             }
           });
         },
