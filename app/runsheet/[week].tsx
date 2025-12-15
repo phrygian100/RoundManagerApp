@@ -89,6 +89,7 @@ export default function RunsheetWeekScreen() {
   const [selectedJobIds, setSelectedJobIds] = useState<string[]>([]);
   const [showBulkMovePicker, setShowBulkMovePicker] = useState(false);
   const [bulkMoveDate, setBulkMoveDate] = useState<Date>(startOfToday());
+  const [bulkMoveVehicle, setBulkMoveVehicle] = useState<string>('auto');
   const [bulkMoveLoading, setBulkMoveLoading] = useState(false);
 
   // Real-time swap proposals listener - TEMPORARILY DISABLED DUE TO WHITE SCREEN
@@ -1138,6 +1139,7 @@ export default function RunsheetWeekScreen() {
     const firstJob = jobs.find(j => selectedJobIds.includes(j.id));
     const baseDate = firstJob?.scheduledTime ? new Date(firstJob.scheduledTime) : startOfToday();
     setBulkMoveDate(baseDate);
+    setBulkMoveVehicle(firstJob?.vehicleId || 'auto');
     setShowBulkMovePicker(true);
   };
 
@@ -1183,7 +1185,7 @@ export default function RunsheetWeekScreen() {
     try {
       const updates: Array<{ jobId: string; updateData: any }> = [];
       for (const job of jobsToMove) {
-        const updateData = await buildMoveUpdateData(job, targetDate);
+        const updateData = await buildMoveUpdateData(job, targetDate, bulkMoveVehicle);
         updates.push({ jobId: job.id, updateData });
       }
 
@@ -1209,6 +1211,7 @@ export default function RunsheetWeekScreen() {
       } else {
         Alert.alert('Jobs moved', successMessage);
       }
+      setBulkMoveVehicle('auto');
     } catch (error) {
       console.error('Error moving selected jobs:', error);
       setBulkMoveLoading(false);
@@ -3187,6 +3190,28 @@ ${signOff}`;
                       width: '100%',
                     }}
                   />
+                  <View style={styles.vehiclePickerContainer}>
+                    <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
+                    <select
+                      value={bulkMoveVehicle}
+                      onChange={(e) => setBulkMoveVehicle(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: 8,
+                        fontSize: 16,
+                        borderRadius: 6,
+                        border: '1px solid #ccc',
+                        backgroundColor: '#f9f9f9',
+                      }}
+                    >
+                      <option value="auto">Automatic (Based on capacity)</option>
+                      {vehicles.map(vehicle => (
+                        <option key={vehicle.id} value={vehicle.id}>
+                          {vehicle.name}
+                        </option>
+                      ))}
+                    </select>
+                  </View>
                   <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
                     <Button
                       title={bulkMoveLoading ? 'Moving...' : 'Move jobs'}
@@ -3219,6 +3244,25 @@ ${signOff}`;
                       }
                     }}
                   />
+                  <View style={styles.vehiclePickerContainer}>
+                    <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
+                    <View style={styles.vehiclePicker}>
+                      <RNPicker
+                        selectedValue={bulkMoveVehicle}
+                        onValueChange={setBulkMoveVehicle}
+                        style={{ height: Platform.OS === 'ios' ? 200 : 50 }}
+                      >
+                        <RNPicker.Item label="Automatic (Based on capacity)" value="auto" />
+                        {vehicles.map(vehicle => (
+                          <RNPicker.Item 
+                            key={vehicle.id} 
+                            label={vehicle.name} 
+                            value={vehicle.id} 
+                          />
+                        ))}
+                      </RNPicker>
+                    </View>
+                  </View>
                   <View style={{ flexDirection: 'row', gap: 12, marginTop: 16 }}>
                     <Pressable
                       style={[styles.modalButton, styles.modalButtonPrimary, bulkMoveLoading && styles.moveJobsButtonDisabled]}

@@ -8,7 +8,7 @@
 
 - Added a `Select multiple` toggle next to the runsheet home button with a live count badge and selected jobs notice.
 - Jobs can now be multi-selected (highlighted with a check and "Selected" tag) and moved in one action via a new `Move jobs` button that appears while selection is active.
-- Bulk move uses a shared date picker (web and mobile) and batches updates, preserving vehicle assignments while carrying forward defer/original date logic when crossing weeks.
+- Bulk move now asks for both the target date and vehicle (or automatic allocation), with a shared date/vehicle picker (web and mobile) and batched updates, preserving defer/original date logic when crossing weeks.
 - Guards prevent moving to past dates or to today when today is marked complete, and non-movable items (notes, quotes, completed jobs) are ignored automatically.
 - Selection state clears after a successful move or when toggling selection off to avoid stale selections.
 
