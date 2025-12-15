@@ -15,6 +15,18 @@
 
 ## December 15, 2025
 
+### Move Payments Between Clients from Service History
+
+**File**: `app/(tabs)/clients/[id].tsx`
+
+- Added “Move” action to payment entries in Service History.
+- New modal lets users search/select another client and reassign the payment; job link is cleared to avoid mismatches.
+- Service history refreshes after the move and guards prompt for client selection.
+
+---
+
+## December 15, 2025
+
 ### Added Multi-Select Move for Runsheet Jobs
 
 **File**: `app/runsheet/[week].tsx`

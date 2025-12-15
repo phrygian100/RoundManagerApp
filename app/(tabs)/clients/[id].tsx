@@ -16,6 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../../core/session';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { updateClientGoCardlessSettings } from '../../../services/clientService';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
+import { updatePayment } from '../../../services/paymentService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
 import type { ServicePlan } from '../../../types/servicePlan';
@@ -74,6 +75,13 @@ export default function ClientDetailScreen() {
   const [nextJobWasMoved, setNextJobWasMoved] = useState(false); // Fallback for jobs moved before tracking was added
   const [scheduleCollapsed, setScheduleCollapsed] = useState(false);
   const [pendingJobs, setPendingJobs] = useState<(Job & { type: 'job' })[]>([]);
+  const [movePaymentModalVisible, setMovePaymentModalVisible] = useState(false);
+  const [paymentToMove, setPaymentToMove] = useState<(Payment & { type: 'payment' }) | null>(null);
+  const [clientsForMove, setClientsForMove] = useState<Client[]>([]);
+  const [loadingClientsForMove, setLoadingClientsForMove] = useState(false);
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
+  const [selectedMoveClient, setSelectedMoveClient] = useState<Client | null>(null);
+  const [movingPayment, setMovingPayment] = useState(false);
   
   // Additional recurring work states
   const [modalMode, setModalMode] = useState<'one-time' | 'recurring'>('one-time');
@@ -197,61 +205,187 @@ export default function ClientDetailScreen() {
     }
   }, [id]);
 
-  useEffect(() => {
+  const fetchServiceHistory = useCallback(async () => {
     if (!client) return;
 
-    const fetchServiceHistory = async () => {
-      setLoadingHistory(true);
-      setBalance(null); // Reset balance on re-fetch
-      try {
-        // Fetch all jobs for this client (not just completed)
-        const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id));
-        const jobsSnapshot = await getDocs(jobsQuery);
-        const jobsData = jobsSnapshot.docs
-          .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
-          .filter(job => job.status === 'completed');
+    setLoadingHistory(true);
+    setBalance(null); // Reset balance on re-fetch
+    try {
+      // Fetch all jobs for this client (not just completed)
+      const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id));
+      const jobsSnapshot = await getDocs(jobsQuery);
+      const jobsData = jobsSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
+        .filter(job => job.status === 'completed');
 
-        // Fetch payments
-        const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
-        const paymentsSnapshot = await getDocs(paymentsQuery);
-        const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'payment' })) as (Payment & { type: 'payment' })[];
-        
-        // Calculate balance from the client's perspective (credit is positive, debt is negative)
-        const totalBilled = jobsData.reduce((sum, job) => sum + job.price, 0);
-        const totalPaid = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
-        setBalance(totalPaid - totalBilled);
+      // Fetch payments
+      const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
+      const paymentsSnapshot = await getDocs(paymentsQuery);
+      const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'payment' })) as (Payment & { type: 'payment' })[];
+      
+      // Calculate balance from the client's perspective (credit is positive, debt is negative)
+      const totalBilled = jobsData.reduce((sum, job) => sum + job.price, 0);
+      const totalPaid = paymentsData.reduce((sum, payment) => sum + payment.amount, 0);
+      setBalance(totalPaid - totalBilled);
 
-        // Combine and sort for history view
-        const combinedHistory = [...jobsData, ...paymentsData];
-        combinedHistory.sort((a, b) => {
-          const dateA = new Date(a.type === 'job' ? (a.scheduledTime || 0) : (a.date || 0)).getTime();
-          const dateB = new Date(b.type === 'job' ? (b.scheduledTime || 0) : (b.date || 0)).getTime();
-          return dateB - dateA;
+      // Combine and sort for history view
+      const combinedHistory = [...jobsData, ...paymentsData];
+      combinedHistory.sort((a, b) => {
+        const dateA = new Date(a.type === 'job' ? (a.scheduledTime || 0) : (a.date || 0)).getTime();
+        const dateB = new Date(b.type === 'job' ? (b.scheduledTime || 0) : (b.date || 0)).getTime();
+        return dateB - dateA;
+      });
+
+      setServiceHistory(combinedHistory);
+
+      // Pending jobs for schedule
+      const pending = jobsSnapshot.docs
+        .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
+        .filter(job => job.status !== 'completed')
+        // Sort by scheduled date (earliest first)
+        .sort((a, b) => {
+          const dateA = new Date(a.scheduledTime || 0).getTime();
+          const dateB = new Date(b.scheduledTime || 0).getTime();
+          return dateA - dateB;
         });
-
-        setServiceHistory(combinedHistory);
-
-        // Pending jobs for schedule
-        const pending = jobsSnapshot.docs
-          .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
-          .filter(job => job.status !== 'completed')
-          // Sort by scheduled date (earliest first)
-          .sort((a, b) => {
-            const dateA = new Date(a.scheduledTime || 0).getTime();
-            const dateB = new Date(b.scheduledTime || 0).getTime();
-            return dateA - dateB;
-          });
-        setPendingJobs(pending);
-      } catch (error) {
-        console.error("Error fetching service history:", error);
-        Alert.alert("Error", "Could not load service history.");
-      } finally {
-        setLoadingHistory(false);
-      }
-    };
-
-    fetchServiceHistory();
+      setPendingJobs(pending);
+    } catch (error) {
+      console.error("Error fetching service history:", error);
+      Alert.alert("Error", "Could not load service history.");
+    } finally {
+      setLoadingHistory(false);
+    }
   }, [client]);
+
+  useEffect(() => {
+    fetchServiceHistory();
+  }, [client, fetchServiceHistory]);
+
+  const loadClientsForMove = useCallback(async () => {
+    if (clientsForMove.length > 0 || loadingClientsForMove) return;
+    try {
+      setLoadingClientsForMove(true);
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) return;
+
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const snapshot = await getDocs(clientsQuery);
+      const allClients = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client));
+      setClientsForMove(allClients);
+    } catch (error) {
+      console.error('Error loading clients for payment move:', error);
+    } finally {
+      setLoadingClientsForMove(false);
+    }
+  }, [clientsForMove.length, loadingClientsForMove]);
+
+  const handleMovePaymentPress = (payment: Payment & { type: 'payment' }) => {
+    setPaymentToMove(payment);
+    setSelectedMoveClient(null);
+    setClientSearchQuery('');
+    setMovePaymentModalVisible(true);
+    loadClientsForMove();
+  };
+
+  const filteredMoveClients = useMemo(() => {
+    const q = clientSearchQuery.trim().toLowerCase();
+    return clientsForMove
+      .filter(c => c.id !== client?.id)
+      .filter(c => {
+        if (!q) return true;
+        const haystack = [
+          c.name,
+          c.accountNumber,
+          c.address1,
+          c.town,
+          c.postcode
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return haystack.includes(q);
+      })
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [client?.id, clientSearchQuery, clientsForMove]);
+
+  const handleConfirmMovePayment = async () => {
+    if (!paymentToMove || !selectedMoveClient) {
+      Alert.alert('Select client', 'Please pick a client to move this payment to.');
+      return;
+    }
+
+    try {
+      setMovingPayment(true);
+      await updatePayment(paymentToMove.id, {
+        clientId: selectedMoveClient.id,
+        jobId: null,
+      });
+      Alert.alert('Payment moved', `Payment moved to ${selectedMoveClient.name || 'client'}.`);
+      setMovePaymentModalVisible(false);
+      setPaymentToMove(null);
+      fetchServiceHistory();
+    } catch (error) {
+      console.error('Error moving payment:', error);
+      Alert.alert('Error', 'Could not move the payment. Please try again.');
+    } finally {
+      setMovingPayment(false);
+    }
+  };
+
+  const renderHistoryItem = useCallback(({ item }: { item: ServiceHistoryItem | { type: 'startingBalance'; amount: number } }) => {
+    if (item.type === 'startingBalance') {
+      return (
+        <View style={styles.historyItem}>
+          <ThemedText style={styles.historyItemText}>
+            <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance:</ThemedText>{' '}£{Number((item as any).amount).toFixed(2)}
+          </ThemedText>
+        </View>
+      );
+    } else if (item.type === 'job') {
+      return (
+        <View style={[styles.historyItem, styles.jobItem]}>
+          <ThemedText style={styles.historyItemText}>
+            <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO((item as any).scheduledTime), 'do MMMM yyyy')}
+          </ThemedText>
+          <ThemedText style={styles.historyItemText}>
+            <ThemedText>Status:</ThemedText>{' '}<ThemedText style={{ fontWeight: 'bold' }}>{(item as any).status}</ThemedText>
+          </ThemedText>
+          <ThemedText style={styles.historyItemText}>Price: £{(item as any).price.toFixed(2)}</ThemedText>
+        </View>
+      );
+    } else if (item.type === 'payment') {
+      const payment = item as Payment & { type: 'payment' };
+      return (
+        <View style={[styles.historyItem, styles.paymentItem]}>
+          <View style={styles.paymentHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.historyItemText}>
+                <ThemedText style={{ fontWeight: 'bold' }}>Payment:</ThemedText>{' '} {format(parseISO(payment.date), 'do MMMM yyyy')}
+              </ThemedText>
+              <ThemedText style={styles.historyItemText}>
+                Amount:{' '}<ThemedText style={{ fontWeight: 'bold' }}>£{payment.amount.toFixed(2)}</ThemedText>
+              </ThemedText>
+              <ThemedText style={styles.historyItemText}>Method: {payment.method.replace('_', ' ')}</ThemedText>
+              {payment.reference && (
+                <ThemedText style={styles.historyItemText}>Reference:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{payment.reference}</ThemedText></ThemedText>
+              )}
+              {payment.notes && (
+                <ThemedText style={styles.historyItemText}>Notes:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{payment.notes}</ThemedText></ThemedText>
+              )}
+            </View>
+            <Pressable
+              style={styles.movePaymentButton}
+              onPress={() => handleMovePaymentPress(payment)}
+            >
+              <Ionicons name="swap-horizontal" size={16} color="#fff" style={{ marginRight: 6 }} />
+              <ThemedText style={styles.movePaymentButtonText}>Move</ThemedText>
+            </Pressable>
+          </View>
+        </View>
+      );
+    }
+    return null;
+  }, [handleMovePaymentPress]);
 
   // Optionally open Add Service modal when navigated from Manage Services,
   // then immediately clear the trigger param so it doesn't persist
@@ -2060,52 +2194,101 @@ export default function ClientDetailScreen() {
         client={client}
         onSave={handleSaveGocardlessSettings}
       />
+
+      {/* Move Payment Modal */}
+      <Modal
+        visible={movePaymentModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setMovePaymentModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%', paddingBottom: 16 }]}>
+            <View style={styles.modalHeader}>
+              <ThemedText style={styles.modalTitle}>Move Payment</ThemedText>
+              <Pressable style={styles.closeButton} onPress={() => setMovePaymentModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </Pressable>
+            </View>
+
+            {paymentToMove && (
+              <View style={{ marginBottom: 12 }}>
+                <ThemedText style={styles.historyItemText}>
+                  Amount: <ThemedText style={{ fontWeight: 'bold' }}>£{paymentToMove.amount.toFixed(2)}</ThemedText>
+                </ThemedText>
+                <ThemedText style={styles.historyItemText}>
+                  Date: {format(parseISO(paymentToMove.date), 'do MMM yyyy')}
+                </ThemedText>
+                {paymentToMove.reference ? (
+                  <ThemedText style={styles.historyItemText}>Reference: {paymentToMove.reference}</ThemedText>
+                ) : null}
+              </View>
+            )}
+
+            <View style={{ marginBottom: 12 }}>
+              <ThemedText style={{ fontWeight: 'bold', marginBottom: 6 }}>Select destination client</ThemedText>
+              <TextInput
+                placeholder="Search by name, account number, or address"
+                value={clientSearchQuery}
+                onChangeText={setClientSearchQuery}
+                style={styles.searchInput}
+              />
+            </View>
+
+            {loadingClientsForMove ? (
+              <ActivityIndicator />
+            ) : (
+              <ScrollView style={{ maxHeight: 260 }} keyboardShouldPersistTaps="handled">
+                {filteredMoveClients.length === 0 ? (
+                  <ThemedText>No matching clients.</ThemedText>
+                ) : (
+                  filteredMoveClients.map(c => (
+                    <Pressable
+                      key={c.id}
+                      style={[
+                        styles.clientSelectRow,
+                        selectedMoveClient?.id === c.id && styles.clientSelectRowActive
+                      ]}
+                      onPress={() => setSelectedMoveClient(c)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <ThemedText style={{ fontWeight: '600' }}>{c.name || 'Unnamed client'}</ThemedText>
+                        <ThemedText style={{ color: '#555' }}>
+                          {c.accountNumber ? displayAccountNumber(c.accountNumber) : 'No account number'}
+                        </ThemedText>
+                        <ThemedText style={{ color: '#777', fontSize: 12 }}>
+                          {[c.address1, c.town, c.postcode].filter(Boolean).join(', ')}
+                        </ThemedText>
+                      </View>
+                      {selectedMoveClient?.id === c.id && (
+                        <Ionicons name="checkmark-circle" size={22} color="#2e7d32" />
+                      )}
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+            )}
+
+            <Pressable
+              style={[
+                styles.saveButton,
+                (!selectedMoveClient || movingPayment) && { opacity: 0.6 }
+              ]}
+              onPress={handleConfirmMovePayment}
+              disabled={!selectedMoveClient || movingPayment}
+            >
+              {movingPayment ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <ThemedText style={styles.saveButtonText}>Move Payment</ThemedText>
+              )}
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
-
-const renderHistoryItem = ({ item }: { item: any }) => {
-  if (item.type === 'startingBalance') {
-    return (
-      <View style={styles.historyItem}>
-        <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance:</ThemedText>{' '}£{Number(item.amount).toFixed(2)}
-        </ThemedText>
-      </View>
-    );
-  } else if (item.type === 'job') {
-    return (
-      <View style={[styles.historyItem, styles.jobItem]}>
-        <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO(item.scheduledTime), 'do MMMM yyyy')}
-        </ThemedText>
-        <ThemedText style={styles.historyItemText}>
-          <ThemedText>Status:</ThemedText>{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.status}</ThemedText>
-        </ThemedText>
-        <ThemedText style={styles.historyItemText}>Price: £{item.price.toFixed(2)}</ThemedText>
-      </View>
-    );
-  } else if (item.type === 'payment') {
-    return (
-      <View style={[styles.historyItem, styles.paymentItem]}>
-        <ThemedText style={styles.historyItemText}>
-          <ThemedText style={{ fontWeight: 'bold' }}>Payment:</ThemedText>{' '} {format(parseISO(item.date), 'do MMMM yyyy')}
-        </ThemedText>
-        <ThemedText style={styles.historyItemText}>
-          Amount:{' '}<ThemedText style={{ fontWeight: 'bold' }}>£{item.amount.toFixed(2)}</ThemedText>
-        </ThemedText>
-        <ThemedText style={styles.historyItemText}>Method: {item.method.replace('_', ' ')}</ThemedText>
-        {item.reference && (
-          <ThemedText style={styles.historyItemText}>Reference:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.reference}</ThemedText></ThemedText>
-        )}
-        {item.notes && (
-          <ThemedText style={styles.historyItemText}>Notes:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{item.notes}</ThemedText></ThemedText>
-        )}
-      </View>
-    );
-  }
-  return null;
-};
 
 const styles = StyleSheet.create({
   content: {
@@ -2149,6 +2332,25 @@ const styles = StyleSheet.create({
     borderColor: '#b8eed7',
     borderWidth: 1,
   },
+  paymentHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  movePaymentButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1976d2',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  movePaymentButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 12,
+  },
   historyItemText: {
     fontSize: 14,
     textTransform: 'capitalize',
@@ -2158,6 +2360,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    width: '95%',
+    maxWidth: 480,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#263238',
+  },
+  closeButton: {
+    padding: 6,
   },
   modalView: {
     margin: 20,
@@ -2210,11 +2445,31 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     width: '100%',
   },
+  searchInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+  },
   modalButtons: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
     marginTop: 20,
+  },
+  saveButton: {
+    marginTop: 12,
+    backgroundColor: '#1976d2',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
   infoAndButtonsRow: {
     flexDirection: 'row',
@@ -2271,6 +2526,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 2,
+  },
+  clientSelectRow: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clientSelectRowActive: {
+    borderColor: '#1976d2',
+    backgroundColor: '#e8f1ff',
   },
   verticalButtons: {
     flexDirection: 'column',
