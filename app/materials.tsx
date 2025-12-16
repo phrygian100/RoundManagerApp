@@ -18,7 +18,6 @@ const INVOICE_WIDTH = 400;
 const FLYER_BACK_PRESETS = {
   conservatory: require('../assets/presets/flyer-back/ConservatoryroofBeforeandAfter.jpg'),
 };
-const LEAFLET_WIDTH = 800; // Double width for New Business Leaflet
 
 // Materials Configuration Type
 interface MaterialsConfig {
@@ -79,11 +78,6 @@ interface CanvassingFlyerItemConfig {
   additionalServicesText: string;
 }
 
-interface LeafletItemConfig {
-  showPricingTable: boolean;
-  showPaymentMethods: boolean;
-  showServiceArea: boolean;
-}
 
 const defaultInvoiceItemConfig: InvoiceItemConfig = {
   showServicesProvidedOn: true,
@@ -119,11 +113,6 @@ const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
   additionalServicesText: 'Gutter Cleaning\nConservatory Roof Cleaning\nSolar Panel Cleaning\nSoffit And Fascia Cleaning',
 };
 
-const defaultLeafletItemConfig: LeafletItemConfig = {
-  showPricingTable: true,
-  showPaymentMethods: true,
-  showServiceArea: true,
-};
 
 const defaultConfig: MaterialsConfig = {
   businessName: 'Your Business Name',
@@ -450,7 +439,7 @@ const ConfigurationModal = ({
 };
 
 // Item Configuration Modal Component
-type ItemConfigType = 'invoice' | 'flyer' | 'canvassing' | 'leaflet';
+type ItemConfigType = 'invoice' | 'flyer' | 'canvassing';
 
 const ItemConfigurationModal = ({ 
   visible, 
@@ -459,11 +448,9 @@ const ItemConfigurationModal = ({
   invoiceConfig,
   flyerConfig,
   canvassingConfig,
-  leafletConfig,
   onSaveInvoice,
   onSaveFlyer,
   onSaveCanvassing,
-  onSaveLeaflet,
 }: { 
   visible: boolean; 
   onClose: () => void; 
@@ -471,24 +458,20 @@ const ItemConfigurationModal = ({
   invoiceConfig: InvoiceItemConfig;
   flyerConfig: FlyerItemConfig;
   canvassingConfig: CanvassingFlyerItemConfig;
-  leafletConfig: LeafletItemConfig;
   onSaveInvoice: (config: InvoiceItemConfig) => void;
   onSaveFlyer: (config: FlyerItemConfig) => void;
   onSaveCanvassing: (config: CanvassingFlyerItemConfig) => void;
-  onSaveLeaflet: (config: LeafletItemConfig) => void;
 }) => {
   const [invoiceForm, setInvoiceForm] = useState<InvoiceItemConfig>(invoiceConfig);
   const [flyerForm, setFlyerForm] = useState<FlyerItemConfig>(flyerConfig);
   const [canvassingForm, setCanvassingForm] = useState<CanvassingFlyerItemConfig>(canvassingConfig);
-  const [leafletForm, setLeafletForm] = useState<LeafletItemConfig>(leafletConfig);
   const [uploadingPromoPhoto, setUploadingPromoPhoto] = useState(false);
 
   useEffect(() => {
     setInvoiceForm(invoiceConfig);
     setFlyerForm(flyerConfig);
     setCanvassingForm(canvassingConfig);
-    setLeafletForm(leafletConfig);
-  }, [invoiceConfig, flyerConfig, canvassingConfig, leafletConfig, visible]);
+  }, [invoiceConfig, flyerConfig, canvassingConfig, visible]);
 
   const handlePromoPhotoUpload = () => {
     if (Platform.OS !== 'web') {
@@ -587,9 +570,6 @@ const ItemConfigurationModal = ({
       case 'canvassing':
         onSaveCanvassing(canvassingForm);
         break;
-      case 'leaflet':
-        onSaveLeaflet(leafletForm);
-        break;
     }
     onClose();
   };
@@ -599,7 +579,6 @@ const ItemConfigurationModal = ({
       case 'invoice': return 'Invoice Options';
       case 'flyer': return 'Flyer Options';
       case 'canvassing': return 'Canvassing Flyer Options';
-      case 'leaflet': return 'New Business Leaflet Options';
     }
   };
 
@@ -1030,26 +1009,6 @@ const ItemConfigurationModal = ({
               </>
             )}
 
-            {itemType === 'leaflet' && (
-              <>
-                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
-                <CheckboxRow 
-                  label="Pricing Table" 
-                  checked={leafletForm.showPricingTable} 
-                  onToggle={() => setLeafletForm(prev => ({ ...prev, showPricingTable: !prev.showPricingTable }))} 
-                />
-                <CheckboxRow 
-                  label="Payment Methods" 
-                  checked={leafletForm.showPaymentMethods} 
-                  onToggle={() => setLeafletForm(prev => ({ ...prev, showPaymentMethods: !prev.showPaymentMethods }))} 
-                />
-                <CheckboxRow 
-                  label="Service Area Map" 
-                  checked={leafletForm.showServiceArea} 
-                  onToggle={() => setLeafletForm(prev => ({ ...prev, showServiceArea: !prev.showServiceArea }))} 
-                />
-              </>
-            )}
           </ScrollView>
 
           <View style={itemConfigStyles.footer}>
@@ -1732,206 +1691,6 @@ const CanvassingFlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; 
   );
 };
 
-// New Business Leaflet Components (double width)
-const NewBusinessLeafletFront = ({ config }: { config: MaterialsConfig }) => {
-  const adhocServices = [
-    'Conservatory Roof',
-    'Gutter Clearance',
-    'Soffits and Fascias',
-    'Solar Panels',
-    '', '', '', '',
-  ];
-
-  const expectations = [
-    "You'll receive a text message the day before any visit with an estimated time of arrival.",
-    "After we complete a service, we will leave an invoice through your letterbox.",
-    "We'll leave any gates closed when we leave.",
-    "If we arrive and a gate is locked, we will consider using ladders to gain access if we're confident it is safe and reasonable to do so without risk to health or property.",
-  ];
-
-  return (
-    <View style={leafletStyles.container}>
-      {/* Left Panel - Quote Form */}
-      <View style={leafletStyles.leftPanel}>
-        {/* Quoted Header */}
-        <View style={leafletStyles.quotedHeader}>
-          <Text style={leafletStyles.quotedText}>Quoted on</Text>
-          <Text style={leafletStyles.quotedSlash}>/</Text>
-          <Text style={leafletStyles.quotedSlash}>/</Text>
-          <Text style={leafletStyles.quotedText}>By</Text>
-        </View>
-
-        {/* Pricing Box */}
-        <View style={leafletStyles.pricingBox}>
-          <View style={leafletStyles.pricingHeader}>
-            <View style={{ flex: 2 }} />
-            <Text style={leafletStyles.pricingHeaderText}>1st Service</Text>
-            <Text style={leafletStyles.pricingHeaderText}>Maintenance</Text>
-          </View>
-          <View style={leafletStyles.pricingRow}>
-            <Text style={leafletStyles.pricingLabel}>4 Weekly Window Cleaning</Text>
-            <Text style={leafletStyles.pricingValue}>£</Text>
-            <Text style={leafletStyles.pricingValue}>£</Text>
-          </View>
-          <View style={leafletStyles.pricingRow}>
-            <Text style={leafletStyles.pricingLabel}>8 Weekly Window Cleaning</Text>
-            <Text style={leafletStyles.pricingValue}>£</Text>
-            <Text style={leafletStyles.pricingValue}>£</Text>
-          </View>
-          <View style={leafletStyles.pricingRow}>
-            <Text style={leafletStyles.pricingLabel}>One-off Service</Text>
-            <Text style={leafletStyles.pricingValue}>£</Text>
-            <View style={{ flex: 1 }} />
-          </View>
-
-          {/* Adhoc Work */}
-          <Text style={leafletStyles.adhocTitle}>Adhoc Work</Text>
-          {adhocServices.map((service, idx) => (
-            <View key={idx} style={leafletStyles.adhocRow}>
-              <Text style={leafletStyles.adhocLabel}>{service}</Text>
-              <Text style={leafletStyles.adhocValue}>£</Text>
-            </View>
-          ))}
-
-          {/* Notes */}
-          <Text style={leafletStyles.notesTitle}>Notes</Text>
-          <View style={leafletStyles.notesArea} />
-        </View>
-
-        {/* Service Summary */}
-        <View style={leafletStyles.summarySection}>
-          <View style={leafletStyles.summaryRow}>
-            <View style={leafletStyles.bulletDot} />
-            <Text style={leafletStyles.summaryText}>Your windows will be cleaned every         weeks.</Text>
-          </View>
-          <View style={leafletStyles.summaryRow}>
-            <View style={leafletStyles.bulletDot} />
-            <Text style={leafletStyles.summaryText}>The cost per service is £</Text>
-          </View>
-          <View style={leafletStyles.summaryRow}>
-            <View style={leafletStyles.bulletDot} />
-            <Text style={leafletStyles.summaryText}>Your first service will be on</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Right Panel - Info */}
-      <View style={leafletStyles.rightPanel}>
-        {/* What to expect */}
-        <Text style={leafletStyles.sectionTitle}>What to expect next</Text>
-        {expectations.map((text, idx) => (
-          <View key={idx} style={leafletStyles.expectRow}>
-            <View style={leafletStyles.bulletDotSmall} />
-            <Text style={leafletStyles.expectText}>{text}</Text>
-          </View>
-        ))}
-
-        {/* Payment */}
-        <Text style={leafletStyles.sectionTitle}>Payment</Text>
-        
-        <Text style={leafletStyles.paymentMethod}>Bank Transfer</Text>
-        <Text style={leafletStyles.paymentDetail}>The invoice will have our banking information as follows</Text>
-        <Text style={leafletStyles.paymentDetail}>Sort Code: {config.sortCode}</Text>
-        <Text style={leafletStyles.paymentDetail}>Account number: {config.accountNumber}</Text>
-        <View style={leafletStyles.referenceRow}>
-          <Text style={leafletStyles.paymentDetail}>Reference:</Text>
-          <View style={leafletStyles.referenceLine} />
-        </View>
-
-        <Text style={leafletStyles.paymentMethod}>Direct Debit</Text>
-        <Text style={leafletStyles.paymentDetail}>You can see details and set up via our website</Text>
-        <Text style={leafletStyles.paymentLink}>{config.websiteAddress}</Text>
-
-        <Text style={leafletStyles.paymentMethod}>Cash and Cheque</Text>
-        <Text style={leafletStyles.paymentDetail}>We can take cash or cheque while we're at your Property</Text>
-        <Text style={leafletStyles.paymentDetail}>or you can post to:</Text>
-        <Text style={leafletStyles.paymentDetail}>{config.businessName}</Text>
-        <Text style={leafletStyles.paymentDetail}>{config.businessAddress.line2}, {config.businessAddress.town} {config.businessAddress.postcode}</Text>
-
-        {/* Weather Guarantee */}
-        <Text style={leafletStyles.sectionTitle}>Weather & Service Guarantee</Text>
-        <Text style={leafletStyles.guaranteeText}>
-          We work all year round and into less pleasant weather. The commercial method we use is rain proof. Because of this we offer all our customers a service guarantee as follows:
-        </Text>
-        <Text style={leafletStyles.guaranteeBold}>
-          If you are unsatisfied with the service and get in touch within 24 hours, we will either return to do the service again or write off the cost of the service.
-        </Text>
-      </View>
-    </View>
-  );
-};
-
-const NewBusinessLeafletBack = ({ config }: { config: MaterialsConfig }) => {
-  return (
-    <View style={leafletStyles.container}>
-      {/* Left Panel - Map */}
-      <View style={leafletStyles.mapPanel}>
-        {/* Map representation */}
-        <View style={leafletStyles.mapBackground}>
-          {/* Grid pattern to represent map */}
-          <View style={leafletStyles.mapGrid}>
-            {[...Array(6)].map((_, i) => (
-              <View key={`h${i}`} style={[leafletStyles.mapGridLineH, { top: `${i * 20}%` }]} />
-            ))}
-            {[...Array(6)].map((_, i) => (
-              <View key={`v${i}`} style={[leafletStyles.mapGridLineV, { left: `${i * 20}%` }]} />
-            ))}
-          </View>
-          {/* Service area outline */}
-          <View style={leafletStyles.serviceAreaOutline}>
-            <Text style={leafletStyles.mapLabel}>Service Area</Text>
-          </View>
-          {/* Some town markers */}
-          <View style={[leafletStyles.townMarker, { top: '30%', left: '40%' }]}>
-            <Text style={leafletStyles.townName}>Sleaford</Text>
-          </View>
-          <View style={[leafletStyles.townMarker, { top: '60%', left: '35%' }]}>
-            <Text style={leafletStyles.townName}>Boston</Text>
-          </View>
-          <View style={[leafletStyles.townMarker, { top: '45%', left: '55%' }]}>
-            <Text style={leafletStyles.townName}>Billinghay</Text>
-          </View>
-        </View>
-      </View>
-
-      {/* Right Panel - Branding */}
-      <View style={leafletStyles.brandPanel}>
-        {/* Logo and Title */}
-        <View style={leafletStyles.brandHeader}>
-          <View style={[leafletStyles.logoCircle, config.logoUrl && leafletStyles.logoCircleWithLogo]}>
-            {config.logoUrl ? (
-              <RNImage source={{ uri: config.logoUrl }} style={[leafletStyles.logoImage, { backgroundColor: '#fff' }]} resizeMode="cover" />
-            ) : (
-              <Ionicons name="home" size={40} color="#fff" />
-            )}
-          </View>
-          <View style={leafletStyles.brandText}>
-            <Text style={leafletStyles.brandName}>{config.businessName}</Text>
-            <Text style={leafletStyles.brandTagline}>{config.tagline}</Text>
-          </View>
-        </View>
-
-        {/* Team Photo Placeholder */}
-        <View style={leafletStyles.photoPlaceholder}>
-          <View style={leafletStyles.photoInner}>
-            <Ionicons name="people" size={40} color="#888" />
-            <Text style={leafletStyles.photoText}>Team Photo</Text>
-            <View style={leafletStyles.vanIcon}>
-              <Ionicons name="car" size={24} color="#666" />
-            </View>
-          </View>
-        </View>
-
-        {/* Contact Info */}
-        <View style={leafletStyles.contactSection}>
-          <Text style={leafletStyles.phoneNumber}>{config.mobileNumber}</Text>
-          <Text style={leafletStyles.website}>{config.websiteAddress}</Text>
-        </View>
-      </View>
-    </View>
-  );
-};
-
 export default function MaterialsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -1942,8 +1701,6 @@ export default function MaterialsScreen() {
   const flyerBackRef = useRef<View>(null);
   const canvassingFrontRef = useRef<View>(null);
   const canvassingBackRef = useRef<View>(null);
-  const leafletFrontRef = useRef<View>(null);
-  const leafletBackRef = useRef<View>(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
@@ -1954,7 +1711,6 @@ export default function MaterialsScreen() {
   const [invoiceItemConfig, setInvoiceItemConfig] = useState<InvoiceItemConfig>(defaultInvoiceItemConfig);
   const [flyerItemConfig, setFlyerItemConfig] = useState<FlyerItemConfig>(defaultFlyerItemConfig);
   const [canvassingItemConfig, setCanvassingItemConfig] = useState<CanvassingFlyerItemConfig>(defaultCanvassingFlyerItemConfig);
-  const [leafletItemConfig, setLeafletItemConfig] = useState<LeafletItemConfig>(defaultLeafletItemConfig);
 
   const openItemConfig = (type: ItemConfigType) => {
     setCurrentItemType(type);
@@ -2209,13 +1965,6 @@ export default function MaterialsScreen() {
     await downloadPreviewPng(element, `canvassing-flyer-${side}-${businessSlug}.png`);
   };
 
-  const handleLeafletDownloadPNG = async (side: 'front' | 'back') => {
-    const ref = side === 'front' ? leafletFrontRef : leafletBackRef;
-    const element = ref.current as unknown as HTMLElement;
-    const businessSlug = config.businessName.replace(/\s+/g, '-').toLowerCase();
-    await downloadPreviewPng(element, `new-business-leaflet-${side}-${businessSlug}.png`);
-  };
-
   return (
     <PermissionGate perm="viewMaterials" fallback={<View style={styles.container}><Text>You don't have permission to view this page.</Text></View>}>
       <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -2262,11 +2011,9 @@ export default function MaterialsScreen() {
           invoiceConfig={invoiceItemConfig}
           flyerConfig={flyerItemConfig}
           canvassingConfig={canvassingItemConfig}
-          leafletConfig={leafletItemConfig}
           onSaveInvoice={setInvoiceItemConfig}
           onSaveFlyer={setFlyerItemConfig}
           onSaveCanvassing={setCanvassingItemConfig}
-          onSaveLeaflet={setLeafletItemConfig}
         />
 
         {/* Content */}
@@ -2401,50 +2148,6 @@ export default function MaterialsScreen() {
             </View>
           </View>
 
-          {/* New Business Leaflet Section */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View>
-                <Text style={styles.sectionTitle}>New Business Leaflet</Text>
-                <Text style={styles.sectionSubtitle}>Tri-fold leaflet for new customer quotes</Text>
-              </View>
-              <View style={styles.sectionButtons}>
-                <Pressable style={styles.configureButton} onPress={() => openItemConfig('leaflet')}>
-                  <Ionicons name="options-outline" size={18} color="#007AFF" />
-                  <Text style={styles.configureButtonText}>Options</Text>
-                </Pressable>
-              {Platform.OS === 'web' && (
-                  <>
-                    <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('front')}>
-                  <Ionicons name="download-outline" size={18} color="#fff" />
-                      <Text style={styles.downloadButtonText}>Front PNG</Text>
-                </Pressable>
-                    <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('back')}>
-                      <Ionicons name="download-outline" size={18} color="#fff" />
-                      <Text style={styles.downloadButtonText}>Back PNG</Text>
-                    </Pressable>
-                  </>
-              )}
-              </View>
-            </View>
-            
-            <ScrollView horizontal showsHorizontalScrollIndicator={true} style={styles.leafletScroll}>
-              <View style={styles.invoiceRow}>
-                <View style={styles.invoiceWrapper}>
-                  <Text style={styles.invoiceLabel}>Front</Text>
-                  <View ref={leafletFrontRef}>
-                  <NewBusinessLeafletFront config={config} />
-                  </View>
-                </View>
-                <View style={styles.invoiceWrapper}>
-                  <Text style={styles.invoiceLabel}>Back</Text>
-                  <View ref={leafletBackRef}>
-                  <NewBusinessLeafletBack config={config} />
-                  </View>
-                </View>
-              </View>
-            </ScrollView>
-          </View>
         </ScrollView>
       </SafeAreaView>
     </PermissionGate>
@@ -2633,10 +2336,6 @@ const styles = StyleSheet.create({
     color: '#ccc',
     marginTop: 8,
     textAlign: 'center',
-  },
-  leafletScroll: {
-    marginHorizontal: -16,
-    paddingHorizontal: 16,
   },
 });
 
@@ -3990,352 +3689,5 @@ const canvassingStyles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 3,
-  },
-});
-
-const leafletStyles = StyleSheet.create({
-  container: {
-    width: LEAFLET_WIDTH,
-    height: INVOICE_HEIGHT,
-    backgroundColor: '#e8f0f5',
-    borderRadius: 8,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    flexDirection: 'row',
-  },
-  // Front - Left Panel
-  leftPanel: {
-    flex: 1,
-    padding: 12,
-    borderRightWidth: 1,
-    borderRightColor: '#ccc',
-  },
-  quotedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-    padding: 6,
-    marginBottom: 8,
-    backgroundColor: '#fff',
-    gap: 12,
-  },
-  quotedText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  quotedSlash: {
-    fontSize: 12,
-    color: '#333',
-  },
-  pricingBox: {
-    borderWidth: 2,
-    borderColor: '#333',
-    padding: 8,
-    backgroundColor: '#fff',
-    flex: 1,
-  },
-  pricingHeader: {
-    flexDirection: 'row',
-    marginBottom: 4,
-  },
-  pricingHeaderText: {
-    flex: 1,
-    fontSize: 8,
-    textAlign: 'center',
-    color: '#333',
-  },
-  pricingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 2,
-  },
-  pricingLabel: {
-    flex: 2,
-    fontSize: 10,
-    color: '#333',
-  },
-  pricingValue: {
-    flex: 1,
-    fontSize: 10,
-    textAlign: 'center',
-    color: '#333',
-  },
-  adhocTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  adhocRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 1,
-  },
-  adhocLabel: {
-    flex: 1,
-    fontSize: 9,
-    color: '#333',
-  },
-  adhocValue: {
-    fontSize: 9,
-    color: '#333',
-    width: 20,
-    textAlign: 'right',
-  },
-  notesTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  notesArea: {
-    flex: 1,
-    minHeight: 40,
-  },
-  summarySection: {
-    borderTopWidth: 2,
-    borderTopColor: '#333',
-    paddingTop: 8,
-    marginTop: 8,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
-  },
-  bulletDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#333',
-    marginRight: 8,
-    marginTop: 2,
-  },
-  summaryText: {
-    flex: 1,
-    fontSize: 10,
-    color: '#333',
-  },
-  // Front - Right Panel
-  rightPanel: {
-    flex: 1,
-    padding: 12,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 6,
-    marginTop: 8,
-  },
-  expectRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 4,
-  },
-  bulletDotSmall: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#333',
-    marginRight: 6,
-    marginTop: 4,
-  },
-  expectText: {
-    flex: 1,
-    fontSize: 8,
-    color: '#333',
-    lineHeight: 11,
-  },
-  paymentMethod: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#333',
-    marginTop: 6,
-  },
-  paymentDetail: {
-    fontSize: 8,
-    color: '#333',
-    marginLeft: 8,
-    lineHeight: 11,
-  },
-  paymentLink: {
-    fontSize: 8,
-    color: '#333',
-    marginLeft: 8,
-  },
-  referenceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  referenceLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#333',
-    marginLeft: 4,
-  },
-  guaranteeText: {
-    fontSize: 8,
-    color: '#333',
-    lineHeight: 11,
-    marginBottom: 4,
-  },
-  guaranteeBold: {
-    fontSize: 8,
-    fontWeight: 'bold',
-    color: '#333',
-    lineHeight: 11,
-  },
-  // Back - Map Panel
-  mapPanel: {
-    flex: 1,
-    backgroundColor: '#8B9A6B',
-  },
-  mapBackground: {
-    flex: 1,
-    position: 'relative',
-  },
-  mapGrid: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  mapGridLineH: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  mapGridLineV: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-  },
-  serviceAreaOutline: {
-    position: 'absolute',
-    top: '15%',
-    left: '15%',
-    right: '15%',
-    bottom: '15%',
-    borderWidth: 3,
-    borderColor: 'rgba(100,150,255,0.6)',
-    backgroundColor: 'rgba(100,150,255,0.15)',
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  mapLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-    fontWeight: 'bold',
-  },
-  townMarker: {
-    position: 'absolute',
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  townName: {
-    fontSize: 8,
-    color: '#333',
-  },
-  // Back - Brand Panel
-  brandPanel: {
-    flex: 1,
-    backgroundColor: '#e8f0f5',
-    padding: 16,
-  },
-  brandHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: '#555',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-    overflow: 'hidden',
-  },
-  logoCircleWithLogo: {
-    backgroundColor: '#fff',
-  },
-  logoImage: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-  },
-  brandText: {
-    flex: 1,
-  },
-  brandName: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  brandNameLight: {
-    fontWeight: '400',
-    color: '#555',
-  },
-  brandTagline: {
-    fontSize: 11,
-    color: '#666',
-    fontStyle: 'italic',
-  },
-  photoPlaceholder: {
-    flex: 1,
-    backgroundColor: '#ddd',
-    borderRadius: 8,
-    borderWidth: 2,
-    borderColor: '#333',
-    marginBottom: 16,
-    overflow: 'hidden',
-  },
-  photoInner: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#ccc',
-  },
-  photoText: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-  },
-  vanIcon: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-  },
-  contactSection: {
-    alignItems: 'center',
-  },
-  phoneNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 4,
-  },
-  website: {
-    fontSize: 12,
-    color: '#333',
   },
 });
