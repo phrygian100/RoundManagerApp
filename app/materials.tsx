@@ -1312,12 +1312,14 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         })()}
 
         {/* FREE Quote Badge */}
-        <View style={flyerStyles.quoteContainer}>
-          <View style={flyerStyles.quoteBadge}>
-            <Text style={flyerStyles.quoteFree}>FREE</Text>
-            <Text style={flyerStyles.quoteText}>quote!</Text>
+        {itemConfig.showQuoteBadge && (
+          <View style={flyerStyles.quoteContainer}>
+            <View style={flyerStyles.quoteBadge}>
+              <Text style={flyerStyles.quoteFree}>FREE</Text>
+              <Text style={flyerStyles.quoteText}>quote!</Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       {/* Blue Footer */}
@@ -1428,12 +1430,14 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
         ))}
 
         {/* FREE Quote Badge */}
-        <View style={flyerStyles.quoteContainerBack}>
-          <View style={flyerStyles.quoteBadge}>
-            <Text style={flyerStyles.quoteFree}>FREE</Text>
-            <Text style={flyerStyles.quoteText}>quote!</Text>
+        {itemConfig.showQuoteBadge && (
+          <View style={flyerStyles.quoteContainerBack}>
+            <View style={flyerStyles.quoteBadge}>
+              <Text style={flyerStyles.quoteFree}>FREE</Text>
+              <Text style={flyerStyles.quoteText}>quote!</Text>
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
       {/* Blue Footer */}
@@ -3502,9 +3506,10 @@ const flyerStyles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.5)',
   },
   servicesSection: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 12,
     position: 'relative',
+    marginTop: -100,
   },
   additionalTitle: {
     fontSize: 14,
