@@ -583,7 +583,7 @@ export default function ClientPortalScreen() {
       </View>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isNarrowWeb && styles.mainContentMobile]}>
         <View style={styles.heroSection}>
           <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>
             {businessUser.businessName}
@@ -1207,6 +1207,9 @@ const styles = StyleSheet.create({
     maxWidth: Platform.OS === 'web' ? 1280 : '100%',
     marginHorizontal: 'auto',
     paddingHorizontal: 24,
+  },
+  mainContentMobile: {
+    flex: 0,
   },
 
   // Hero Section
