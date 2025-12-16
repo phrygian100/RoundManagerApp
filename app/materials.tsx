@@ -60,11 +60,12 @@ interface InvoiceItemConfig {
 }
 
 interface FlyerItemConfig {
-  showContactDetails: boolean;
   showServices: boolean;
   showQuoteBadge: boolean;
   promoPhotoUrl: string;
-  promoPhotoPreset: string; // 'conservatory' | 'custom' | 'none'
+  promoPhotoPreset: string; // 'conservatory' | 'custom'
+  showBeforeAfter: boolean;
+  servicesText: string;
 }
 
 interface CanvassingFlyerItemConfig {
@@ -94,11 +95,12 @@ const defaultInvoiceItemConfig: InvoiceItemConfig = {
 };
 
 const defaultFlyerItemConfig: FlyerItemConfig = {
-  showContactDetails: true,
   showServices: true,
   showQuoteBadge: true,
   promoPhotoUrl: '',
   promoPhotoPreset: 'conservatory', // Default to preset image
+  showBeforeAfter: true,
+  servicesText: '• Routine service every 4 or 8 weeks\n• Full property, including doors, sills, frames and conservatory roofs\n• Traditional or water fed pole\n• Fully insured',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -813,25 +815,41 @@ const ItemConfigurationModal = ({
               <>
                 <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
                 <CheckboxRow 
-                  label="Contact Details" 
-                  checked={flyerForm.showContactDetails} 
-                  onToggle={() => setFlyerForm(prev => ({ ...prev, showContactDetails: !prev.showContactDetails }))} 
+                  label="FREE Quote Badge" 
+                  checked={flyerForm.showQuoteBadge} 
+                  onToggle={() => setFlyerForm(prev => ({ ...prev, showQuoteBadge: !prev.showQuoteBadge }))} 
                 />
                 <CheckboxRow 
                   label="Services List" 
                   checked={flyerForm.showServices} 
                   onToggle={() => setFlyerForm(prev => ({ ...prev, showServices: !prev.showServices }))} 
                 />
-                <CheckboxRow 
-                  label="FREE Quote Badge" 
-                  checked={flyerForm.showQuoteBadge} 
-                  onToggle={() => setFlyerForm(prev => ({ ...prev, showQuoteBadge: !prev.showQuoteBadge }))} 
-                />
+                
+                {/* Services text input - only show when services is enabled */}
+                {flyerForm.showServices && (
+                  <View style={{ marginTop: 8, marginBottom: 8 }}>
+                    <TextInput
+                      style={itemConfigStyles.customTextInput}
+                      value={flyerForm.servicesText}
+                      onChangeText={(text) => setFlyerForm(prev => ({ ...prev, servicesText: text }))}
+                      placeholder="Enter services (one per line with bullet •)"
+                      multiline
+                      numberOfLines={6}
+                    />
+                    <Text style={itemConfigStyles.charCount}>Use • for bullet points</Text>
+                  </View>
+                )}
                 
                 <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>Promo Photo</Text>
                 
+                <CheckboxRow 
+                  label="Show Before/After Labels" 
+                  checked={flyerForm.showBeforeAfter} 
+                  onToggle={() => setFlyerForm(prev => ({ ...prev, showBeforeAfter: !prev.showBeforeAfter }))} 
+                />
+                
                 {/* Preset selection */}
-                <View style={itemConfigStyles.pickerRow}>
+                <View style={[itemConfigStyles.pickerRow, { marginTop: 8 }]}>
                   <Text style={itemConfigStyles.pickerLabel}>Photo Source</Text>
                   <View style={itemConfigStyles.pickerContainer}>
                     <Picker
@@ -841,7 +859,6 @@ const ItemConfigurationModal = ({
                     >
                       <Picker.Item label="Conservatory Roof (Before/After)" value="conservatory" />
                       <Picker.Item label="Upload Custom Photo" value="custom" />
-                      <Picker.Item label="No Photo (Placeholder)" value="none" />
                     </Picker>
                   </View>
                 </View>
@@ -881,7 +898,7 @@ const ItemConfigurationModal = ({
                 )}
                 
                 {/* Preview of preset */}
-                {flyerForm.promoPhotoPreset && flyerForm.promoPhotoPreset !== 'custom' && flyerForm.promoPhotoPreset !== 'none' && (
+                {flyerForm.promoPhotoPreset && flyerForm.promoPhotoPreset !== 'custom' && (
                   <View style={[itemConfigStyles.photoPreviewContainer, { marginTop: 12 }]}>
                     <RNImage 
                       source={FLYER_BACK_PRESETS[flyerForm.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
@@ -1227,13 +1244,12 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
 };
 
 // Flyer Components
-const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
-  const services = [
-    'Routine service every 4 or 8 weeks',
-    'Full property, including doors, sills and frames',
-    'Simple payment system',
-    'A text when we\'re due,\nbut no need to be home',
-  ];
+const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: FlyerItemConfig }) => {
+  // Parse services text into array of bullet points
+  const services = itemConfig.servicesText
+    .split('\n')
+    .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+    .filter(line => line.length > 0);
 
   return (
     <View style={[flyerStyles.container]}>
@@ -1259,7 +1275,7 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
       <View style={flyerStyles.mainContent}>
         <Text style={flyerStyles.sectionTitle}>Window Cleaning Services</Text>
         
-        {services.map((service, index) => (
+        {itemConfig.showServices && services.map((service, index) => (
           <View key={index} style={flyerStyles.bulletRow}>
             <View style={flyerStyles.checkCircle}>
               <Ionicons name="checkmark" size={14} color="#4A90A4" />
@@ -1318,7 +1334,7 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
 
   return (
     <View style={[flyerStyles.container]}>
-      {/* Background image or placeholder */}
+      {/* Background image */}
       <View style={flyerStyles.backBackground}>
         {(itemConfig.promoPhotoPreset === 'custom' && itemConfig.promoPhotoUrl) ? (
           <>
@@ -1327,42 +1343,30 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
               style={flyerStyles.promoPhoto}
               resizeMode="cover"
             />
-            {/* Before/After labels overlaid on photo */}
-            <View style={flyerStyles.beforeAfterRowOverlay}>
-              <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
-              <Text style={flyerStyles.afterLabelOverlay}>After</Text>
-            </View>
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={flyerStyles.beforeAfterRowOverlay}>
+                <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
           </>
-        ) : itemConfig.promoPhotoPreset && itemConfig.promoPhotoPreset !== 'none' && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
+        ) : itemConfig.promoPhotoPreset && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
           <>
             <RNImage 
               source={FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
               style={flyerStyles.promoPhoto}
               resizeMode="cover"
             />
-            {/* Before/After labels overlaid on photo */}
-            <View style={flyerStyles.beforeAfterRowOverlay}>
-              <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
-              <Text style={flyerStyles.afterLabelOverlay}>After</Text>
-            </View>
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={flyerStyles.beforeAfterRowOverlay}>
+                <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
           </>
-        ) : (
-          <>
-            {/* Before/After labels */}
-            <View style={flyerStyles.beforeAfterRow}>
-              <Text style={flyerStyles.beforeLabel}>Before</Text>
-              <Text style={flyerStyles.afterLabel}>After</Text>
-            </View>
-            
-            {/* Decorative roof lines */}
-            <View style={flyerStyles.roofDecoration}>
-              <View style={flyerStyles.roofLine} />
-              <View style={flyerStyles.roofLine} />
-              <View style={flyerStyles.roofLine} />
-              <View style={flyerStyles.roofSpire} />
-            </View>
-          </>
-        )}
+        ) : null}
       </View>
 
       {/* Additional Services Section */}
@@ -2196,7 +2200,7 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
                 <View ref={flyerFrontRef}>
-                  <FlyerFront config={config} />
+                  <FlyerFront config={config} itemConfig={flyerItemConfig} />
                 </View>
               </View>
               <View style={styles.invoiceWrapper}>
