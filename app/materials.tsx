@@ -1287,11 +1287,10 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         {config.customerPortalLink && (
           <View style={flyerStyles.qrCodeContainer}>
             <RNImage 
-              source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(config.customerPortalLink)}` }}
+              source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(config.customerPortalLink.startsWith('http') ? config.customerPortalLink : `https://${config.customerPortalLink}`)}` }}
               style={flyerStyles.qrCode}
               resizeMode="contain"
             />
-            <Text style={flyerStyles.qrCodeText}>Scan to request a quote</Text>
           </View>
         )}
 
@@ -3310,15 +3309,9 @@ const flyerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   qrCode: {
-    width: 70,
-    height: 70,
+    width: 105,
+    height: 105,
     backgroundColor: '#fff',
-  },
-  qrCodeText: {
-    fontSize: 9,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
   },
   quoteContainer: {
     alignItems: 'flex-end',
