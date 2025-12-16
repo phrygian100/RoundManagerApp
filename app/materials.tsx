@@ -67,6 +67,7 @@ interface FlyerItemConfig {
   promoPhotoPreset: string; // 'conservatory' | 'custom'
   showBeforeAfter: boolean;
   servicesText: string;
+  additionalServicesText: string;
 }
 
 interface CanvassingFlyerItemConfig {
@@ -103,6 +104,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   promoPhotoPreset: 'conservatory', // Default to preset image
   showBeforeAfter: true,
   servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nSimple payment system\nETA text message a day before any visit',
+  additionalServicesText: 'Gutter Cleaning\nConservatory Roof Cleaning\nSolar Panel Cleaning\nSoffit And Fascia Cleaning',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -903,6 +905,17 @@ const ItemConfigurationModal = ({
                     />
                   </View>
                 )}
+                
+                {/* Additional Services */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 16 }]}>Additional Services</Text>
+                <TextInput
+                  style={itemConfigStyles.customTextInput}
+                  value={flyerForm.additionalServicesText}
+                  onChangeText={(text) => setFlyerForm(prev => ({ ...prev, additionalServicesText: text }))}
+                  placeholder="Enter additional services (one per line)"
+                  multiline
+                  numberOfLines={5}
+                />
               </>
             )}
 
@@ -1340,11 +1353,19 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
 };
 
 const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: FlyerItemConfig }) => {
-  const additionalServices = [
-    { left: 'UPVC Restoration', right: 'Solar panel cleaning' },
-    { left: 'Gutter cleaning', right: 'Caravan cleaning' },
-    { left: 'Conservatory roof\ncleaning', right: '' },
-  ];
+  // Parse additional services from text, creating pairs for two-column layout
+  const servicesList = itemConfig.additionalServicesText
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  
+  const additionalServices: { left: string; right: string }[] = [];
+  for (let i = 0; i < servicesList.length; i += 2) {
+    additionalServices.push({
+      left: servicesList[i] || '',
+      right: servicesList[i + 1] || '',
+    });
+  }
 
   return (
     <View style={[flyerStyles.container]}>
