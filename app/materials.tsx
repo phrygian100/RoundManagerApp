@@ -1284,15 +1284,19 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         ))}
 
         {/* QR Code for Customer Portal */}
-        {config.customerPortalLink && (
-          <View style={flyerStyles.qrCodeContainer}>
-            <RNImage 
-              source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(config.customerPortalLink.startsWith('http') ? config.customerPortalLink : `https://${config.customerPortalLink}`)}` }}
-              style={flyerStyles.qrCode}
-              resizeMode="contain"
-            />
-          </View>
-        )}
+        {(() => {
+          const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
+          const portalLink = `https://guvnor.app/${normalizedBusinessName}`;
+          return (
+            <View style={flyerStyles.qrCodeContainer}>
+              <RNImage 
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalLink)}` }}
+                style={flyerStyles.qrCode}
+                resizeMode="contain"
+              />
+            </View>
+          );
+        })()}
 
         {/* FREE Quote Badge */}
         <View style={flyerStyles.quoteContainer}>
