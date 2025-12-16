@@ -3357,9 +3357,9 @@ const flyerStyles = StyleSheet.create({
   },
   footer: {
     backgroundColor: '#2E86AB',
-    paddingTop: 8,
+    paddingTop: 6,
     paddingBottom: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 20,
     position: 'relative',
     marginTop: -1,
     zIndex: 5,
