@@ -3359,6 +3359,7 @@ const flyerStyles = StyleSheet.create({
     paddingHorizontal: 12,
     position: 'relative',
     marginTop: -1,
+    zIndex: 5,
   },
   footerCurve: {
     position: 'absolute',
