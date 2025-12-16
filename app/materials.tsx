@@ -1331,15 +1331,15 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         <View style={flyerStyles.footerCurve} />
         <View style={flyerStyles.footerContent}>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="call-outline" size={14} color="#fff" />
+            <Ionicons name="call-outline" size={20} color="#fff" />
             <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="logo-facebook" size={12} color="#fff" />
+            <Ionicons name="logo-facebook" size={16} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="globe-outline" size={12} color="#fff" />
+            <Ionicons name="globe-outline" size={16} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
         </View>
@@ -1439,15 +1439,15 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
         <View style={flyerStyles.footerCurve} />
         <View style={flyerStyles.footerContent}>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="call-outline" size={14} color="#fff" />
+            <Ionicons name="call-outline" size={20} color="#fff" />
             <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="logo-facebook" size={12} color="#fff" />
+            <Ionicons name="logo-facebook" size={16} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="globe-outline" size={12} color="#fff" />
+            <Ionicons name="globe-outline" size={16} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
         </View>
@@ -3332,8 +3332,9 @@ const flyerStyles = StyleSheet.create({
   },
   quoteContainerBack: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 65,
     right: 10,
+    zIndex: 6,
   },
   quoteBadge: {
     width: 70,
@@ -3381,7 +3382,7 @@ const flyerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   phoneNumber: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -3392,7 +3393,7 @@ const flyerStyles = StyleSheet.create({
     marginTop: 1,
   },
   contactText: {
-    fontSize: 11,
+    fontSize: 14,
     color: '#fff',
   },
   qrCodeText: {
@@ -3500,7 +3501,7 @@ const flyerStyles = StyleSheet.create({
     zIndex: 1,
   },
   additionalTitle: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
     marginBottom: 10,
@@ -3527,9 +3528,10 @@ const flyerStyles = StyleSheet.create({
   },
   serviceText: {
     flex: 1,
-    fontSize: 9,
+    fontSize: 12,
+    fontWeight: '600',
     color: '#333',
-    lineHeight: 13,
+    lineHeight: 16,
   },
 });
 
