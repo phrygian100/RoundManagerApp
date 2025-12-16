@@ -3490,11 +3490,13 @@ const flyerStyles = StyleSheet.create({
   servicesSection: {
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 10,
+    paddingBottom: 80,
     position: 'absolute',
     top: 280,
+    bottom: 0,
     left: 0,
     right: 0,
-    zIndex: 10,
+    zIndex: 1,
   },
   additionalTitle: {
     fontSize: 14,
