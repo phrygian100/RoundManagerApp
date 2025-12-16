@@ -57,6 +57,7 @@ interface InvoiceItemConfig {
   showNotesWhitespace: boolean;
   showCustomText: boolean;
   customText: string;
+  workCompletedServices: string;
 }
 
 interface FlyerItemConfig {
@@ -92,6 +93,7 @@ const defaultInvoiceItemConfig: InvoiceItemConfig = {
   showNotesWhitespace: false,
   showCustomText: false,
   customText: '',
+  workCompletedServices: 'Exterior window cleaning\nGutter Clearing\nSoffits, Fascias\nConservatory Roof\nSolar Panels\nUPVc Restoration',
 };
 
 const defaultFlyerItemConfig: FlyerItemConfig = {
@@ -100,7 +102,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   promoPhotoUrl: '',
   promoPhotoPreset: 'conservatory', // Default to preset image
   showBeforeAfter: true,
-  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nTraditional or water fed pole\nFully insured',
+  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nSimple payment system\nETA text message a day before any visit',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -155,20 +157,14 @@ const ConfigurationModal = ({
   onSave: (config: MaterialsConfig) => void;
 }) => {
   const [formData, setFormData] = useState<MaterialsConfig>(config);
-  const [servicesText, setServicesText] = useState(config.services.join('\n'));
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
   useEffect(() => {
     setFormData(config);
-    setServicesText(config.services.filter(s => s).join('\n'));
   }, [config, visible]);
 
   const handleSave = () => {
-    const updatedConfig = {
-      ...formData,
-      services: servicesText.split('\n').map(s => s.trim()).filter(s => s),
-    };
-    onSave(updatedConfig);
+    onSave(formData);
     onClose();
   };
 
@@ -427,18 +423,6 @@ const ConfigurationModal = ({
               </View>
             </View>
 
-            {/* Services */}
-            <Text style={modalStyles.sectionTitle}>Work Completed / Services</Text>
-            <Text style={modalStyles.hint}>Enter each service on a new line</Text>
-            <TextInput
-              style={[modalStyles.input, modalStyles.multilineInput]}
-              value={servicesText}
-              onChangeText={setServicesText}
-              placeholder="Exterior window cleaning&#10;Gutter cleaning&#10;..."
-              multiline
-              numberOfLines={8}
-            />
-
             <View style={{ height: 40 }} />
           </ScrollView>
 
@@ -655,6 +639,19 @@ const ItemConfigurationModal = ({
                   checked={invoiceForm.showBusinessAddress} 
                   onToggle={() => setInvoiceForm(prev => ({ ...prev, showBusinessAddress: !prev.showBusinessAddress }))} 
                 />
+                
+                {/* Work Completed / Services */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 12 }]}>Work Completed / Services</Text>
+                <Text style={{ fontSize: 11, color: '#888', marginBottom: 6 }}>Enter each service on a new line</Text>
+                <TextInput
+                  style={itemConfigStyles.customTextInput}
+                  value={invoiceForm.workCompletedServices}
+                  onChangeText={(text) => setInvoiceForm(prev => ({ ...prev, workCompletedServices: text }))}
+                  placeholder="Exterior window cleaning&#10;Gutter cleaning&#10;..."
+                  multiline
+                  numberOfLines={6}
+                />
+                
                 <View style={itemConfigStyles.divider} />
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                   <Text style={itemConfigStyles.sectionTitle}>ON THE BACK</Text>
@@ -969,8 +966,11 @@ const ItemConfigurationModal = ({
 
 // Invoice Front Component
 const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig?: InvoiceItemConfig }) => {
+  // Parse services from itemConfig or use defaults
+  const servicesText = itemConfig?.workCompletedServices || defaultInvoiceItemConfig.workCompletedServices;
+  const servicesList = servicesText.split('\n').map(s => s.trim()).filter(s => s);
   // Pad services to 9 rows
-  const services = [...config.services];
+  const services = [...servicesList];
   while (services.length < 9) services.push('');
 
   const businessNameIsLong = (config.businessName || '').length > 18;
