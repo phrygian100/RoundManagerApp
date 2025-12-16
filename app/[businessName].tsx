@@ -1255,7 +1255,10 @@ const styles = StyleSheet.create({
     maxWidth: Platform.OS === 'web' ? 420 : '100%',
   },
   formCardMobile: {
-    flex: undefined,
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    flexBasis: 'auto',
   },
 
   // Login Card
