@@ -1283,6 +1283,18 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
           </View>
         ))}
 
+        {/* QR Code for Customer Portal */}
+        {config.customerPortalLink && (
+          <View style={flyerStyles.qrCodeContainer}>
+            <RNImage 
+              source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(config.customerPortalLink)}` }}
+              style={flyerStyles.qrCode}
+              resizeMode="contain"
+            />
+            <Text style={flyerStyles.qrCodeText}>Scan to request a quote</Text>
+          </View>
+        )}
+
         {/* FREE Quote Badge */}
         <View style={flyerStyles.quoteContainer}>
           <View style={flyerStyles.quoteBadge}>
@@ -3291,6 +3303,22 @@ const flyerStyles = StyleSheet.create({
     fontSize: 11,
     color: '#333',
     lineHeight: 16,
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  qrCode: {
+    width: 70,
+    height: 70,
+    backgroundColor: '#fff',
+  },
+  qrCodeText: {
+    fontSize: 9,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
   },
   quoteContainer: {
     alignItems: 'flex-end',
