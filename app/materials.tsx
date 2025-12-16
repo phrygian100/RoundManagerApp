@@ -1422,16 +1422,6 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
             ) : <View style={flyerStyles.serviceItem} />}
           </View>
         ))}
-
-        {/* FREE Quote Badge */}
-        {itemConfig.showQuoteBadge && (
-        <View style={flyerStyles.quoteContainerBack}>
-          <View style={flyerStyles.quoteBadge}>
-            <Text style={flyerStyles.quoteFree}>FREE</Text>
-            <Text style={flyerStyles.quoteText}>quote!</Text>
-          </View>
-        </View>
-        )}
       </View>
 
       {/* Blue Footer */}
@@ -1452,6 +1442,16 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
           </View>
         </View>
       </View>
+
+      {/* FREE Quote Badge - Top Layer */}
+      {itemConfig.showQuoteBadge && (
+        <View style={flyerStyles.quoteContainerBack}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -3334,7 +3334,7 @@ const flyerStyles = StyleSheet.create({
     position: 'absolute',
     bottom: 65,
     right: 10,
-    zIndex: 6,
+    zIndex: 10,
   },
   quoteBadge: {
     width: 70,
