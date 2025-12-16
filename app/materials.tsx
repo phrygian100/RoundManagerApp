@@ -58,6 +58,7 @@ interface FlyerItemConfig {
   showContactDetails: boolean;
   showServices: boolean;
   showQuoteBadge: boolean;
+  promoPhotoUrl: string;
 }
 
 interface CanvassingFlyerItemConfig {
@@ -90,6 +91,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   showContactDetails: true,
   showServices: true,
   showQuoteBadge: true,
+  promoPhotoUrl: '',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -478,6 +480,7 @@ const ItemConfigurationModal = ({
   const [flyerForm, setFlyerForm] = useState<FlyerItemConfig>(flyerConfig);
   const [canvassingForm, setCanvassingForm] = useState<CanvassingFlyerItemConfig>(canvassingConfig);
   const [leafletForm, setLeafletForm] = useState<LeafletItemConfig>(leafletConfig);
+  const [uploadingPromoPhoto, setUploadingPromoPhoto] = useState(false);
 
   useEffect(() => {
     setInvoiceForm(invoiceConfig);
@@ -485,6 +488,92 @@ const ItemConfigurationModal = ({
     setCanvassingForm(canvassingConfig);
     setLeafletForm(leafletConfig);
   }, [invoiceConfig, flyerConfig, canvassingConfig, leafletConfig, visible]);
+
+  const handlePromoPhotoUpload = () => {
+    if (Platform.OS !== 'web') {
+      alert('Photo upload is only available on web.');
+      return;
+    }
+    
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Image too large. Please choose an image under 2MB.');
+        return;
+      }
+      
+      setUploadingPromoPhoto(true);
+      try {
+        const img = document.createElement('img');
+        img.onload = () => {
+          try {
+            const maxDimension = 1024;
+            let targetWidth = img.width;
+            let targetHeight = img.height;
+            
+            if (img.width > maxDimension || img.height > maxDimension) {
+              const scale = maxDimension / Math.max(img.width, img.height);
+              targetWidth = Math.round(img.width * scale);
+              targetHeight = Math.round(img.height * scale);
+            }
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = targetWidth;
+            canvas.height = targetHeight;
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              alert('Failed to process image');
+              setUploadingPromoPhoto(false);
+              return;
+            }
+            
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            
+            let base64 = canvas.toDataURL('image/jpeg', 0.92);
+            if (base64.length > 1.5 * 1024 * 1024) {
+              base64 = canvas.toDataURL('image/jpeg', 0.85);
+            }
+            
+            setFlyerForm(prev => ({ ...prev, promoPhotoUrl: base64 }));
+            setUploadingPromoPhoto(false);
+          } catch (error) {
+            console.error('Error processing image:', error);
+            alert('Failed to process image');
+            setUploadingPromoPhoto(false);
+          }
+        };
+        img.onerror = () => {
+          alert('Failed to load image file');
+          setUploadingPromoPhoto(false);
+        };
+        
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          img.src = reader.result as string;
+        };
+        reader.onerror = () => {
+          alert('Failed to read image file');
+          setUploadingPromoPhoto(false);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('Error uploading promo photo:', error);
+        alert('Failed to upload photo');
+        setUploadingPromoPhoto(false);
+      }
+    };
+    input.click();
+  };
+
+  const handleRemovePromoPhoto = () => {
+    setFlyerForm(prev => ({ ...prev, promoPhotoUrl: '' }));
+  };
 
   const handleSave = () => {
     switch (itemType) {
@@ -731,6 +820,38 @@ const ItemConfigurationModal = ({
                   checked={flyerForm.showQuoteBadge} 
                   onToggle={() => setFlyerForm(prev => ({ ...prev, showQuoteBadge: !prev.showQuoteBadge }))} 
                 />
+                
+                <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>Promo Photo</Text>
+                <View style={itemConfigStyles.photoUploadContainer}>
+                  {flyerForm.promoPhotoUrl ? (
+                    <View style={itemConfigStyles.photoPreviewContainer}>
+                      <RNImage 
+                        source={{ uri: flyerForm.promoPhotoUrl }} 
+                        style={itemConfigStyles.photoPreview}
+                        resizeMode="cover"
+                      />
+                      <Pressable style={itemConfigStyles.removePhotoButton} onPress={handleRemovePromoPhoto}>
+                        <Ionicons name="close-circle" size={24} color="#ff4444" />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable 
+                      style={itemConfigStyles.uploadPhotoButton} 
+                      onPress={handlePromoPhotoUpload}
+                      disabled={uploadingPromoPhoto}
+                    >
+                      {uploadingPromoPhoto ? (
+                        <Text style={itemConfigStyles.uploadPhotoText}>Uploading...</Text>
+                      ) : (
+                        <>
+                          <Ionicons name="camera-outline" size={24} color="#007AFF" />
+                          <Text style={itemConfigStyles.uploadPhotoText}>Upload Promo Photo</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  )}
+                  <Text style={itemConfigStyles.photoHint}>Landscape photo works best (e.g. team photo, van, work in progress)</Text>
+                </View>
               </>
             )}
 
@@ -2599,6 +2720,50 @@ const itemConfigStyles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
+  },
+  photoUploadContainer: {
+    marginBottom: 16,
+  },
+  photoPreviewContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 150,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#f0f0f0',
+  },
+  photoPreview: {
+    width: '100%',
+    height: '100%',
+  },
+  removePhotoButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+  },
+  uploadPhotoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+    borderWidth: 2,
+    borderColor: '#ddd',
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    gap: 8,
+  },
+  uploadPhotoText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  photoHint: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#888',
+    textAlign: 'center',
   },
 });
 
