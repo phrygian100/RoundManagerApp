@@ -1314,16 +1314,6 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
             </View>
           );
         })()}
-
-        {/* FREE Quote Badge */}
-        {itemConfig.showQuoteBadge && (
-        <View style={flyerStyles.quoteContainer}>
-          <View style={flyerStyles.quoteBadge}>
-            <Text style={flyerStyles.quoteFree}>FREE</Text>
-            <Text style={flyerStyles.quoteText}>quote!</Text>
-          </View>
-        </View>
-        )}
       </View>
 
       {/* Blue Footer */}
@@ -1344,6 +1334,16 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
           </View>
         </View>
       </View>
+
+      {/* FREE Quote Badge - Top Layer */}
+      {itemConfig.showQuoteBadge && (
+        <View style={flyerStyles.quoteContainer}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
@@ -3327,8 +3327,10 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   quoteContainer: {
-    alignItems: 'flex-end',
-    marginTop: 8,
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    zIndex: 10,
   },
   quoteContainerBack: {
     position: 'absolute',
