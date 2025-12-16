@@ -1271,7 +1271,7 @@ const FlyerFront = ({ config }: { config: MaterialsConfig }) => {
   );
 };
 
-const FlyerBack = ({ config }: { config: MaterialsConfig }) => {
+const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: FlyerItemConfig }) => {
   const additionalServices = [
     { left: 'UPVC Restoration', right: 'Solar panel cleaning' },
     { left: 'Gutter cleaning', right: 'Caravan cleaning' },
@@ -1280,21 +1280,38 @@ const FlyerBack = ({ config }: { config: MaterialsConfig }) => {
 
   return (
     <View style={[flyerStyles.container]}>
-      {/* Background image placeholder - gradient */}
+      {/* Background image or placeholder */}
       <View style={flyerStyles.backBackground}>
-        {/* Before/After labels */}
-        <View style={flyerStyles.beforeAfterRow}>
-          <Text style={flyerStyles.beforeLabel}>Before</Text>
-          <Text style={flyerStyles.afterLabel}>After</Text>
-        </View>
-        
-        {/* Decorative roof lines */}
-        <View style={flyerStyles.roofDecoration}>
-          <View style={flyerStyles.roofLine} />
-          <View style={flyerStyles.roofLine} />
-          <View style={flyerStyles.roofLine} />
-          <View style={flyerStyles.roofSpire} />
-        </View>
+        {itemConfig.promoPhotoUrl ? (
+          <>
+            <RNImage 
+              source={{ uri: itemConfig.promoPhotoUrl }} 
+              style={flyerStyles.promoPhoto}
+              resizeMode="cover"
+            />
+            {/* Before/After labels overlaid on photo */}
+            <View style={flyerStyles.beforeAfterRowOverlay}>
+              <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+              <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+            </View>
+          </>
+        ) : (
+          <>
+            {/* Before/After labels */}
+            <View style={flyerStyles.beforeAfterRow}>
+              <Text style={flyerStyles.beforeLabel}>Before</Text>
+              <Text style={flyerStyles.afterLabel}>After</Text>
+            </View>
+            
+            {/* Decorative roof lines */}
+            <View style={flyerStyles.roofDecoration}>
+              <View style={flyerStyles.roofLine} />
+              <View style={flyerStyles.roofLine} />
+              <View style={flyerStyles.roofLine} />
+              <View style={flyerStyles.roofSpire} />
+            </View>
+          </>
+        )}
       </View>
 
       {/* Additional Services Section */}
@@ -2134,7 +2151,7 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
                 <View ref={flyerBackRef}>
-                  <FlyerBack config={config} />
+                  <FlyerBack config={config} itemConfig={flyerItemConfig} />
                 </View>
               </View>
             </View>
@@ -3307,7 +3324,25 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: '#8B4513',
     position: 'relative',
   },
+  promoPhoto: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
   beforeAfterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 8,
+  },
+  beforeAfterRowOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: 8,
@@ -3317,10 +3352,28 @@ const flyerStyles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
+  beforeLabelOverlay: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
   afterLabel: {
     fontSize: 12,
     color: '#fff',
     fontWeight: 'bold',
+  },
+  afterLabelOverlay: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
   },
   roofDecoration: {
     flex: 1,
