@@ -13,6 +13,11 @@ import { getUserProfile } from '../services/userService';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
+
+// Preset images for flyer back
+const FLYER_BACK_PRESETS = {
+  conservatory: require('../assets/presets/flyer-back/ConservatoryroofBeforeandAfter.jpg'),
+};
 const LEAFLET_WIDTH = 800; // Double width for New Business Leaflet
 
 // Materials Configuration Type
@@ -59,6 +64,7 @@ interface FlyerItemConfig {
   showServices: boolean;
   showQuoteBadge: boolean;
   promoPhotoUrl: string;
+  promoPhotoPreset: string; // 'conservatory' | 'custom' | 'none'
 }
 
 interface CanvassingFlyerItemConfig {
@@ -92,6 +98,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   showServices: true,
   showQuoteBadge: true,
   promoPhotoUrl: '',
+  promoPhotoPreset: 'conservatory', // Default to preset image
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -822,36 +829,67 @@ const ItemConfigurationModal = ({
                 />
                 
                 <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>Promo Photo</Text>
-                <View style={itemConfigStyles.photoUploadContainer}>
-                  {flyerForm.promoPhotoUrl ? (
-                    <View style={itemConfigStyles.photoPreviewContainer}>
-                      <RNImage 
-                        source={{ uri: flyerForm.promoPhotoUrl }} 
-                        style={itemConfigStyles.photoPreview}
-                        resizeMode="cover"
-                      />
-                      <Pressable style={itemConfigStyles.removePhotoButton} onPress={handleRemovePromoPhoto}>
-                        <Ionicons name="close-circle" size={24} color="#ff4444" />
-                      </Pressable>
-                    </View>
-                  ) : (
-                    <Pressable 
-                      style={itemConfigStyles.uploadPhotoButton} 
-                      onPress={handlePromoPhotoUpload}
-                      disabled={uploadingPromoPhoto}
+                
+                {/* Preset selection */}
+                <View style={itemConfigStyles.pickerRow}>
+                  <Text style={itemConfigStyles.pickerLabel}>Photo Source</Text>
+                  <View style={itemConfigStyles.pickerContainer}>
+                    <Picker
+                      selectedValue={flyerForm.promoPhotoPreset}
+                      onValueChange={(value) => setFlyerForm(prev => ({ ...prev, promoPhotoPreset: value }))}
+                      style={{ height: 50 }}
                     >
-                      {uploadingPromoPhoto ? (
-                        <Text style={itemConfigStyles.uploadPhotoText}>Uploading...</Text>
-                      ) : (
-                        <>
-                          <Ionicons name="camera-outline" size={24} color="#007AFF" />
-                          <Text style={itemConfigStyles.uploadPhotoText}>Upload Promo Photo</Text>
-                        </>
-                      )}
-                    </Pressable>
-                  )}
-                  <Text style={itemConfigStyles.photoHint}>Max 5MB. Landscape photo works best (e.g. team photo, van, work in progress)</Text>
+                      <Picker.Item label="Conservatory Roof (Before/After)" value="conservatory" />
+                      <Picker.Item label="Upload Custom Photo" value="custom" />
+                      <Picker.Item label="No Photo (Placeholder)" value="none" />
+                    </Picker>
+                  </View>
                 </View>
+                
+                {/* Custom upload section - only show when custom is selected */}
+                {flyerForm.promoPhotoPreset === 'custom' && (
+                  <View style={[itemConfigStyles.photoUploadContainer, { marginTop: 12 }]}>
+                    {flyerForm.promoPhotoUrl ? (
+                      <View style={itemConfigStyles.photoPreviewContainer}>
+                        <RNImage 
+                          source={{ uri: flyerForm.promoPhotoUrl }} 
+                          style={itemConfigStyles.photoPreview}
+                          resizeMode="cover"
+                        />
+                        <Pressable style={itemConfigStyles.removePhotoButton} onPress={handleRemovePromoPhoto}>
+                          <Ionicons name="close-circle" size={24} color="#ff4444" />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable 
+                        style={itemConfigStyles.uploadPhotoButton} 
+                        onPress={handlePromoPhotoUpload}
+                        disabled={uploadingPromoPhoto}
+                      >
+                        {uploadingPromoPhoto ? (
+                          <Text style={itemConfigStyles.uploadPhotoText}>Uploading...</Text>
+                        ) : (
+                          <>
+                            <Ionicons name="camera-outline" size={24} color="#007AFF" />
+                            <Text style={itemConfigStyles.uploadPhotoText}>Upload Promo Photo</Text>
+                          </>
+                        )}
+                      </Pressable>
+                    )}
+                    <Text style={itemConfigStyles.photoHint}>Max 5MB. Landscape photo works best (e.g. team photo, van, work in progress)</Text>
+                  </View>
+                )}
+                
+                {/* Preview of preset */}
+                {flyerForm.promoPhotoPreset && flyerForm.promoPhotoPreset !== 'custom' && flyerForm.promoPhotoPreset !== 'none' && (
+                  <View style={[itemConfigStyles.photoPreviewContainer, { marginTop: 12 }]}>
+                    <RNImage 
+                      source={FLYER_BACK_PRESETS[flyerForm.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
+                      style={itemConfigStyles.photoPreview}
+                      resizeMode="cover"
+                    />
+                  </View>
+                )}
               </>
             )}
 
@@ -1282,10 +1320,23 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
     <View style={[flyerStyles.container]}>
       {/* Background image or placeholder */}
       <View style={flyerStyles.backBackground}>
-        {itemConfig.promoPhotoUrl ? (
+        {(itemConfig.promoPhotoPreset === 'custom' && itemConfig.promoPhotoUrl) ? (
           <>
             <RNImage 
               source={{ uri: itemConfig.promoPhotoUrl }} 
+              style={flyerStyles.promoPhoto}
+              resizeMode="cover"
+            />
+            {/* Before/After labels overlaid on photo */}
+            <View style={flyerStyles.beforeAfterRowOverlay}>
+              <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+              <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+            </View>
+          </>
+        ) : itemConfig.promoPhotoPreset && itemConfig.promoPhotoPreset !== 'none' && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
+          <>
+            <RNImage 
+              source={FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
               style={flyerStyles.promoPhoto}
               resizeMode="cover"
             />
