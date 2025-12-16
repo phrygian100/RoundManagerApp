@@ -615,7 +615,7 @@ const ItemConfigurationModal = ({
             </Pressable>
           </View>
 
-          <View style={itemConfigStyles.content}>
+          <ScrollView style={itemConfigStyles.content} showsVerticalScrollIndicator={false}>
             {itemType === 'invoice' && (
               <>
                 <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
@@ -947,7 +947,7 @@ const ItemConfigurationModal = ({
                 />
               </>
             )}
-          </View>
+          </ScrollView>
 
           <View style={itemConfigStyles.footer}>
             <Pressable style={itemConfigStyles.cancelButton} onPress={onClose}>
@@ -2688,6 +2688,7 @@ const itemConfigStyles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    maxHeight: 500,
   },
   sectionTitle: {
     fontSize: 14,
