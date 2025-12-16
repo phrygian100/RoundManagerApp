@@ -3328,7 +3328,7 @@ const flyerStyles = StyleSheet.create({
   },
   quoteContainer: {
     position: 'absolute',
-    bottom: 10,
+    bottom: 65,
     right: 10,
     zIndex: 10,
   },
