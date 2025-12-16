@@ -583,7 +583,7 @@ export default function ClientPortalScreen() {
       </View>
 
       {/* Main Content */}
-      <View style={[styles.mainContent, isNarrowWeb && styles.mainContentMobile]}>
+      <View style={styles.mainContent}>
         <View style={styles.heroSection}>
           <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>
             {businessUser.businessName}
@@ -1208,9 +1208,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 'auto',
     paddingHorizontal: 24,
   },
-  mainContentMobile: {
-    flex: 0,
-  },
 
   // Hero Section
   heroSection: {
@@ -1262,6 +1259,9 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     flexBasis: 'auto',
+    height: 'auto',
+    minHeight: 'auto',
+    maxHeight: undefined,
   },
 
   // Login Card
