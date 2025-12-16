@@ -1,5 +1,16 @@
 # Code Changes Log
 
+## December 16, 2025
+
+### Home: Progress Card Opens Runsheet
+
+**File**: `app/(tabs)/index.tsx`
+
+- Made the "Today's Progress" card tappable/clickable and route directly to the current week's runsheet (`/runsheet/[week]` with the correct Monday anchor).
+- Added a subtle pressed state for feedback while keeping existing styling intact.
+
+---
+
 ## December 15, 2025
 
 ### Materials: Fix logo upload crash (web)

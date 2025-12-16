@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -243,6 +243,14 @@ export default function HomeScreen() {
     setTimeout(() => setNavigationInProgress(false), 1000);
   };
 
+  const handleGoToCurrentWeekRunsheet = () => {
+    if (navigationInProgress) return;
+    setNavigationInProgress(true);
+    const weekParam = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
+    router.push({ pathname: '/runsheet/[week]', params: { week: weekParam } });
+    setTimeout(() => setNavigationInProgress(false), 1000);
+  };
+
   const checkFirstTimeSetup = async (firebaseUser: User) => {
     try {
       const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -477,7 +485,14 @@ export default function HomeScreen() {
           <View style={styles.topBarSpacer} />
         </View>
 
-        <View style={styles.heroCard}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.heroCard,
+            pressed && styles.heroCardPressed
+          ]}
+          onPress={handleGoToCurrentWeekRunsheet}
+          android_ripple={{ color: 'rgba(255,255,255,0.12)' }}
+        >
           <View style={styles.heroHeader}>
             <View style={styles.heroTitleRow}>
               <Ionicons name="document-text-outline" size={22} color="#e8ecf8" />
@@ -502,7 +517,7 @@ export default function HomeScreen() {
                 : `${progressPercent}% complete`}
             </Text>
           </View>
-        </View>
+        </Pressable>
 
         <View style={[
           styles.grid,
@@ -668,6 +683,9 @@ const styles = StyleSheet.create({
         elevation: 8,
       },
     }),
+  },
+  heroCardPressed: {
+    opacity: 0.95,
   },
   heroHeader: {
     gap: 4,
