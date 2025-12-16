@@ -554,7 +554,7 @@ export default function ClientPortalScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       {/* Navigation Header */}
       <View style={styles.navigation}>
-        <View style={styles.navContent}>
+        <View style={[styles.navContent, isNarrowWeb && styles.navContentMobile]}>
           <Pressable onPress={() => handleNavigation('/home')} style={styles.logoContainer}>
             <Image
               source={require('../assets/images/logo_transparent.png')}
@@ -839,7 +839,7 @@ export default function ClientPortalScreen() {
           /* Login and Quote Forms Container */
           <View style={[styles.formsContainer, isNarrowWeb && styles.formsContainerMobile]}>
             {/* Login Form Card */}
-            <View style={[styles.loginCard, styles.formCard, isNarrowWeb && styles.loginCardMobile]}>
+            <View style={[styles.loginCard, styles.formCard, isNarrowWeb && styles.loginCardMobile, isNarrowWeb && styles.formCardMobile]}>
               <View style={styles.formHeader}>
                 <Text style={styles.formTitle}>Existing Customer?</Text>
                 <Text style={styles.formSubtitle}>
@@ -957,7 +957,7 @@ export default function ClientPortalScreen() {
             </View>
 
             {/* Get a Quote Card */}
-            <View style={[styles.quoteCard, styles.formCard, isNarrowWeb && styles.quoteCardMobile]}>
+            <View style={[styles.quoteCard, styles.formCard, isNarrowWeb && styles.quoteCardMobile, isNarrowWeb && styles.formCardMobile]}>
               {quoteSubmitted ? (
                 <View style={styles.quoteSuccessContainer}>
                   <Text style={styles.quoteSuccessIcon}>✓</Text>
@@ -1171,6 +1171,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  navContentMobile: {
+    justifyContent: 'center',
+  },
   logoContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1250,6 +1253,9 @@ const styles = StyleSheet.create({
   formCard: {
     flex: Platform.OS === 'web' ? 1 : undefined,
     maxWidth: Platform.OS === 'web' ? 420 : '100%',
+  },
+  formCardMobile: {
+    flex: undefined,
   },
 
   // Login Card

@@ -2,6 +2,28 @@
 
 ## December 16, 2025
 
+### Client Portal Mobile Layout Fixes
+
+**File**: `app/[businessName].tsx`
+
+**Problems Fixed**:
+1. **Logo not centered on mobile**: The navigation header logo was left-aligned on mobile when nav links were hidden, instead of being centered.
+2. **Quote form overflow**: The Email and Notes fields were appearing outside the form card border on mobile viewports. This was caused by `flex: 1` on the form cards splitting available height equally between login and quote cards in column layout.
+
+**Solutions**:
+1. **Logo centering**: Added `navContentMobile` style with `justifyContent: 'center'` applied when `isNarrowWeb` is true.
+2. **Form card height**: Added `formCardMobile` style that removes `flex: 1` so cards can expand naturally to fit their content. Applied to both login and quote cards.
+
+**New Styles Added**:
+- `navContentMobile`: Centers logo in the navigation header on narrow viewports
+- `formCardMobile`: Removes flex constraint so form cards grow to fit content
+
+**User Impact**: The client portal page now displays correctly on mobile devices with:
+- Centered Guvnor.app logo in the header
+- Full quote form visible within its bordered card (Email and Notes fields no longer overflow)
+
+---
+
 ### Home: Progress Card Opens Runsheet
 
 **File**: `app/(tabs)/index.tsx`
