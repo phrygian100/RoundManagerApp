@@ -8,8 +8,10 @@ import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, V
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
+import { Colors } from '../constants/Colors';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { useColorScheme } from '../hooks/useColorScheme';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
@@ -19,6 +21,8 @@ import { displayAccountNumber } from '../utils/account';
 
 export default function ClientsScreen() {
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const [clients, setClients] = useState<Client[]>([]);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -372,7 +376,7 @@ export default function ClientsScreen() {
 
     return (
       <Pressable onPress={() => handleClientPress(item.id)}>
-        <ThemedView style={styles.clientItem}>
+        <View style={[styles.clientItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           {loadingBalances ? (
             <ActivityIndicator style={styles.balanceBadge} size="small" />
           ) : (
@@ -393,7 +397,7 @@ export default function ClientsScreen() {
           <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
           <ThemedText>{item.name || 'No name'}</ThemedText>
           {item.accountNumber && (
-            <ThemedText style={styles.accountNumberText}>Account: {displayAccountNumber(item.accountNumber)}</ThemedText>
+            <ThemedText style={[styles.accountNumberText, { color: theme.secondaryText }]}>Account: {displayAccountNumber(item.accountNumber)}</ThemedText>
           )}
           {item.quote && typeof item.quote === 'number' && (
             <ThemedText>£{item.quote.toFixed(2)}</ThemedText>
@@ -405,7 +409,7 @@ export default function ClientsScreen() {
           {typeof item.roundOrderNumber === 'number' && item.roundOrderNumber > 0 && (
             <ThemedText>Round Order: {item.roundOrderNumber}</ThemedText>
           )}
-        </ThemedView>
+        </View>
       </Pressable>
     );
   };
@@ -437,7 +441,7 @@ export default function ClientsScreen() {
       <ThemedView style={styles.container}>
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>Clients</ThemedText>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+          <Pressable style={[styles.homeButton, { backgroundColor: theme.buttonSecondary, borderColor: theme.cardBorder }]} onPress={() => router.replace('/')}>
             <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
           </Pressable>
         </View>
@@ -452,30 +456,30 @@ export default function ClientsScreen() {
             </View>
           </View>
           <View style={{ flexDirection: 'row' }}>
-            <Pressable style={[styles.sortButton, { marginRight: 8 }]} onPress={handleSort}>
+            <Pressable style={[styles.sortButton, { marginRight: 8, backgroundColor: theme.inputBackground, borderColor: theme.cardBorder }]} onPress={handleSort}>
               <View style={styles.sortIcon}>
-                <Ionicons name="funnel" size={20} color="#666" />
+                <Ionicons name="funnel" size={20} color={theme.secondaryText} />
               </View>
-              <ThemedText style={styles.sortText}>{getSortLabel()}</ThemedText>
+              <ThemedText style={[styles.sortText, { color: theme.text }]}>{getSortLabel()}</ThemedText>
             </Pressable>
-            <Pressable style={styles.sortButton} onPress={() => router.push('/ex-clients')}>
-              <ThemedText style={styles.sortText}>Ex-Clients</ThemedText>
+            <Pressable style={[styles.sortButton, { backgroundColor: theme.inputBackground, borderColor: theme.cardBorder }]} onPress={() => router.push('/ex-clients')}>
+              <ThemedText style={[styles.sortText, { color: theme.text }]}>Ex-Clients</ThemedText>
             </Pressable>
           </View>
         </ThemedView>
         <ThemedView style={styles.searchRow}>
-          <ThemedView style={styles.searchContainer}>
+          <View style={[styles.searchContainer, { backgroundColor: theme.inputBackground }]}>
             <View style={styles.searchIcon}>
-              <Ionicons name="search" size={20} color="#666" />
+              <Ionicons name="search" size={20} color={theme.secondaryText} />
             </View>
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: theme.inputText }]}
               placeholder="Search clients..."
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholderTextColor="#999"
+              placeholderTextColor={theme.tertiaryText}
             />
-          </ThemedView>
+          </View>
         </ThemedView>
         <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
           <ThemedText style={styles.buttonText}>Add Client</ThemedText>
@@ -501,15 +505,15 @@ export default function ClientsScreen() {
           onRequestClose={() => setShowActiveInfoModal(false)}
         >
           <Pressable 
-            style={styles.modalOverlay} 
+            style={[styles.modalOverlay, { backgroundColor: theme.modalOverlay }]} 
             onPress={() => setShowActiveInfoModal(false)}
           >
-            <View style={styles.modalContent}>
+            <View style={[styles.modalContent, { backgroundColor: theme.modalBackground }]}>
               <ThemedText style={styles.modalTitle}>Active Clients</ThemedText>
-              <ThemedText style={styles.modalText}>
+              <ThemedText style={[styles.modalText, { color: theme.text }]}>
                 This shows the count of clients who have future services scheduled.
               </ThemedText>
-              <ThemedText style={[styles.modalText, { marginTop: 10 }]}>
+              <ThemedText style={[styles.modalText, { marginTop: 10, color: theme.text }]}>
                 Clients without upcoming jobs are not included in this count.
               </ThemedText>
               <Pressable 
@@ -534,9 +538,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     borderRadius: 8,
-    backgroundColor: '#f9f9f9',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
     position: 'relative',
   },
   button: {
@@ -564,12 +566,10 @@ const styles = StyleSheet.create({
   sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f5f5f5',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   sortIcon: {
     marginRight: 4,
@@ -577,7 +577,6 @@ const styles = StyleSheet.create({
   sortText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
   },
   searchRow: {
     flexDirection: 'row',
@@ -589,7 +588,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
-    backgroundColor: '#f5f5f5',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -600,7 +598,6 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#333',
   },
   titleRow: {
     flexDirection: 'row',
@@ -612,14 +609,11 @@ const styles = StyleSheet.create({
   homeButton: {
     padding: 8,
     borderRadius: 8,
-    backgroundColor: '#f5f5f5',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
   },
   homeButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
   },
   balanceBadge: {
     position: 'absolute',
@@ -637,17 +631,14 @@ const styles = StyleSheet.create({
   },
   accountNumberText: {
     fontSize: 12,
-    color: '#666',
     marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
     borderRadius: 12,
     padding: 24,
     margin: 20,
@@ -663,7 +654,6 @@ const styles = StyleSheet.create({
   modalText: {
     fontSize: 16,
     lineHeight: 22,
-    color: '#333',
     textAlign: 'center',
   },
   modalButton: {

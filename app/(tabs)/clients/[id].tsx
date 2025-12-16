@@ -11,8 +11,10 @@ import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
+import { Colors } from '../../../constants/Colors';
 import { auth, db } from '../../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../../core/session';
+import { useColorScheme } from '../../../hooks/useColorScheme';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { updateClientGoCardlessSettings } from '../../../services/clientService';
 import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
@@ -49,6 +51,8 @@ export default function ClientDetailScreen() {
   const params = useLocalSearchParams();
   const id = typeof (params as any).id === 'string' ? (params as any).id : '';
   const router = useRouter();
+  const colorScheme = useColorScheme() ?? 'light';
+  const theme = Colors[colorScheme];
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [serviceHistory, setServiceHistory] = useState<ServiceHistoryItem[]>([]);
@@ -335,7 +339,7 @@ export default function ClientDetailScreen() {
   const renderHistoryItem = useCallback(({ item }: { item: ServiceHistoryItem | { type: 'startingBalance'; amount: number } }) => {
     if (item.type === 'startingBalance') {
       return (
-        <View style={styles.historyItem}>
+        <View style={[styles.historyItem, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
           <ThemedText style={styles.historyItemText}>
             <ThemedText style={{ fontWeight: 'bold' }}>Starting Balance:</ThemedText>{' '}£{Number((item as any).amount).toFixed(2)}
           </ThemedText>
@@ -343,7 +347,7 @@ export default function ClientDetailScreen() {
       );
     } else if (item.type === 'job') {
       return (
-        <View style={[styles.historyItem, styles.jobItem]}>
+        <View style={[styles.historyItem, styles.jobItem, { backgroundColor: theme.jobItemBackground, borderColor: theme.jobItemBorder }]}>
           <ThemedText style={styles.historyItemText}>
             <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO((item as any).scheduledTime), 'do MMMM yyyy')}
           </ThemedText>
@@ -356,7 +360,7 @@ export default function ClientDetailScreen() {
     } else if (item.type === 'payment') {
       const payment = item as Payment & { type: 'payment' };
       return (
-        <View style={[styles.historyItem, styles.paymentItem]}>
+        <View style={[styles.historyItem, styles.paymentItem, { backgroundColor: theme.paymentItemBackground, borderColor: theme.paymentItemBorder }]}>
           <View style={styles.paymentHeaderRow}>
             <View style={{ flex: 1 }}>
               <ThemedText style={styles.historyItemText}>
@@ -385,7 +389,7 @@ export default function ClientDetailScreen() {
       );
     }
     return null;
-  }, [handleMovePaymentPress]);
+  }, [handleMovePaymentPress, theme]);
 
   // Optionally open Add Service modal when navigated from Manage Services,
   // then immediately clear the trigger param so it doesn't persist
@@ -931,28 +935,28 @@ export default function ClientDetailScreen() {
 
   // Add SectionCard component matching quotes/accounts screens
   const SectionCard = ({ title, icon, children }: { title: string; icon: React.ReactNode; children: React.ReactNode }) => (
-    <View style={styles.sectionCard}>
-      <View style={styles.sectionCardHeader}>
+    <View style={[styles.sectionCard, { backgroundColor: theme.sectionCard, borderColor: theme.sectionCardBorder }]}>
+      <View style={[styles.sectionCardHeader, { backgroundColor: theme.sectionCardHeader, borderColor: theme.sectionCardBorder }]}>
         {icon}
-        <ThemedText style={styles.sectionCardTitle}>{title}</ThemedText>
+        <ThemedText style={[styles.sectionCardTitle, { color: theme.text }]}>{title}</ThemedText>
       </View>
       <View style={styles.sectionCardContent}>{children}</View>
     </View>
   );
 
   const InfoRow = ({ label, value }: { label: string; value: string | React.ReactNode }) => (
-    <View style={styles.infoRow}>
-      <ThemedText style={styles.infoLabel}>{label}:</ThemedText>
-      <ThemedText style={styles.infoValue}>{value}</ThemedText>
+    <View style={[styles.infoRow, { borderBottomColor: theme.divider }]}>
+      <ThemedText style={[styles.infoLabel, { color: theme.secondaryText }]}>{label}:</ThemedText>
+      <ThemedText style={[styles.infoValue, { color: theme.text }]}>{value}</ThemedText>
     </View>
   );
 
   return (
     <ThemedView style={{ flex: 1 }}>
       {/* Header Bar - matching accounts/quotes style */}
-      <View style={styles.headerBar}>
-        <ThemedText style={styles.headerTitle}>{displayAddress}</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+      <View style={[styles.headerBar, { backgroundColor: theme.sectionCard, borderBottomColor: theme.sectionCardBorder }]}>
+        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>{displayAddress}</ThemedText>
+        <Pressable style={[styles.homeButton, { backgroundColor: theme.notesBackground }]} onPress={() => router.replace('/')}> 
           <Ionicons name="home-outline" size={22} color="#1976d2" />
         </Pressable>
       </View>
@@ -1478,15 +1482,15 @@ export default function ClientDetailScreen() {
         {/* Notes Section */}
         <View style={styles.notesSection}>
           <Pressable style={styles.sectionHeading} onPress={() => setNotesCollapsed(!notesCollapsed)}>
-            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
-            <ThemedText style={styles.sectionHeadingText}>Runsheet Notes</ThemedText>
+            <IconSymbol name="chevron.right" size={28} color={theme.secondaryText} style={{ transform: [{ rotate: notesCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={[styles.sectionHeadingText, { color: theme.text }]}>Runsheet Notes</ThemedText>
           </Pressable>
           {!notesCollapsed && (
-            <Pressable style={styles.notesContent} onPress={handleOpenNotes}>
+            <Pressable style={[styles.notesContent, { borderColor: theme.inputBorder }]} onPress={handleOpenNotes}>
               {notes ? (
                 <ThemedText style={styles.notesText}>{notes}</ThemedText>
               ) : (
-                <ThemedText style={styles.notesPlaceholder}>Tap to add runsheet notes...</ThemedText>
+                <ThemedText style={[styles.notesPlaceholder, { color: theme.tertiaryText }]}>Tap to add runsheet notes...</ThemedText>
               )}
             </Pressable>
           )}
@@ -1495,23 +1499,23 @@ export default function ClientDetailScreen() {
         {/* Account Notes Section */}
         <View style={styles.notesSection}>
           <Pressable style={styles.sectionHeading} onPress={() => setAccountNotesCollapsed(!accountNotesCollapsed)}>
-            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: accountNotesCollapsed ? '0deg' : '90deg' }] }} />
-            <ThemedText style={styles.sectionHeadingText}>Account Notes</ThemedText>
+            <IconSymbol name="chevron.right" size={28} color={theme.secondaryText} style={{ transform: [{ rotate: accountNotesCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={[styles.sectionHeadingText, { color: theme.text }]}>Account Notes</ThemedText>
           </Pressable>
           {!accountNotesCollapsed && (
             <View>
               <Pressable 
-                style={[styles.notesContent, { backgroundColor: '#e8f4fd', marginBottom: 10 }]} 
+                style={[styles.notesContent, { backgroundColor: theme.notesBackground, borderColor: theme.inputBorder, marginBottom: 10 }]} 
                 onPress={() => setAccountNotesModalVisible(true)}
               >
                 <ThemedText style={{ color: '#1976d2', fontWeight: 'bold' }}>+ Add New Note</ThemedText>
               </Pressable>
               {client?.accountNotes && client.accountNotes.length > 0 ? (
                 client.accountNotes.map((note) => (
-                  <View key={note.id} style={[styles.notesContent, { marginBottom: 8 }]}>
+                  <View key={note.id} style={[styles.notesContent, { borderColor: theme.inputBorder, marginBottom: 8 }]}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-                      <ThemedText style={{ fontSize: 12, color: '#666' }}>{note.author}</ThemedText>
-                      <ThemedText style={{ fontSize: 12, color: '#666' }}>
+                      <ThemedText style={{ fontSize: 12, color: theme.secondaryText }}>{note.author}</ThemedText>
+                      <ThemedText style={{ fontSize: 12, color: theme.secondaryText }}>
                         {new Date(note.date).toLocaleDateString('en-GB', {
                           day: '2-digit',
                           month: 'short',
@@ -1525,7 +1529,7 @@ export default function ClientDetailScreen() {
                   </View>
                 ))
               ) : (
-                <ThemedText style={styles.notesPlaceholder}>No account notes yet</ThemedText>
+                <ThemedText style={[styles.notesPlaceholder, { color: theme.tertiaryText }]}>No account notes yet</ThemedText>
               )}
             </View>
           )}
@@ -1534,8 +1538,8 @@ export default function ClientDetailScreen() {
         {/* Service History Section */}
         <View style={styles.notesSection}>
           <Pressable style={styles.sectionHeading} onPress={() => setHistoryCollapsed(!historyCollapsed)}>
-            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
-            <ThemedText style={styles.sectionHeadingText}>Service History</ThemedText>
+            <IconSymbol name="chevron.right" size={28} color={theme.secondaryText} style={{ transform: [{ rotate: historyCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={[styles.sectionHeadingText, { color: theme.text }]}>Service History</ThemedText>
           </Pressable>
           {!historyCollapsed && (
             <FlatList
@@ -1556,8 +1560,8 @@ export default function ClientDetailScreen() {
         {/* Service Schedule Section */}
         <View style={styles.notesSection}>
           <Pressable style={styles.sectionHeading} onPress={() => setScheduleCollapsed(!scheduleCollapsed)}>
-            <IconSymbol name="chevron.right" size={28} color="#888" style={{ transform: [{ rotate: scheduleCollapsed ? '0deg' : '90deg' }] }} />
-            <ThemedText style={styles.sectionHeadingText}>Service Schedule</ThemedText>
+            <IconSymbol name="chevron.right" size={28} color={theme.secondaryText} style={{ transform: [{ rotate: scheduleCollapsed ? '0deg' : '90deg' }] }} />
+            <ThemedText style={[styles.sectionHeadingText, { color: theme.text }]}>Service Schedule</ThemedText>
           </Pressable>
           {!scheduleCollapsed && (
             pendingJobs.length === 0 ? (
@@ -1572,7 +1576,7 @@ export default function ClientDetailScreen() {
                   const expectedDate = plan?.startDate || null;
 
                   return (
-                  <View key={item.id} style={[styles.historyItem, styles.jobItem]}>
+                  <View key={item.id} style={[styles.historyItem, styles.jobItem, { backgroundColor: theme.jobItemBackground, borderColor: theme.jobItemBorder }]}>
                     <View style={styles.jobItemContent}>
                       <View style={{ flex: 1 }}>
                         <ThemedText style={styles.historyItemText}>

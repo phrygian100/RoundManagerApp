@@ -2,6 +2,40 @@
 
 ## December 16, 2025
 
+### Dark Mode Readability Fix for Clients Pages
+
+**Files Changed**:
+- `constants/Colors.ts` - Extended with dark mode color palette
+- `app/clients.tsx` - Updated to use theme-aware colors
+- `app/(tabs)/clients/[id].tsx` - Updated to use theme-aware colors
+
+**Problem**: Users on dark mode phones couldn't read text in the clients list and client detail pages because styles used hardcoded light-mode colors (`#f9f9f9`, `#333`, `#666`, etc.) that don't adapt to dark mode.
+
+**Solution**: Extended the theme color system and updated client-related components to use theme-aware colors.
+
+**New Colors Added to Theme**:
+- `card` / `cardBorder` - Card/item backgrounds and borders
+- `secondaryText` / `tertiaryText` - Muted text colors
+- `inputBackground` / `inputBorder` / `inputText` - Form input styling
+- `sectionCard` / `sectionCardHeader` / `sectionCardBorder` - Section card styling
+- `jobItemBackground` / `jobItemBorder` - Job history items
+- `paymentItemBackground` / `paymentItemBorder` - Payment history items
+- `modalBackground` / `modalOverlay` - Modal styling
+- `divider` - Divider lines
+- `notesBackground` - Notes section background
+- `buttonSecondary` / `panelBackground` - Secondary button and panel backgrounds
+
+**Components Updated**:
+- Client list cards now use theme-aware backgrounds
+- Sort buttons and search input use theme colors
+- Client detail page section cards, history items, notes sections all adapt to dark mode
+- Modal backgrounds and text are now readable in dark mode
+- All icons use theme-aware secondary text color
+
+**User Impact**: Client list and client detail pages are now fully readable on both light and dark mode devices.
+
+---
+
 ### Client Portal Mobile Layout Fixes
 
 **File**: `app/[businessName].tsx`
