@@ -100,7 +100,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   promoPhotoUrl: '',
   promoPhotoPreset: 'conservatory', // Default to preset image
   showBeforeAfter: true,
-  servicesText: '• Routine service every 4 or 8 weeks\n• Full property, including doors, sills, frames and conservatory roofs\n• Traditional or water fed pole\n• Fully insured',
+  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills, frames and conservatory roofs\nTraditional or water fed pole\nFully insured',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -832,11 +832,10 @@ const ItemConfigurationModal = ({
                       style={itemConfigStyles.customTextInput}
                       value={flyerForm.servicesText}
                       onChangeText={(text) => setFlyerForm(prev => ({ ...prev, servicesText: text }))}
-                      placeholder="Enter services (one per line with bullet •)"
+                      placeholder="Enter services (one per line)"
                       multiline
                       numberOfLines={6}
                     />
-                    <Text style={itemConfigStyles.charCount}>Use • for bullet points</Text>
                   </View>
                 )}
                 
