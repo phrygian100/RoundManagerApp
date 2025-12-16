@@ -3491,7 +3491,7 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 10,
     position: 'relative',
-    marginTop: -120,
+    marginTop: -200,
   },
   additionalTitle: {
     fontSize: 14,
