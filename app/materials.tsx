@@ -100,7 +100,7 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
   promoPhotoUrl: '',
   promoPhotoPreset: 'conservatory', // Default to preset image
   showBeforeAfter: true,
-  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills, frames and conservatory roofs\nTraditional or water fed pole\nFully insured',
+  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nTraditional or water fed pole\nFully insured',
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
@@ -813,7 +813,7 @@ const ItemConfigurationModal = ({
 
             {itemType === 'flyer' && (
               <>
-                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                <Text style={itemConfigStyles.sectionTitle}>Front</Text>
                 <CheckboxRow 
                   label="FREE Quote Badge" 
                   checked={flyerForm.showQuoteBadge} 
@@ -839,7 +839,7 @@ const ItemConfigurationModal = ({
                   </View>
                 )}
                 
-                <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>Promo Photo</Text>
+                <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>Back</Text>
                 
                 <CheckboxRow 
                   label="Show Before/After Labels" 
@@ -849,7 +849,7 @@ const ItemConfigurationModal = ({
                 
                 {/* Preset selection */}
                 <View style={[itemConfigStyles.pickerRow, { marginTop: 8 }]}>
-                  <Text style={itemConfigStyles.pickerLabel}>Photo Source</Text>
+                  <Text style={itemConfigStyles.pickerLabel}>Promo Photo</Text>
                   <View style={itemConfigStyles.pickerContainer}>
                     <Picker
                       selectedValue={flyerForm.promoPhotoPreset}
