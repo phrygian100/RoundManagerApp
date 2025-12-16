@@ -1299,14 +1299,18 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         {/* QR Code for Customer Portal */}
         {(() => {
           const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
-          const portalLink = `https://guvnor.app/${normalizedBusinessName}`;
+          const portalLink = `guvnor.app/${normalizedBusinessName}`;
           return (
             <View style={flyerStyles.qrCodeContainer}>
               <RNImage 
-                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(portalLink)}` }}
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://${portalLink}`)}` }}
                 style={flyerStyles.qrCode}
                 resizeMode="contain"
               />
+              <Text style={flyerStyles.qrCodeText}>
+                Scan the QR code or go to{'\n'}
+                <Text style={flyerStyles.qrCodeLink}>{portalLink}</Text>
+              </Text>
             </View>
           );
         })()}
@@ -1326,28 +1330,18 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
       <View style={flyerStyles.footer}>
         <View style={flyerStyles.footerCurve} />
         <View style={flyerStyles.footerContent}>
-          <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="call-outline" size={16} color="#fff" />
+            <Ionicons name="call-outline" size={24} color="#fff" />
             <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="logo-facebook" size={14} color="#fff" />
+            <Ionicons name="logo-facebook" size={21} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Ionicons name="globe-outline" size={21} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
-        </View>
-        {/* Water droplets decoration */}
-        <View style={flyerStyles.dropletsLeft}>
-          <Ionicons name="water" size={16} color="rgba(255,255,255,0.4)" />
-          <Ionicons name="water" size={12} color="rgba(255,255,255,0.3)" />
-        </View>
-        <View style={flyerStyles.dropletsRight}>
-          <Ionicons name="water" size={14} color="rgba(255,255,255,0.3)" />
-          <Ionicons name="water" size={10} color="rgba(255,255,255,0.2)" />
         </View>
       </View>
     </View>
@@ -1444,28 +1438,18 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
       <View style={flyerStyles.footer}>
         <View style={flyerStyles.footerCurve} />
         <View style={flyerStyles.footerContent}>
-          <Text style={flyerStyles.footerCta}>Get in touch to arrange a FREE quote</Text>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="call-outline" size={16} color="#fff" />
+            <Ionicons name="call-outline" size={24} color="#fff" />
             <Text style={flyerStyles.phoneNumber}>{config.mobileNumber}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="logo-facebook" size={14} color="#fff" />
+            <Ionicons name="logo-facebook" size={21} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.facebookHandle}</Text>
           </View>
           <View style={flyerStyles.contactRow}>
-            <Ionicons name="globe-outline" size={14} color="#fff" />
+            <Ionicons name="globe-outline" size={21} color="#fff" />
             <Text style={flyerStyles.contactText}>{config.websiteAddress}</Text>
           </View>
-        </View>
-        {/* Water droplets decoration */}
-        <View style={flyerStyles.dropletsLeft}>
-          <Ionicons name="water" size={16} color="rgba(255,255,255,0.4)" />
-          <Ionicons name="water" size={12} color="rgba(255,255,255,0.3)" />
-        </View>
-        <View style={flyerStyles.dropletsRight}>
-          <Ionicons name="water" size={14} color="rgba(255,255,255,0.3)" />
-          <Ionicons name="water" size={10} color="rgba(255,255,255,0.2)" />
         </View>
       </View>
     </View>
@@ -3395,7 +3379,7 @@ const flyerStyles = StyleSheet.create({
     marginBottom: 4,
   },
   phoneNumber: {
-    fontSize: 18,
+    fontSize: 27,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -3406,22 +3390,19 @@ const flyerStyles = StyleSheet.create({
     marginTop: 2,
   },
   contactText: {
-    fontSize: 10,
+    fontSize: 15,
     color: '#fff',
   },
-  dropletsLeft: {
-    position: 'absolute',
-    bottom: 8,
-    left: 16,
-    flexDirection: 'row',
-    gap: 4,
+  qrCodeText: {
+    fontSize: 10,
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 14,
   },
-  dropletsRight: {
-    position: 'absolute',
-    bottom: 12,
-    right: 16,
-    flexDirection: 'row',
-    gap: 4,
+  qrCodeLink: {
+    color: '#2E86AB',
+    fontWeight: '600',
   },
   // Back styles
   backBackground: {
@@ -3509,7 +3490,7 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 12,
     position: 'relative',
-    marginTop: -100,
+    marginTop: -400,
   },
   additionalTitle: {
     fontSize: 14,
