@@ -1277,7 +1277,7 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
         {itemConfig.showServices && services.map((service, index) => (
           <View key={index} style={flyerStyles.bulletRow}>
             <View style={flyerStyles.checkCircle}>
-              <Ionicons name="checkmark" size={14} color="#4A90A4" />
+              <Ionicons name="checkmark" size={14} color="#2E86AB" />
             </View>
             <Text style={flyerStyles.bulletText}>{service}</Text>
           </View>
@@ -1391,14 +1391,14 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
           <View key={index} style={flyerStyles.serviceRow}>
             <View style={flyerStyles.serviceItem}>
               <View style={flyerStyles.checkCircleSmall}>
-                <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                <Ionicons name="checkmark" size={12} color="#2E86AB" />
               </View>
               <Text style={flyerStyles.serviceText}>{row.left}</Text>
             </View>
             {row.right ? (
               <View style={flyerStyles.serviceItem}>
                 <View style={flyerStyles.checkCircleSmall}>
-                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                  <Ionicons name="checkmark" size={12} color="#2E86AB" />
                 </View>
                 <Text style={flyerStyles.serviceText}>{row.right}</Text>
               </View>
@@ -1479,7 +1479,7 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
           {services.map((service, index) => (
             <View key={index} style={canvassingStyles.bulletRow}>
               <View style={canvassingStyles.checkCircle}>
-                <Ionicons name="checkmark" size={14} color="#4A90A4" />
+                <Ionicons name="checkmark" size={14} color="#2E86AB" />
               </View>
               <Text style={canvassingStyles.bulletText}>{service}</Text>
             </View>
@@ -1557,13 +1557,13 @@ const CanvassingFlyerBack = ({ config }: { config: MaterialsConfig }) => {
             <View key={index} style={canvassingStyles.serviceRow}>
               <View style={canvassingStyles.serviceItem}>
                 <View style={canvassingStyles.checkCircleBack}>
-                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                  <Ionicons name="checkmark" size={12} color="#2E86AB" />
                 </View>
                 <Text style={canvassingStyles.serviceText}>{row.left}</Text>
               </View>
               <View style={canvassingStyles.serviceItem}>
                 <View style={canvassingStyles.checkCircleBack}>
-                  <Ionicons name="checkmark" size={12} color="#4A90A4" />
+                  <Ionicons name="checkmark" size={12} color="#2E86AB" />
                 </View>
                 <Text style={canvassingStyles.serviceText}>{row.right}</Text>
               </View>
@@ -3267,7 +3267,7 @@ const flyerStyles = StyleSheet.create({
   brandNameBlue: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#4A90A4',
+    color: '#2E86AB',
   },
   tagline: {
     fontSize: 10,
@@ -3295,7 +3295,7 @@ const flyerStyles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#4A90A4',
+    borderColor: '#2E86AB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
@@ -3344,7 +3344,7 @@ const flyerStyles = StyleSheet.create({
     color: '#fff',
   },
   footer: {
-    backgroundColor: '#4A90A4',
+    backgroundColor: '#2E86AB',
     paddingTop: 24,
     paddingBottom: 12,
     paddingHorizontal: 16,
@@ -3356,7 +3356,7 @@ const flyerStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 40,
-    backgroundColor: '#4A90A4',
+    backgroundColor: '#2E86AB',
     borderTopLeftRadius: 100,
     borderTopRightRadius: 200,
   },
@@ -3505,7 +3505,7 @@ const flyerStyles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#4A90A4',
+    borderColor: '#2E86AB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
@@ -3573,7 +3573,7 @@ const canvassingStyles = StyleSheet.create({
   brandNameBlue: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4A90A4',
+    color: '#2E86AB',
   },
   tagline: {
     fontSize: 9,
@@ -3593,7 +3593,7 @@ const canvassingStyles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 2,
-    borderColor: '#4A90A4',
+    borderColor: '#2E86AB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 8,
@@ -3657,7 +3657,7 @@ const canvassingStyles = StyleSheet.create({
     gap: 8,
   },
   percentBadge: {
-    backgroundColor: '#4A90A4',
+    backgroundColor: '#2E86AB',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
@@ -3727,7 +3727,7 @@ const canvassingStyles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 1.5,
-    borderColor: '#4A90A4',
+    borderColor: '#2E86AB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 6,
@@ -3749,7 +3749,7 @@ const canvassingStyles = StyleSheet.create({
     gap: 8,
   },
   footer: {
-    backgroundColor: '#4A90A4',
+    backgroundColor: '#2E86AB',
     paddingTop: 24,
     paddingBottom: 16,
     paddingHorizontal: 16,
@@ -3761,7 +3761,7 @@ const canvassingStyles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 40,
-    backgroundColor: '#4A90A4',
+    backgroundColor: '#2E86AB',
     borderTopLeftRadius: 100,
     borderTopRightRadius: 200,
   },
