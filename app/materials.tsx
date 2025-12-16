@@ -71,9 +71,12 @@ interface FlyerItemConfig {
 }
 
 interface CanvassingFlyerItemConfig {
-  showPriceBoxes: boolean;
-  showAdditionalServices: boolean;
-  showContactInfo: boolean;
+  showServices: boolean;
+  promoPhotoUrl: string;
+  promoPhotoPreset: string;
+  showBeforeAfter: boolean;
+  servicesText: string;
+  additionalServicesText: string;
 }
 
 interface LeafletItemConfig {
@@ -108,9 +111,12 @@ const defaultFlyerItemConfig: FlyerItemConfig = {
 };
 
 const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
-  showPriceBoxes: true,
-  showAdditionalServices: true,
-  showContactInfo: true,
+  showServices: true,
+  promoPhotoUrl: '',
+  promoPhotoPreset: 'conservatory',
+  showBeforeAfter: true,
+  servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nSimple payment system\nETA text message a day before any visit',
+  additionalServicesText: 'Gutter Cleaning\nConservatory Roof Cleaning\nSolar Panel Cleaning\nSoffit And Fascia Cleaning',
 };
 
 const defaultLeafletItemConfig: LeafletItemConfig = {
@@ -921,21 +927,105 @@ const ItemConfigurationModal = ({
 
             {itemType === 'canvassing' && (
               <>
-                <Text style={itemConfigStyles.sectionTitle}>Include Sections</Text>
+                {/* FRONT Section */}
+                <Text style={itemConfigStyles.sectionTitle}>FRONT</Text>
                 <CheckboxRow 
-                  label="Price Boxes" 
-                  checked={canvassingForm.showPriceBoxes} 
-                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showPriceBoxes: !prev.showPriceBoxes }))} 
+                  label="Services" 
+                  checked={canvassingForm.showServices} 
+                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showServices: !prev.showServices }))} 
                 />
-                <CheckboxRow 
-                  label="Additional Services" 
-                  checked={canvassingForm.showAdditionalServices} 
-                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showAdditionalServices: !prev.showAdditionalServices }))} 
+                
+                {/* Services Text */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 12 }]}>Services List</Text>
+                <TextInput
+                  style={itemConfigStyles.customTextInput}
+                  value={canvassingForm.servicesText}
+                  onChangeText={(text) => setCanvassingForm(prev => ({ ...prev, servicesText: text }))}
+                  placeholder="Enter services (one per line)"
+                  multiline
+                  numberOfLines={5}
                 />
+                
+                {/* BACK Section */}
+                <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>BACK</Text>
+                
+                {/* Before/After checkbox */}
                 <CheckboxRow 
-                  label="Contact Information" 
-                  checked={canvassingForm.showContactInfo} 
-                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showContactInfo: !prev.showContactInfo }))} 
+                  label="Show Before/After Labels" 
+                  checked={canvassingForm.showBeforeAfter} 
+                  onToggle={() => setCanvassingForm(prev => ({ ...prev, showBeforeAfter: !prev.showBeforeAfter }))} 
+                />
+                
+                {/* Promo Photo */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 12 }]}>Promo Photo</Text>
+                <View style={itemConfigStyles.pickerWrapper}>
+                  <Picker
+                    selectedValue={canvassingForm.promoPhotoPreset}
+                    onValueChange={(value) => setCanvassingForm(prev => ({ ...prev, promoPhotoPreset: value }))}
+                    style={itemConfigStyles.picker}
+                  >
+                    <Picker.Item label="Before & After Conservatory Roof" value="conservatory" />
+                    <Picker.Item label="Upload Custom Photo" value="custom" />
+                  </Picker>
+                </View>
+                
+                {/* Custom photo upload */}
+                {canvassingForm.promoPhotoPreset === 'custom' && (
+                  <View style={itemConfigStyles.photoUploadSection}>
+                    <Pressable 
+                      style={[itemConfigStyles.uploadButton, uploadingPromoPhoto && { opacity: 0.6 }]} 
+                      onPress={() => handlePromoPhotoUpload('canvassing', setCanvassingForm)}
+                      disabled={uploadingPromoPhoto}
+                    >
+                      {uploadingPromoPhoto ? (
+                        <ActivityIndicator color="#fff" size="small" />
+                      ) : (
+                        <>
+                          <Ionicons name="cloud-upload-outline" size={20} color="#fff" />
+                          <Text style={itemConfigStyles.uploadButtonText}>Upload Photo</Text>
+                        </>
+                      )}
+                    </Pressable>
+                    {canvassingForm.promoPhotoUrl ? (
+                      <View style={[itemConfigStyles.photoPreviewContainer, { marginTop: 12 }]}>
+                        <RNImage 
+                          source={{ uri: canvassingForm.promoPhotoUrl }} 
+                          style={itemConfigStyles.photoPreview}
+                          resizeMode="cover"
+                        />
+                        <Pressable
+                          style={itemConfigStyles.photoRemoveButton}
+                          onPress={() => setCanvassingForm(prev => ({ ...prev, promoPhotoUrl: '' }))}
+                        >
+                          <Ionicons name="close-circle" size={24} color="red" />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Text style={itemConfigStyles.photoHint}>Max 5MB. Landscape photo works best (e.g. team photo, van, work in progress)</Text>
+                    )}
+                  </View>
+                )}
+                
+                {/* Preview of preset */}
+                {canvassingForm.promoPhotoPreset && canvassingForm.promoPhotoPreset !== 'custom' && (
+                  <View style={[itemConfigStyles.photoPreviewContainer, { marginTop: 12 }]}>
+                    <RNImage 
+                      source={FLYER_BACK_PRESETS[canvassingForm.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
+                      style={itemConfigStyles.photoPreview}
+                      resizeMode="cover"
+                    />
+                  </View>
+                )}
+                
+                {/* Additional Services */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 16 }]}>Additional Services</Text>
+                <TextInput
+                  style={itemConfigStyles.customTextInput}
+                  value={canvassingForm.additionalServicesText}
+                  onChangeText={(text) => setCanvassingForm(prev => ({ ...prev, additionalServicesText: text }))}
+                  placeholder="Enter additional services (one per line)"
+                  multiline
+                  numberOfLines={5}
                 />
               </>
             )}
@@ -1457,12 +1547,12 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
 };
 
 // Canvassing Flyer Components
-const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
-  const services = [
-    'Routine service every 4 or 8 weeks',
-    'Full property including\ndoors sills and frames',
-    'Receive a text notification the day\nbefore any visit with an ETA',
-  ];
+const CanvassingFlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: CanvassingFlyerItemConfig }) => {
+  // Parse services text into array of bullet points
+  const services = itemConfig.servicesText
+    .split('\n')
+    .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+    .filter(line => line.length > 0);
 
   return (
     <View style={canvassingStyles.container}>
@@ -1484,23 +1574,37 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
         </View>
 
         {/* Service bullet points */}
-        <View style={canvassingStyles.servicesSection}>
-          {services.map((service, index) => (
-            <View key={index} style={canvassingStyles.bulletRow}>
-              <View style={canvassingStyles.checkCircle}>
-                <Ionicons name="checkmark" size={14} color="#2E86AB" />
+        {itemConfig.showServices && (
+          <View style={canvassingStyles.servicesSection}>
+            {services.map((service, index) => (
+              <View key={index} style={canvassingStyles.bulletRow}>
+                <View style={canvassingStyles.checkCircle}>
+                  <Ionicons name="checkmark" size={14} color="#2E86AB" />
+                </View>
+                <Text style={canvassingStyles.bulletText}>{service}</Text>
               </View>
-              <Text style={canvassingStyles.bulletText}>{service}</Text>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
+        )}
 
-        {/* Water droplets decoration */}
-        <View style={canvassingStyles.dropletsDecoration}>
-          <Ionicons name="water" size={20} color="rgba(74,144,164,0.3)" />
-          <Ionicons name="water" size={14} color="rgba(74,144,164,0.2)" />
-          <Ionicons name="water" size={16} color="rgba(74,144,164,0.25)" />
-        </View>
+        {/* QR Code for Customer Portal */}
+        {(() => {
+          const normalizedBusinessName = config.businessName.toLowerCase().replace(/\s+/g, '');
+          const portalLink = `guvnor.app/${normalizedBusinessName}`;
+          return (
+            <View style={canvassingStyles.qrCodeContainer}>
+              <RNImage 
+                source={{ uri: `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`https://${portalLink}`)}` }}
+                style={canvassingStyles.qrCode}
+                resizeMode="contain"
+              />
+              <Text style={canvassingStyles.qrCodeText}>
+                Scan the QR code or go to{'\n'}
+                <Text style={canvassingStyles.qrCodeLink}>{portalLink}</Text>
+              </Text>
+            </View>
+          );
+        })()}
       </View>
 
       {/* Quote Section */}
@@ -1533,30 +1637,56 @@ const CanvassingFlyerFront = ({ config }: { config: MaterialsConfig }) => {
   );
 };
 
-const CanvassingFlyerBack = ({ config }: { config: MaterialsConfig }) => {
-  const additionalServices = [
-    { left: 'Gutter cleaning', right: 'Solar panel cleaning' },
-    { left: 'Gutter clearing', right: 'Fascias and Soffits' },
-    { left: 'Conservatory Roof', right: 'uPVC restoration' },
-  ];
+const CanvassingFlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: CanvassingFlyerItemConfig }) => {
+  // Parse additional services from text, creating pairs for two-column layout
+  const servicesList = itemConfig.additionalServicesText
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+  
+  const additionalServices: { left: string; right: string }[] = [];
+  for (let i = 0; i < servicesList.length; i += 2) {
+    additionalServices.push({
+      left: servicesList[i] || '',
+      right: servicesList[i + 1] || '',
+    });
+  }
 
   return (
     <View style={canvassingStyles.container}>
-      {/* Background representing conservatory image */}
+      {/* Background image */}
       <View style={canvassingStyles.backBackground}>
-        {/* Decorative roof lines */}
-        <View style={canvassingStyles.roofPattern}>
-          <View style={canvassingStyles.roofSpireCenter} />
-          {[...Array(8)].map((_, i) => (
-            <View 
-              key={i} 
-              style={[
-                canvassingStyles.roofBeam,
-                { transform: [{ rotate: `${(i - 4) * 12}deg` }] }
-              ]} 
+        {(itemConfig.promoPhotoPreset === 'custom' && itemConfig.promoPhotoUrl) ? (
+          <>
+            <RNImage 
+              source={{ uri: itemConfig.promoPhotoUrl }} 
+              style={canvassingStyles.promoPhoto}
+              resizeMode="cover"
             />
-          ))}
-        </View>
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={canvassingStyles.beforeAfterRowOverlay}>
+                <Text style={canvassingStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={canvassingStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
+          </>
+        ) : itemConfig.promoPhotoPreset && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
+          <>
+            <RNImage 
+              source={FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
+              style={canvassingStyles.promoPhoto}
+              resizeMode="cover"
+            />
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={canvassingStyles.beforeAfterRowOverlay}>
+                <Text style={canvassingStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={canvassingStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
+          </>
+        ) : null}
 
         {/* Additional Services Box */}
         <View style={canvassingStyles.servicesOverlay}>
@@ -1570,23 +1700,16 @@ const CanvassingFlyerBack = ({ config }: { config: MaterialsConfig }) => {
                 </View>
                 <Text style={canvassingStyles.serviceText}>{row.left}</Text>
               </View>
-              <View style={canvassingStyles.serviceItem}>
-                <View style={canvassingStyles.checkCircleBack}>
-                  <Ionicons name="checkmark" size={12} color="#2E86AB" />
+              {row.right ? (
+                <View style={canvassingStyles.serviceItem}>
+                  <View style={canvassingStyles.checkCircleBack}>
+                    <Ionicons name="checkmark" size={12} color="#2E86AB" />
+                  </View>
+                  <Text style={canvassingStyles.serviceText}>{row.right}</Text>
                 </View>
-                <Text style={canvassingStyles.serviceText}>{row.right}</Text>
-              </View>
+              ) : <View style={canvassingStyles.serviceItem} />}
             </View>
           ))}
-        </View>
-
-        {/* Water droplets */}
-        <View style={canvassingStyles.waterDroplets}>
-          <Ionicons name="water" size={18} color="rgba(255,255,255,0.6)" />
-          <Ionicons name="water" size={12} color="rgba(255,255,255,0.5)" />
-          <Ionicons name="water" size={14} color="rgba(255,255,255,0.4)" />
-          <Ionicons name="water" size={10} color="rgba(255,255,255,0.5)" />
-          <Ionicons name="water" size={16} color="rgba(255,255,255,0.3)" />
         </View>
       </View>
 
@@ -2266,13 +2389,13 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
                 <View ref={canvassingFrontRef}>
-                <CanvassingFlyerFront config={config} />
+                <CanvassingFlyerFront config={config} itemConfig={canvassingItemConfig} />
                 </View>
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
                 <View ref={canvassingBackRef}>
-                <CanvassingFlyerBack config={config} />
+                <CanvassingFlyerBack config={config} itemConfig={canvassingItemConfig} />
                 </View>
               </View>
             </View>
@@ -3808,6 +3931,65 @@ const canvassingStyles = StyleSheet.create({
   contactText: {
     fontSize: 11,
     color: '#fff',
+  },
+  qrCodeContainer: {
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  qrCode: {
+    width: 105,
+    height: 105,
+    backgroundColor: '#fff',
+  },
+  qrCodeText: {
+    fontSize: 10,
+    color: '#333',
+    textAlign: 'center',
+    marginTop: 6,
+    lineHeight: 14,
+  },
+  qrCodeLink: {
+    color: '#2E86AB',
+    fontWeight: '600',
+  },
+  promoPhoto: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: '100%',
+    height: '100%',
+  },
+  beforeAfterRowOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    zIndex: 2,
+  },
+  beforeLabelOverlay: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
+  },
+  afterLabelOverlay: {
+    fontSize: 12,
+    color: '#fff',
+    fontWeight: 'bold',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 3,
   },
 });
 
