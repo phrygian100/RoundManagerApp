@@ -502,8 +502,8 @@ const ItemConfigurationModal = ({
       const file = e.target.files?.[0];
       if (!file) return;
       
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Image too large. Please choose an image under 2MB.');
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large. Please choose an image under 5MB.');
         return;
       }
       
@@ -850,7 +850,7 @@ const ItemConfigurationModal = ({
                       )}
                     </Pressable>
                   )}
-                  <Text style={itemConfigStyles.photoHint}>Landscape photo works best (e.g. team photo, van, work in progress)</Text>
+                  <Text style={itemConfigStyles.photoHint}>Max 5MB. Landscape photo works best (e.g. team photo, van, work in progress)</Text>
                 </View>
               </>
             )}
