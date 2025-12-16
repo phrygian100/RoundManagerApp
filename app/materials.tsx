@@ -292,7 +292,7 @@ const ConfigurationModal = ({
           <ScrollView style={modalStyles.content} showsVerticalScrollIndicator={false}>
             {/* Business Identity */}
             <Text style={modalStyles.sectionTitle}>Business Identity</Text>
-            
+
             <Text style={modalStyles.label}>Tagline</Text>
             <TextInput
               style={modalStyles.input}
@@ -1005,11 +1005,11 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
         <View style={invoiceStyles.topLeftColumn}>
           {/* Services Provided Header */}
           {showServicesProvidedOn && (
-            <View style={invoiceStyles.servicesHeader}>
-              <Text style={invoiceStyles.servicesHeaderText}>Services provided on: </Text>
-              <Ionicons name="checkmark-circle" size={16} color="#2E86AB" />
-              <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
-            </View>
+          <View style={invoiceStyles.servicesHeader}>
+            <Text style={invoiceStyles.servicesHeaderText}>Services provided on: </Text>
+            <Ionicons name="checkmark-circle" size={16} color="#2E86AB" />
+            <Text style={invoiceStyles.dateSlash}>    /    /    </Text>
+          </View>
           )}
 
           {/* Logo and Branding */}
@@ -1043,7 +1043,7 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
             </View>
             <Text style={invoiceStyles.websiteText}>{config.websiteAddress}</Text>
           </View>
-        </View>
+          </View>
 
         {/* Right: Bank Transfer */}
         <View style={invoiceStyles.topRightColumn}>
@@ -1073,34 +1073,34 @@ const InvoiceFront = ({ config, itemConfig }: { config: MaterialsConfig; itemCon
         {/* Left: Payment method boxes - only show if at least one option is enabled */}
         {hasLeftColumnContent && (
           <View style={invoiceStyles.bottomLeftColumn}>
-            {/* Direct Debit Box */}
+          {/* Direct Debit Box */}
             {showDirectDebit && (
-              <View style={invoiceStyles.blueBox}>
-                <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
-                <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
-                <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
-              </View>
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Direct Debit</Text>
+            <Text style={invoiceStyles.boxText}>With your card details at hand go to:</Text>
+            <Text style={invoiceStyles.linkText}>{config.directDebitLink}</Text>
+          </View>
             )}
 
-            {/* Cash Box */}
+          {/* Cash Box */}
             {showCash && (
-              <View style={invoiceStyles.blueBox}>
-                <Text style={invoiceStyles.boxTitle}>Cash</Text>
-                <Text style={invoiceStyles.boxText}>
-                  Let us know to knock on your door or look somewhere for an envelope.
-                </Text>
-              </View>
+          <View style={invoiceStyles.blueBox}>
+            <Text style={invoiceStyles.boxTitle}>Cash</Text>
+            <Text style={invoiceStyles.boxText}>
+              Let us know to knock on your door or look somewhere for an envelope.
+            </Text>
+          </View>
             )}
 
             {/* Post Box - Business Address (flex to align bottom with Work Completed) */}
             {showBusinessAddress && (
               <View style={[invoiceStyles.blueBox, { flex: 1, marginBottom: 0 }]}>
-                <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.line1}</Text>
                 <Text style={invoiceStyles.addressText}>{config.businessAddress.town}</Text>
-                <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
-              </View>
-            )}
+            <Text style={invoiceStyles.addressText}>{config.businessAddress.postcode}</Text>
           </View>
+            )}
+        </View>
         )}
 
         {/* Right: Work Completed */}
@@ -1175,30 +1175,30 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
         {showManageAccountOnline && (
           <View style={[invoiceStyles.portalBox, { flex: 1, borderWidth: 0 }]}>
             <Text style={[invoiceStyles.portalTitle, { fontSize: 18 }]}>Manage Your Account Online</Text>
-            
+          
             <Text style={[invoiceStyles.portalText, { fontSize: 12, lineHeight: 16 }]}>
-              View your statement, check your balance, and manage your account details online through our customer portal.
-            </Text>
-            
-            <View style={invoiceStyles.portalSteps}>
+            View your statement, check your balance, and manage your account details online through our customer portal.
+          </Text>
+          
+          <View style={invoiceStyles.portalSteps}>
               <Text style={[invoiceStyles.stepTitle, { fontSize: 13 }]}>How to access:</Text>
-              
-              <View style={invoiceStyles.stepRow}>
+            
+            <View style={invoiceStyles.stepRow}>
                 <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>1.</Text>
                 <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Visit our customer portal at:</Text>
-              </View>
+            </View>
               <Text style={[invoiceStyles.portalUrl, { fontSize: 13 }]}>{portalLink}</Text>
-              
-              <View style={invoiceStyles.stepRow}>
+            
+            <View style={invoiceStyles.stepRow}>
                 <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>2.</Text>
                 <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Enter your account number (Shown on front, starting with RWC)</Text>
-              </View>
-              
-              <View style={invoiceStyles.stepRow}>
+            </View>
+            
+            <View style={invoiceStyles.stepRow}>
                 <Text style={[invoiceStyles.stepNumber, { fontSize: 12 }]}>3.</Text>
                 <Text style={[invoiceStyles.stepText, { fontSize: 12, lineHeight: 16 }]}>Verify with the last 4 digits of your phone number</Text>
-              </View>
             </View>
+          </View>
           </View>
         )}
       </View>
@@ -1317,12 +1317,12 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
 
         {/* FREE Quote Badge */}
         {itemConfig.showQuoteBadge && (
-          <View style={flyerStyles.quoteContainer}>
-            <View style={flyerStyles.quoteBadge}>
-              <Text style={flyerStyles.quoteFree}>FREE</Text>
-              <Text style={flyerStyles.quoteText}>quote!</Text>
-            </View>
+        <View style={flyerStyles.quoteContainer}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
           </View>
+        </View>
         )}
       </View>
 
@@ -1379,7 +1379,7 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
               <View style={flyerStyles.beforeAfterRowOverlay}>
                 <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
                 <Text style={flyerStyles.afterLabelOverlay}>After</Text>
-              </View>
+        </View>
             )}
           </>
         ) : itemConfig.promoPhotoPreset && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
@@ -1394,7 +1394,7 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
               <View style={flyerStyles.beforeAfterRowOverlay}>
                 <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
                 <Text style={flyerStyles.afterLabelOverlay}>After</Text>
-              </View>
+        </View>
             )}
           </>
         ) : null}
@@ -1425,12 +1425,12 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
 
         {/* FREE Quote Badge */}
         {itemConfig.showQuoteBadge && (
-          <View style={flyerStyles.quoteContainerBack}>
-            <View style={flyerStyles.quoteBadge}>
-              <Text style={flyerStyles.quoteFree}>FREE</Text>
-              <Text style={flyerStyles.quoteText}>quote!</Text>
-            </View>
+        <View style={flyerStyles.quoteContainerBack}>
+          <View style={flyerStyles.quoteBadge}>
+            <Text style={flyerStyles.quoteFree}>FREE</Text>
+            <Text style={flyerStyles.quoteText}>quote!</Text>
           </View>
+        </View>
         )}
       </View>
 
@@ -1824,7 +1824,7 @@ export default function MaterialsScreen() {
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [config, setConfig] = useState<MaterialsConfig>(defaultConfig);
   const [loading, setLoading] = useState(true);
-  
+
   // Item-specific configuration state
   const [showItemConfigModal, setShowItemConfigModal] = useState(false);
   const [currentItemType, setCurrentItemType] = useState<ItemConfigType>('invoice');
@@ -1891,9 +1891,9 @@ export default function MaterialsScreen() {
   const downloadPreviewPng = async (element: HTMLElement, filename: string) => {
     if (Platform.OS !== 'web') {
       alert('PNG download is only available on web.');
-      return;
-    }
-
+        return;
+      }
+      
     if (!element) {
       alert('Could not find preview element to capture.');
       return;
@@ -1905,7 +1905,7 @@ export default function MaterialsScreen() {
       const fontsReady = (document as any).fonts?.ready;
       if (fontsReady && typeof fontsReady.then === 'function') {
         await fontsReady;
-      }
+            }
 
       // Capture strategy:
       // 1) Read computed styles from the *real* preview DOM (RNW styles applied)
@@ -2160,18 +2160,18 @@ export default function MaterialsScreen() {
                   <Ionicons name="options-outline" size={18} color="#007AFF" />
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-                {Platform.OS === 'web' && (
+              {Platform.OS === 'web' && (
                   <>
                     <Pressable style={styles.downloadButton} onPress={() => handleInvoiceDownloadPNG('front')}>
-                      <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Front PNG</Text>
-                    </Pressable>
+                </Pressable>
                     <Pressable style={styles.downloadButton} onPress={() => handleInvoiceDownloadPNG('back')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Back PNG</Text>
                     </Pressable>
                   </>
-                )}
+              )}
               </View>
             </View>
             
@@ -2204,18 +2204,18 @@ export default function MaterialsScreen() {
                   <Ionicons name="options-outline" size={18} color="#007AFF" />
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-                {Platform.OS === 'web' && (
+              {Platform.OS === 'web' && (
                   <>
                     <Pressable style={styles.downloadButton} onPress={() => handleFlyerDownloadPNG('front')}>
-                      <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Front PNG</Text>
-                    </Pressable>
+                </Pressable>
                     <Pressable style={styles.downloadButton} onPress={() => handleFlyerDownloadPNG('back')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Back PNG</Text>
                     </Pressable>
                   </>
-                )}
+              )}
               </View>
             </View>
             
@@ -2247,18 +2247,18 @@ export default function MaterialsScreen() {
                   <Ionicons name="options-outline" size={18} color="#007AFF" />
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-                {Platform.OS === 'web' && (
+              {Platform.OS === 'web' && (
                   <>
                     <Pressable style={styles.downloadButton} onPress={() => handleCanvassingDownloadPNG('front')}>
-                      <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Front PNG</Text>
-                    </Pressable>
+                </Pressable>
                     <Pressable style={styles.downloadButton} onPress={() => handleCanvassingDownloadPNG('back')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Back PNG</Text>
                     </Pressable>
                   </>
-                )}
+              )}
               </View>
             </View>
             
@@ -2266,13 +2266,13 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
                 <View ref={canvassingFrontRef}>
-                  <CanvassingFlyerFront config={config} />
+                <CanvassingFlyerFront config={config} />
                 </View>
               </View>
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Back</Text>
                 <View ref={canvassingBackRef}>
-                  <CanvassingFlyerBack config={config} />
+                <CanvassingFlyerBack config={config} />
                 </View>
               </View>
             </View>
@@ -2290,18 +2290,18 @@ export default function MaterialsScreen() {
                   <Ionicons name="options-outline" size={18} color="#007AFF" />
                   <Text style={styles.configureButtonText}>Options</Text>
                 </Pressable>
-                {Platform.OS === 'web' && (
+              {Platform.OS === 'web' && (
                   <>
                     <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('front')}>
-                      <Ionicons name="download-outline" size={18} color="#fff" />
+                  <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Front PNG</Text>
-                    </Pressable>
+                </Pressable>
                     <Pressable style={styles.downloadButton} onPress={() => handleLeafletDownloadPNG('back')}>
                       <Ionicons name="download-outline" size={18} color="#fff" />
                       <Text style={styles.downloadButtonText}>Back PNG</Text>
                     </Pressable>
                   </>
-                )}
+              )}
               </View>
             </View>
             
@@ -2310,13 +2310,13 @@ export default function MaterialsScreen() {
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Front</Text>
                   <View ref={leafletFrontRef}>
-                    <NewBusinessLeafletFront config={config} />
+                  <NewBusinessLeafletFront config={config} />
                   </View>
                 </View>
                 <View style={styles.invoiceWrapper}>
                   <Text style={styles.invoiceLabel}>Back</Text>
                   <View ref={leafletBackRef}>
-                    <NewBusinessLeafletBack config={config} />
+                  <NewBusinessLeafletBack config={config} />
                   </View>
                 </View>
               </View>
@@ -3230,6 +3230,7 @@ const flyerStyles = StyleSheet.create({
     height: INVOICE_HEIGHT,
     backgroundColor: '#fff',
     borderRadius: 8,
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -3489,8 +3490,11 @@ const flyerStyles = StyleSheet.create({
   servicesSection: {
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 10,
-    position: 'relative',
-    marginTop: -300,
+    position: 'absolute',
+    top: 280,
+    left: 0,
+    right: 0,
+    zIndex: 10,
   },
   additionalTitle: {
     fontSize: 14,
