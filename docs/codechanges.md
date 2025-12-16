@@ -2,6 +2,27 @@
 
 ## December 16, 2025
 
+### Fixed Additional Services Occlusion on Flyer Back
+
+**File**: `app/materials.tsx`
+
+**Problem**: The additional services section on the back of the flyer was being covered by the footer, making it partially or fully invisible.
+
+**Solution**: Reduced the height of the flyer footers by adjusting padding, curve dimensions, and icon/text sizes.
+
+**Changes Made**:
+- `flyerStyles.footer`: Reduced padding from `24/12/16` to `8/6/12`
+- `flyerStyles.footerCurve`: Reduced curve height from 40px to 24px, adjusted top offset from -20 to -12
+- `flyerStyles.phoneNumber`: Reduced font size from 27 to 16
+- `flyerStyles.contactText`: Reduced font size from 15 to 11
+- `flyerStyles.contactRow`: Reduced gap and margin
+- Footer icons: Reduced from 24/21 to 14/12 size
+- `flyerStyles.servicesSection`: Adjusted marginTop from -400 to -80
+
+**User Impact**: Additional services section is now fully visible above the footer on the back of the flyer.
+
+---
+
 ### Dark Mode Readability Fix for Clients Pages
 
 **Files Changed**:
