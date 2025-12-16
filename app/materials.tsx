@@ -1365,33 +1365,40 @@ const FlyerBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig
 
   return (
     <View style={[flyerStyles.container]}>
-      {/* Full-height background image (absolute positioned) */}
-      <View style={flyerStyles.backBackgroundFull}>
+      {/* Background image */}
+      <View style={flyerStyles.backBackground}>
         {(itemConfig.promoPhotoPreset === 'custom' && itemConfig.promoPhotoUrl) ? (
-          <RNImage 
-            source={{ uri: itemConfig.promoPhotoUrl }} 
-            style={flyerStyles.promoPhoto}
-            resizeMode="cover"
-          />
+          <>
+            <RNImage 
+              source={{ uri: itemConfig.promoPhotoUrl }} 
+              style={flyerStyles.promoPhoto}
+              resizeMode="cover"
+            />
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={flyerStyles.beforeAfterRowOverlay}>
+                <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
+          </>
         ) : itemConfig.promoPhotoPreset && FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS] ? (
-          <RNImage 
-            source={FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
-            style={flyerStyles.promoPhoto}
-            resizeMode="cover"
-          />
+          <>
+            <RNImage 
+              source={FLYER_BACK_PRESETS[itemConfig.promoPhotoPreset as keyof typeof FLYER_BACK_PRESETS]} 
+              style={flyerStyles.promoPhoto}
+              resizeMode="cover"
+            />
+            {/* Before/After labels overlaid on photo - conditional */}
+            {itemConfig.showBeforeAfter && (
+              <View style={flyerStyles.beforeAfterRowOverlay}>
+                <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
+                <Text style={flyerStyles.afterLabelOverlay}>After</Text>
+              </View>
+            )}
+          </>
         ) : null}
       </View>
-
-      {/* Before/After labels at top */}
-      {itemConfig.showBeforeAfter && (
-        <View style={flyerStyles.beforeAfterRowOverlay}>
-          <Text style={flyerStyles.beforeLabelOverlay}>Before</Text>
-          <Text style={flyerStyles.afterLabelOverlay}>After</Text>
-        </View>
-      )}
-
-      {/* Spacer to push services section down */}
-      <View style={{ flex: 1 }} />
 
       {/* Additional Services Section */}
       <View style={flyerStyles.servicesSection}>
@@ -3399,17 +3406,9 @@ const flyerStyles = StyleSheet.create({
   },
   // Back styles
   backBackground: {
-    height: '55%',
+    flex: 1,
     backgroundColor: '#8B4513',
     position: 'relative',
-  },
-  backBackgroundFull: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#8B4513',
   },
   promoPhoto: {
     position: 'absolute',
@@ -3491,6 +3490,7 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 10,
     position: 'relative',
+    marginTop: -80,
   },
   additionalTitle: {
     fontSize: 14,
