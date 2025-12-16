@@ -3406,7 +3406,7 @@ const flyerStyles = StyleSheet.create({
   },
   // Back styles
   backBackground: {
-    flex: 1,
+    height: '55%',
     backgroundColor: '#8B4513',
     position: 'relative',
   },
@@ -3490,7 +3490,7 @@ const flyerStyles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.4)',
     padding: 10,
     position: 'relative',
-    marginTop: -80,
+    flex: 1,
   },
   additionalTitle: {
     fontSize: 14,
