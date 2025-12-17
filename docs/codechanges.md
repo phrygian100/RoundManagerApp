@@ -38,7 +38,7 @@
 
 ---
 
-### Bulk Payments: Allow on mobile (manual entry) + “Best on desktop” hint
+### Bulk Payments: Allow on mobile (manual entry) + “Best on desktop” modal prompt
 
 **Files Changed**:
 - `app/accounts.tsx`
@@ -47,7 +47,7 @@
 
 **Change**:
 - Removed the “desktop only” blocking behavior so users can still open Bulk Payments on mobile.
-- Added a small note under the Accounts header button: **“Best on desktop”** (since paste/spreadsheet workflows are still best there).
+- On mobile/small screens, tapping **Add Bulk Payments** now shows a modal prompt (“best used on desktop for quicker use”) with a **Continue** button before opening `/bulk-payments`.
 - Added a native (iOS/Android) fallback UI for Bulk Payments using a simple card-per-row entry form that reuses the same validation and submission logic.
 - Updated unknown payments method typing to include `direct_debit` to match supported payment methods in bulk entry.
 

@@ -821,16 +821,30 @@ ${signOff}`;
         <View style={styles.headerBar}>
           <ThemedText style={styles.headerTitle}>Accounts</ThemedText>
           <View style={styles.headerButtons}>
-            <View style={styles.bulkPaymentsButtonContainer}>
-              <Pressable
-                style={styles.bulkPaymentsButton}
-                onPress={() => router.push('/bulk-payments')}
-              >
-                <Ionicons name="grid-outline" size={18} color="#fff" />
-                <ThemedText style={styles.bulkPaymentsButtonText}>Add Bulk Payments</ThemedText>
-              </Pressable>
-              <ThemedText style={styles.bulkPaymentsHint}>Best on desktop</ThemedText>
-            </View>
+            <Pressable
+              style={styles.bulkPaymentsButton}
+              onPress={() => {
+                if (isLargeScreen) {
+                  router.push('/bulk-payments');
+                  return;
+                }
+
+                Alert.alert(
+                  'Best on desktop',
+                  'This function is best used on a desktop for quicker use.',
+                  [
+                    {
+                      text: 'Continue',
+                      onPress: () => router.push('/bulk-payments'),
+                    },
+                  ],
+                  { cancelable: true }
+                );
+              }}
+            >
+              <Ionicons name="grid-outline" size={18} color="#fff" />
+              <ThemedText style={styles.bulkPaymentsButtonText}>Add Bulk Payments</ThemedText>
+            </Pressable>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
               <Ionicons name="home-outline" size={22} color="#1976d2" />
             </Pressable>
@@ -1064,9 +1078,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
-  bulkPaymentsButtonContainer: {
-    alignItems: 'flex-end',
-  },
   homeButton: {
     padding: 8,
     borderRadius: 6,
@@ -1085,11 +1096,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  bulkPaymentsHint: {
-    marginTop: 4,
-    fontSize: 12,
-    color: '#666',
   },
   desktopContainer: {
     width: '100%',
