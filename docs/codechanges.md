@@ -13,6 +13,19 @@
 
 **User Impact**: Users now see more descriptive and actionable guidance for each printable material type.
 
+### Fixed Materials Page Description Text Wrapping on Mobile
+
+**File Changed**: `app/materials.tsx`
+
+**Problem**: The longer description text for materials (Invoice, Flyer, Canvassing Flyer) was running off the screen on mobile devices instead of wrapping to new lines.
+
+**Solution**: 
+- Added `sectionTitleWrapper` style with `flex: 1`, `flexShrink: 1`, and `minWidth: 0` to constrain the text container width
+- Added `flexShrink: 1` and `flexWrap: 'wrap'` to `sectionSubtitle` style
+- Applied the wrapper style to all three section headers
+
+**User Impact**: Description text now wraps properly on mobile screens instead of extending off-screen.
+
 ---
 
 ### Register Page: Require Address + Add Postcode Field + UI Polish

@@ -2021,7 +2021,7 @@ export default function MaterialsScreen() {
           {/* Invoice Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionTitleWrapper}>
                 <Text style={styles.sectionTitle}>Invoice</Text>
                 <Text style={styles.sectionSubtitle}>Fold into a quarter for convenient posting. Handwrite the account number, Cost and date of services</Text>
               </View>
@@ -2065,7 +2065,7 @@ export default function MaterialsScreen() {
           {/* Flyer Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionTitleWrapper}>
                 <Text style={styles.sectionTitle}>Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Tested and effective flyer with a 1 in 55 conversation rate over 1 month in a new build estate. Especially attractive to younger customers while allowing older generations to pick up the phone</Text>
               </View>
@@ -2108,7 +2108,7 @@ export default function MaterialsScreen() {
           {/* Canvassing Flyer Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <View>
+              <View style={styles.sectionTitleWrapper}>
                 <Text style={styles.sectionTitle}>Canvassing Flyer</Text>
                 <Text style={styles.sectionSubtitle}>Extremely effective when canvassing to post when no one answers the door. Handwrite the provisional cost of your service at the bottom to maximise your opportunities</Text>
               </View>
@@ -2263,6 +2263,13 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  sectionTitleWrapper: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
   },
   downloadButton: {
     flexDirection: 'row',
