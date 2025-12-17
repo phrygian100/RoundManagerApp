@@ -49,11 +49,42 @@ export default function LoginScreen() {
 
       if (!user.emailVerified) {
         const msg = 'Please verify your email before logging in.';
-        if (typeof window !== 'undefined') {
-          window.alert(msg);
-        } else {
-          Alert.alert('Email not verified', msg);
+
+        const shouldResend = Platform.OS === 'web'
+          ? (typeof window !== 'undefined' ? window.confirm(`${msg}\n\nResend verification email?`) : false)
+          : await new Promise<boolean>((resolve) => {
+              Alert.alert(
+                'Email not verified',
+                msg,
+                [
+                  { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+                  { text: 'Resend email', onPress: () => resolve(true) },
+                ]
+              );
+            });
+
+        if (shouldResend) {
+          try {
+            const functions = getFunctions();
+            const sendVerificationEmail = httpsCallable(functions, 'sendVerificationEmail');
+            await sendVerificationEmail({});
+            const sentMsg = 'Verification email sent. Please check your inbox (and spam) then try logging in again.';
+            if (typeof window !== 'undefined') {
+              window.alert(sentMsg);
+            } else {
+              Alert.alert('Email sent', sentMsg);
+            }
+          } catch (err) {
+            console.warn('Resend verification email failed:', err);
+            const errMsg = 'Could not resend verification email. Please try again later.';
+            if (typeof window !== 'undefined') {
+              window.alert(errMsg);
+            } else {
+              Alert.alert('Error', errMsg);
+            }
+          }
         }
+
         await auth.signOut();
         return;
       }

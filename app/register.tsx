@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -70,8 +71,15 @@ export default function RegisterScreen() {
 
       const user = userCredential.user;
 
-      // Send verification email
-      await sendEmailVerification(user);
+      // Send verification email (prefer custom sender via Cloud Function; fallback to Firebase)
+      try {
+        const functions = getFunctions();
+        const sendVerificationEmail = httpsCallable(functions, 'sendVerificationEmail');
+        await sendVerificationEmail({});
+      } catch (e) {
+        console.warn('Custom verification email failed, falling back to Firebase:', e);
+        await sendEmailVerification(user);
+      }
 
       // Create a user document in Firestore
       const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';

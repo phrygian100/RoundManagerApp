@@ -28,6 +28,14 @@
 - Switched registration alerts to use `window.alert` on web (matching `/login`) for better reliability.
 - Added user-friendly error messages for common Firebase auth failures (e.g. **email already in use**) and avoided noisy `console.error` stack traces.
 
+### Auth emails: Verification now sent from `noreply@guvnor.app`
+
+**Files Changed**: `functions/index.js`, `app/register.tsx`, `app/login.tsx`
+
+- Added callable function `sendVerificationEmail` that generates the Firebase verification link and sends it via **Resend** using the `@guvnor.app` sender domain.
+- Updated registration flow to call `sendVerificationEmail` (with fallback to Firebase `sendEmailVerification` if Resend fails).
+- Added a “Resend verification email” prompt on login when a user attempts to sign in with an unverified email.
+
 ---
 
 ## December 16, 2025

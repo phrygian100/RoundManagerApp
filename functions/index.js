@@ -1160,3 +1160,76 @@ exports.submitContactForm = onCall(async (request) => {
     throw new HttpsError('internal', 'Failed to send your message. Please try again or contact us directly at support@guvnor.app');
   }
 });
+
+// Send Firebase email verification using a custom sender domain (Resend)
+exports.sendVerificationEmail = onCall(async (request) => {
+  const caller = request.auth;
+  if (!caller) {
+    throw new HttpsError('unauthenticated', 'You must be logged in.');
+  }
+
+  try {
+    const userRecord = await admin.auth().getUser(caller.uid);
+    const email = userRecord.email;
+    if (!email) {
+      throw new HttpsError('failed-precondition', 'No email address on account.');
+    }
+
+    // Already verified - nothing to do
+    if (userRecord.emailVerified) {
+      return { success: true, message: 'Email is already verified.' };
+    }
+
+    const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
+    if (!apiKey) {
+      console.error('No Resend API key found in environment!');
+      throw new HttpsError('internal', 'Configuration error.');
+    }
+
+    const resend = new Resend(apiKey);
+    const appUrl = process.env.APP_URL || 'https://guvnor.app';
+
+    // Send user back to login after verifying
+    const actionCodeSettings = {
+      url: `${appUrl}/login`,
+      handleCodeInApp: false,
+    };
+
+    const verifyLink = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+
+    const { error } = await resend.emails.send({
+      from: 'Guvnor <noreply@guvnor.app>',
+      to: email,
+      subject: 'Verify your email for Guvnor',
+      html: `
+        <div style="font-family: Arial, Helvetica, sans-serif; line-height: 1.5;">
+          <h2 style="margin: 0 0 12px;">Verify your email</h2>
+          <p style="margin: 0 0 16px;">Thanks for signing up for Guvnor. Please confirm your email address to activate your account.</p>
+          <p style="margin: 0 0 24px;">
+            <a href="${verifyLink}" style="display: inline-block; background: #4f46e5; color: #fff; padding: 12px 16px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+              Verify email
+            </a>
+          </p>
+          <p style="margin: 0 0 8px; color: #6b7280; font-size: 14px;">Or paste this link into your browser:</p>
+          <p style="margin: 0 0 24px; font-size: 14px; word-break: break-all;">
+            <a href="${verifyLink}">${verifyLink}</a>
+          </p>
+          <p style="margin: 0; color: #6b7280; font-size: 12px;">
+            If you didn’t request this email, you can safely ignore it.
+          </p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Resend error (verification email):', error);
+      throw new HttpsError('internal', 'Failed to send verification email.');
+    }
+
+    return { success: true, message: 'Verification email sent.' };
+  } catch (err) {
+    console.error('sendVerificationEmail error:', err);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError('internal', err?.message || 'Unknown error');
+  }
+});
