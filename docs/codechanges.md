@@ -1,5 +1,28 @@
 # Code Changes Log
 
+## December 17, 2025
+
+### Register Page: Require Address + Add Postcode Field + UI Polish
+
+**File Changed**: `app/register.tsx`
+
+**Problems**:
+- `/register` UI looked like a basic unstyled form (default inputs/buttons, no hierarchy).
+- Address fields were shown as optional and were not validated.
+- Production `/register` was missing a visible postcode input (now explicitly present in the source UI).
+
+**Solution**:
+- Rebuilt the Register screen layout to match the more polished style used on `app/login.tsx` (hero + centered card + labeled fields + modern buttons), while keeping it cross-platform for web and mobile.
+- Made **Address line 1**, **Town/City**, and **Postcode** required at registration.
+- Always saves `address1`, `town`, `postcode`, and the legacy combined `address` field to the user document.
+- Normalizes postcode to uppercase and collapses extra spaces before saving.
+
+**User Impact**:
+- New users must provide a complete address including postcode (improves downstream features like weather).
+- Register page now looks consistent with the rest of the web experience.
+
+---
+
 ## December 16, 2025
 
 ### Fixed Additional Services Occlusion on Flyer Back
