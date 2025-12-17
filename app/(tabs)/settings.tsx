@@ -2777,7 +2777,7 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Import Data</ThemedText>
           <ThemedText style={styles.sectionDescription}>
-            Import clients, payments, or completed jobs by pasting from a spreadsheet (best on desktop)
+            Import clients or completed jobs by pasting from a spreadsheet (best on desktop)
           </ThemedText>
           
           <StyledButton
@@ -2787,8 +2787,8 @@ export default function SettingsScreen() {
           />
           
           <StyledButton
-            title="Import Payments"
-            onPress={() => router.push('/import-payments')}
+            title="Add Bulk Payments"
+            onPress={() => router.push('/bulk-payments')}
             disabled={loading}
           />
           

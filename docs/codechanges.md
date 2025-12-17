@@ -58,7 +58,6 @@
 **Files Changed**:
 - `app/(tabs)/settings.tsx`
 - `app/import-clients.tsx`
-- `app/import-payments.tsx`
 - `app/import-completed-jobs.tsx`
 - `utils/spreadsheetImport.ts`
 
@@ -67,6 +66,7 @@
 - Web supports **paste from Excel/Google Sheets** into a grid (similar to Bulk Payments).
 - Mobile supports **manual entry** (best on desktop for speed).
 - Import behavior mirrors existing CSV import rules (client limits, account/round auto-assign, unknown payments, and historic completed job shape).
+ - Payments import is handled via **Bulk Payments** (`/bulk-payments`) rather than a dedicated import screen.
 
 ---
 
