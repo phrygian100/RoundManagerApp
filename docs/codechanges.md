@@ -12,6 +12,17 @@
 
 **User Impact**: Marketing/login page now uses UK English spelling and updated welcome headline.
 
+### Home: Settings drawer (animated slide-out) opened from the gear icon
+
+**File Changed**: `app/(tabs)/index.tsx`
+
+**Change**:
+- Replaced Home’s gear icon navigation to `/settings` with an **animated slide-out side-sheet** on the Home screen.
+- The drawer renders the existing `SettingsScreen` UI, so the settings content stays consistent.
+- “View details” in the Home upgrade banner now opens the same drawer.
+
+**User Impact**: Settings feel faster/more modern (no full page switch), while keeping the existing settings functionality intact.
+
 ### Updated Materials Page Descriptions
 
 **File Changed**: `app/materials.tsx`

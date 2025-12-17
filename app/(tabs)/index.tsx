@@ -5,14 +5,16 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Animated, BackHandler, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { getClientCount } from '../../services/clientService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
+import SettingsScreen from './settings';
 
 const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Client List': 'people-outline',
@@ -28,6 +30,7 @@ const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
 export default function HomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [buttons, setButtons] = useState<{
     label: string;
     onPress: () => void;
@@ -62,6 +65,10 @@ export default function HomeScreen() {
   const [clientCount, setClientCount] = useState<number | null>(null);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [sessionIsOwner, setSessionIsOwner] = useState(false);
+
+  // Settings drawer state (Home-side sheet)
+  const [settingsDrawerVisible, setSettingsDrawerVisible] = useState(false);
+  const settingsDrawerAnim = useRef(new Animated.Value(0)).current; // 0 closed, 1 open
 
   // Fetch user address for weather
   const fetchUserAddress = async () => {
@@ -481,6 +488,53 @@ export default function HomeScreen() {
   };
 
   const safeWidth = Math.max(width || 360, 360);
+  const settingsDrawerWidth = Math.min(420, safeWidth * 0.92);
+
+  const openSettingsDrawer = () => {
+    setSettingsDrawerVisible(true);
+    settingsDrawerAnim.setValue(0);
+    Animated.timing(settingsDrawerAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeSettingsDrawer = () => {
+    Animated.timing(settingsDrawerAnim, {
+      toValue: 0,
+      duration: 220,
+      easing: Easing.in(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setSettingsDrawerVisible(false);
+    });
+  };
+
+  // Android back button closes the drawer first
+  useEffect(() => {
+    if (!settingsDrawerVisible) return;
+    if (Platform.OS !== 'android') return;
+
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      closeSettingsDrawer();
+      return true;
+    });
+
+    return () => sub.remove();
+  }, [settingsDrawerVisible]);
+
+  const settingsTranslateX = settingsDrawerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [settingsDrawerWidth, 0],
+  });
+
+  const settingsBackdropOpacity = settingsDrawerAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 0.45],
+  });
+
   const gridColumns = safeWidth >= 1200 ? 4 : safeWidth >= 900 ? 3 : 2;
   const gridMaxWidth = Math.min(safeWidth - 32, 1180);
   const tileGap = 16;
@@ -521,7 +575,7 @@ export default function HomeScreen() {
         <View style={[styles.topBar, { paddingHorizontal: 24 }]}>
           <Pressable
             style={styles.settingsButton}
-            onPress={() => handleNavigation('/settings')}
+            onPress={openSettingsDrawer}
             android_ripple={{ color: 'rgba(255,255,255,0.15)', borderless: true }}
           >
             <Ionicons name="settings-outline" size={20} color="#e8ecf8" />
@@ -614,7 +668,7 @@ export default function HomeScreen() {
                   styles.upgradeSecondary,
                   pressed && { opacity: 0.9 },
                 ]}
-                onPress={() => handleNavigation('/settings')}
+                onPress={openSettingsDrawer}
               >
                 <Text style={styles.upgradeSecondaryText}>View details</Text>
               </Pressable>
@@ -677,6 +731,47 @@ export default function HomeScreen() {
         onClose={() => setUpgradeModalVisible(false)}
         onUpgradeSuccess={handleUpgradeSuccess}
       />
+
+      {/* Settings side-sheet (opens from Home) */}
+      {settingsDrawerVisible && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              styles.settingsDrawerBackdrop,
+              { opacity: settingsBackdropOpacity },
+            ]}
+          >
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeSettingsDrawer} />
+          </Animated.View>
+
+          <Animated.View
+            style={[
+              styles.settingsDrawerPanel,
+              {
+                width: settingsDrawerWidth,
+                transform: [{ translateX: settingsTranslateX }],
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.settingsDrawerHeader,
+                { paddingTop: insets.top, height: 56 + insets.top },
+              ]}
+            >
+              <Text style={styles.settingsDrawerTitle}>Settings</Text>
+              <Pressable onPress={closeSettingsDrawer} hitSlop={12} style={styles.settingsDrawerClose}>
+                <Ionicons name="close" size={22} color="#111827" />
+              </Pressable>
+            </View>
+
+            <View style={{ flex: 1 }}>
+              <SettingsScreen />
+            </View>
+          </Animated.View>
+        </View>
+      )}
     </LinearGradient>
   );
 }
@@ -994,6 +1089,51 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#f6f8ff',
     fontSize: 16,
+  },
+  settingsDrawerBackdrop: {
+    backgroundColor: '#000',
+  },
+  settingsDrawerPanel: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderLeftWidth: Platform.OS === 'web' ? 1 : 0,
+    borderLeftColor: 'rgba(17,24,39,0.12)',
+    ...Platform.select({
+      web: {
+        boxShadow: '-12px 0 40px rgba(0,0,0,0.35)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOpacity: 0.25,
+        shadowRadius: 18,
+        shadowOffset: { width: -6, height: 0 },
+        elevation: 24,
+      },
+    }),
+  },
+  settingsDrawerHeader: {
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,24,39,0.08)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fff',
+  },
+  settingsDrawerTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  settingsDrawerClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 
