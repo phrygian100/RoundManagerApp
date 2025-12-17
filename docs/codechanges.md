@@ -53,6 +53,23 @@
 
 ---
 
+### Settings: Replace CSV import pickers with spreadsheet-style import screens
+
+**Files Changed**:
+- `app/(tabs)/settings.tsx`
+- `app/import-clients.tsx`
+- `app/import-payments.tsx`
+- `app/import-completed-jobs.tsx`
+- `utils/spreadsheetImport.ts`
+
+**Change**:
+- Settings → **Import Data** buttons now open new spreadsheet-style import screens instead of a file picker.
+- Web supports **paste from Excel/Google Sheets** into a grid (similar to Bulk Payments).
+- Mobile supports **manual entry** (best on desktop for speed).
+- Import behavior mirrors existing CSV import rules (client limits, account/round auto-assign, unknown payments, and historic completed job shape).
+
+---
+
 ### First-time Setup: UI refresh for invite choice + business info steps
 
 **File Changed**: `components/FirstTimeSetupModal.tsx`

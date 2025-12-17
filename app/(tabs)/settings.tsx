@@ -2777,24 +2777,24 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <ThemedText style={styles.sectionTitle}>Import Data</ThemedText>
           <ThemedText style={styles.sectionDescription}>
-            Import clients, payments, or completed jobs from CSV or Excel files
+            Import clients, payments, or completed jobs by pasting from a spreadsheet (best on desktop)
           </ThemedText>
           
           <StyledButton
             title="Import Clients"
-            onPress={handleImport}
+            onPress={() => router.push('/import-clients')}
             disabled={loading}
           />
           
           <StyledButton
             title="Import Payments"
-            onPress={handleImportPayments}
+            onPress={() => router.push('/import-payments')}
             disabled={loading}
           />
           
           <StyledButton
             title="Import Completed Jobs"
-            onPress={handleImportCompletedJobs}
+            onPress={() => router.push('/import-completed-jobs')}
             disabled={loading}
           />
         </View>
