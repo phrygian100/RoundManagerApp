@@ -38,6 +38,17 @@
 
 ---
 
+### First-time Setup: UI refresh for invite choice + business info steps
+
+**File Changed**: `components/FirstTimeSetupModal.tsx`
+
+- Replaced the “blank page + giant buttons” onboarding screens with a centered **card** layout.
+- Added a simple 4-step **progress indicator** and consistent headers/icons per step.
+- Made the Business Information and subsequent steps **responsive** (max width + stacked actions on narrow screens).
+- Replaced default RN `Button` controls with consistent styled actions matching the web look.
+
+---
+
 ## December 16, 2025
 
 ### Fixed Additional Services Occlusion on Flyer Back

@@ -5,7 +5,6 @@ import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
-    Button,
     Modal,
     Platform,
     ScrollView,
@@ -14,6 +13,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from 'react-native';
 import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -37,6 +37,8 @@ const DAYS_OF_WEEK = [
 export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSetupModalProps) {
   const [step, setStep] = useState(1);
   const [hasInviteCode, setHasInviteCode] = useState<boolean | null>(null);
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 720;
   const [workingDays, setWorkingDays] = useState<Record<string, boolean>>({
     monday: true,
     tuesday: true,
@@ -247,158 +249,262 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
         {step === 1 && (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Welcome to Guvnor!</Text>
-            <Text style={styles.subtitle}>Let's set up your account</Text>
-            
-            <View style={styles.questionContainer}>
-              <Text style={styles.question}>
+            <View style={styles.card}>
+              <View style={styles.progressRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <View key={n} style={styles.progressItem}>
+                    <View style={[styles.progressDot, n <= step ? styles.progressDotActive : null]} />
+                    {n !== 4 && <View style={[styles.progressLine, n < step ? styles.progressLineActive : null]} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.hero}>
+                <View style={styles.heroIconCircle}>
+                  <Ionicons name="sparkles" size={22} color="#4f46e5" />
+                </View>
+                <Text style={styles.cardTitle}>Welcome to Guvnor</Text>
+                <Text style={styles.cardSubtitle}>Let’s set up your account in under a minute.</Text>
+              </View>
+
+              <Text style={styles.questionText}>
                 Do you have an invite code to join an existing organisation?
               </Text>
-              
-              <View style={styles.buttonContainer}>
-                <TouchableOpacity 
-                  style={[styles.choiceButton, styles.yesButton]}
+
+              <View style={[styles.choiceRow, isNarrow && styles.choiceRowStack]}>
+                <TouchableOpacity
+                  style={[styles.choiceButton, styles.choicePrimary, isNarrow && styles.choiceButtonStack]}
                   onPress={() => handleInviteCodeChoice(true)}
+                  activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>Yes, I have a code</Text>
+                  <Ionicons name="key-outline" size={18} color="#fff" />
+                  <Text style={styles.choiceText}>Yes, I have a code</Text>
                 </TouchableOpacity>
-                
-                <TouchableOpacity 
-                  style={[styles.choiceButton, styles.noButton]}
+
+                <TouchableOpacity
+                  style={[styles.choiceButton, styles.choiceSecondary, isNarrow && styles.choiceButtonStack]}
                   onPress={() => handleInviteCodeChoice(false)}
+                  activeOpacity={0.9}
                 >
-                  <Text style={styles.buttonText}>No, continue without</Text>
+                  <Ionicons name="rocket-outline" size={18} color="#fff" />
+                  <Text style={styles.choiceText}>No, continue without</Text>
                 </TouchableOpacity>
               </View>
+
+              <Text style={styles.footerHint}>You can change these settings later.</Text>
             </View>
           </View>
         )}
 
         {step === 2 && (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Business Information</Text>
-            <Text style={styles.subtitle}>Tell us about your business</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Business Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your business name"
-                value={businessName}
-                onChangeText={setBusinessName}
-                editable={!saving}
-              />
+            <View style={styles.card}>
+              <View style={styles.progressRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <View key={n} style={styles.progressItem}>
+                    <View style={[styles.progressDot, n <= step ? styles.progressDotActive : null]} />
+                    {n !== 4 && <View style={[styles.progressLine, n < step ? styles.progressLineActive : null]} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.hero}>
+                <View style={styles.heroIconCircle}>
+                  <Ionicons name="business-outline" size={22} color="#4f46e5" />
+                </View>
+                <Text style={styles.cardTitle}>Business information</Text>
+                <Text style={styles.cardSubtitle}>Tell us about your business.</Text>
+              </View>
+
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Business name *</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter your business name"
+                    placeholderTextColor="#9ca3af"
+                    value={businessName}
+                    onChangeText={setBusinessName}
+                    editable={!saving}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Bank sort code</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 12-34-56"
+                    placeholderTextColor="#9ca3af"
+                    value={bankSortCode}
+                    onChangeText={setBankSortCode}
+                    editable={!saving}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Bank account number</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 12345678"
+                    placeholderTextColor="#9ca3af"
+                    value={bankAccountNumber}
+                    onChangeText={setBankAccountNumber}
+                    keyboardType="numeric"
+                    editable={!saving}
+                  />
+                </View>
+              </View>
+
+              <View style={[styles.actionRow, isNarrow && styles.actionRowStack]}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, isNarrow && styles.actionBtnStack]}
+                  onPress={handleNext}
+                  disabled={saving}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.primaryButtonText}>Next</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bank Sort Code</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 12-34-56"
-                value={bankSortCode}
-                onChangeText={setBankSortCode}
-                editable={!saving}
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Bank Account Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 12345678"
-                value={bankAccountNumber}
-                onChangeText={setBankAccountNumber}
-                keyboardType="numeric"
-                editable={!saving}
-              />
-            </View>
-            
-            <Button title="Next" onPress={handleNext} />
           </View>
         )}
 
         {step === 3 && (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Working Days</Text>
-            <Text style={styles.subtitle}>Which days do you typically work?</Text>
-            <Text style={styles.hint}>You can change this later in the Rota screen</Text>
-            
-            <View style={styles.daysContainer}>
-              {DAYS_OF_WEEK.map(day => (
+            <View style={styles.card}>
+              <View style={styles.progressRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <View key={n} style={styles.progressItem}>
+                    <View style={[styles.progressDot, n <= step ? styles.progressDotActive : null]} />
+                    {n !== 4 && <View style={[styles.progressLine, n < step ? styles.progressLineActive : null]} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.hero}>
+                <View style={styles.heroIconCircle}>
+                  <Ionicons name="calendar-outline" size={22} color="#4f46e5" />
+                </View>
+                <Text style={styles.cardTitle}>Working days</Text>
+                <Text style={styles.cardSubtitle}>Which days do you typically work?</Text>
+              </View>
+
+              <Text style={styles.hint}>You can change this later in the Rota screen.</Text>
+
+              <View style={styles.daysContainer}>
+                {DAYS_OF_WEEK.map(day => (
+                  <TouchableOpacity
+                    key={day.key}
+                    style={[
+                      styles.dayButton,
+                      workingDays[day.key] && styles.dayButtonActive
+                    ]}
+                    onPress={() => toggleDay(day.key)}
+                    activeOpacity={0.9}
+                  >
+                    <Ionicons
+                      name={workingDays[day.key] ? "checkbox" : "square-outline"}
+                      size={22}
+                      color={workingDays[day.key] ? "#4f46e5" : "#9ca3af"}
+                    />
+                    <Text style={[
+                      styles.dayText,
+                      workingDays[day.key] && styles.dayTextActive
+                    ]}>{day.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={[styles.actionRow, isNarrow && styles.actionRowStack]}>
                 <TouchableOpacity
-                  key={day.key}
-                  style={[
-                    styles.dayButton,
-                    workingDays[day.key] && styles.dayButtonActive
-                  ]}
-                  onPress={() => toggleDay(day.key)}
+                  style={[styles.secondaryButton, isNarrow && styles.actionBtnStack]}
+                  onPress={() => setStep(2)}
+                  activeOpacity={0.9}
                 >
-                  <Ionicons 
-                    name={workingDays[day.key] ? "checkbox" : "square-outline"} 
-                    size={24} 
-                    color={workingDays[day.key] ? "#007AFF" : "#999"}
-                  />
-                  <Text style={[
-                    styles.dayText,
-                    workingDays[day.key] && styles.dayTextActive
-                  ]}>{day.label}</Text>
+                  <Text style={styles.secondaryButtonText}>Back</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-            
-            <View style={styles.buttonContainer}>
-              <Button 
-                title="Back" 
-                onPress={() => setStep(2)} 
-                color="#666"
-              />
-              <Button title="Next" onPress={handleNext} />
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, isNarrow && styles.actionBtnStack]}
+                  onPress={handleNext}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.primaryButtonText}>Next</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
 
         {step === 4 && (
           <View style={styles.stepContainer}>
-            <Text style={styles.title}>Vehicle & Daily Limit</Text>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Vehicle Name or Registration</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="eg. registration, white transit, bicycle"
-                value={vehicleNameOrReg}
-                onChangeText={setVehicleNameOrReg}
-                editable={!saving}
-              />
-            </View>
-            
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Daily Turnover Limit (£)</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., 250"
-                value={dailyTurnoverLimit}
-                onChangeText={setDailyTurnoverLimit}
-                keyboardType="numeric"
-                editable={!saving}
-              />
-              <Text style={styles.explanation}>
-                We will organise your round to this as a limit before spilling work into other days
-              </Text>
-            </View>
-            
-            <View style={styles.buttonContainer}>
-              <Button 
-                title="Back" 
-                onPress={() => setStep(3)} 
-                color="#666"
-                disabled={saving}
-              />
-              <Button 
-                title={saving ? "Saving..." : "Complete Setup"} 
-                onPress={handleSave}
-                disabled={saving}
-              />
+            <View style={styles.card}>
+              <View style={styles.progressRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <View key={n} style={styles.progressItem}>
+                    <View style={[styles.progressDot, n <= step ? styles.progressDotActive : null]} />
+                    {n !== 4 && <View style={[styles.progressLine, n < step ? styles.progressLineActive : null]} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.hero}>
+                <View style={styles.heroIconCircle}>
+                  <Ionicons name="car-outline" size={22} color="#4f46e5" />
+                </View>
+                <Text style={styles.cardTitle}>Vehicle & daily limit</Text>
+                <Text style={styles.cardSubtitle}>Set your first vehicle and daily target.</Text>
+              </View>
+
+              <View style={styles.form}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Vehicle name or registration</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. white transit, AB12 CDE"
+                    placeholderTextColor="#9ca3af"
+                    value={vehicleNameOrReg}
+                    onChangeText={setVehicleNameOrReg}
+                    editable={!saving}
+                  />
+                </View>
+
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Daily turnover limit (£)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g. 250"
+                    placeholderTextColor="#9ca3af"
+                    value={dailyTurnoverLimit}
+                    onChangeText={setDailyTurnoverLimit}
+                    keyboardType="numeric"
+                    editable={!saving}
+                  />
+                  <Text style={styles.explanation}>
+                    We will organise your round to this as a limit before spilling work into other days.
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.actionRow, isNarrow && styles.actionRowStack]}>
+                <TouchableOpacity
+                  style={[styles.secondaryButton, isNarrow && styles.actionBtnStack, saving && styles.buttonDisabled]}
+                  onPress={() => setStep(3)}
+                  disabled={saving}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.secondaryButtonText}>Back</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.primaryButton, isNarrow && styles.actionBtnStack, saving && styles.buttonDisabled]}
+                  onPress={handleSave}
+                  disabled={saving}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.primaryButtonText}>{saving ? 'Saving…' : 'Complete setup'}</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
         )}
@@ -410,109 +516,248 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
   },
   contentContainer: {
     flexGrow: 1,
     padding: 20,
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    justifyContent: 'center',
   },
   stepContainer: {
     flex: 1,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
+
+  // Shared card layout
+  card: {
+    width: '100%',
+    maxWidth: 720,
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    ...Platform.select({
+      web: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 24,
+      },
+      default: {
+        elevation: 4,
+      },
+    }),
   },
-  subtitle: {
-    fontSize: 18,
-    color: '#666',
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  questionContainer: {
-    marginTop: 40,
-  },
-  question: {
-    fontSize: 20,
-    marginBottom: 30,
-    textAlign: 'center',
-  },
-  buttonContainer: {
+
+  // Progress indicator
+  progressRow: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginTop: 20,
-    gap: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  progressItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progressDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e5e7eb',
+  },
+  progressDotActive: {
+    backgroundColor: '#4f46e5',
+  },
+  progressLine: {
+    width: 36,
+    height: 2,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 10,
+  },
+  progressLineActive: {
+    backgroundColor: '#c7d2fe',
+  },
+
+  // Header
+  hero: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  heroIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#eef2ff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#111827',
+    textAlign: 'center',
+  },
+  cardSubtitle: {
+    fontSize: 15,
+    color: '#6b7280',
+    marginTop: 6,
+    textAlign: 'center',
+  },
+
+  // Step 1
+  questionText: {
+    fontSize: 18,
+    color: '#111827',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 18,
+    lineHeight: 26,
+  },
+  choiceRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  choiceRowStack: {
+    flexDirection: 'column',
   },
   choiceButton: {
     flex: 1,
-    padding: 20,
-    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 10,
   },
-  yesButton: {
-    backgroundColor: '#007AFF',
+  choiceButtonStack: {
+    width: '100%',
   },
-  noButton: {
-    backgroundColor: '#34C759',
+  choicePrimary: {
+    backgroundColor: '#4f46e5',
   },
-  buttonText: {
+  choiceSecondary: {
+    backgroundColor: '#16a34a',
+  },
+  choiceText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+  },
+  footerHint: {
+    marginTop: 14,
+    textAlign: 'center',
+    color: '#9ca3af',
+    fontSize: 13,
+  },
+
+  // Forms
+  form: {
+    marginTop: 8,
+    gap: 16,
   },
   hint: {
     fontSize: 14,
-    color: '#999',
-    marginBottom: 20,
+    color: '#6b7280',
+    marginBottom: 14,
     textAlign: 'center',
-    fontStyle: 'italic',
   },
   daysContainer: {
-    marginVertical: 20,
+    marginTop: 6,
+    marginBottom: 16,
   },
   dayButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    marginVertical: 5,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    marginVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     gap: 10,
   },
   dayButtonActive: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#eef2ff',
+    borderColor: '#c7d2fe',
   },
   dayText: {
     fontSize: 16,
-    color: '#666',
+    color: '#374151',
   },
   dayTextActive: {
-    color: '#007AFF',
+    color: '#4f46e5',
     fontWeight: '500',
   },
   inputGroup: {
     marginBottom: 20,
   },
   label: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 8,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    padding: 12,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    padding: 14,
     fontSize: 16,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
+    color: '#111827',
   },
   explanation: {
     fontSize: 14,
     color: '#666',
     marginTop: 8,
     fontStyle: 'italic',
+  },
+
+  // Actions
+  actionRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 4,
+  },
+  actionRowStack: {
+    flexDirection: 'column',
+  },
+  actionBtnStack: {
+    width: '100%',
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: '#4f46e5',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  primaryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#374151',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
 }); 
