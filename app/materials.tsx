@@ -1623,9 +1623,6 @@ const CanvassingFlyerFront = ({ config, itemConfig }: { config: MaterialsConfig;
         <Text style={canvassingStyles.quoteExplanation}>
           Below is a quote based on what we can see of your property from the curb.
         </Text>
-        <Text style={canvassingStyles.quoteNote}>
-          The 8 weekly option is 1.5 of the 4 weekly cost.
-        </Text>
 
         {/* Price boxes */}
         <View style={canvassingStyles.priceBoxRow}>
