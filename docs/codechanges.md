@@ -2,6 +2,16 @@
 
 ## December 17, 2025
 
+### Marketing login page copy (UK spelling)
+
+**File Changed**: `app/login.tsx`
+
+**Changes**:
+- Changed hero heading from "Welcome back to Guvnor" to "Welcome to Guvnor"
+- Changed feature bullet to UK spelling: "Smart Scheduling & route optimisation"
+
+**User Impact**: Marketing/login page now uses UK English spelling and updated welcome headline.
+
 ### Updated Materials Page Descriptions
 
 **File Changed**: `app/materials.tsx`

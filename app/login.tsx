@@ -226,7 +226,7 @@ export default function LoginScreen() {
       {/* Main Content */}
       <View style={styles.mainContent}>
         <View style={styles.heroSection}>
-          <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>Welcome back to Guvnor</Text>
+          <Text style={[styles.heroTitle, isNarrowWeb && styles.heroTitleMobile]}>Welcome to Guvnor</Text>
           <Text style={[styles.heroSubtitle, isNarrowWeb && styles.heroSubtitleMobile]}>
             Sign in to manage your cleaning rounds, clients, and payments
           </Text>
@@ -303,7 +303,7 @@ export default function LoginScreen() {
           <View style={styles.featuresList}>
             <View style={styles.feature}>
               <Text style={styles.featureIcon}>📅</Text>
-              <Text style={styles.featureText}>Smart scheduling & route optimization</Text>
+              <Text style={styles.featureText}>Smart Scheduling & route optimisation</Text>
             </View>
             <View style={styles.feature}>
               <Text style={styles.featureIcon}>👥</Text>
