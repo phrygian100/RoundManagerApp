@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { collection, doc, getDoc, getDocs, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
@@ -62,47 +62,6 @@ export default function HomeScreen() {
   const [clientCount, setClientCount] = useState<number | null>(null);
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [sessionIsOwner, setSessionIsOwner] = useState(false);
-  const [importTipChecked, setImportTipChecked] = useState(false);
-
-  const showImportTip = async () => {
-    try {
-      const firebaseUser = auth.currentUser;
-      if (!firebaseUser) return;
-
-      const userRef = doc(db, 'users', firebaseUser.uid);
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) return;
-
-      const data = snap.data() as any;
-      const alreadyShown = !!data.importTipShown;
-      const setupDone = !!data.firstTimeSetupCompleted;
-
-      if (alreadyShown || !setupDone) return;
-      if (showFirstTimeSetup) return; // don't interrupt onboarding modal
-
-      const message =
-        'If you would like to import your existing customers, past payments and completed jobs, visit the import section in the settings menu';
-
-      // Mark as shown first to avoid repeat loops if user navigates quickly
-      await updateDoc(userRef, { importTipShown: true, updatedAt: new Date().toISOString() });
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        const go = window.confirm(`${message}\n\nOpen Settings now?`);
-        if (go) handleNavigation('/settings');
-      } else {
-        Alert.alert(
-          'Import your data',
-          message,
-          [
-            { text: 'Later', style: 'cancel' },
-            { text: 'Open Settings', onPress: () => handleNavigation('/settings') },
-          ]
-        );
-      }
-    } catch (e) {
-      console.warn('Failed to show import tip:', e);
-    }
-  };
 
   // Fetch user address for weather
   const fetchUserAddress = async () => {
@@ -325,8 +284,6 @@ export default function HomeScreen() {
       const firebaseUser = auth.currentUser;
       if (firebaseUser) {
         await buildButtonsForUser(firebaseUser);
-        // End of first-login onboarding: show one-time import tip
-        await showImportTip();
       }
     }
   };
@@ -410,14 +367,6 @@ export default function HomeScreen() {
     return () => unsub();
   }, [router]);
 
-  // For users who joined via invite code (setup completed elsewhere), show the import tip once on first eligible home load.
-  useEffect(() => {
-    if (importTipChecked) return;
-    if (loading) return;
-    if (showFirstTimeSetup) return;
-    setImportTipChecked(true);
-    showImportTip();
-  }, [importTipChecked, loading, showFirstTimeSetup]);
 
   // Listen for quote request count (for badge)
   useEffect(() => {

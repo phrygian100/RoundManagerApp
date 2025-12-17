@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, format, startOfWeek } from 'date-fns';
 import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     Alert,
@@ -35,6 +36,7 @@ const DAYS_OF_WEEK = [
 ];
 
 export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSetupModalProps) {
+  const router = useRouter();
   const [step, setStep] = useState(1);
   const [hasInviteCode, setHasInviteCode] = useState<boolean | null>(null);
   const { width } = useWindowDimensions();
@@ -57,6 +59,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   
   const [saving, setSaving] = useState(false);
+  const [setupSaved, setSetupSaved] = useState(false);
 
   // Persist draft state so a brief remount does not lose progress
   const draftKey = useMemo(() => {
@@ -179,6 +182,7 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       // Update user document with setup completion, preferences, and business info
       await updateDoc(doc(db, 'users', session.uid), {
         firstTimeSetupCompleted: true,
+        importTipShown: true, // tip is shown as part of setup flow (step 5)
         defaultWorkingDays: workingDays,
         vehicleName: vehicleNameOrReg.trim(),
         dailyTurnoverLimit: Number(dailyTurnoverLimit),
@@ -216,27 +220,30 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
         createdAt: new Date().toISOString(),
       }, { merge: true });
 
-      // Show success message briefly, then auto-navigate
-      Alert.alert(
-        'Setup Complete',
-        'Your account has been configured successfully!'
-      );
-      
       // Clear any saved draft now that setup is complete
       if (draftKey) {
         try { await AsyncStorage.removeItem(draftKey); } catch {}
       }
 
-      // Auto-navigate after a short delay
-      setTimeout(() => {
-        onComplete(false);
-      }, 1500);
+      // Move to final setup step (in-app message, not a browser popup)
+      setSetupSaved(true);
+      setStep(5);
     } catch (error) {
       console.error('Error saving setup:', error);
       Alert.alert('Error', 'Failed to save setup. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleOpenImportSettings = () => {
+    // Close modal first, then navigate
+    onComplete(false);
+    setTimeout(() => router.push('/settings' as any), 50);
+  };
+
+  const handleFinishSetup = () => {
+    onComplete(false);
   };
 
   return (
@@ -508,6 +515,53 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
             </View>
           </View>
         )}
+
+        {step === 5 && (
+          <View style={styles.stepContainer}>
+            <View style={styles.card}>
+              <View style={styles.progressRow}>
+                {[1, 2, 3, 4].map((n) => (
+                  <View key={n} style={styles.progressItem}>
+                    <View style={[styles.progressDot, styles.progressDotActive]} />
+                    {n !== 4 && <View style={[styles.progressLine, styles.progressLineActive]} />}
+                  </View>
+                ))}
+              </View>
+
+              <View style={styles.hero}>
+                <View style={styles.heroIconCircle}>
+                  <Ionicons name="cloud-upload-outline" size={22} color="#4f46e5" />
+                </View>
+                <Text style={styles.cardTitle}>Import your data</Text>
+                <Text style={styles.cardSubtitle}>
+                  {setupSaved ? 'Setup complete.' : 'Almost done.'}
+                </Text>
+              </View>
+
+              <Text style={styles.importTipText}>
+                If you would like to import your existing customers, past payments and completed jobs, visit the import section in the settings menu.
+              </Text>
+
+              <View style={[styles.actionRow, isNarrow && styles.actionRowStack]}>
+                <TouchableOpacity
+                  style={[styles.primaryButton, isNarrow && styles.actionBtnStack]}
+                  onPress={handleOpenImportSettings}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.primaryButtonText}>Open settings (Import)</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.secondaryButton, isNarrow && styles.actionBtnStack]}
+                  onPress={handleFinishSetup}
+                  activeOpacity={0.9}
+                >
+                  <Text style={styles.secondaryButtonText}>Finish</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </Modal>
   );
@@ -653,6 +707,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#9ca3af',
     fontSize: 13,
+  },
+  importTipText: {
+    fontSize: 15,
+    color: '#111827',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginTop: 8,
+    marginBottom: 16,
   },
 
   // Forms

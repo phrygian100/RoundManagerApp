@@ -95,9 +95,14 @@
 
 **File Changed**: `app/(tabs)/index.tsx`
 
-- Added a final one-time prompt after first-time setup/login:
+- Moved the import guidance into the **First Time Setup flow** (in-app), rather than showing a browser popup on web.
+
+**Files Changed**: `components/FirstTimeSetupModal.tsx`, `app/(tabs)/index.tsx`
+
+- Added a final setup step that shows:
   - “If you would like to import your existing customers, past payments and completed jobs, visit the import section in the settings menu”
-- Provides a quick button to open `/settings`, and stores `importTipShown: true` on the user doc to prevent repeat prompts.
+- Includes an in-app button to open `/settings` → Import.
+- Removed the previous home-screen popup/confirm approach.
 
 ---
 
