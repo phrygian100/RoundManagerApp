@@ -91,6 +91,16 @@
 
 ---
 
+### First login: one-time import tip after onboarding
+
+**File Changed**: `app/(tabs)/index.tsx`
+
+- Added a final one-time prompt after first-time setup/login:
+  - “If you would like to import your existing customers, past payments and completed jobs, visit the import section in the settings menu”
+- Provides a quick button to open `/settings`, and stores `importTipShown: true` on the user doc to prevent repeat prompts.
+
+---
+
 ## December 16, 2025
 
 ### Fixed Additional Services Occlusion on Flyer Back

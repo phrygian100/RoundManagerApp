@@ -29,6 +29,10 @@ export type User = {
   
   // GoCardless integration
   gocardlessApiToken?: string; // API token for GoCardless integration
+
+  // Onboarding helpers
+  firstTimeSetupCompleted?: boolean;
+  importTipShown?: boolean; // "Import your data" one-time prompt
 };
 
 export type Service = {
