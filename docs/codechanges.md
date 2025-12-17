@@ -28,6 +28,23 @@
 
 ---
 
+### Runsheet: Compact Header on Mobile / Narrow Screens
+
+**File Changed**: `app/runsheet/[week].tsx`
+
+**Problem**: The runsheet week header consumed too much vertical space on mobile due to a large font, large top padding, and a long title string that wrapped onto multiple lines.
+
+**Solution**:
+- Added a responsive “compact header” mode on mobile/narrow widths.
+- Uses a shorter title format (`WC 15 Dec`) on compact layouts.
+- Forces the title to stay on one line with ellipsis truncation.
+- Reduces header padding and title font size on compact layouts.
+- Multi-select toggle shows an icon on all layouts and hides the “Select multiple” label on compact layouts to prevent title wrapping.
+
+**User Impact**: More screen space is available for jobs on mobile, with the week context still visible.
+
+---
+
 ### Register Page: Require Address + Add Postcode Field + UI Polish
 
 **File Changed**: `app/register.tsx`

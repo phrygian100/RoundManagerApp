@@ -7,7 +7,7 @@ import { getApp } from 'firebase/app';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
@@ -32,6 +32,8 @@ const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sat
 
 export default function RunsheetWeekScreen() {
   const { week } = useLocalSearchParams();
+  const { width } = useWindowDimensions();
+  const compactHeader = Platform.OS !== 'web' || width < 480;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
@@ -2577,23 +2579,27 @@ ${signOff}`;
     const s = ["th", "st", "nd", "rd"], v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
-  const weekTitle = `Runsheet - Week Commencing ${getOrdinal(weekStart.getDate())} ${format(weekStart, 'MMMM')}`;
+  const weekTitleLong = `Runsheet - Week Commencing ${getOrdinal(weekStart.getDate())} ${format(weekStart, 'MMMM')}`;
+  const weekTitleShort = `WC ${getOrdinal(weekStart.getDate())} ${format(weekStart, 'MMM')}`;
+  const weekTitle = compactHeader ? weekTitleShort : weekTitleLong;
 
   // Utility to check if a day is completed
   const isDayCompleted = (dayTitle: string) => completedDays.includes(dayTitle);
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <View style={styles.titleRow}>
+      <View style={[styles.container, compactHeader && styles.containerCompact]}>
+        <View style={[styles.titleRow, compactHeader && styles.titleRowCompact]}>
           <Pressable
-            style={{ backgroundColor: '#f5f5f5', padding: 8, borderRadius: 20, borderWidth: 1, borderColor: '#e0e0e0', marginRight: 8 }}
+            style={[styles.calendarButton, compactHeader && styles.calendarButtonCompact]}
             onPress={() => router.push('/workload-forecast')}
             accessibilityLabel="Go to workload forecast"
           >
-            <Ionicons name="calendar-outline" size={22} color="#007AFF" />
+            <Ionicons name="calendar-outline" size={compactHeader ? 20 : 22} color="#007AFF" />
           </Pressable>
-          <Text style={styles.title}>{weekTitle}</Text>
+          <Text style={[styles.title, compactHeader && styles.titleCompact]} numberOfLines={1} ellipsizeMode="tail">
+            {weekTitle}
+          </Text>
           <View style={styles.headerButtons}>
             <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
               <Text style={styles.homeButtonText}>🏠</Text>
@@ -2602,7 +2608,12 @@ ${signOff}`;
               style={[styles.multiSelectButton, multiSelectMode && styles.multiSelectButtonActive]}
               onPress={toggleMultiSelectMode}
             >
-              <Text style={styles.multiSelectButtonText}>Select multiple</Text>
+              <Ionicons
+                name={multiSelectMode ? 'checkbox' : 'checkbox-outline'}
+                size={18}
+                color={multiSelectMode ? '#007AFF' : '#333'}
+              />
+              {!compactHeader && <Text style={styles.multiSelectButtonText}>Select multiple</Text>}
               {selectedJobIds.length > 0 && (
                 <View style={styles.selectionCountBadge}>
                   <Text style={styles.selectionCountText}>{selectedJobIds.length}</Text>
@@ -3542,16 +3553,37 @@ ${signOff}`;
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60 },
+  containerCompact: { padding: 12, paddingTop: Platform.OS === 'web' ? 16 : 44 },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 8,
+  },
+  titleRowCompact: {
+    paddingVertical: 4,
+  },
+  calendarButton: {
+    backgroundColor: '#f5f5f5',
+    padding: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    marginRight: 8,
+  },
+  calendarButtonCompact: {
+    padding: 6,
+    borderRadius: 16,
+    marginRight: 6,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     marginRight: 16,
     flexShrink: 1,
+  },
+  titleCompact: {
+    fontSize: 18,
+    marginRight: 8,
   },
   homeButton: {
     padding: 8,
