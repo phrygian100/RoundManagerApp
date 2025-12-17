@@ -1583,12 +1583,7 @@ const CanvassingFlyerFront = ({ config, itemConfig }: { config: MaterialsConfig;
           </View>
           <View style={canvassingStyles.priceBox}>
             <Text style={canvassingStyles.priceLabel}>8 Weekly</Text>
-            <View style={canvassingStyles.priceFieldWithBadge}>
-              <View style={canvassingStyles.priceField} />
-              <View style={canvassingStyles.percentBadge}>
-                <Text style={canvassingStyles.percentText}>+50%</Text>
-              </View>
-            </View>
+            <View style={canvassingStyles.priceField} />
           </View>
         </View>
       </View>
