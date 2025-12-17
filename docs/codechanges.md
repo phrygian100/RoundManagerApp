@@ -38,6 +38,21 @@
 
 ---
 
+### Bulk Payments: Allow on mobile (manual entry) + “Best on desktop” hint
+
+**Files Changed**:
+- `app/accounts.tsx`
+- `app/bulk-payments.tsx`
+- `services/unknownPaymentService.ts`
+
+**Change**:
+- Removed the “desktop only” blocking behavior so users can still open Bulk Payments on mobile.
+- Added a small note under the Accounts header button: **“Best on desktop”** (since paste/spreadsheet workflows are still best there).
+- Added a native (iOS/Android) fallback UI for Bulk Payments using a simple card-per-row entry form that reuses the same validation and submission logic.
+- Updated unknown payments method typing to include `direct_debit` to match supported payment methods in bulk entry.
+
+---
+
 ### First-time Setup: UI refresh for invite choice + business info steps
 
 **File Changed**: `components/FirstTimeSetupModal.tsx`

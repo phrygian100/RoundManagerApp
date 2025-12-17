@@ -10,7 +10,7 @@ export type UnknownPayment = {
   ownerId?: string;
   amount: number;
   date: string;
-  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other';
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit';
   notes?: string;
   // Import metadata
   importDate: string;
@@ -24,7 +24,7 @@ export type UnknownPayment = {
 export type CreateUnknownPaymentData = {
   amount: number;
   date: string;
-  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other';
+  method: 'cash' | 'card' | 'bank_transfer' | 'cheque' | 'other' | 'direct_debit';
   notes?: string;
   originalAccountIdentifier?: string; // Optional for manually created payments
 };

@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -49,7 +50,7 @@ const createEmptyRow = (): PaymentRow => ({
   notes: '',
 });
 
-const INITIAL_ROWS = 15;
+const INITIAL_ROWS = Platform.OS === 'web' ? 15 : 5;
 
 // Check if type value is valid
 const isValidType = (value: string): boolean => {
@@ -107,6 +108,22 @@ export default function BulkPaymentsScreen() {
     // Always take the user to accounts; avoids browser history quirks
     router.replace('/accounts');
   }, [router]);
+
+  const alertMsg = useCallback((message: string) => {
+    if (Platform.OS === 'web') window.alert(message);
+    else Alert.alert('Bulk Payments', message);
+  }, []);
+
+  const confirmMsg = useCallback((message: string) => {
+    if (Platform.OS === 'web') return Promise.resolve(window.confirm(message));
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert('Confirm', message, [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'OK', onPress: () => resolve(true) },
+      ]);
+    });
+  }, []);
 
   // Fetch all clients to build account number mapping
   useEffect(() => {
@@ -323,10 +340,11 @@ const formatClientAddress = (c: ClientSummary): string => {
 
   // Clear all data
   const clearAll = useCallback(() => {
-    if (window.confirm('Are you sure you want to clear all data?')) {
-      setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
-    }
-  }, []);
+    (async () => {
+      const ok = await confirmMsg('Are you sure you want to clear all data?');
+      if (ok) setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
+    })();
+  }, [confirmMsg]);
 
   // Submission handler
   const handleSubmit = useCallback(async () => {
@@ -337,7 +355,7 @@ const formatClientAddress = (c: ClientSummary): string => {
       .filter(({ row }) => rowHasData(row));
 
     if (rowsWithData.length === 0) {
-      window.alert('Nothing to submit. Add some rows first.');
+      alertMsg('Nothing to submit. Add some rows first.');
       return;
     }
 
@@ -417,13 +435,13 @@ const formatClientAddress = (c: ClientSummary): string => {
 
     if (invalidRows.length > 0) {
       const preview = invalidRows.slice(0, 10).join('\n');
-      window.alert(`Fix the errors before submitting:\n${preview}${invalidRows.length > 10 ? '\n...and more' : ''}`);
+      alertMsg(`Fix the errors before submitting:\n${preview}${invalidRows.length > 10 ? '\n...and more' : ''}`);
       return;
     }
 
     if (duplicateKeys.length > 0) {
       const preview = duplicateKeys.slice(0, 10).join('\n');
-      const proceed = window.confirm(
+      const proceed = await confirmMsg(
         `Possible duplicates detected (account + date + amount):\n${preview}${duplicateKeys.length > 10 ? '\n...and more' : ''}\n\nProceed anyway?`
       );
       if (!proceed) return;
@@ -442,17 +460,15 @@ const formatClientAddress = (c: ClientSummary): string => {
         originalAccountIdentifier: p.originalAccountIdentifier,
       })));
 
-      window.alert(
-        `Submission complete!\n\nCreated payments: ${validPayments.length}\nUnknown payments: ${unknownPayments.length}`
-      );
+      alertMsg(`Submission complete!\n\nCreated payments: ${validPayments.length}\nUnknown payments: ${unknownPayments.length}`);
       setRows(Array.from({ length: INITIAL_ROWS }, createEmptyRow));
     } catch (err) {
       console.error('Submission error', err);
-      window.alert('Submission failed. Please try again.');
+      alertMsg('Submission failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
-  }, [rows, accountMap, submitting, rowHasData]);
+  }, [rows, accountMap, submitting, rowHasData, alertMsg, confirmMsg]);
 
   // Filtered clients for lookup modal
   const filteredClients = useMemo(() => {
@@ -473,14 +489,129 @@ const formatClientAddress = (c: ClientSummary): string => {
 
   if (Platform.OS !== 'web') {
     return (
-      <ThemedView style={styles.container}>
-        <ThemedText style={styles.title}>Bulk Payments</ThemedText>
-        <ThemedText style={styles.mobileMessage}>
-          This feature is only available on desktop. Please visit the web app on a computer to add bulk payments.
+      <ThemedView style={[styles.container, { padding: 16 }]}>
+        <View style={[styles.header, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
+          <Pressable style={styles.backButton} onPress={handleBack}>
+            <Ionicons name="arrow-back" size={20} color="#1976d2" />
+            <ThemedText style={styles.backButtonText}>Back</ThemedText>
+          </Pressable>
+
+          <ThemedText style={[styles.rowCount, { marginRight: 0 }]}>
+            {filledRowCount} row(s)
+          </ThemedText>
+        </View>
+
+        <ThemedText style={[styles.title, { fontSize: 22, marginBottom: 8 }]}>
+          Add Bulk Payments
         </ThemedText>
-        <Pressable style={styles.backButton} onPress={handleBack}>
-          <ThemedText style={styles.backButtonText}>Go Back</ThemedText>
-        </Pressable>
+
+        <ThemedText style={{ color: '#666', marginBottom: 12 }}>
+          Best on desktop (paste from spreadsheets). Mobile supports manual entry.
+        </ThemedText>
+
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {rows.map((row, rowIndex) => {
+            const hasData = rowHasData(row);
+            const validation = getRowValidation(row);
+            const accountStatus = getAccountStatus(row.accountNumber);
+
+            const status =
+              !hasData ? 'Empty' :
+              !validation.isValid ? 'Invalid' :
+              (accountStatus === 'valid' ? 'Valid' : 'Unknown');
+
+            return (
+              <View
+                key={row.id}
+                style={{
+                  backgroundColor: '#fff',
+                  borderRadius: 10,
+                  padding: 12,
+                  marginBottom: 10,
+                  borderWidth: 1,
+                  borderColor: '#e0e0e0',
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <ThemedText style={{ fontWeight: '700' }}>Row {rowIndex + 1}</ThemedText>
+                  <ThemedText style={{ color: '#666' }}>{status}</ThemedText>
+                </View>
+
+                <ThemedText style={{ marginBottom: 4 }}>Account Number (optional)</ThemedText>
+                <TextInput
+                  value={row.accountNumber}
+                  onChangeText={(v) => updateCell(rowIndex, 'accountNumber', v)}
+                  placeholder="RWC001"
+                  style={styles.nativeInput}
+                />
+
+                <ThemedText style={{ marginBottom: 4, marginTop: 10 }}>Date (DD/MM/YYYY)</ThemedText>
+                <TextInput
+                  value={row.date}
+                  onChangeText={(v) => updateCell(rowIndex, 'date', v)}
+                  placeholder="17/12/2025"
+                  style={styles.nativeInput}
+                />
+
+                <ThemedText style={{ marginBottom: 4, marginTop: 10 }}>Amount (£)</ThemedText>
+                <TextInput
+                  value={row.amount}
+                  onChangeText={(v) => updateCell(rowIndex, 'amount', v)}
+                  placeholder="0.00"
+                  keyboardType="decimal-pad"
+                  style={styles.nativeInput}
+                />
+
+                <ThemedText style={{ marginBottom: 4, marginTop: 10 }}>Type</ThemedText>
+                <View style={styles.nativePickerContainer}>
+                  <Picker
+                    selectedValue={row.type}
+                    onValueChange={(v) => updateCell(rowIndex, 'type', String(v))}
+                  >
+                    {PAYMENT_TYPES.map(pt => (
+                      <Picker.Item key={pt.value} label={pt.label} value={pt.value} />
+                    ))}
+                  </Picker>
+                </View>
+
+                <ThemedText style={{ marginBottom: 4, marginTop: 10 }}>Notes (optional)</ThemedText>
+                <TextInput
+                  value={row.notes}
+                  onChangeText={(v) => updateCell(rowIndex, 'notes', v)}
+                  placeholder="Optional notes"
+                  style={styles.nativeInput}
+                />
+              </View>
+            );
+          })}
+
+          <View style={{ height: 8 }} />
+
+          <Pressable style={styles.addRowsButton} onPress={() => addRows(1)}>
+            <Ionicons name="add" size={18} color="#fff" />
+            <Text style={styles.addRowsButtonText}>Add Row</Text>
+          </Pressable>
+
+          <View style={{ height: 10 }} />
+
+          <Pressable style={styles.clearButton} onPress={clearAll}>
+            <Ionicons name="trash-outline" size={18} color="#666" />
+            <Text style={styles.clearButtonText}>Clear All</Text>
+          </Pressable>
+
+          <View style={{ height: 10 }} />
+
+          <Pressable
+            style={[styles.submitButton, submitting && { opacity: 0.7 }]}
+            onPress={handleSubmit}
+            disabled={submitting}
+          >
+            <Ionicons name="checkmark-circle-outline" size={18} color="#fff" />
+            <Text style={styles.submitButtonText}>{submitting ? 'Submitting...' : 'Submit Payments'}</Text>
+          </Pressable>
+
+          <View style={{ height: 30 }} />
+        </ScrollView>
       </ThemedView>
     );
   }
@@ -1028,6 +1159,22 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginVertical: 24,
+  },
+  nativeInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
+  },
+  nativePickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    overflow: 'hidden',
   },
   // Lookup modal
   modalOverlay: {
