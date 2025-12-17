@@ -527,7 +527,7 @@ export default function HomeScreen() {
 
   const settingsTranslateX = settingsDrawerAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: [settingsDrawerWidth, 0],
+    outputRange: [-settingsDrawerWidth, 0],
   });
 
   const settingsBackdropOpacity = settingsDrawerAnim.interpolate({
@@ -1097,19 +1097,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 0,
     bottom: 0,
-    right: 0,
+    left: 0,
     backgroundColor: '#fff',
-    borderLeftWidth: Platform.OS === 'web' ? 1 : 0,
-    borderLeftColor: 'rgba(17,24,39,0.12)',
+    borderRightWidth: Platform.OS === 'web' ? 1 : 0,
+    borderRightColor: 'rgba(17,24,39,0.12)',
     ...Platform.select({
       web: {
-        boxShadow: '-12px 0 40px rgba(0,0,0,0.35)',
+        boxShadow: '12px 0 40px rgba(0,0,0,0.35)',
       },
       default: {
         shadowColor: '#000',
         shadowOpacity: 0.25,
         shadowRadius: 18,
-        shadowOffset: { width: -6, height: 0 },
+        shadowOffset: { width: 6, height: 0 },
         elevation: 24,
       },
     }),

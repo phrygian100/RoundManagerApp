@@ -18,6 +18,7 @@
 
 **Change**:
 - Replaced Home’s gear icon navigation to `/settings` with an **animated slide-out side-sheet** on the Home screen.
+- Updated the drawer to **slide out from the left** side of the screen (more natural navigation pattern).
 - The drawer renders the existing `SettingsScreen` UI, so the settings content stays consistent.
 - “View details” in the Home upgrade banner now opens the same drawer.
 
