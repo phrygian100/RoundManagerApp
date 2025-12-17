@@ -49,6 +49,16 @@
 
 ---
 
+### Home: Show Free plan client limit + Upgrade to Premium CTA
+
+**File Changed**: `app/(tabs)/index.tsx`
+
+- Added a home-screen banner for **Free plan** users showing the **20 client limit** (and current usage where available).
+- Included an **Upgrade to Premium** button that opens the existing `UpgradeModal` (owners only; members see a note to ask the owner).
+- Keeps the subscription upsell visible on the dashboard in addition to `/settings`.
+
+---
+
 ## December 16, 2025
 
 ### Fixed Additional Services Occlusion on Flyer Back

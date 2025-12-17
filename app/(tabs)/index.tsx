@@ -8,8 +8,11 @@ import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'fire
 import React, { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
+import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
+import { getClientCount } from '../../services/clientService';
+import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 
 const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Client List': 'people-outline',
@@ -53,6 +56,12 @@ export default function HomeScreen() {
   
   // Quote requests badge count
   const [quoteRequestCount, setQuoteRequestCount] = useState(0);
+
+  // Subscription / upgrade CTA state
+  const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
+  const [clientCount, setClientCount] = useState<number | null>(null);
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [sessionIsOwner, setSessionIsOwner] = useState(false);
 
   // Fetch user address for weather
   const fetchUserAddress = async () => {
@@ -293,6 +302,7 @@ export default function HomeScreen() {
 
     const isOwner = session.isOwner;
     const perms = session.perms;
+    setSessionIsOwner(isOwner);
     console.log('🏠 HomeScreen: session =', { isOwner, perms, accountId: session.accountId });
 
     const baseButtons = [
@@ -324,6 +334,20 @@ export default function HomeScreen() {
     // Fetch dashboard data
     fetchWeather();
     fetchJobStats();
+
+    // Load subscription + client count for upgrade banner
+    try {
+      const sub = await getEffectiveSubscription();
+      setSubscription(sub);
+      if (sub.tier === 'free') {
+        const count = await getClientCount();
+        setClientCount(count);
+      } else {
+        setClientCount(null);
+      }
+    } catch (e) {
+      console.warn('Failed to load subscription on home:', e);
+    }
     
     setLoading(false);
   };
@@ -394,6 +418,7 @@ export default function HomeScreen() {
 
         const isOwner = session.isOwner;
         const perms = session.perms;
+        setSessionIsOwner(isOwner);
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },
@@ -418,11 +443,41 @@ export default function HomeScreen() {
         // Fetch dashboard data when screen gains focus
         fetchWeather();
         fetchJobStats();
+
+        // Load subscription + client count for upgrade banner
+        try {
+          const sub = await getEffectiveSubscription();
+          setSubscription(sub);
+          if (sub.tier === 'free') {
+            const count = await getClientCount();
+            setClientCount(count);
+          } else {
+            setClientCount(null);
+          }
+        } catch (e) {
+          console.warn('Failed to load subscription on home:', e);
+        }
         
         setLoading(false);
       })();
     }, [router])
   );
+
+  const handleUpgradeSuccess = async () => {
+    setUpgradeModalVisible(false);
+    try {
+      const sub = await getEffectiveSubscription();
+      setSubscription(sub);
+      if (sub.tier === 'free') {
+        const count = await getClientCount();
+        setClientCount(count);
+      } else {
+        setClientCount(null);
+      }
+    } catch (e) {
+      console.warn('Failed to refresh subscription after upgrade:', e);
+    }
+  };
 
   const safeWidth = Math.max(width || 360, 360);
   const gridColumns = safeWidth >= 1200 ? 4 : safeWidth >= 900 ? 3 : 2;
@@ -519,6 +574,53 @@ export default function HomeScreen() {
           </View>
         </Pressable>
 
+        {/* Upgrade banner for Free plan */}
+        {subscription?.tier === 'free' && (
+          <View style={[styles.upgradeBanner, { maxWidth: gridMaxWidth }]}>
+            <View style={styles.upgradeBannerHeader}>
+              <View style={styles.upgradeBadge}>
+                <Text style={styles.upgradeBadgeText}>FREE</Text>
+              </View>
+              <Text style={styles.upgradeTitle}>Free plan: up to 20 clients</Text>
+            </View>
+            <Text style={styles.upgradeSubtitle}>
+              {clientCount !== null
+                ? `You’re using ${Math.min(clientCount, 20)}/20 client slots. Upgrade to Premium for unlimited clients.`
+                : 'Upgrade to Premium for unlimited clients.'}
+            </Text>
+
+            <View style={styles.upgradeActions}>
+              {sessionIsOwner ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.upgradeCta,
+                    pressed && { opacity: 0.92 },
+                  ]}
+                  onPress={() => setUpgradeModalVisible(true)}
+                >
+                  <Ionicons name="rocket-outline" size={18} color="#0b1220" />
+                  <Text style={styles.upgradeCtaText}>Upgrade to Premium</Text>
+                </Pressable>
+              ) : (
+                <View style={styles.upgradeNote}>
+                  <Ionicons name="information-circle-outline" size={18} color="#e8ecf8" />
+                  <Text style={styles.upgradeNoteText}>Ask your account owner to upgrade.</Text>
+                </View>
+              )}
+
+              <Pressable
+                style={({ pressed }) => [
+                  styles.upgradeSecondary,
+                  pressed && { opacity: 0.9 },
+                ]}
+                onPress={() => handleNavigation('/settings')}
+              >
+                <Text style={styles.upgradeSecondaryText}>View details</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         <View style={[
           styles.grid,
           { maxWidth: gridMaxWidth, gap: tileGap }
@@ -567,6 +669,13 @@ export default function HomeScreen() {
           onComplete={handleFirstTimeSetupComplete}
         />
       )}
+
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        visible={upgradeModalVisible}
+        onClose={() => setUpgradeModalVisible(false)}
+        onUpgradeSuccess={handleUpgradeSuccess}
+      />
     </LinearGradient>
   );
 }
@@ -613,6 +722,95 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     alignItems: 'center',
     gap: 24,
+  },
+  upgradeBanner: {
+    width: '100%',
+    borderRadius: 18,
+    padding: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  upgradeBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 8,
+  },
+  upgradeBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+  },
+  upgradeBadgeText: {
+    color: '#e8ecf8',
+    fontWeight: '800',
+    fontSize: 12,
+    letterSpacing: 0.4,
+  },
+  upgradeTitle: {
+    color: '#e8ecf8',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  upgradeSubtitle: {
+    color: 'rgba(232,236,248,0.86)',
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  upgradeActions: {
+    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    gap: 10,
+    alignItems: Platform.OS === 'web' ? 'center' : 'stretch',
+  },
+  upgradeCta: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    backgroundColor: '#fbbf24',
+  },
+  upgradeCtaText: {
+    color: '#0b1220',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  upgradeSecondary: {
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  upgradeSecondaryText: {
+    color: '#e8ecf8',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  upgradeNote: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  upgradeNoteText: {
+    color: '#e8ecf8',
+    fontSize: 14,
+    fontWeight: '600',
   },
   topBar: {
     width: '100%',
