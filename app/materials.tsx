@@ -2263,13 +2263,9 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
     color: '#666',
-    flexShrink: 1,
-    flexWrap: 'wrap',
   },
   sectionTitleWrapper: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
+    flexBasis: '100%',
   },
   downloadButton: {
     flexDirection: 'row',
