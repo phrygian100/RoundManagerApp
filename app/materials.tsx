@@ -76,6 +76,10 @@ interface CanvassingFlyerItemConfig {
   showBeforeAfter: boolean;
   servicesText: string;
   additionalServicesText: string;
+  leftOption: '4 Weekly' | '6 Weekly' | 'Custom';
+  leftCustomText: string;
+  rightOption: '8 Weekly' | '12 Weekly' | 'Custom';
+  rightCustomText: string;
 }
 
 
@@ -111,6 +115,10 @@ const defaultCanvassingFlyerItemConfig: CanvassingFlyerItemConfig = {
   showBeforeAfter: true,
   servicesText: 'Routine service every 4 or 8 weeks\nFull property, including doors, sills and frames\nSimple payment system\nETA text message a day before any visit',
   additionalServicesText: 'Gutter Cleaning\nConservatory Roof Cleaning\nSolar Panel Cleaning\nSoffit And Fascia Cleaning',
+  leftOption: '4 Weekly',
+  leftCustomText: '',
+  rightOption: '8 Weekly',
+  rightCustomText: '',
 };
 
 
@@ -924,6 +932,50 @@ const ItemConfigurationModal = ({
                   multiline
                   numberOfLines={5}
                 />
+
+                {/* Left Option dropdown */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 12 }]}>Left Option</Text>
+                <View style={itemConfigStyles.pickerWrapper}>
+                  <Picker
+                    selectedValue={canvassingForm.leftOption}
+                    onValueChange={(value) => setCanvassingForm(prev => ({ ...prev, leftOption: value as '4 Weekly' | '6 Weekly' | 'Custom' }))}
+                    style={itemConfigStyles.picker}
+                  >
+                    <Picker.Item label="4 Weekly" value="4 Weekly" />
+                    <Picker.Item label="6 Weekly" value="6 Weekly" />
+                    <Picker.Item label="Custom" value="Custom" />
+                  </Picker>
+                </View>
+                {canvassingForm.leftOption === 'Custom' && (
+                  <TextInput
+                    style={[itemConfigStyles.customTextInput, { marginTop: 8 }]}
+                    value={canvassingForm.leftCustomText}
+                    onChangeText={(text) => setCanvassingForm(prev => ({ ...prev, leftCustomText: text }))}
+                    placeholder="Enter custom label"
+                  />
+                )}
+
+                {/* Right Option dropdown */}
+                <Text style={[itemConfigStyles.pickerLabel, { marginTop: 12 }]}>Right Option</Text>
+                <View style={itemConfigStyles.pickerWrapper}>
+                  <Picker
+                    selectedValue={canvassingForm.rightOption}
+                    onValueChange={(value) => setCanvassingForm(prev => ({ ...prev, rightOption: value as '8 Weekly' | '12 Weekly' | 'Custom' }))}
+                    style={itemConfigStyles.picker}
+                  >
+                    <Picker.Item label="8 Weekly" value="8 Weekly" />
+                    <Picker.Item label="12 Weekly" value="12 Weekly" />
+                    <Picker.Item label="Custom" value="Custom" />
+                  </Picker>
+                </View>
+                {canvassingForm.rightOption === 'Custom' && (
+                  <TextInput
+                    style={[itemConfigStyles.customTextInput, { marginTop: 8 }]}
+                    value={canvassingForm.rightCustomText}
+                    onChangeText={(text) => setCanvassingForm(prev => ({ ...prev, rightCustomText: text }))}
+                    placeholder="Enter custom label"
+                  />
+                )}
                 
                 {/* BACK Section */}
                 <Text style={[itemConfigStyles.sectionTitle, { marginTop: 16 }]}>BACK</Text>
@@ -1578,11 +1630,15 @@ const CanvassingFlyerFront = ({ config, itemConfig }: { config: MaterialsConfig;
         {/* Price boxes */}
         <View style={canvassingStyles.priceBoxRow}>
           <View style={canvassingStyles.priceBox}>
-            <Text style={canvassingStyles.priceLabel}>4 Weekly</Text>
+            <Text style={canvassingStyles.priceLabel}>
+              {itemConfig.leftOption === 'Custom' ? itemConfig.leftCustomText : itemConfig.leftOption}
+            </Text>
             <View style={canvassingStyles.priceField} />
           </View>
           <View style={canvassingStyles.priceBox}>
-            <Text style={canvassingStyles.priceLabel}>8 Weekly</Text>
+            <Text style={canvassingStyles.priceLabel}>
+              {itemConfig.rightOption === 'Custom' ? itemConfig.rightCustomText : itemConfig.rightOption}
+            </Text>
             <View style={canvassingStyles.priceField} />
           </View>
         </View>
