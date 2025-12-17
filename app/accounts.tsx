@@ -178,6 +178,7 @@ export default function AccountsScreen() {
   const [loadingOutstanding, setLoadingOutstanding] = useState(true);
   const [selectedClient, setSelectedClient] = useState<ClientWithBalance | null>(null);
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showBulkPaymentsModal, setShowBulkPaymentsModal] = useState(false);
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const router = useRouter();
   const { width } = useWindowDimensions();
@@ -828,18 +829,7 @@ ${signOff}`;
                   router.push('/bulk-payments');
                   return;
                 }
-
-                Alert.alert(
-                  'Best on desktop',
-                  'This function is best used on a desktop for quicker use.',
-                  [
-                    {
-                      text: 'Continue',
-                      onPress: () => router.push('/bulk-payments'),
-                    },
-                  ],
-                  { cancelable: true }
-                );
+                setShowBulkPaymentsModal(true);
               }}
             >
               <Ionicons name="grid-outline" size={18} color="#fff" />
@@ -1033,6 +1023,44 @@ ${signOff}`;
           )}
         </ScrollView>
 
+        {/* Bulk Payments Prompt (used for mobile + small screens; works on native + web) */}
+        <Modal
+          visible={showBulkPaymentsModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowBulkPaymentsModal(false)}
+        >
+          <Pressable
+            style={styles.simpleModalOverlay}
+            onPress={() => setShowBulkPaymentsModal(false)}
+          >
+            <Pressable style={styles.simpleModalCard} onPress={() => {}}>
+              <View style={styles.simpleModalHeader}>
+                <ThemedText style={styles.simpleModalTitle}>Best on desktop</ThemedText>
+                <Pressable onPress={() => setShowBulkPaymentsModal(false)} hitSlop={10}>
+                  <Ionicons name="close" size={22} color="#666" />
+                </Pressable>
+              </View>
+
+              <ThemedText style={styles.simpleModalText}>
+                This function is best used on a desktop for quicker use.
+              </ThemedText>
+
+              <View style={styles.simpleModalActions}>
+                <Pressable
+                  style={styles.simpleModalPrimaryButton}
+                  onPress={() => {
+                    setShowBulkPaymentsModal(false);
+                    router.push('/bulk-payments');
+                  }}
+                >
+                  <ThemedText style={styles.simpleModalPrimaryButtonText}>Continue</ThemedText>
+                </Pressable>
+              </View>
+            </Pressable>
+          </Pressable>
+        </Modal>
+
         {/* Account Details Modal */}
         <AccountDetailsModal
           visible={showAccountModal}
@@ -1096,6 +1124,49 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
+  },
+  simpleModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    padding: 18,
+    justifyContent: 'center',
+  },
+  simpleModalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+  },
+  simpleModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  simpleModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  simpleModalText: {
+    fontSize: 14,
+    color: '#444',
+    marginBottom: 14,
+    lineHeight: 20,
+  },
+  simpleModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  simpleModalPrimaryButton: {
+    backgroundColor: '#1976d2',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+  },
+  simpleModalPrimaryButtonText: {
+    color: '#fff',
+    fontWeight: '700',
   },
   desktopContainer: {
     width: '100%',
