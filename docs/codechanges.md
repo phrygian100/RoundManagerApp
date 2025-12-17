@@ -2,6 +2,19 @@
 
 ## December 17, 2025
 
+### Updated Materials Page Descriptions
+
+**File Changed**: `app/materials.tsx`
+
+**Changes**:
+- **Invoice description**: Changed from "Preview of your customizable invoice template" to "Fold into a quarter for convenient posting. Handwrite the account number, Cost and date of services"
+- **Flyer description**: Changed from "Promotional flyer for existing customers" to "Tested and effective flyer with a 1 in 55 conversation rate over 1 month in a new build estate. Especially attractive to younger customers while allowing older generations to pick up the phone"
+- **Canvassing Flyer description**: Changed from "Door-to-door marketing flyer for new areas" to "Extremely effective when canvassing to post when no one answers the door. Handwrite the provisional cost of your service at the bottom to maximise your opportunities"
+
+**User Impact**: Users now see more descriptive and actionable guidance for each printable material type.
+
+---
+
 ### Register Page: Require Address + Add Postcode Field + UI Polish
 
 **File Changed**: `app/register.tsx`
