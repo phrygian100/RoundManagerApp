@@ -233,14 +233,6 @@ export default function UpgradeModal({
               </ThemedText>
             </View>
 
-            <View style={styles.guarantee}>
-              <ThemedText style={styles.guaranteeText}>
-                💡 <ThemedText style={styles.bold}>30-day money-back guarantee</ThemedText>
-              </ThemedText>
-              <ThemedText style={styles.guaranteeSubtext}>
-                Not satisfied? Get a full refund within 30 days.
-              </ThemedText>
-            </View>
           </View>
 
           <View style={styles.footer}>
@@ -393,24 +385,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     lineHeight: 20,
-  },
-  guarantee: {
-    backgroundColor: '#f0f9ff',
-    padding: 16,
-    borderRadius: 8,
-    marginBottom: 20,
-  },
-  guaranteeText: {
-    fontSize: 14,
-    color: '#0369a1',
-    marginBottom: 4,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  guaranteeSubtext: {
-    fontSize: 12,
-    color: '#0369a1',
   },
   footer: {
     padding: 20,

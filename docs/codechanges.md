@@ -2,6 +2,15 @@
 
 ## December 17, 2025
 
+### Home: Upgrade to Premium modal - removed money-back guarantee section
+
+**File Changed**: `components/UpgradeModal.tsx`
+
+**Change**:
+- Removed the blue “30-day money-back guarantee” block (“Not satisfied? Get a full refund within 30 days.”) from the Upgrade modal shown to Free users from the Home screen.
+
+**User Impact**: Upgrade modal is simpler/cleaner and no longer shows the money-back guarantee section.
+
 ### Marketing login page copy (UK spelling)
 
 **File Changed**: `app/login.tsx`
