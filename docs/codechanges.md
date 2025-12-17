@@ -21,6 +21,13 @@
 - New users must provide a complete address including postcode (improves downstream features like weather).
 - Register page now looks consistent with the rest of the web experience.
 
+### Register: Friendlier auth errors (email already used, weak password, invalid email)
+
+**File Changed**: `app/register.tsx`
+
+- Switched registration alerts to use `window.alert` on web (matching `/login`) for better reliability.
+- Added user-friendly error messages for common Firebase auth failures (e.g. **email already in use**) and avoided noisy `console.error` stack traces.
+
 ---
 
 ## December 16, 2025

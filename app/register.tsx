@@ -30,6 +30,14 @@ export default function RegisterScreen() {
   const [postcode, setPostcode] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const showAlert = (title: string, msg: string) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.alert(msg);
+    } else {
+      Alert.alert(title, msg);
+    }
+  };
+
   const handleRegister = async () => {
     const trimmedName = name.trim();
     const trimmedContactNumber = contactNumber.trim();
@@ -48,12 +56,12 @@ export default function RegisterScreen() {
       !trimmedTown ||
       !normalizedPostcode
     ) {
-      Alert.alert('Error', 'Please fill out all fields.');
+      showAlert('Error', 'Please fill out all fields.');
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match.');
+      showAlert('Error', 'Passwords do not match.');
       return;
     }
     setLoading(true);
@@ -92,15 +100,37 @@ export default function RegisterScreen() {
       // bypassing verification due to auth-state race conditions.
       await auth.signOut();
 
-      Alert.alert(
+      showAlert(
         'Verify Your Email',
         'Your account has been created. We have sent a verification link to your email address. Please verify your email and then log in.'
       );
 
       router.replace('/login');
     } catch (error: any) {
-      console.error(error);
-      Alert.alert('Registration Error', error.message);
+      const code = String(error?.code || '');
+      // Avoid noisy stack traces for expected auth failures
+      console.warn('Registration error:', code);
+
+      let msg = 'Registration failed. Please try again.';
+      if (code === 'auth/email-already-in-use') {
+        msg = 'An account already exists for this email. Please log in instead.';
+      } else if (code === 'auth/invalid-email') {
+        msg = 'Please enter a valid email address.';
+      } else if (code === 'auth/weak-password') {
+        msg = 'Password is too weak. Please use at least 6 characters.';
+      } else if (code === 'auth/network-request-failed') {
+        msg = 'Network error. Please check your connection and try again.';
+      } else if (typeof error?.message === 'string' && error.message.trim()) {
+        // Fallback: show a short message (avoid dumping objects)
+        msg = error.message;
+      }
+
+      showAlert('Registration Error', msg);
+
+      if (code === 'auth/email-already-in-use') {
+        // Helpful fast path: send them to login
+        router.replace('/login');
+      }
     } finally {
       setLoading(false);
     }
