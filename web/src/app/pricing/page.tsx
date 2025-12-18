@@ -195,8 +195,7 @@ export default function PricingPage() {
                 Can I downgrade back to the free plan?
               </h3>
               <p className="text-gray-600">
-                Yes, you can cancel your subscription anytime. If you have more than 20 clients when you downgrade, 
-                you&apos;ll need to remove clients to get back under the 20-client limit, but all your data will be preserved.
+                If you do not renew your subscription and have more than 20 active clients, you will not be able to use features until you either renew your subscription or export your clients, leaving no more than 20
               </p>
             </div>
             

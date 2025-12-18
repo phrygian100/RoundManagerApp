@@ -2,6 +2,15 @@
 
 ## December 17, 2025
 
+### Pricing: Updated FAQ downgrade/non-renewal copy
+
+**File Changed**: `web/src/app/pricing/page.tsx`
+
+**Change**:
+- Replaced the FAQ answer under “Can I downgrade back to the free plan?” with updated wording about non-renewal behavior when exceeding 20 active clients.
+
+**User Impact**: Pricing FAQ now accurately reflects feature access limitations when a subscription isn’t renewed and the account exceeds the free plan client limit.
+
 ### Home: Upgrade to Premium modal - removed money-back guarantee section
 
 **File Changed**: `components/UpgradeModal.tsx`
