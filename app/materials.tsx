@@ -2025,24 +2025,6 @@ export default function MaterialsScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        {/* Prominent Configuration Button */}
-        <Pressable 
-          style={styles.configBanner} 
-          onPress={() => setShowConfigModal(true)}
-          accessibilityLabel="Configure your business details"
-        >
-          <View style={styles.configBannerContent}>
-            <View style={styles.configBannerIcon}>
-              <Ionicons name="settings" size={24} color="#fff" />
-            </View>
-            <View style={styles.configBannerText}>
-              <Text style={styles.configBannerTitle}>Configure Your Business Details</Text>
-              <Text style={styles.configBannerSubtitle}>Set up your business name, contact info, banking details & services</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color="#fff" />
-          </View>
-        </Pressable>
-
         {/* Configuration Modal */}
         <ConfigurationModal
           visible={showConfigModal}
@@ -2066,6 +2048,24 @@ export default function MaterialsScreen() {
 
         {/* Content */}
         <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
+          {/* Prominent Configuration Button */}
+          <Pressable 
+            style={styles.configBanner} 
+            onPress={() => setShowConfigModal(true)}
+            accessibilityLabel="Configure your business details"
+          >
+            <View style={styles.configBannerContent}>
+              <View style={styles.configBannerIcon}>
+                <Ionicons name="settings" size={24} color="#fff" />
+              </View>
+              <View style={styles.configBannerText}>
+                <Text style={styles.configBannerTitle}>Configure Your Business Details</Text>
+                <Text style={styles.configBannerSubtitle}>Set up your business name, contact info, banking details & services</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#fff" />
+            </View>
+          </Pressable>
+
           {/* Invoice Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>

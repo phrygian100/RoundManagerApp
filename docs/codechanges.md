@@ -529,6 +529,18 @@
 
 ---
 
+### Materials Page Config Banner No Longer Pinned While Scrolling
+
+**File**: `app/materials.tsx`
+
+**Problem**: The blue “Configure Your Business Details” banner stayed visible at the top while the user scrolled through the materials, which felt like a pinned element.
+
+**Solution**: Moved the configuration banner inside the `ScrollView` so it scrolls away naturally with the page content.
+
+**User Impact**: Users can scroll the materials without a persistent banner taking up screen space.
+
+---
+
 ### Invoice Front Layout Improvements
 
 **File**: `app/materials.tsx`
