@@ -2163,6 +2163,8 @@ ${signOff}`;
       const jobDate = item.scheduledTime ? parseISO(item.scheduledTime) : null;
       const isToday = jobDate && jobDate.toDateString() === today.toDateString();
       const isFutureDay = jobDate && jobDate > today;
+      const isPastDay = !!jobDate && isBefore(jobDate, startOfToday());
+      const canMove = item.status !== 'completed' && item.status !== 'accounted' && item.status !== 'paid';
       const sectionIndex = sections.findIndex(s => s.title === section.title);
       const firstIncompleteIndex = section.data.findIndex((job: any) => (job as any).__type !== 'vehicle' && !isNoteJob(job) && !isQuoteJob(job) && job.status !== 'completed');
       const isDayCompleted = completedDays.includes(section.title);
@@ -2191,7 +2193,7 @@ ${signOff}`;
                 <Text style={styles.completeButtonText}>Complete?</Text>
               </Pressable>
             )}
-            {(isToday || isFutureDay) && !isDayCompleted && (
+            {(isToday || isFutureDay || isPastDay) && !isDayCompleted && canMove && (
               <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
                 <Text style={styles.deferButtonText}>Move</Text>
               </Pressable>
@@ -2288,6 +2290,7 @@ ${signOff}`;
     // Determine if this job is for today
     const isToday = jobDate && jobDate.toDateString() === today.toDateString();
     const isFutureDay = jobDate && jobDate > today;
+    const isPastDay = !!jobDate && isBefore(jobDate, startOfToday());
     // Allow completing any job for today within this vehicle (quotes are handled separately)
     const showCompleteButton = isCurrentWeek && isToday && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && isToday && !isDayCompleted;
@@ -2496,7 +2499,7 @@ ${signOff}`;
               <Text style={styles.completeButtonText}>Undo</Text>
             </Pressable>
           )}
-          {(isToday || isFutureDay) && !isDayCompleted && (
+          {(isToday || isFutureDay || isPastDay) && !isDayCompleted && item.status !== 'completed' && item.status !== 'accounted' && item.status !== 'paid' && (
             <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
               <Text style={styles.deferButtonText}>Move</Text>
             </Pressable>

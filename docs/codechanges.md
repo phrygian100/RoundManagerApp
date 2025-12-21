@@ -1,5 +1,19 @@
 # Code Changes Log
 
+## December 21, 2025
+
+### Runsheet: Keep “Move” available for incomplete past-day jobs
+
+**File Changed**: `app/runsheet/[week].tsx`
+
+**Problem**: On the runsheet, jobs scheduled on past days (that were never completed) lost the **Move** button, leaving users unable to bring those overdue jobs forward.
+
+**Solution**:
+- Updated the **Move** button visibility logic to include **past-day** jobs as long as they are **not** `completed` (and also not `accounted` / `paid`).
+- Preserved the existing behavior that prevents moving jobs on **completed days** (`completedDays`).
+
+**User Impact**: Users can now move overdue (incomplete) jobs forward, while completed/accounted/paid jobs still cannot be moved.
+
 ## December 17, 2025
 
 ### Pricing: Updated FAQ downgrade/non-renewal copy
