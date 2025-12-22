@@ -1,5 +1,17 @@
 # Code Changes Log
 
+## December 22, 2025
+
+### Web: Added Google Ads base tag (gtag.js) for conversion measurement
+
+**File Changed**: `web/src/app/layout.tsx`
+
+**Change**:
+- Added the Google Ads base tag (`AW-17819223960`) using Next.js `next/script` so it loads across the marketing site.
+- Implemented **web-only** (in the `web/` Next.js project) to avoid impacting the Expo mobile/desktop app.
+
+**User Impact**: Google Ads can now measure conversions/visits from your web pages, enabling Performance Max optimization once conversion actions are configured.
+
 ## December 21, 2025
 
 ### Runsheet: Keep “Move” available for incomplete past-day jobs
