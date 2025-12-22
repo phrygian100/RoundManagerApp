@@ -2,6 +2,22 @@
 
 ## December 22, 2025
 
+### Runsheet / Workload Forecast: Reset week/day now reapplies capacity spillover (and fixed week query bounds)
+
+**Files Changed**:
+- `services/resetService.ts`
+
+**Problem**:
+- Pressing the orange **reset week** button (workload forecast) or **reset day** button (runsheet) only cleared manual ETAs/vehicle assignments, but did **not** re-run the capacity redistribution logic.
+- `resetWeekToRoundOrder()` used a `<= yyyy-MM-dd` upper bound against timestamp strings (e.g. `2025-12-29T09:00:00`), which could exclude jobs on the week’s final day.
+
+**Solution**:
+- After resetting, trigger capacity redistribution so jobs **spill into subsequent days** based on daily turnover limits.
+- Force redistribution for the **current week** using `manualRefreshWeekCapacity()` (since the automated trigger intentionally skips current week).
+- Fixed the week query to use a proper exclusive upper bound (`< (weekEnd + 1 day)T00:00:00`).
+
+**User Impact**: Resetting a week/day now immediately rebalances work across the week to respect the daily turnover limit, instead of leaving all jobs on the original day.
+
 ### Web: Added Google Ads base tag (gtag.js) for conversion measurement
 
 **File Changed**: `web/src/app/layout.tsx`

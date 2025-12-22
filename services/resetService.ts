@@ -1,7 +1,8 @@
-import { addDays, endOfWeek, format, startOfWeek } from 'date-fns';
+import { addDays, endOfWeek, format, isThisWeek, startOfWeek } from 'date-fns';
 import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { manualRefreshWeekCapacity, triggerCapacityRedistribution } from './capacityService';
 
 /**
  * Resets jobs for a specific day back to round order by:
@@ -48,6 +49,20 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
 
     await batch.commit();
 
+    // After clearing manual overrides, re-apply capacity redistribution so overflow
+    // spills into subsequent days based on daily turnover limits.
+    // For current week, we must force apply (default triggers intentionally skip current week).
+    try {
+      const weekStart = startOfWeek(dayDate, { weekStartsOn: 1 });
+      if (isThisWeek(weekStart, { weekStartsOn: 1 })) {
+        await manualRefreshWeekCapacity(weekStart);
+      } else {
+        await triggerCapacityRedistribution('job_added', [weekStart]);
+      }
+    } catch (err) {
+      console.warn('resetDayToRoundOrder: capacity redistribution failed (non-fatal):', err);
+    }
+
     return { success: true, jobsReset: jobsToReset.length };
   } catch (error) {
     console.error('Error resetting day to round order:', error);
@@ -83,8 +98,8 @@ export async function resetWeekToRoundOrder(weekStartDate: Date): Promise<{ succ
     const jobsQuery = query(
       jobsRef,
       where('ownerId', '==', ownerId),
-      where('scheduledTime', '>=', format(weekStart, 'yyyy-MM-dd')),
-      where('scheduledTime', '<=', format(weekEnd, 'yyyy-MM-dd')),
+      where('scheduledTime', '>=', format(weekStart, 'yyyy-MM-dd') + 'T00:00:00'),
+      where('scheduledTime', '<', format(addDays(weekEnd, 1), 'yyyy-MM-dd') + 'T00:00:00'),
       where('status', 'in', ['pending', 'scheduled'])
     );
 
@@ -123,6 +138,19 @@ export async function resetWeekToRoundOrder(weekStartDate: Date): Promise<{ succ
         return jobData.scheduledTime.split('T')[0]; // Get date part only
       })
     );
+
+    // After clearing manual overrides, re-apply capacity redistribution so overflow
+    // spills into subsequent days based on daily turnover limits.
+    // For current week, we must force apply (default triggers intentionally skip current week).
+    try {
+      if (isThisWeek(weekStart, { weekStartsOn: 1 })) {
+        await manualRefreshWeekCapacity(weekStart);
+      } else {
+        await triggerCapacityRedistribution('job_added', [weekStart]);
+      }
+    } catch (err) {
+      console.warn('resetWeekToRoundOrder: capacity redistribution failed (non-fatal):', err);
+    }
 
     return { 
       success: true, 
