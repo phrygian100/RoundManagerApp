@@ -46,36 +46,10 @@ export async function setAvailability(date: string, memberId: string, status: Av
   await setDoc(docRef, { [memberId]: status }, { merge: true });
   
   // TODO: Add audit logging for rota changes (requires resolving circular dependency)
-  
-  // Trigger capacity redistribution for future weeks when availability changes
-  try {
-    const changeDate = parseISO(date);
-    const weekStart = startOfWeek(changeDate, { weekStartsOn: 1 });
-    
-    // Only trigger for future weeks - current week uses manual "Refresh Capacity" button
-    console.log(`🔄 Triggering capacity redistribution for availability change on: ${date}`);
-    
-    // Dynamically import to avoid circular dependencies
-    const { triggerCapacityRedistribution } = await import('./capacityService');
-    
-    // Use the proper trigger function that respects current week protection
-    const result = await triggerCapacityRedistribution('team_availability_changed', [weekStart]);
-    
-    console.log(`✅ Capacity redistribution completed:`, result);
-    
-    if (result.totalRedistributed > 0) {
-      console.log(`📊 ${result.totalRedistributed} total jobs redistributed across ${result.weekResults.length} weeks`);
-      result.weekResults.forEach(weekResult => {
-        if (weekResult.result.redistributedJobs > 0) {
-          console.log(`  Week ${weekResult.week}: ${weekResult.result.redistributedJobs} jobs redistributed`);
-        }
-      });
-    }
-    
-  } catch (error) {
-    console.error('Failed to trigger capacity redistribution after availability change:', error);
-    // Don't fail the availability update if capacity redistribution fails
-  }
+
+  // NOTE: We intentionally do NOT auto-trigger capacity redistribution here.
+  // Changing rota should not reshuffle scheduled jobs (which can look like a full runsheet reset).
+  // Users can review rota changes first, then manually run the refresh/reset action from the runsheet when ready.
 }
 
 /**

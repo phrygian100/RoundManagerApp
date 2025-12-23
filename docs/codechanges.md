@@ -18,6 +18,17 @@
 
 **User Impact**: Resetting a week/day now immediately rebalances work across the week to respect the daily turnover limit, instead of leaving all jobs on the original day.
 
+### Rota: Changing availability no longer auto-reshuffles jobs
+
+**Files Changed**:
+- `services/rotaService.ts`
+
+**Problem**: Updating a rota cell was auto-triggering capacity redistribution, which could reshuffle jobs across days and feel like the runsheet was “reset” without the user explicitly requesting it.
+
+**Solution**: Removed the automatic redistribution trigger from rota updates. Users can now review rota changes and then manually run the runsheet refresh/reset action when they’re ready.
+
+**User Impact**: Rota edits won’t unexpectedly move jobs or disrupt ETAs/vehicle assignments; rebalancing is now explicitly user-driven.
+
 ### Web: Added Google Ads base tag (gtag.js) for conversion measurement
 
 **File Changed**: `web/src/app/layout.tsx`
