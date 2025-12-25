@@ -36,6 +36,7 @@
 **Change**:
 - Added the Google Ads base tag (`AW-17819223960`) using Next.js `next/script` so it loads across the marketing site.
 - Implemented **web-only** (in the `web/` Next.js project) to avoid impacting the Expo mobile/desktop app.
+- Follow-up: switched script loading strategy to `beforeInteractive` to improve Google Ads “Test connection” detection reliability.
 
 **User Impact**: Google Ads can now measure conversions/visits from your web pages, enabling Performance Max optimization once conversion actions are configured.
 
