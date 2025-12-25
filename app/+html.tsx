@@ -1,12 +1,14 @@
-import { Head, Html, Main, NextScript } from "expo-router/html";
-import React from "react";
+import React, { type PropsWithChildren } from "react";
 
-// Web-only HTML shell for Expo Router (used by `expo export --platform web`).
-// This ensures the Google Ads tag is present on the root app pages served from `dist/index.html`.
-export default function RootHtml() {
+// Web-only HTML shell for Expo Router static export (`expo export --platform web`).
+// We intentionally avoid `expo-router/html` here to prevent build-time issues across versions.
+export default function RootHtml({ children }: PropsWithChildren) {
   return (
-    <Html lang="en">
-      <Head>
+    <html lang="en">
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+
         {/* Google Ads tag (gtag.js) */}
         <script
           async
@@ -23,12 +25,9 @@ export default function RootHtml() {
             `,
           }}
         />
-      </Head>
-      <body>
-        <Main />
-        <NextScript />
-      </body>
-    </Html>
+      </head>
+      <body>{children}</body>
+    </html>
   );
 }
 
