@@ -40,6 +40,16 @@
 
 **User Impact**: Google Ads can now measure conversions/visits from your web pages, enabling Performance Max optimization once conversion actions are configured.
 
+### Web (Expo export): Injected Google Ads base tag into root app HTML
+
+**File Added**: `app/+html.tsx`
+
+**Problem**: `www.guvnor.app/` primarily serves the Expo web export (`dist/index.html`) due to `vercel.json` rewrites, so Google Ads “Test connection” couldn’t detect the tag when it only existed in the Next.js marketing build.
+
+**Solution**: Added an Expo Router HTML shell (`app/+html.tsx`) that injects the Google Ads base tag (`AW-17819223960`) into the exported HTML head for the web app.
+
+**User Impact**: Google Ads tag detection should now succeed on the root domain, enabling conversion tracking setup in Google Ads.
+
 ## December 21, 2025
 
 ### Runsheet: Keep “Move” available for incomplete past-day jobs
