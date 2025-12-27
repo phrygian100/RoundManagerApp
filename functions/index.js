@@ -9,6 +9,7 @@
 
 // const { onDocumentCreated } = require("firebase-functions/v2/firestore"); // Currently unused
 const { setGlobalOptions } = require("firebase-functions/v2/options");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { Resend } = require("resend");
@@ -64,6 +65,92 @@ exports.setDefaultSubscriptionTier = onDocumentCreated('users/{userId}', async (
     console.error(`Failed to set default subscription tier for user ${userId}:`, err);
   }
 });
+
+/**
+ * Daily maintenance: compute active client count per account and write it onto each user doc.
+ *
+ * - Clients live in top-level `clients` collection
+ * - Account scoping is via `clients.ownerId` (this matches app-side getDataOwnerId() == accountId)
+ * - Active clients are those with status !== 'ex-client'
+ */
+exports.updateNumberOfClientsDaily = onSchedule(
+  {
+    schedule: "0 0 * * *",
+    timeZone: "Europe/London",
+  },
+  async () => {
+    const db = admin.firestore();
+
+    // Cache counts across the whole run so team members sharing an accountId don't re-count.
+    const accountCounts = new Map();
+
+    // Batch writes for efficiency (Firestore limit: 500 ops per batch)
+    const batchLimit = 400;
+    let batch = db.batch();
+    let batchOps = 0;
+
+    let lastDoc = null;
+    let updatedUsers = 0;
+
+    const usersCol = db.collection("users");
+    const idPath = admin.firestore.FieldPath.documentId();
+
+    while (true) {
+      let q = usersCol.orderBy(idPath).limit(500);
+      if (lastDoc) q = q.startAfter(lastDoc);
+
+      const snap = await q.get();
+      if (snap.empty) break;
+
+      for (const userDoc of snap.docs) {
+        const data = userDoc.data() || {};
+
+        // accountId is the "data owner" used throughout the app. Owners have accountId == uid.
+        const accountId = data.accountId || userDoc.id;
+
+        let activeClientCount = accountCounts.get(accountId);
+        if (activeClientCount === undefined) {
+          const countSnap = await db
+            .collection("clients")
+            .where("ownerId", "==", accountId)
+            .where("status", "!=", "ex-client")
+            .count()
+            .get();
+
+          activeClientCount = (countSnap.data() && countSnap.data().count) ? countSnap.data().count : 0;
+          accountCounts.set(accountId, activeClientCount);
+        }
+
+        batch.set(
+          userDoc.ref,
+          {
+            numberOfClients: activeClientCount,
+            numberOfClientsUpdatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+        batchOps++;
+        updatedUsers++;
+
+        if (batchOps >= batchLimit) {
+          await batch.commit();
+          batch = db.batch();
+          batchOps = 0;
+        }
+      }
+
+      lastDoc = snap.docs[snap.docs.length - 1];
+    }
+
+    if (batchOps) {
+      await batch.commit();
+    }
+
+    console.log(
+      `updateNumberOfClientsDaily: updated ${updatedUsers} user docs; counted ${accountCounts.size} unique accountIds`
+    );
+  }
+);
 
 // Stripe will be initialized inside functions when needed
 

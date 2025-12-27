@@ -1,5 +1,21 @@
 # Code Changes Log
 
+## December 27, 2025
+
+### Firebase: Daily `numberOfClients` field on user documents (midnight scheduled Cloud Function)
+
+**File Changed**:
+- `functions/index.js`
+
+**Change**:
+- Added a scheduled Cloud Function v2 (`updateNumberOfClientsDaily`) that runs **daily at 00:00** (`Europe/London`).
+- For each `users/{uid}` document, it computes the **active client count** for that user’s **account** (matches app-side `getDataOwnerId()` / `accountId`) by counting `clients` where `ownerId == accountId` and `status != 'ex-client'`.
+- Writes the results to:
+  - `users/{uid}.numberOfClients`
+  - `users/{uid}.numberOfClientsUpdatedAt`
+
+**User Impact**: Firestore user documents will now show an up-to-date active client count each day, which can be used for reporting, admin visibility, and future UI without relying on client-side counting.
+
 ## December 22, 2025
 
 ### Runsheet / Workload Forecast: Reset week/day now reapplies capacity spillover (and fixed week query bounds)
