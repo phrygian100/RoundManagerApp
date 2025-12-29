@@ -45,35 +45,30 @@ service cloud.firestore {
     }
 
     match /clients/{clientId} {
-      // Allow public read for client portal account verification
-      // This enables unauthenticated customers to verify their account number
-      // The query filters by ownerId + accountNumber so only specific records are returned
-      allow read: if true;
-      // Allow public update for client portal profile changes (name, mobileNumber only)
-      // TODO: Replace with Cloud Function for better security in production
-      allow update: if true;
+      // Client portal access is handled via Cloud Functions. Do not allow public reads/writes.
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
-      allow delete: if isSignedIn() && hasResourceAccess(resource);
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /jobs/{jobId} {
-      // Allow public read for client portal (queries filtered by clientId)
-      allow read: if true;
+      // Client portal access is handled via Cloud Functions. Do not allow public reads.
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     // Service plans (new separated scheduling model)
     match /servicePlans/{planId} {
-      // Allow public read for client portal (queries filtered by clientId)
-      allow read: if true;
+      // Client portal access is handled via Cloud Functions. Do not allow public reads.
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
 
     match /payments/{paymentId} {
-      // Allow public read for client portal (queries filtered by clientId)
-      allow read: if true;
+      // Client portal access is handled via Cloud Functions. Do not allow public reads.
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
     }
@@ -89,8 +84,11 @@ service cloud.firestore {
     // Each user can manage a single document under /users/{uid}
     match /users/{userId} {
       allow create: if isSignedIn() && request.auth.uid == userId;
-      // Allow public read for client portal (to fetch business banking info)
-      allow read: if true;
+      // Do not allow public reads. Allow self-read and account-member read of the account owner's doc.
+      allow read: if isSignedIn() && (
+        request.auth.uid == userId ||
+        exists(/databases/$(database)/documents/accounts/$(userId)/members/$(request.auth.uid))
+      );
       allow update, delete: if isSignedIn() && request.auth.uid == userId;
     }
 
@@ -107,8 +105,8 @@ service cloud.firestore {
 
     // Quote requests from client portal - public create for prospective customers
     match /quoteRequests/{requestId} {
-      // Anyone can create a quote request (from client portal)
-      allow create: if true;
+      // Quote requests are created via Cloud Functions for the public client portal.
+      allow create: if false;
       // Only the business owner can read/update/delete their quote requests
       allow read, update, delete: if isSignedIn() && request.auth.uid == resource.data.businessId;
     }
@@ -124,9 +122,8 @@ service cloud.firestore {
 
       match /members/{memberId} {
         allow read: if isSignedIn() && hasAccountAccess(accountId);
-        // Allow owners to write all members, and members to delete their own record (for leave team)
-        allow write: if isSignedIn() && (request.auth.uid == accountId || 
-                                        (request.auth.uid == memberId && !('status' in request.resource.data)));
+        // Only owners can create/update member records. Members can delete their own record (leave team).
+        allow create, update: if isSignedIn() && request.auth.uid == accountId;
         allow delete: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
       }
 

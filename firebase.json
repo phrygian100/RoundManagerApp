@@ -22,6 +22,10 @@
         "function": "createCustomerPortalSession"
       },
       {
+        "source": "/api/portal/**",
+        "function": "portalApi"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

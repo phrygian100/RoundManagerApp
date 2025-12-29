@@ -15,6 +15,7 @@ const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { Resend } = require("resend");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
+const crypto = require("crypto");
 
 // Secure Stripe secrets (managed via Firebase Secret Manager)
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
@@ -320,7 +321,7 @@ exports.inviteMember = onCall(async (request) => {
   }
   // Generate inviteCode
   const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
-  const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
+  const apiKey = process.env.RESEND_KEY;
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
           throw new HttpsError('internal', 'Configuration error.');
@@ -1183,7 +1184,17 @@ exports.submitContactForm = onCall(async (request) => {
     throw new HttpsError('invalid-argument', 'Invalid email address format.');
   }
   
-  const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
+  const db = admin.firestore();
+  try {
+    const ip = getClientIp(request.rawRequest || { headers: {} });
+    const ipKey = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32);
+    await enforceRateLimit(db, `contact:ip:${ipKey}`, 30, 60 * 60 * 1000); // 30/hr per IP
+    await enforceRateLimit(db, `contact:email:${crypto.createHash('sha256').update(String(email).toLowerCase()).digest('hex').slice(0, 32)}`, 10, 24 * 60 * 60 * 1000); // 10/day per email
+  } catch (e) {
+    if (e instanceof HttpsError) throw e;
+  }
+
+  const apiKey = process.env.RESEND_KEY;
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
     throw new HttpsError('internal', 'Email service configuration error.');
@@ -1267,7 +1278,7 @@ exports.sendVerificationEmail = onCall(async (request) => {
       return { success: true, message: 'Email is already verified.' };
     }
 
-    const apiKey = process.env.RESEND_KEY || 're_DjRTfH7G_Hz53GNL3Rvauc8oFAmQX3uaV';
+    const apiKey = process.env.RESEND_KEY;
     if (!apiKey) {
       console.error('No Resend API key found in environment!');
       throw new HttpsError('internal', 'Configuration error.');
@@ -1318,5 +1329,371 @@ exports.sendVerificationEmail = onCall(async (request) => {
     console.error('sendVerificationEmail error:', err);
     if (err instanceof HttpsError) throw err;
     throw new HttpsError('internal', err?.message || 'Unknown error');
+  }
+});
+
+/**
+ * Simple Firestore-backed rate limiting.
+ * NOTE: Admin SDK bypasses rules; this is server-side only.
+ */
+async function enforceRateLimit(db, key, limit, windowMs) {
+  const ref = db.collection('rateLimits').doc(key);
+  const now = Date.now();
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.exists ? (snap.data() || {}) : {};
+    const resetAt = typeof data.resetAt === 'number' ? data.resetAt : 0;
+    const count = typeof data.count === 'number' ? data.count : 0;
+
+    if (now > resetAt) {
+      tx.set(ref, { count: 1, resetAt: now + windowMs, updatedAt: new Date().toISOString() }, { merge: true });
+      return;
+    }
+
+    if (count >= limit) {
+      throw new HttpsError('resource-exhausted', 'Too many requests. Please try again later.');
+    }
+
+    tx.set(ref, { count: count + 1, updatedAt: new Date().toISOString() }, { merge: true });
+  });
+}
+
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (typeof xff === 'string' && xff.length) return xff.split(',')[0].trim();
+  if (Array.isArray(xff) && xff.length) return String(xff[0]).split(',')[0].trim();
+  return req.ip || 'unknown';
+}
+
+function normalizePhoneLast4(s) {
+  const digits = String(s || '').replace(/\D/g, '');
+  return digits.slice(-4);
+}
+
+function normalizeAccountSuffix(s) {
+  return String(s || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+async function getValidPortalSession(db, sessionId) {
+  if (!sessionId || typeof sessionId !== 'string') {
+    throw new HttpsError('unauthenticated', 'Missing session.');
+  }
+  const snap = await db.collection('portalSessions').doc(sessionId).get();
+  if (!snap.exists) throw new HttpsError('unauthenticated', 'Session expired.');
+  const data = snap.data() || {};
+  const expiresAt = data.expiresAt;
+  if (!expiresAt || new Date(expiresAt).getTime() < Date.now()) {
+    throw new HttpsError('unauthenticated', 'Session expired.');
+  }
+  if (!data.clientId || !data.ownerId) {
+    throw new HttpsError('unauthenticated', 'Invalid session.');
+  }
+  return { sessionId, clientId: data.clientId, ownerId: data.ownerId };
+}
+
+// Public client portal API (used by /app/[businessName].tsx). Keep portal UX the same while locking Firestore down.
+exports.portalApi = onRequest(async (req, res) => {
+  // CORS
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).send('');
+    return;
+  }
+  if (req.method !== 'POST') {
+    res.status(405).json({ ok: false, error: 'Method not allowed' });
+    return;
+  }
+
+  const db = admin.firestore();
+  const ip = getClientIp(req);
+  const ipKey = crypto.createHash('sha256').update(ip).digest('hex').slice(0, 32);
+
+  // Route based on final path segment: /api/portal/<action>
+  const parts = String(req.path || '').split('/').filter(Boolean);
+  const action = parts[parts.length - 1] || '';
+
+  try {
+    // Lightweight abuse controls for all portal endpoints
+    await enforceRateLimit(db, `portal:ip:${ipKey}`, 300, 60 * 60 * 1000); // 300/hr per IP
+
+    if (action === 'lookupAccount') {
+      const { businessOwnerId, accountNumberSuffix } = req.body || {};
+      if (!businessOwnerId || typeof businessOwnerId !== 'string') {
+        res.status(400).json({ ok: false, error: 'Missing business owner.' });
+        return;
+      }
+      const suffix = normalizeAccountSuffix(accountNumberSuffix);
+      if (!suffix) {
+        res.status(400).json({ ok: false, error: 'Please enter your account number.' });
+        return;
+      }
+
+      await enforceRateLimit(db, `portal:lookup:${ipKey}`, 60, 60 * 60 * 1000); // 60/hr lookup attempts
+
+      const fullAccountNumber = `RWC${suffix}`;
+      const snap = await db
+        .collection('clients')
+        .where('ownerId', '==', businessOwnerId)
+        .where('accountNumber', '==', fullAccountNumber)
+        .limit(1)
+        .get();
+
+      if (snap.empty) {
+        res.status(200).json({ ok: false, error: 'Account not found. Please check your account number and try again.' });
+        return;
+      }
+
+      const docSnap = snap.docs[0];
+      const c = docSnap.data() || {};
+      res.status(200).json({
+        ok: true,
+        client: {
+          id: docSnap.id,
+          name: c.name || '',
+          accountNumber: c.accountNumber || fullAccountNumber,
+        },
+      });
+      return;
+    }
+
+    if (action === 'verifyPhone') {
+      const { businessOwnerId, clientId, phoneLast4 } = req.body || {};
+      if (!businessOwnerId || typeof businessOwnerId !== 'string' || !clientId || typeof clientId !== 'string') {
+        res.status(400).json({ ok: false, error: 'Missing verification details.' });
+        return;
+      }
+      const last4 = normalizePhoneLast4(phoneLast4);
+      if (!last4 || last4.length !== 4) {
+        res.status(400).json({ ok: false, error: 'Please enter the last 4 digits of your phone number.' });
+        return;
+      }
+
+      await enforceRateLimit(db, `portal:verify:${ipKey}:${clientId}`, 30, 60 * 60 * 1000); // 30/hr per clientId
+
+      const clientDoc = await db.collection('clients').doc(clientId).get();
+      if (!clientDoc.exists) {
+        res.status(200).json({ ok: false, error: 'Verification failed. Please try again.' });
+        return;
+      }
+      const c = clientDoc.data() || {};
+      if (c.ownerId !== businessOwnerId) {
+        res.status(200).json({ ok: false, error: 'Verification failed. Please try again.' });
+        return;
+      }
+
+      const storedLast4 = normalizePhoneLast4(c.mobileNumber || '');
+      if (!storedLast4 || storedLast4.length !== 4) {
+        res.status(200).json({ ok: false, error: 'Phone verification unavailable. Please contact the business directly.' });
+        return;
+      }
+      if (storedLast4 !== last4) {
+        res.status(200).json({ ok: false, error: 'Phone number does not match. Please try again.' });
+        return;
+      }
+
+      const sessionId = crypto.randomBytes(24).toString('hex');
+      const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
+      await db.collection('portalSessions').doc(sessionId).set({
+        ownerId: businessOwnerId,
+        clientId,
+        createdAt: new Date().toISOString(),
+        expiresAt,
+        ipHash: ipKey,
+      });
+
+      res.status(200).json({ ok: true, sessionId });
+      return;
+    }
+
+    if (action === 'dashboard') {
+      const { sessionId } = req.body || {};
+      const sess = await getValidPortalSession(db, sessionId);
+
+      const ownerDoc = await db.collection('users').doc(sess.ownerId).get();
+      const ownerData = ownerDoc.exists ? (ownerDoc.data() || {}) : {};
+
+      const clientDoc = await db.collection('clients').doc(sess.clientId).get();
+      if (!clientDoc.exists) throw new HttpsError('not-found', 'Client not found.');
+      const clientData = clientDoc.data() || {};
+      if (clientData.ownerId !== sess.ownerId) throw new HttpsError('permission-denied', 'Invalid session.');
+
+      // Service plans
+      const plansSnap = await db
+        .collection('servicePlans')
+        .where('clientId', '==', sess.clientId)
+        .where('isActive', '==', true)
+        .get();
+      const plans = plansSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Pending jobs for next service
+      const pendingSnap = await db
+        .collection('jobs')
+        .where('clientId', '==', sess.clientId)
+        .where('status', 'in', ['pending', 'scheduled', 'in_progress'])
+        .get();
+
+      const now = new Date();
+      const nextServiceDates = {};
+      let overallNextDate = null;
+      let overallNextType = null;
+
+      pendingSnap.forEach((d) => {
+        const j = d.data() || {};
+        if (!j.scheduledTime) return;
+        const jobDate = new Date(j.scheduledTime);
+        if (jobDate < now) return;
+        const serviceId = j.serviceId || 'Service';
+        const existing = nextServiceDates[serviceId];
+        if (!existing || jobDate < new Date(existing)) nextServiceDates[serviceId] = j.scheduledTime;
+        if (!overallNextDate || jobDate < overallNextDate) {
+          overallNextDate = jobDate;
+          overallNextType = serviceId;
+        }
+      });
+
+      const plansWithDates = plans.map((p) => ({
+        ...p,
+        nextServiceDate: nextServiceDates[p.serviceType] || undefined,
+      }));
+
+      // Completed jobs history
+      const jobsSnap = await db
+        .collection('jobs')
+        .where('clientId', '==', sess.clientId)
+        .where('status', '==', 'completed')
+        .get();
+      const jobs = jobsSnap.docs.map((d) => {
+        const j = d.data() || {};
+        return {
+          id: d.id,
+          type: 'job',
+          date: j.scheduledTime || '',
+          description: j.serviceId || 'Service',
+          amount: j.price || 0,
+        };
+      });
+
+      // Payments history
+      const paySnap = await db.collection('payments').where('clientId', '==', sess.clientId).get();
+      const payments = paySnap.docs.map((d) => {
+        const p = d.data() || {};
+        return {
+          id: d.id,
+          type: 'payment',
+          date: p.date || '',
+          description: `Payment (${p.method || 'unknown'})`,
+          amount: p.amount || 0,
+        };
+      });
+
+      const history = [...jobs, ...payments].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      const totalBilled = jobs.reduce((sum, j) => sum + (Number(j.amount) || 0), 0);
+      const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      const startingBalance = Number(clientData.startingBalance) || 0;
+      const balance = totalPaid - totalBilled + startingBalance;
+
+      res.status(200).json({
+        ok: true,
+        owner: {
+          id: sess.ownerId,
+          bankSortCode: ownerData.bankSortCode || '',
+          bankAccountNumber: ownerData.bankAccountNumber || '',
+        },
+        client: {
+          id: sess.clientId,
+          name: clientData.name || '',
+          accountNumber: clientData.accountNumber || '',
+          mobileNumber: clientData.mobileNumber || '',
+          email: clientData.email || '',
+          address1: clientData.address1 || '',
+          town: clientData.town || '',
+          postcode: clientData.postcode || '',
+          startingBalance,
+        },
+        servicePlans: plansWithDates,
+        nextServiceDate: overallNextDate ? overallNextDate.toISOString() : null,
+        nextServiceType: overallNextType,
+        history,
+        balance,
+      });
+      return;
+    }
+
+    if (action === 'updateProfile') {
+      const { sessionId, name, mobileNumber } = req.body || {};
+      const sess = await getValidPortalSession(db, sessionId);
+
+      const newName = String(name || '').trim().slice(0, 120);
+      const newMobile = String(mobileNumber || '').trim().slice(0, 40);
+
+      await db.collection('clients').doc(sess.clientId).update({
+        name: newName,
+        mobileNumber: newMobile,
+        updatedAt: new Date().toISOString(),
+      });
+
+      res.status(200).json({ ok: true, client: { id: sess.clientId, name: newName, mobileNumber: newMobile } });
+      return;
+    }
+
+    if (action === 'submitQuoteRequest') {
+      const {
+        businessId,
+        businessName,
+        name,
+        phone,
+        address,
+        town,
+        postcode,
+        email,
+        notes,
+      } = req.body || {};
+
+      if (!businessId || typeof businessId !== 'string') {
+        res.status(400).json({ ok: false, error: 'Business information not available' });
+        return;
+      }
+
+      await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 20, 60 * 60 * 1000); // 20/hr per IP per business
+
+      const clean = (v, max) => String(v || '').trim().slice(0, max);
+      const payload = {
+        businessId,
+        businessName: clean(businessName, 140) || null,
+        name: clean(name, 140),
+        phone: clean(phone, 40),
+        address: clean(address, 200),
+        town: clean(town, 120),
+        postcode: clean(postcode, 20),
+        email: clean(email, 160) || null,
+        notes: clean(notes, 2000) || null,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+        source: 'client_portal',
+      };
+
+      if (!payload.name || !payload.phone || !payload.address || !payload.town || !payload.postcode) {
+        res.status(400).json({ ok: false, error: 'Missing required fields.' });
+        return;
+      }
+
+      await db.collection('quoteRequests').add(payload);
+      res.status(200).json({ ok: true });
+      return;
+    }
+
+    res.status(404).json({ ok: false, error: 'Unknown portal action' });
+  } catch (err) {
+    const msg = err?.message || 'Internal error';
+    if (err instanceof HttpsError) {
+      res.status(err.code === 'resource-exhausted' ? 429 : 400).json({ ok: false, error: msg });
+      return;
+    }
+    console.error('portalApi error:', err);
+    res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });

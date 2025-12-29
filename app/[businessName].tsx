@@ -1,11 +1,14 @@
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import { ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
-import { doc, getDoc, collection, query, where, getDocs, updateDoc, addDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 
 // Get build ID from environment or fallback to version
 const BUILD_ID = '30ec56e';
+
+// Client portal runs unauthenticated, so we call a Firebase Hosting-backed API for data access.
+const PORTAL_API_ORIGIN = 'https://roundmanagerapp.web.app';
 
 interface BusinessUser {
   id: string;
@@ -57,6 +60,7 @@ export default function ClientPortalScreen() {
   const [businessUser, setBusinessUser] = useState<BusinessUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
+  const [portalSessionId, setPortalSessionId] = useState<string | null>(null);
   
   // Multi-step login state
   const [step, setStep] = useState<LoginStep>('account');
@@ -158,39 +162,28 @@ export default function ClientPortalScreen() {
     setAuthLoading(true);
 
     try {
-      // Build the full account number with RWC prefix
-      const fullAccountNumber = `RWC${accountNumberSuffix.trim().toUpperCase()}`;
-      
-      console.log('🔍 Looking up client with account:', fullAccountNumber, 'for business:', businessUser.id);
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/lookupAccount`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessOwnerId: businessUser.id,
+          accountNumberSuffix: accountNumberSuffix.trim(),
+        }),
+      });
+      const data = await resp.json();
 
-      // Query the root clients collection for matching account number AND ownerId
-      // Clients are stored in /clients with an ownerId field, not in a subcollection
-      const clientsRef = collection(db, 'clients');
-      const q = query(
-        clientsRef, 
-        where('ownerId', '==', businessUser.id),
-        where('accountNumber', '==', fullAccountNumber)
-      );
-      const querySnapshot = await getDocs(q);
-
-      if (querySnapshot.empty) {
-        setError('Account not found. Please check your account number and try again.');
-        setAuthLoading(false);
+      if (!data?.ok) {
+        setError(data?.error || 'Account not found. Please check your account number and try again.');
         return;
       }
 
-      // Found the client
-      const clientDoc = querySnapshot.docs[0];
-      const clientData = clientDoc.data();
-      
       setFoundClient({
-        id: clientDoc.id,
-        name: clientData.name || '',
-        accountNumber: clientData.accountNumber || '',
-        mobileNumber: clientData.mobileNumber || ''
+        id: data.client.id,
+        name: data.client.name || '',
+        accountNumber: data.client.accountNumber || '',
+        mobileNumber: '', // Not returned to the client portal (verified server-side)
       });
 
-      // Move to phone verification step
       setStep('phone');
 
     } catch (err: any) {
@@ -217,26 +210,24 @@ export default function ClientPortalScreen() {
     setAuthLoading(true);
 
     try {
-      // Get the last 4 digits of the stored phone number
-      const storedPhone = foundClient.mobileNumber || '';
-      // Remove any non-digit characters and get last 4
-      const storedLast4 = storedPhone.replace(/\D/g, '').slice(-4);
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/verifyPhone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessOwnerId: businessUser?.id,
+          clientId: foundClient.id,
+          phoneLast4: phoneLast4.trim(),
+        }),
+      });
+      const data = await resp.json();
 
-      if (storedLast4.length < 4) {
-        // No valid phone number on file
-        setError('Phone verification unavailable. Please contact the business directly.');
-        setAuthLoading(false);
+      if (!data?.ok || !data?.sessionId) {
+        setError(data?.error || 'Verification failed. Please try again.');
         return;
       }
 
-      if (phoneLast4 !== storedLast4) {
-        setError('Phone number does not match. Please try again.');
-        setAuthLoading(false);
-        return;
-      }
-
-      // Success! Load dashboard data
-      await loadDashboardData(foundClient.id);
+      setPortalSessionId(data.sessionId);
+      await loadDashboardData(data.sessionId);
       setStep('dashboard');
 
     } catch (err: any) {
@@ -248,145 +239,45 @@ export default function ClientPortalScreen() {
   };
 
   // Load dashboard data after successful login
-  const loadDashboardData = async (clientId: string) => {
+  const loadDashboardData = async (sessionId: string) => {
     if (!businessUser) return;
     
     setDashboardLoading(true);
     try {
-      // Fetch business owner's banking info
-      const ownerDoc = await getDoc(doc(db, 'users', businessUser.id));
-      if (ownerDoc.exists()) {
-        const ownerData = ownerDoc.data();
-        setBusinessUser(prev => prev ? {
-          ...prev,
-          bankSortCode: ownerData.bankSortCode || '',
-          bankAccountNumber: ownerData.bankAccountNumber || ''
-        } : prev);
-      }
-
-      // Fetch full client data
-      const clientDoc = await getDoc(doc(db, 'clients', clientId));
-      if (clientDoc.exists()) {
-        const data = clientDoc.data();
-        setFoundClient({
-          id: clientId,
-          name: data.name || '',
-          accountNumber: data.accountNumber || '',
-          mobileNumber: data.mobileNumber || '',
-          email: data.email || '',
-          address1: data.address1 || '',
-          town: data.town || '',
-          postcode: data.postcode || '',
-          startingBalance: data.startingBalance || 0
-        });
-        setEditName(data.name || '');
-        setEditMobile(data.mobileNumber || '');
-      }
-
-      // Fetch service plans
-      const plansQuery = query(
-        collection(db, 'servicePlans'),
-        where('clientId', '==', clientId),
-        where('isActive', '==', true)
-      );
-      const plansSnapshot = await getDocs(plansQuery);
-      const plans = plansSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as ServicePlan[];
-
-      // Fetch pending jobs to get actual next service dates
-      const pendingJobsQuery = query(
-        collection(db, 'jobs'),
-        where('clientId', '==', clientId),
-        where('status', 'in', ['pending', 'scheduled', 'in_progress'])
-      );
-      const pendingJobsSnapshot = await getDocs(pendingJobsQuery);
-      const now = new Date();
-      
-      // Find next job date for each service type AND overall next service
-      const nextServiceDates: Record<string, string> = {};
-      let overallNextDate: Date | null = null;
-      let overallNextType: string | null = null;
-      
-      pendingJobsSnapshot.forEach(doc => {
-        const job = doc.data();
-        if (job.scheduledTime) {
-          const jobDate = new Date(job.scheduledTime);
-          if (jobDate >= now) {
-            const serviceId = job.serviceId || 'Service';
-            
-            // Track per-service-type dates
-            const existingDate = nextServiceDates[serviceId];
-            if (!existingDate || jobDate < new Date(existingDate)) {
-              nextServiceDates[serviceId] = job.scheduledTime;
-            }
-            
-            // Track overall next service
-            if (!overallNextDate || jobDate < overallNextDate) {
-              overallNextDate = jobDate;
-              overallNextType = serviceId;
-            }
-          }
-        }
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/dashboard`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId }),
       });
+      const data = await resp.json();
+      if (!data?.ok) throw new Error(data?.error || 'Failed to load dashboard');
 
-      // Set overall next service (shown if no service plans or as backup)
-      setNextServiceDate(overallNextDate ? overallNextDate.toISOString() : null);
-      setNextServiceType(overallNextType);
+      setBusinessUser(prev => prev ? {
+        ...prev,
+        bankSortCode: data.owner?.bankSortCode || '',
+        bankAccountNumber: data.owner?.bankAccountNumber || ''
+      } : prev);
 
-      // Attach next service dates to plans
-      const plansWithDates = plans.map(plan => ({
-        ...plan,
-        nextServiceDate: nextServiceDates[plan.serviceType] || undefined
-      }));
-      setServicePlans(plansWithDates);
-
-      // Fetch completed jobs
-      const jobsQuery = query(
-        collection(db, 'jobs'),
-        where('clientId', '==', clientId),
-        where('status', '==', 'completed')
-      );
-      const jobsSnapshot = await getDocs(jobsQuery);
-      const jobs = jobsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          type: 'job' as const,
-          date: data.scheduledTime || '',
-          description: data.serviceId || 'Service',
-          amount: data.price || 0
-        };
+      const c = data.client || {};
+      setFoundClient({
+        id: c.id,
+        name: c.name || '',
+        accountNumber: c.accountNumber || '',
+        mobileNumber: c.mobileNumber || '',
+        email: c.email || '',
+        address1: c.address1 || '',
+        town: c.town || '',
+        postcode: c.postcode || '',
+        startingBalance: c.startingBalance || 0,
       });
+      setEditName(c.name || '');
+      setEditMobile(c.mobileNumber || '');
 
-      // Fetch payments
-      const paymentsQuery = query(
-        collection(db, 'payments'),
-        where('clientId', '==', clientId)
-      );
-      const paymentsSnapshot = await getDocs(paymentsQuery);
-      const payments = paymentsSnapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          type: 'payment' as const,
-          date: data.date || '',
-          description: `Payment (${data.method || 'unknown'})`,
-          amount: data.amount || 0
-        };
-      });
-
-      // Combine and sort history by date (newest first)
-      const combinedHistory = [...jobs, ...payments];
-      combinedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setHistory(combinedHistory);
-
-      // Calculate balance
-      const totalBilled = jobs.reduce((sum, job) => sum + job.amount, 0);
-      const totalPaid = payments.reduce((sum, payment) => sum + payment.amount, 0);
-      const startingBal = foundClient?.startingBalance || 0;
-      setBalance(totalPaid - totalBilled + startingBal);
+      setServicePlans((data.servicePlans || []) as ServicePlan[]);
+      setNextServiceDate(data.nextServiceDate || null);
+      setNextServiceType(data.nextServiceType || null);
+      setHistory((data.history || []) as HistoryItem[]);
+      setBalance(typeof data.balance === 'number' ? data.balance : 0);
 
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -397,14 +288,21 @@ export default function ClientPortalScreen() {
 
   // Save profile changes
   const handleSaveProfile = async () => {
-    if (!foundClient) return;
+    if (!foundClient || !portalSessionId) return;
     
     setSavingProfile(true);
     try {
-      await updateDoc(doc(db, 'clients', foundClient.id), {
-        name: editName.trim(),
-        mobileNumber: editMobile.trim()
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/updateProfile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: portalSessionId,
+          name: editName.trim(),
+          mobileNumber: editMobile.trim(),
+        }),
       });
+      const data = await resp.json();
+      if (!data?.ok) throw new Error(data?.error || 'Failed to save changes');
       
       setFoundClient({
         ...foundClient,
@@ -484,21 +382,23 @@ export default function ClientPortalScreen() {
     setQuoteSubmitting(true);
 
     try {
-      // Save quote request to Firestore
-      await addDoc(collection(db, 'quoteRequests'), {
-        businessId: businessUser.id,
-        businessName: businessUser.businessName,
-        name: quoteName.trim(),
-        phone: quotePhone.trim(),
-        address: quoteAddress.trim(),
-        town: quoteTown.trim(),
-        postcode: quotePostcode.trim(),
-        email: quoteEmail.trim() || null,
-        notes: quoteNotes.trim() || null,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        source: 'client_portal'
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/submitQuoteRequest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessId: businessUser.id,
+          businessName: businessUser.businessName,
+          name: quoteName.trim(),
+          phone: quotePhone.trim(),
+          address: quoteAddress.trim(),
+          town: quoteTown.trim(),
+          postcode: quotePostcode.trim(),
+          email: quoteEmail.trim() || null,
+          notes: quoteNotes.trim() || null,
+        }),
       });
+      const data = await resp.json();
+      if (!data?.ok) throw new Error(data?.error || 'Failed to submit request');
 
       setQuoteSubmitted(true);
       // Clear form

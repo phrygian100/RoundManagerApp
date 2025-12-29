@@ -31,6 +31,29 @@
 
 **User Impact**: Users can order jobs within a day by ETA “as normal”, while rollover jobs still remain clearly labelled/styled.
 
+### Security: Lock down Firestore (stop DevTools data exfiltration / public client record updates) while keeping Client Portal UX unchanged
+
+**Files Changed**:
+- `firestore.rules`
+- `functions/index.js`
+- `firebase.json`
+- `app/[businessName].tsx`
+
+**Problem**:
+- Several core collections were **publicly readable**, and `clients` was **publicly updatable** via Firestore rules. This allowed anyone with browser DevTools to query/download data and modify client records.
+- `accounts/{accountId}/members/{memberId}` rules also allowed a signed-in user to **self-add** to other accounts by writing their own member doc under a victim `accountId`.
+- Resend email sending functions had a **hardcoded API key fallback**, and unauthenticated contact/email entry points had no rate limiting.
+
+**Solution**:
+- **Client Portal** (`/app/[businessName].tsx`) now uses a server-side **Portal API** (`/api/portal/*`) instead of direct Firestore reads/writes, preserving the existing portal flow (account number → last 4 digits → dashboard).
+- Updated `firestore.rules` to remove public access to `clients/jobs/servicePlans/payments/users`, removed public `clients` updates, and restricted `members` writes to **owners only** (members can still delete their own record to leave a team).
+- Added Firebase Hosting rewrite for `/api/portal/**` → `portalApi` (Cloud Function v2).
+- Removed hardcoded Resend fallback and added basic Firestore-backed rate limiting for `submitContactForm`.
+
+**User Impact**:
+- Public client portal experience remains the same, but backend data is no longer exposed to DevTools scraping/tampering.
+- Significantly reduced risk of account takeover via malicious membership writes.
+
 ## December 27, 2025
 
 ### Firebase: Daily `numberOfClients` field on user documents (midnight scheduled Cloud Function)
