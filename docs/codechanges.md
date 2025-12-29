@@ -18,6 +18,19 @@
 
 **User Impact**: The orange ↻ button now affects **only the chosen day**, preventing accidental week-wide changes. (Week-level reset/redistribution remains available via the week reset tooling where intended.)
 
+### Runsheet: ETA ordering now overrides “Rollover” priority within a day
+
+**File Changed**:
+- `app/runsheet/[week].tsx`
+
+**Problem**:
+- Rollover jobs (red + “ROLLOVER”) were being forced above non-rollover jobs even when they had a later ETA, preventing users from arranging the day’s sequence by ETA.
+
+**Solution**:
+- Changed the per-vehicle sort so **ETA is the primary sort key** (when set), and rollover priority only applies when jobs have **no ETA**.
+
+**User Impact**: Users can order jobs within a day by ETA “as normal”, while rollover jobs still remain clearly labelled/styled.
+
 ## December 27, 2025
 
 ### Firebase: Daily `numberOfClients` field on user documents (midnight scheduled Cloud Function)

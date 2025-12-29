@@ -612,25 +612,33 @@ export default function RunsheetWeekScreen() {
         }
       });
       
-      // Sort non-note jobs by deferred status first, then by ETA
+      // Sort non-note jobs by ETA first (to allow user-controlled order within the day),
+      // then by deferred status (ROLLOVER) only when ETA is not set.
       nonNoteJobs.sort((a: any, b: any) => {
-        // Deferred jobs always come first
+        const parseEta = (eta?: string): number | null => {
+          if (!eta) return null;
+          const [h, m] = eta.split(':').map(Number);
+          if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+          return h * 60 + m;
+        };
+
+        const aEta = parseEta(a.eta);
+        const bEta = parseEta(b.eta);
+
+        // If both have ETAs, ETA order wins (even if one is a rollover job)
+        if (aEta != null && bEta != null) return aEta - bEta;
+        // If only one has ETA, that one comes first
+        if (aEta != null && bEta == null) return -1;
+        if (aEta == null && bEta != null) return 1;
+
+        // Neither has ETA: keep rollover (deferred) priority
         if (a.isDeferred && !b.isDeferred) return -1;
         if (!a.isDeferred && b.isDeferred) return 1;
-        
-        // Then sort by ETA
-        if (a.eta && b.eta) {
-          const [aHour, aMin] = a.eta.split(':').map(Number);
-          const [bHour, bMin] = b.eta.split(':').map(Number);
-          if (aHour !== bHour) return aHour - bHour;
-          if (aMin !== bMin) return aMin - bMin;
-        }
-        // If only one has ETA, that one comes first
-        if (a.eta && !b.eta) return -1;
-        if (!a.eta && b.eta) return 1;
-        
-        // If no ETA difference, maintain roundOrderNumber order
-        return 0;
+
+        // Tie-breaker: keep deterministic order by round order
+        const aRound = a.client?.roundOrderNumber ?? 999999;
+        const bRound = b.client?.roundOrderNumber ?? 999999;
+        return aRound - bRound;
       });
       
       // ✅ Rebuild the jobs list with notes in correct positions
