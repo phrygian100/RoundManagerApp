@@ -245,6 +245,14 @@
 - Added a native (iOS/Android) fallback UI for Bulk Payments using a simple card-per-row entry form that reuses the same validation and submission logic.
 - Updated unknown payments method typing to include `direct_debit` to match supported payment methods in bulk entry.
 
+### Bulk Payments: Fix “Bank Transfer” invalid type on submit
+
+**Files Changed**:
+- `app/bulk-payments.tsx`
+
+**Change**:
+- Fixed submit-time payment type canonicalization to accept `bank_transfer` (the dropdown value), preventing “invalid type” errors when users select **Bank Transfer**.
+
 ---
 
 ### Settings: Replace CSV import pickers with spreadsheet-style import screens

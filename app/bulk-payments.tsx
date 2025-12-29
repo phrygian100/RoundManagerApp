@@ -80,6 +80,7 @@ const canonicalizeType = (value: string): string | null => {
   const lower = value.toLowerCase().trim();
   if (lower === 'cash') return 'cash';
   if (lower === 'card') return 'card';
+  if (lower === 'bank_transfer') return 'bank_transfer';
   if (lower === 'bacs' || lower === 'bank' || lower === 'bank transfer') return 'bank_transfer';
   if (lower === 'cheque' || lower === 'check') return 'cheque';
   if (lower === 'dd' || lower === 'direct debit' || lower === 'direct_debit') return 'direct_debit';
