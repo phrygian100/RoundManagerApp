@@ -9,10 +9,6 @@ service cloud.firestore {
     function isOwner(resource) {
       return resource.data.ownerId == request.auth.uid;
     }
-    
-    function isOwnerForCreate() {
-      return request.resource.data.ownerId == request.auth.uid;
-    }
 
     // Check if user has access to account data (either owner or member)
     function hasAccountAccess(ownerId) {
@@ -20,20 +16,31 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/accounts/$(ownerId)/members/$(request.auth.uid));
     }
 
+    function getAccountIdFromData(data) {
+      return ('accountId' in data) ? data.accountId :
+             (('ownerId' in data) ? data.ownerId : null);
+    }
+
     // Check if user has access to existing resource
     function hasResourceAccess(resource) {
-      // Handle documents that might not have ownerId field
-      return ('ownerId' in resource.data && hasAccountAccess(resource.data.ownerId)) ||
-             // Fallback: check if user is trying to access their own data
-             (request.auth.uid == resource.id);
+      // Support both legacy `ownerId` and newer `accountId` fields.
+      return (
+        getAccountIdFromData(resource.data) != null &&
+        hasAccountAccess(getAccountIdFromData(resource.data))
+      ) ||
+      // Fallback: allow a user to access their own doc by id (e.g. /users/{uid} style)
+      (request.auth.uid == resource.id);
     }
 
     // Check if user has access for creating new resource
     function hasCreateAccess() {
-      // Handle documents that might not have ownerId field
-      return ('ownerId' in request.resource.data && hasAccountAccess(request.resource.data.ownerId)) ||
-             // Allow users to create their own resources
-             (request.auth.uid == request.resource.data.ownerId);
+      // Support both legacy `ownerId` and newer `accountId` fields.
+      return (
+        getAccountIdFromData(request.resource.data) != null &&
+        hasAccountAccess(getAccountIdFromData(request.resource.data))
+      ) ||
+      // Allow users to create their own doc keyed by UID (rare, but keep)
+      (request.auth.uid == request.resource.data.ownerId);
     }
 
     match /quotes/{quoteId} {
