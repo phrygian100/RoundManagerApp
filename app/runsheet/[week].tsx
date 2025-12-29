@@ -213,7 +213,14 @@ export default function RunsheetWeekScreen() {
       }
 
       // 2. Get unique client IDs from the jobs
-      const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+      // IMPORTANT: exclude quote/note jobs and any falsy clientIds.
+      // If we include placeholder/nonexistent clientIds, Firestore rules will deny the batched lookup
+      // (missing docs evaluate as permission denied under our rules).
+      const clientIds = [...new Set(
+        jobsForWeek
+          .filter(job => !isQuoteJob(job) && !isNoteJob(job) && !!job.clientId)
+          .map(job => job.clientId)
+      )];
       console.log('👥 Unique client IDs:', clientIds);
       
       // 3. Fetch all required clients in batched queries (Firestore 'in' query limit is 30)
@@ -223,23 +230,40 @@ export default function RunsheetWeekScreen() {
       }
       
       const clientsMap = new Map<string, Client>();
-      const clientPromises = clientChunks.map(chunk => 
-        getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
-      );
-      const clientSnapshots = await Promise.all(clientPromises);
-      
-      clientSnapshots.forEach(snapshot => {
-        snapshot.forEach(docSnap => {
-          clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+      try {
+        const clientPromises = clientChunks.map(chunk =>
+          getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
+        );
+        const clientSnapshots = await Promise.all(clientPromises);
+        clientSnapshots.forEach(snapshot => {
+          snapshot.forEach(docSnap => {
+            clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+          });
         });
-      });
+      } catch (err) {
+        // If *any* doc in an `in` batch is not readable, Firestore rejects the whole query.
+        // Fall back to per-doc fetch so the runsheet can still load (missing clients become null).
+        console.warn('⚠️ Batched client lookup failed; falling back to per-client fetch.', err);
+        const { doc: fsDoc, getDoc: fsGetDoc } = await import('firebase/firestore');
+        const settled = await Promise.allSettled(
+          clientIds.map((id) => fsGetDoc(fsDoc(db, 'clients', id)))
+        );
+        settled.forEach((r) => {
+          if (r.status === 'fulfilled') {
+            const snap = r.value;
+            if (snap.exists()) {
+              clientsMap.set(snap.id, { id: snap.id, ...snap.data() } as Client);
+            }
+          }
+        });
+      }
       
       console.log('👥 Clients found:', clientsMap.size);
       console.log('👥 Client IDs:', Array.from(clientsMap.keys()));
       
       // 4. Map clients back to their jobs
       const jobsWithClients = jobsForWeek.map(job => {
-        if (job.serviceId === 'quote') {
+        if (isQuoteJob(job) || isNoteJob(job)) {
           return { ...job, client: null };
         }
         return {
