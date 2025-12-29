@@ -1,5 +1,23 @@
 # Code Changes Log
 
+## December 29, 2025
+
+### Runsheet: “Reset day” (orange ↻) no longer reshuffles the whole week
+
+**Files Changed**:
+- `services/resetService.ts`
+- `app/runsheet/[week].tsx`
+
+**Problem**:
+- Pressing the orange **↻** button on a specific day (e.g. Friday) was unintentionally reorganising other days in the same week.
+- Root cause: `resetDayToRoundOrder()` cleared ETAs/vehicle assignments for that day, then triggered **week capacity redistribution** (`manualRefreshWeekCapacity()`), which can move jobs across multiple days.
+
+**Solution**:
+- `resetDayToRoundOrder()` now only clears **ETAs** and **manual vehicle assignments** for the selected day — it no longer triggers week redistribution.
+- Updated the confirmation copy to explicitly state the reset is **day-only** and will not reshuffle other days.
+
+**User Impact**: The orange ↻ button now affects **only the chosen day**, preventing accidental week-wide changes. (Week-level reset/redistribution remains available via the week reset tooling where intended.)
+
 ## December 27, 2025
 
 ### Firebase: Daily `numberOfClients` field on user documents (midnight scheduled Cloud Function)

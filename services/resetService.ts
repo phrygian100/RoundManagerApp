@@ -49,20 +49,6 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
 
     await batch.commit();
 
-    // After clearing manual overrides, re-apply capacity redistribution so overflow
-    // spills into subsequent days based on daily turnover limits.
-    // For current week, we must force apply (default triggers intentionally skip current week).
-    try {
-      const weekStart = startOfWeek(dayDate, { weekStartsOn: 1 });
-      if (isThisWeek(weekStart, { weekStartsOn: 1 })) {
-        await manualRefreshWeekCapacity(weekStart);
-      } else {
-        await triggerCapacityRedistribution('job_added', [weekStart]);
-      }
-    } catch (err) {
-      console.warn('resetDayToRoundOrder: capacity redistribution failed (non-fatal):', err);
-    }
-
     return { success: true, jobsReset: jobsToReset.length };
   } catch (error) {
     console.error('Error resetting day to round order:', error);

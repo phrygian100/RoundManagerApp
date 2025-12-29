@@ -2064,11 +2064,13 @@ ${signOff}`;
     
     // Confirmation dialog
     const confirmReset = Platform.OS === 'web' 
-      ? window.confirm(`Reset ${dayTitle} to round order? This will remove all manual ETAs and vehicle assignments.`)
+      ? window.confirm(
+          `Reset ${dayTitle} to round order?\n\nThis will remove all manual ETAs and vehicle assignments for jobs on ${dayTitle} only.\nIt will NOT reshuffle other days in the week.`
+        )
       : await new Promise((resolve) => {
           Alert.alert(
             'Reset Day',
-            `Reset ${dayTitle} to round order? This will remove all manual ETAs and vehicle assignments.`,
+            `Reset ${dayTitle} to round order?\n\nThis will remove all manual ETAs and vehicle assignments for jobs on ${dayTitle} only.\nIt will NOT reshuffle other days in the week.`,
             [
               { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
               { text: 'Reset', style: 'destructive', onPress: () => resolve(true) }
