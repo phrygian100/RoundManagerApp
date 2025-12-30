@@ -543,7 +543,16 @@ export default function AddClientScreen() {
             type="date"
             value={nextVisit}
             onChange={e => setNextVisit(e.target.value)}
-            style={{ ...styles.input, height: 50, padding: 10, fontSize: 16 }}
+            style={{
+              height: 50,
+              border: '1px solid #ccc',
+              borderRadius: 8,
+              padding: '0 16px',
+              backgroundColor: '#fff',
+              fontSize: 16,
+              width: '100%',
+              boxSizing: 'border-box' as const,
+            }}
           />
         ) : (
           <>

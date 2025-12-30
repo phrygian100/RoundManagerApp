@@ -1,5 +1,25 @@
 # Code Changes Log
 
+## December 30, 2025
+
+### Add Client: Fixed web date picker not updating
+
+**File Changed**: `app/add-client.tsx`
+
+**Problem**: On the `/add-client` screen, users couldn't change the start date. The date field displayed the current date but wouldn't update when users tried to change it by typing or using the calendar picker widget.
+
+**Root Cause**: The web date input was using `...styles.input` to spread styles from `StyleSheet.create()`. In React Native, `StyleSheet.create()` returns numeric IDs (not plain objects) in production builds. Spreading these into a native HTML `<input>` element's style prop doesn't work correctly. Additionally, React Native style properties like `paddingHorizontal` and `borderWidth` aren't valid CSS for native HTML elements.
+
+**Solution**: Replaced the StyleSheet spread with valid inline CSS properties:
+- Changed `...styles.input` to explicit CSS properties
+- Changed `borderWidth: 1` and `borderColor: '#ccc'` to valid CSS: `border: '1px solid #ccc'`
+- Changed `paddingHorizontal: 16` to CSS `padding: '0 16px'`
+- Added `width: '100%'` and `boxSizing: 'border-box'` for proper sizing
+
+**User Impact**: Users can now properly select and change the start date when adding new clients on web.
+
+---
+
 ## December 29, 2025
 
 ### Runsheet: “Reset day” (orange ↻) no longer reshuffles the whole week
