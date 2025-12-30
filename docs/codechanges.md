@@ -54,6 +54,23 @@
 - Public client portal experience remains the same, but backend data is no longer exposed to DevTools scraping/tampering.
 - Significantly reduced risk of account takeover via malicious membership writes.
 
+### Clients: Restore Service History + Service Schedule under locked-down Firestore rules
+
+**Files Changed**:
+- `app/(tabs)/clients/[id].tsx`
+- `app/(tabs)/clients/[id]/manage-services.tsx`
+
+**Problem**:
+- Client detail screens were querying `jobs`, `payments`, and sometimes `servicePlans` using `clientId` only.
+- After tightening Firestore rules (no public access), those unscoped queries could return empty results or fail, causing **Service History** and **Service Schedule** to show no records.
+
+**Solution**:
+- Updated queries to always include `ownerId == getDataOwnerId()` alongside `clientId` when fetching `jobs`, `payments`, and `servicePlans`.
+- Updated related job cleanup queries (deleting pending jobs for removed additional services / archive cleanup) to include owner scoping.
+
+**User Impact**:
+- Service History and Schedule should populate normally again for authorized users, without reopening public data access.
+
 ## December 27, 2025
 
 ### Firebase: Daily `numberOfClients` field on user documents (midnight scheduled Cloud Function)

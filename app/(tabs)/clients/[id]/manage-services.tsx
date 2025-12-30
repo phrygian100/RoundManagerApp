@@ -66,9 +66,12 @@ export default function ManageServicesScreen() {
 			// 1) Attempt to load plans, but do not block legacy fetch if this fails
 			try {
 				const ownerId = await getDataOwnerId();
-				const plansQuery = ownerId
-					? query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId), where('clientId', '==', clientId))
-					: query(collection(db, 'servicePlans'), where('clientId', '==', clientId));
+				if (!ownerId) throw new Error('Missing ownerId (data owner id) for service plan query');
+				const plansQuery = query(
+					collection(db, 'servicePlans'),
+					where('ownerId', '==', ownerId),
+					where('clientId', '==', clientId)
+				);
 				const snap = await getDocs(plansQuery);
 				const data = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as EditablePlan[];
 				setPlans(data);
@@ -96,9 +99,12 @@ export default function ManageServicesScreen() {
 
 			// 3) Fetch pending jobs regardless
 			try {
+				const ownerId = await getDataOwnerId();
+				if (!ownerId) throw new Error('Missing ownerId (data owner id) for pending jobs query');
 				const jobsSnap = await getDocs(
 					query(
 						collection(db, 'jobs'),
+						where('ownerId', '==', ownerId),
 						where('clientId', '==', clientId),
 						where('status', 'in', ['pending', 'scheduled', 'in_progress'])
 					)
@@ -720,7 +726,15 @@ export default function ManageServicesScreen() {
 											await updateDoc(doc(db, 'clients', clientId), { additionalServices: updated });
 											setAdditionalServices(updated);
 											// Delete related jobs (pending/scheduled/in_progress)
-											const jobsSnap = await getDocs(query(collection(db, 'jobs'), where('clientId', '==', clientId)));
+											const ownerId = await getDataOwnerId();
+											if (!ownerId) throw new Error('Missing ownerId (data owner id) for job cleanup');
+											const jobsSnap = await getDocs(
+												query(
+													collection(db, 'jobs'),
+													where('ownerId', '==', ownerId),
+													where('clientId', '==', clientId)
+												)
+											);
 											for (const jobDoc of jobsSnap.docs) {
 												const jd: any = jobDoc.data();
 												const st = jd.status;

@@ -188,12 +188,14 @@ export default function ClientDetailScreen() {
       // Fetch service plans
       try {
         const ownerId = await getDataOwnerId();
-        const plansQuery = ownerId
-          ? query(collection(db, 'servicePlans'), 
-              where('ownerId', '==', ownerId), 
-              where('clientId', '==', id))
-          : query(collection(db, 'servicePlans'), 
-              where('clientId', '==', id));
+        if (!ownerId) {
+          throw new Error('Missing ownerId (data owner id) for service plan query');
+        }
+        const plansQuery = query(
+          collection(db, 'servicePlans'),
+          where('ownerId', '==', ownerId),
+          where('clientId', '==', id)
+        );
         const plansSnapshot = await getDocs(plansQuery);
         const plans = plansSnapshot.docs.map(doc => ({ 
           id: doc.id, 
@@ -215,15 +217,28 @@ export default function ClientDetailScreen() {
     setLoadingHistory(true);
     setBalance(null); // Reset balance on re-fetch
     try {
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        throw new Error('Missing ownerId (data owner id) for history query');
+      }
+
       // Fetch all jobs for this client (not just completed)
-      const jobsQuery = query(collection(db, 'jobs'), where('clientId', '==', client.id));
+      const jobsQuery = query(
+        collection(db, 'jobs'),
+        where('ownerId', '==', ownerId),
+        where('clientId', '==', client.id)
+      );
       const jobsSnapshot = await getDocs(jobsQuery);
       const jobsData = jobsSnapshot.docs
         .map(doc => ({ ...doc.data(), id: doc.id, type: 'job' } as Job & { type: 'job' }))
         .filter(job => job.status === 'completed');
 
       // Fetch payments
-      const paymentsQuery = query(collection(db, 'payments'), where('clientId', '==', client.id));
+      const paymentsQuery = query(
+        collection(db, 'payments'),
+        where('ownerId', '==', ownerId),
+        where('clientId', '==', client.id)
+      );
       const paymentsSnapshot = await getDocs(paymentsQuery);
       const paymentsData = paymentsSnapshot.docs.map(doc => ({ ...doc.data(), id: doc.id, type: 'payment' })) as (Payment & { type: 'payment' })[];
       
@@ -436,8 +451,17 @@ export default function ClientDetailScreen() {
     // Fetch next scheduled visit (next pending job)
     const fetchNextScheduledVisit = async () => {
       try {
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          setNextScheduledVisit(null);
+          setOriginalScheduledVisit(null);
+          setNextJobWasMoved(false);
+          return;
+        }
+
         const jobsQuery = query(
           collection(db, 'jobs'),
+          where('ownerId', '==', ownerId),
           where('clientId', '==', client.id),
           where('status', 'in', ['pending', 'scheduled', 'in_progress'])
         );
@@ -578,11 +602,15 @@ export default function ClientDetailScreen() {
         
         // Delete all jobs for this client that are scheduled for today or in the future and not completed
         console.log('🗂️ Deleting future jobs for client...');
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) throw new Error('Missing ownerId (data owner id) for job cleanup');
+
         const jobsRef = collection(db, 'jobs');
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const jobsQuery = query(
           jobsRef, 
+          where('ownerId', '==', ownerId),
           where('clientId', '==', id),
           where('status', '!=', 'completed')
         );
@@ -2069,7 +2097,15 @@ export default function ClientDetailScreen() {
                         setClient(prev => prev ? { ...prev, additionalServices: updatedAdditionalServices } : null);
                         // Delete any pending/scheduled/in_progress jobs for this additional service
                         try {
-                          const jobsSnap = await getDocs(query(collection(db, 'jobs'), where('clientId', '==', id as string)));
+                          const ownerId = await getDataOwnerId();
+                          if (!ownerId) throw new Error('Missing ownerId (data owner id) for job cleanup');
+                          const jobsSnap = await getDocs(
+                            query(
+                              collection(db, 'jobs'),
+                              where('ownerId', '==', ownerId),
+                              where('clientId', '==', id as string)
+                            )
+                          );
                           for (const jobDoc of jobsSnap.docs) {
                             const jd: any = jobDoc.data();
                             const st = jd.status;
