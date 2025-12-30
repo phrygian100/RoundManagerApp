@@ -8,15 +8,16 @@
 
 **Problem**: On the `/add-client` screen, users couldn't change the start date. The date field displayed the current date but wouldn't update when users tried to change it by typing or using the calendar picker widget.
 
-**Root Cause**: The web date input was using `...styles.input` to spread styles from `StyleSheet.create()`. In React Native, `StyleSheet.create()` returns numeric IDs (not plain objects) in production builds. Spreading these into a native HTML `<input>` element's style prop doesn't work correctly. Additionally, React Native style properties like `paddingHorizontal` and `borderWidth` aren't valid CSS for native HTML elements.
+**Root Cause**: The native HTML `<input type="date">` element wasn't working reliably in the React Native Web environment. Other screens in the codebase (quotes.tsx, new-business.tsx) successfully use the `react-datepicker` library instead.
 
-**Solution**: Replaced the StyleSheet spread with valid inline CSS properties:
-- Changed `...styles.input` to explicit CSS properties
-- Changed `borderWidth: 1` and `borderColor: '#ccc'` to valid CSS: `border: '1px solid #ccc'`
-- Changed `paddingHorizontal: 16` to CSS `padding: '0 16px'`
-- Added `width: '100%'` and `boxSizing: 'border-box'` for proper sizing
+**Solution**: Replaced the native HTML date input with the `react-datepicker` library pattern used elsewhere in the app:
+- Added `react-datepicker` import (conditionally loaded for web only)
+- Added `webDate` state to track the selected date for the picker
+- Replaced the `<input type="date">` with a Pressable that opens a DatePicker overlay modal
+- Added overlay styles for the web date picker modal
+- Synced webDate state when nextVisit is updated from params
 
-**User Impact**: Users can now properly select and change the start date when adding new clients on web.
+**User Impact**: Users can now properly select and change the start date when adding new clients on web. The date picker now appears as a calendar overlay modal, consistent with other date pickers in the app.
 
 ---
 

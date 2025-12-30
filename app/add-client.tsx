@@ -4,7 +4,14 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import 'react-datepicker/dist/react-datepicker.css';
+import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+
+let DatePicker: any = null;
+if (Platform.OS === 'web') {
+  DatePicker = require('react-datepicker').default;
+  require('react-datepicker/dist/react-datepicker.css');
+}
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
@@ -48,6 +55,7 @@ export default function AddClientScreen() {
   const [showCustomSourceInput, setShowCustomSourceInput] = useState(false);
   const [email, setEmail] = useState('');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [webDate, setWebDate] = useState<Date>(new Date());
   const [startingBalance, setStartingBalance] = useState('0');
   const { quoteData, clearQuoteData } = useQuoteToClient();
 
@@ -149,7 +157,10 @@ export default function AddClientScreen() {
     if (params.address1) updates.push(() => setAddress1(String(params.address1)));
     if (params.town) updates.push(() => setTown(String(params.town)));
     if (params.postcode) updates.push(() => setPostcode(String(params.postcode)));
-    if (params.nextVisit) updates.push(() => setNextVisit(String(params.nextVisit)));
+    if (params.nextVisit) updates.push(() => {
+      setNextVisit(String(params.nextVisit));
+      setWebDate(parseISO(String(params.nextVisit)));
+    });
     if (params.mobileNumber) updates.push(() => setMobileNumber(String(params.mobileNumber)));
     if (params.quote) updates.push(() => setQuote(String(params.quote)));
     if (params.accountNumber) updates.push(() => setAccountNumber(Number(params.accountNumber)));
@@ -538,64 +549,67 @@ export default function AddClientScreen() {
         </View>
 
         <ThemedText style={styles.label}>Starting Date</ThemedText>
-        {Platform.OS === 'web' ? (
-          <input
-            type="date"
-            value={nextVisit}
-            onChange={e => setNextVisit(e.target.value)}
-            style={{
-              height: 50,
-              border: '1px solid #ccc',
-              borderRadius: 8,
-              padding: '0 16px',
-              backgroundColor: '#fff',
-              fontSize: 16,
-              width: '100%',
-              boxSizing: 'border-box' as const,
+        <Pressable
+          style={[styles.input, { justifyContent: 'center' }]}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <ThemedText>
+            {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
+          </ThemedText>
+        </Pressable>
+        
+        {/* Web Date Picker Overlay */}
+        {showDatePicker && Platform.OS === 'web' && DatePicker && (
+          <View style={styles.webDatePickerOverlay}>
+            <View style={styles.webDatePickerContainer}>
+              <DatePicker
+                selected={webDate}
+                onChange={(date: Date | null) => {
+                  if (date) {
+                    const yyyy = date.getFullYear();
+                    const mm = String(date.getMonth() + 1).padStart(2, '0');
+                    const dd = String(date.getDate()).padStart(2, '0');
+                    setNextVisit(`${yyyy}-${mm}-${dd}`);
+                    setWebDate(date);
+                  }
+                  setShowDatePicker(false);
+                }}
+                inline
+              />
+              <Pressable style={styles.cancelDateButton} onPress={() => setShowDatePicker(false)}>
+                <Text style={styles.cancelDateText}>Cancel</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+        
+        {/* Native Date Picker */}
+        {showDatePicker && Platform.OS !== 'web' && (
+          <DateTimePicker
+            value={nextVisit ? parseISO(nextVisit) : new Date()}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={(event, selectedDate) => {
+              // On Android, the picker closes automatically when a date is selected
+              // On iOS, we need to handle the spinner mode differently
+              if (Platform.OS === 'android') {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                  setNextVisit(formattedDate);
+                }
+              } else {
+                // iOS spinner mode - only update when user confirms
+                if (event.type === 'set' && selectedDate) {
+                  const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+                  setNextVisit(formattedDate);
+                }
+                if (event.type === 'dismissed') {
+                  setShowDatePicker(false);
+                }
+              }
             }}
           />
-        ) : (
-          <>
-            <Pressable
-              style={[styles.input, { justifyContent: 'center' }]}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <ThemedText>
-                {nextVisit ? format(parseISO(nextVisit), 'do MMMM yyyy') : 'Select date'}
-              </ThemedText>
-            </Pressable>
-            {showDatePicker && (
-              <DateTimePicker
-                value={nextVisit ? parseISO(nextVisit) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  console.log('DateTimePicker onChange:', { event, selectedDate, platform: Platform.OS });
-                  
-                  // On Android, the picker closes automatically when a date is selected
-                  // On iOS, we need to handle the spinner mode differently
-                  if (Platform.OS === 'android') {
-                    setShowDatePicker(false);
-                    if (selectedDate) {
-                      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                      console.log('Android: Setting nextVisit to:', formattedDate);
-                      setNextVisit(formattedDate);
-                    }
-                  } else {
-                    // iOS spinner mode - only update when user confirms
-                    if (event.type === 'set' && selectedDate) {
-                      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-                      console.log('iOS: Setting nextVisit to:', formattedDate);
-                      setNextVisit(formattedDate);
-                    }
-                    if (event.type === 'dismissed') {
-                      setShowDatePicker(false);
-                    }
-                  }
-                }}
-              />
-            )}
-          </>
         )}
 
         <ThemedText style={styles.label}>Starting Balance</ThemedText>
@@ -721,5 +735,35 @@ const styles = StyleSheet.create({
   frequencyLabel: {
     fontSize: 16,
     color: '#666',
+  },
+  webDatePickerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  webDatePickerContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  cancelDateButton: {
+    marginTop: 12,
+    padding: 10,
+    alignItems: 'center',
+  },
+  cancelDateText: {
+    color: '#007AFF',
+    fontSize: 16,
   },
 });
