@@ -558,31 +558,6 @@ export default function AddClientScreen() {
           </ThemedText>
         </Pressable>
         
-        {/* Web Date Picker Overlay */}
-        {showDatePicker && Platform.OS === 'web' && DatePicker && (
-          <View style={styles.webDatePickerOverlay}>
-            <View style={styles.webDatePickerContainer}>
-              <DatePicker
-                selected={webDate}
-                onChange={(date: Date | null) => {
-                  if (date) {
-                    const yyyy = date.getFullYear();
-                    const mm = String(date.getMonth() + 1).padStart(2, '0');
-                    const dd = String(date.getDate()).padStart(2, '0');
-                    setNextVisit(`${yyyy}-${mm}-${dd}`);
-                    setWebDate(date);
-                  }
-                  setShowDatePicker(false);
-                }}
-                inline
-              />
-              <Pressable style={styles.cancelDateButton} onPress={() => setShowDatePicker(false)}>
-                <Text style={styles.cancelDateText}>Cancel</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-        
         {/* Native Date Picker */}
         {showDatePicker && Platform.OS !== 'web' && (
           <DateTimePicker
@@ -629,6 +604,31 @@ export default function AddClientScreen() {
           onPress={handleSave}
         />
       </ScrollView>
+
+      {/* Web Date Picker Overlay - outside ScrollView for proper positioning */}
+      {showDatePicker && Platform.OS === 'web' && DatePicker && (
+        <View style={styles.webDatePickerOverlay}>
+          <View style={styles.webDatePickerContainer}>
+            <DatePicker
+              selected={webDate}
+              onChange={(date: Date | null) => {
+                if (date) {
+                  const yyyy = date.getFullYear();
+                  const mm = String(date.getMonth() + 1).padStart(2, '0');
+                  const dd = String(date.getDate()).padStart(2, '0');
+                  setNextVisit(`${yyyy}-${mm}-${dd}`);
+                  setWebDate(date);
+                }
+                setShowDatePicker(false);
+              }}
+              inline
+            />
+            <Pressable style={styles.cancelDateButton} onPress={() => setShowDatePicker(false)}>
+              <Text style={styles.cancelDateText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
     </ThemedView>
   );
 }
