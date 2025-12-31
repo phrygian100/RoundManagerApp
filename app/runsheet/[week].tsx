@@ -1505,6 +1505,13 @@ ${signOff}`;
         }
       }
 
+      // Build customer portal link
+      const normalizedBusinessName = userProfile?.businessName?.toLowerCase().replace(/\s+/g, '') || '';
+      const portalLink = normalizedBusinessName ? `\nSign in to our customer portal to see a further breakdown at www.guvnor.app/${normalizedBusinessName}` : '';
+
+      // Payment reference notice
+      const paymentNotice = `\nWe are aware of a large number of payments that have no reference or references like "window cleaner" or "windows". If you believe you've made a payment via bank transfer that we're not accounting for, please let me know exactly how it looks on your statement so our accounts system can find it.`;
+
       // Build sign-off
       const signOffParts = ['Many thanks.', userProfile?.name, userProfile?.businessName].filter(Boolean);
       const signOff = signOffParts.join('\n');
@@ -1517,7 +1524,7 @@ ${balanceText}
 
 ${serviceLines}
 
-${paymentLines}${bankingInfo}
+${paymentLines}${bankingInfo}${portalLink}${paymentNotice}
 
 ${signOff}`;
 

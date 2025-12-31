@@ -1,5 +1,30 @@
 # Code Changes Log
 
+## December 31, 2025
+
+### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice
+
+**File Changed**: `app/runsheet/[week].tsx`
+
+**Feature**: Updated the account summary text message (sent via the £ button on runsheet jobs) to include additional helpful information for clients.
+
+**New Content Added**:
+1. **Customer Portal Link**: Added a line directing clients to sign in to their customer portal for a detailed breakdown, with the URL dynamically generated from the business name (e.g., `www.guvnor.app/tgmwindowcleaning`)
+2. **Payment Reference Notice**: Added a message explaining that some payments may not be matched due to missing or generic references like "window cleaner" or "windows", and asking clients to provide statement details if they believe a payment is unaccounted for
+
+**Updated Message Template**:
+- Hi, {Client Name}
+- Below is an account summary.
+- {Balance Status}
+- {Services Summary}
+- {Payments Summary}
+- {Banking Details - if owed}
+- Sign in to our customer portal to see a further breakdown at www.guvnor.app/{businessname}
+- We are aware of a large number of payments that have no reference...
+- Many thanks. / {Your Name} / {Business Name}
+
+---
+
 ## December 30, 2025
 
 ### Add Client: Fixed web date picker not updating
