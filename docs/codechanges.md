@@ -24,6 +24,27 @@
 - Many thanks. / {Your Name} / {Business Name}
 
 ---
+ 
+ ## January 2, 2026
+ 
+ ### Payments List: Restore payments under locked-down Firestore rules (no security rollback)
+ 
+ **Files Changed**:
+ - `app/payments-list.tsx`
+ - `services/paymentService.ts`
+ 
+ **Problem**:
+ - `/payments-list` could show **“No payments found”** after Firestore rules were tightened because:
+   - It performs a batched client lookup using `where('__name__', 'in', [...])` which can fail the *entire batch* if any client doc is missing/not readable.
+   - Some legacy payment docs may be scoped by `accountId` instead of `ownerId`, so `getAllPayments()` could return an empty array even though payments exist.
+ 
+ **Solution**:
+ - Added a safe fallback in `/payments-list` to fetch clients **per-doc** if the batched lookup fails, so payments still render (clients may appear as “Unknown” rather than blanking the whole list).
+ - Updated `getAllPayments()` to merge results from both `ownerId == accountId` and `accountId == accountId` (compat only), without loosening security.
+ 
+ **User Impact**: Payments should display again in `/payments-list` while keeping the database locked down against DevTools scraping/tampering.
+ 
+ ---
 
 ## December 30, 2025
 

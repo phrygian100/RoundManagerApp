@@ -48,9 +48,22 @@ export async function getAllPayments(): Promise<Payment[]> {
   const ownerId = await getDataOwnerId();
   if (!ownerId) return [];
   const paymentsRef = collection(db, PAYMENTS_COLLECTION);
-  const q = query(paymentsRef, where('ownerId', '==', ownerId));
-  const querySnapshot = await getDocs(q);
-  return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
+  // Primary: ownerId-scoped (current canonical field)
+  const qOwner = query(paymentsRef, where('ownerId', '==', ownerId));
+  const ownerSnap = await getDocs(qOwner);
+
+  // Compatibility: some older payments may have been written under accountId without ownerId
+  // (or during migrations). This is still safe because rules enforce account access.
+  const qAccount = query(paymentsRef, where('accountId', '==', ownerId));
+  const accountSnap = await getDocs(qAccount);
+
+  const byId = new Map<string, Payment>();
+  ownerSnap.docs.forEach(d => byId.set(d.id, ({ id: d.id, ...d.data() } as Payment)));
+  accountSnap.docs.forEach(d => {
+    if (!byId.has(d.id)) byId.set(d.id, ({ id: d.id, ...d.data() } as Payment));
+  });
+
+  return Array.from(byId.values());
 }
 
 export async function updatePayment(paymentId: string, data: Partial<Payment>) {

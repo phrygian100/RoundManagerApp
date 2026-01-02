@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
@@ -39,7 +39,11 @@ export default function PaymentsListScreen() {
       setLoading(true);
       try {
         const paymentsData = await getAllPayments();
-        const paymentClientIds = [...new Set(paymentsData.map(payment => payment.clientId))];
+        const paymentClientIds = [...new Set(
+          paymentsData
+            .map(payment => payment.clientId)
+            .filter(Boolean)
+        )];
         
         if (paymentClientIds.length === 0) {
           setPayments([]);
@@ -54,16 +58,34 @@ export default function PaymentsListScreen() {
         }
         
         const paymentClientsMap = new Map<string, Client>();
-        const paymentClientPromises = paymentClientChunks.map(chunk => 
-          getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
-        );
-        const paymentClientSnapshots = await Promise.all(paymentClientPromises);
-        
-        paymentClientSnapshots.forEach((snapshot: any) => {
-          snapshot.forEach((docSnap: any) => {
-            paymentClientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+        try {
+          // Fast path: batched lookup (Firestore 'in' limit is 30)
+          const paymentClientPromises = paymentClientChunks.map(chunk =>
+            getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
+          );
+          const paymentClientSnapshots = await Promise.all(paymentClientPromises);
+          
+          paymentClientSnapshots.forEach((snapshot: any) => {
+            snapshot.forEach((docSnap: any) => {
+              paymentClientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+            });
           });
-        });
+        } catch (err) {
+          // If any doc in an `in` batch is not readable/missing, Firestore can reject the whole query.
+          // Fall back to per-doc fetch so payments still render (clients may show as Unknown).
+          console.warn('⚠️ Batched client lookup failed in payments-list; falling back to per-client getDoc.', err);
+          const settled = await Promise.allSettled(
+            paymentClientIds.map((id) => getDoc(doc(db, 'clients', id)))
+          );
+          settled.forEach((r) => {
+            if (r.status === 'fulfilled') {
+              const snap = r.value;
+              if (snap.exists()) {
+                paymentClientsMap.set(snap.id, { id: snap.id, ...snap.data() } as Client);
+              }
+            }
+          });
+        }
         
         const paymentsWithClients = paymentsData.map(payment => ({
           ...payment,
