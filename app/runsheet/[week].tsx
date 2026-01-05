@@ -2007,6 +2007,7 @@ ${signOff}`;
         const apiErrors: string[] = [];
         let apiPaymentsCreated = 0;
         const failedPayments: Array<{ clientId: string; error: string }> = [];
+        const successfulClientIds = new Set<string>();
 
         for (const [clientId, jobs] of gocardlessJobsByClient) {
           try {
@@ -2026,6 +2027,7 @@ ${signOff}`;
             const result: any = await createGoCardlessPayment(payload);
             if (result?.data?.success) {
               apiPaymentsCreated++;
+              successfulClientIds.add(clientId);
             } else {
               throw new Error(result?.data?.message || 'Unknown error');
             }
@@ -2040,7 +2042,8 @@ ${signOff}`;
         // Mirror to local payments
         let localPaymentsCreated = 0;
         if (apiPaymentsCreated > 0) {
-          const paymentResult = await createGoCardlessPaymentsForDay(dayJobs, completionDate);
+          const successfulDayJobs = dayJobs.filter(j => successfulClientIds.has(j.clientId));
+          const paymentResult = await createGoCardlessPaymentsForDay(successfulDayJobs, completionDate);
           localPaymentsCreated = paymentResult.paymentsCreated;
           await logAction(
             'gocardless_payments_processed',

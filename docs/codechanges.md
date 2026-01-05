@@ -46,6 +46,26 @@
  
  ---
 
+## January 5, 2026
+
+### Runsheet Day Complete: Fix GoCardless DDs not creating local payment records
+
+**Files Changed**:
+- `app/runsheet/[week].tsx`
+- `services/paymentService.ts`
+
+**Problem**:
+- When users completed a day and confirmed the summary modal, GoCardless direct debits could be successfully initiated, but **no local `payments` records** would appear on the account.
+- Root cause: the DD initiation path allows job-level **or** embedded `client`-level GoCardless fields, but `createGoCardlessPaymentsForDay()` only considered jobs where `job.gocardlessEnabled && job.gocardlessCustomerId` were set.
+
+**Solution**:
+- Updated `createGoCardlessPaymentsForDay()` to detect DD jobs using the same job/client fallback logic as the runsheet’s GoCardless initiation.
+- Updated the runsheet mirroring step to create local payment records **only for clients whose GoCardless API payment succeeded**, preventing accidental local-only records for failed DDs.
+
+**User Impact**: Completing a day now correctly creates payment entries on the account for successful direct debits.
+
+---
+
 ## December 30, 2025
 
 ### Add Client: Fixed web date picker not updating

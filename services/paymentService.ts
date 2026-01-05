@@ -165,7 +165,14 @@ export async function deleteAllPayments(): Promise<void> {
  * Create payments for GoCardless clients when completing a day
  */
 export async function createGoCardlessPaymentsForDay(
-  dayJobs: Array<{ id: string; clientId: string; price: number; gocardlessEnabled?: boolean; gocardlessCustomerId?: string }>,
+  dayJobs: Array<{
+    id: string;
+    clientId: string;
+    price: number;
+    gocardlessEnabled?: boolean;
+    gocardlessCustomerId?: string;
+    client?: { gocardlessEnabled?: boolean; gocardlessCustomerId?: string };
+  }>,
   completionDate: string
 ): Promise<{ success: boolean; paymentsCreated: number; errors: string[] }> {
   const ownerId = await getDataOwnerId();
@@ -176,17 +183,19 @@ export async function createGoCardlessPaymentsForDay(
 
   try {
     // Group jobs by client and filter for GoCardless clients
-    const gocardlessJobsByClient = new Map<string, Array<{ id: string; price: number; gocardlessCustomerId?: string }>>();
+    const gocardlessJobsByClient = new Map<string, Array<{ id: string; price: number; gocardlessCustomerId: string }>>();
     
     dayJobs.forEach(job => {
-      if (job.gocardlessEnabled && job.gocardlessCustomerId) {
+      const enabled = job.gocardlessEnabled ?? job.client?.gocardlessEnabled ?? false;
+      const customerId = job.gocardlessCustomerId ?? job.client?.gocardlessCustomerId;
+      if (enabled && customerId) {
         if (!gocardlessJobsByClient.has(job.clientId)) {
           gocardlessJobsByClient.set(job.clientId, []);
         }
         gocardlessJobsByClient.get(job.clientId)!.push({
           id: job.id,
           price: job.price,
-          gocardlessCustomerId: job.gocardlessCustomerId
+          gocardlessCustomerId: customerId
         });
       }
     });
