@@ -83,6 +83,7 @@
 **Change**:
 - Added a new marketing page at `/guides` designed as a beginner learning resource.
 - Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
+- Updated `vercel.json` rewrites to serve `/guides` from `dist/_marketing` (prevents the main app router treating `guides` as a business slug).
 
 **User Impact**: New users can find onboarding resources from any marketing page footer and access the new `/guides` page.
 

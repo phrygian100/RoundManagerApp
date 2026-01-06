@@ -19,6 +19,10 @@
       "destination": "/_marketing/feature-tour/index.html"
     },
     {
+      "source": "/guides/:path*",
+      "destination": "/_marketing/guides/index.html"
+    },
+    {
       "source": "/contact/:path*",
       "destination": "/_marketing/contact/index.html"
     },
@@ -51,7 +55,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png|home|pricing|about|feature-tour|contact|privacy-policy|terms|set-password|forgot-password|login|register).*)",
+      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png|home|pricing|about|feature-tour|guides|contact|privacy-policy|terms|set-password|forgot-password|login|register).*)",
       "destination": "/index.html"
     }
   ],
