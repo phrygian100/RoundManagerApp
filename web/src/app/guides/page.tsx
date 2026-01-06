@@ -7,33 +7,6 @@ export default function GuidesPage() {
     <div className="min-h-screen bg-white">
       <MarketingNav />
 
-      {/* Hero */}
-      <div className="py-12 sm:py-16 bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-900 mb-4 sm:mb-6">
-            Guides for New Users
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            Quick, practical learning resources to help you start strong with Guvnor.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link
-              href="/"
-              className="bg-indigo-600 text-white hover:bg-indigo-700 px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold transition-colors"
-            >
-              Start Free
-            </Link>
-            <Link
-              href="/feature-tour"
-              className="border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold transition-colors"
-            >
-              View Feature Tour
-            </Link>
-          </div>
-        </div>
-      </div>
-
       {/* Content */}
       <div className="py-16">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
