@@ -60,13 +60,14 @@ export default function GuidesPage() {
                   </svg>
                 </div>
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-900 ml-4">
-                  Migrate your existing window cleaning business to Guvnor
+                  For established window cleaners
                 </h2>
               </div>
 
               <p className="text-gray-600 mb-5">
-                If you already have customers, a route, and a system (paper, spreadsheets, or another app),
-                the goal is to move over without disruption.
+                Import your existing customers via the Import Clients function in the settings menu. Guvnor uses
+                a round order so you'll need to visualise your whole round as if you were completing it in a
+                single day, numbering the jobs in order of visit.
               </p>
 
               <ol className="space-y-3 text-gray-700 list-decimal pl-5">
