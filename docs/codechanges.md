@@ -66,6 +66,26 @@
 
 ---
 
+## January 6, 2026
+
+### Marketing Website: Add `/guides` learning resource page + footer links
+
+**Files Changed**:
+- `web/src/app/guides/page.tsx`
+- `web/src/app/home/page.tsx`
+- `web/src/app/feature-tour/page.tsx`
+- `web/src/app/pricing/page.tsx`
+- `web/src/app/about/page.tsx`
+- `web/src/app/contact/page.tsx`
+- `web/src/app/terms/page.tsx`
+- `web/src/app/privacy-policy/page.tsx`
+
+**Change**:
+- Added a new marketing page at `/guides` designed as a beginner learning resource.
+- Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
+
+**User Impact**: New users can find onboarding resources from any marketing page footer and access the new `/guides` page.
+
 ## December 30, 2025
 
 ### Add Client: Fixed web date picker not updating

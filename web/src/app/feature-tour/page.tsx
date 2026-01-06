@@ -331,6 +331,7 @@ export default function FeatureTourPage() {
                 <h4 className="font-semibold mb-4">Product</h4>
                 <ul className="space-y-2 text-gray-400">
                   <li><Link href="/feature-tour" className="hover:text-white">Features</Link></li>
+                  <li><Link href="/guides" className="hover:text-white">Guides</Link></li>
                   <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
                 </ul>
               </div>

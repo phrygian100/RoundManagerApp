@@ -311,6 +311,7 @@ export default function PrivacyPolicyPage() {
                 <h4 className="font-semibold mb-4">Product</h4>
                 <ul className="space-y-2 text-gray-400">
                   <li><Link href="/pricing" className="hover:text-white">Pricing</Link></li>
+                  <li><Link href="/guides" className="hover:text-white">Guides</Link></li>
                   <li><Link href="/home" className="hover:text-white">Features</Link></li>
                 </ul>
               </div>
