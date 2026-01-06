@@ -83,6 +83,7 @@
 **Change**:
 - Added a new marketing page at `/guides` designed as a beginner learning resource.
 - Updated `/guides` copy for established window cleaners section.
+- Fixed Next.js build lint (`react/no-unescaped-entities`) by escaping apostrophes in `/guides` copy.
 - Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
 - Updated `vercel.json` rewrites to serve `/guides` from `dist/_marketing` (prevents the main app router treating `guides` as a business slug).
 

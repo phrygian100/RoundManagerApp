@@ -66,7 +66,7 @@ export default function GuidesPage() {
 
               <p className="text-gray-600 mb-5">
                 Import your existing customers via the Import Clients function in the settings menu. Guvnor uses
-                a round order so you'll need to visualise your whole round as if you were completing it in a
+                a round order so you&apos;ll need to visualise your whole round as if you were completing it in a
                 single day, numbering the jobs in order of visit.
               </p>
 
