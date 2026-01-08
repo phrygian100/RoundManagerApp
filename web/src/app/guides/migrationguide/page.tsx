@@ -27,6 +27,49 @@ export default function MigrationGuidePage() {
             />
           </div>
 
+          <ul className="space-y-3 text-gray-700 mb-10 list-disc pl-5">
+            <li>
+              If you have your customers on a spreadsheet in excel or googlesheets, you can organise them to
+              copy and paste directly into this screen.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Visit frequency</span> - This is the time in weeks
+              between visits ie, 4 or 8 weekly
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Starting date</span> - This is the date of their
+              next service
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Round order</span> - This is a number. Imagine you
+              were visiting all your customers in one day, order them from the 1st visit to the last visit.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Account number</span> - You can leave this blank.
+              Each of your customers will be given an account number starting in RWC. Your customers using bank
+              transfer should use this account number as their reference when they pay so their payments can be
+              picked up automatically by Guvnor.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Source</span> - This is where you found your
+              customer. Ie Facebook, Google, Canvassing, On the curb.
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Starting Balance</span> - If you want to credit
+              them with a starting balance that isn&apos;t zero
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Runsheet note</span> - This is a note that will be
+              visible every time you visit the job. Ie. &quot;Gate code 5080&quot; or &quot;Dont forget velux
+              window at the side&quot;
+            </li>
+            <li>
+              <span className="font-semibold text-gray-900">Account notes</span> - This is a more detailed note
+              that will appear only when you look into their account. You can add many of these by visiting the
+              account later.
+            </li>
+          </ul>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/guides"
