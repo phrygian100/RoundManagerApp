@@ -1,6 +1,6 @@
+import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
-import { MarketingNav } from "@/components/MarketingNav";
 
 export default function FindingCustomersPage() {
   return (

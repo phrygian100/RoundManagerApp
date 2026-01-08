@@ -74,6 +74,26 @@ export default function MigrationGuidePage() {
             </li>
           </ul>
 
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
+            Importing Historic Payments
+          </h2>
+          <p className="text-gray-600 mb-8">
+            In settings, which can be found by clicking on the gear icon on the homescreen. There is an option to
+            Add bulk payments. This works very similarly to importing clients. You can add lines per payment,
+            referencing the account number of each client. If you find it hard to reference the account number
+            you can use the finder to fetch it.
+          </p>
+
+          <div className="mb-10">
+            <Image
+              src="/importPayments.png"
+              alt="Bulk payments import screen"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/guides"

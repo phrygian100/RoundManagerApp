@@ -91,6 +91,7 @@
 - Added `/guides/migrationguide` content and screenshot (`import-clientsScreenShot.png`) and ensured the asset is available via `web/public` (copied into root `public` during build).
 - Expanded `/guides/migrationguide` with field-by-field guidance for importing clients.
 - Added “Importing your clients” subheader + desktop usage note to `/guides/migrationguide`.
+- Added “Importing Historic Payments” section and screenshot (`importPayments.png`) to `/guides/migrationguide`.
 - Added `/guides/findingcustomers` content and screenshots (Flyer + New Business flow) and ensured the assets are available via `web/public`.
 - Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
 - Updated `vercel.json` rewrites so `/guides/*` routes to the matching marketing export (prevents the main app router treating it as a business slug).
