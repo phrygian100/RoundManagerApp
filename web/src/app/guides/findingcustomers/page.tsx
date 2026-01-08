@@ -16,7 +16,7 @@ export default function FindingCustomersPage() {
             <p className="text-gray-700">
               So you&apos;ve decided you want to be a self employed window cleaner. There are many ways of finding
               your first customers. One of the most effective things to get you started is a good flyer that you
-              can post through doors in a an area you want to work.
+              can post through doors in an area you want to work.
             </p>
             <p className="text-gray-700">
               In the Materials section you will find all the paper items you will need to run your business. You
@@ -34,8 +34,8 @@ export default function FindingCustomersPage() {
 
             <p className="text-gray-700">
               This flyer shows a QR code and link where the prospective customer can go to fill out a quote form.
-              This will then appear in the New Business section of your homescreen. You will see an indicator on
-              the homescreen every time there is a new opportunity.
+              This will then appear in the New Business section of your home screen. You will see an indicator on
+              the home screen every time there is a new opportunity.
             </p>
 
             <Image
@@ -47,7 +47,7 @@ export default function FindingCustomersPage() {
             />
 
             <p className="text-gray-700">
-              At this point you have 2 options. You can Schedule a quote which will create a quote in the quotes
+              At this point you have two options. You can Schedule a quote which will create a quote in the quotes
               section or add them as a client immediately. This would be useful if you&apos;ve called the customer
               and agreed on a cost per service and when you&apos;ll be coming.
             </p>
@@ -61,7 +61,7 @@ export default function FindingCustomersPage() {
             />
 
             <p className="text-gray-700 font-semibold">
-              That&apos;s it!. You&apos;ve found your first customer. Many more to come.
+              That&apos;s it! You&apos;ve found your first customer. Many more to come.
             </p>
           </div>
 

@@ -23,6 +23,15 @@
 **Change**:
 - Renamed the `/guides` button and the `/guides/memberaccounts` page title from “How to Manage Subcontractors And Staff” to **“Collaborating with others on Guvnor”** (URL unchanged).
 
+### Marketing: Copy edits for guides (spelling/grammar)
+
+**Files Changed**:
+- `web/src/app/guides/migrationguide/page.tsx`
+- `web/src/app/guides/findingcustomers/page.tsx`
+
+**Change**:
+- Applied agreed spelling/grammar improvements (e.g. Setup, Guvnor capitalization, home screen, e.g. usage, and minor sentence fixes).
+
 ## December 31, 2025
 
 ### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice

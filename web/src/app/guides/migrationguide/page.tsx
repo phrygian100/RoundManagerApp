@@ -10,15 +10,15 @@ export default function MigrationGuidePage() {
       <div className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Established Window Cleaners set up guide
+            Established Window Cleaners Setup guide
           </h1>
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
             Importing your clients
           </h2>
           <p className="text-gray-600 mb-8">
-            As an established window cleaner approaching guvnor, you will want to import your customers in one
-            go with the import function you can find by clicking on the settings icon in the homescreen. This is
-            an area of Guvnor that is best used with a full desktop instead of a smartphone
+            As an established window cleaner approaching Guvnor, you will want to import your customers in one
+            go with the import function you can find by clicking on the settings icon on the home screen. This is
+            an area of Guvnor that is best used with a full desktop instead of a smartphone.
           </p>
 
           <div className="mb-10">
@@ -33,12 +33,12 @@ export default function MigrationGuidePage() {
 
           <ul className="space-y-3 text-gray-700 mb-10 list-disc pl-5">
             <li>
-              If you have your customers on a spreadsheet in excel or googlesheets, you can organise them to
+              If you have your customers on a spreadsheet in Excel or Google Sheets, you can organise them to
               copy and paste directly into this screen.
             </li>
             <li>
               <span className="font-semibold text-gray-900">Visit frequency</span> - This is the time in weeks
-              between visits ie, 4 or 8 weekly
+              between visits, e.g., 4 or 8
             </li>
             <li>
               <span className="font-semibold text-gray-900">Starting date</span> - This is the date of their
@@ -56,7 +56,7 @@ export default function MigrationGuidePage() {
             </li>
             <li>
               <span className="font-semibold text-gray-900">Source</span> - This is where you found your
-              customer. Ie Facebook, Google, Canvassing, On the curb.
+              customer, e.g., Facebook, Google, Canvassing, On the curb.
             </li>
             <li>
               <span className="font-semibold text-gray-900">Starting Balance</span> - If you want to credit
@@ -64,8 +64,8 @@ export default function MigrationGuidePage() {
             </li>
             <li>
               <span className="font-semibold text-gray-900">Runsheet note</span> - This is a note that will be
-              visible every time you visit the job. Ie. &quot;Gate code 5080&quot; or &quot;Dont forget velux
-              window at the side&quot;
+              visible every time you visit the job, e.g., &quot;Gate code 5080&quot; or &quot;Don&apos;t forget
+              Velux window at the side&quot;
             </li>
             <li>
               <span className="font-semibold text-gray-900">Account notes</span> - This is a more detailed note
@@ -78,10 +78,10 @@ export default function MigrationGuidePage() {
             Importing Historic Payments
           </h2>
           <p className="text-gray-600 mb-8">
-            In settings, which can be found by clicking on the gear icon on the homescreen. There is an option to
-            Add bulk payments. This works very similarly to importing clients. You can add lines per payment,
-            referencing the account number of each client. If you find it hard to reference the account number
-            you can use the finder to fetch it.
+            In Settings (gear icon on the home screen), there is an option called &quot;Add Bulk Payments&quot;.
+            This works very similarly to importing clients. You can add lines per payment, referencing the
+            account number of each client. If you find it hard to reference the account number, you can use the
+            finder to fetch it.
           </p>
 
           <div className="mb-10">
@@ -98,8 +98,8 @@ export default function MigrationGuidePage() {
             Importing Past Completed Jobs
           </h2>
           <p className="text-gray-600 mb-8">
-            Opening the settings menu from the homescreen, lastly you can import completed jobs in the same manner
-            as the above two items.
+            Lastly, open Settings from the home screen and import completed jobs in the same manner as the above
+            two items.
           </p>
 
           <div className="mb-10">
