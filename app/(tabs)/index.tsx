@@ -6,7 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { User, onAuthStateChanged } from 'firebase/auth';
 import { collection, doc, getDoc, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Animated, BackHandler, Easing, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Animated, BackHandler, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import UpgradeModal from '../../components/UpgradeModal';
@@ -535,6 +535,10 @@ export default function HomeScreen() {
     outputRange: [0, 0.45],
   });
 
+  const handleOpenGuides = useCallback(() => {
+    Linking.openURL('https://guvnor.app/guides');
+  }, []);
+
   const gridColumns = safeWidth >= 1200 ? 4 : safeWidth >= 900 ? 3 : 2;
   const gridMaxWidth = Math.min(safeWidth - 32, 1180);
   const tileGap = 16;
@@ -573,13 +577,26 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View style={[styles.topBar, { paddingHorizontal: 24 }]}>
-          <Pressable
-            style={styles.settingsButton}
-            onPress={openSettingsDrawer}
-            android_ripple={{ color: 'rgba(255,255,255,0.15)', borderless: true }}
-          >
-            <Ionicons name="settings-outline" size={20} color="#e8ecf8" />
-          </Pressable>
+          <View style={styles.topBarLeftButtons}>
+            <Pressable
+              style={styles.settingsButton}
+              onPress={openSettingsDrawer}
+              accessibilityRole="button"
+              accessibilityLabel="Settings"
+              android_ripple={{ color: 'rgba(255,255,255,0.15)', borderless: true }}
+            >
+              <Ionicons name="settings-outline" size={20} color="#e8ecf8" />
+            </Pressable>
+            <Pressable
+              style={styles.settingsButton}
+              onPress={handleOpenGuides}
+              accessibilityRole="button"
+              accessibilityLabel="Guides"
+              android_ripple={{ color: 'rgba(255,255,255,0.15)', borderless: true }}
+            >
+              <Ionicons name="help-circle-outline" size={20} color="#e8ecf8" />
+            </Pressable>
+          </View>
           <View style={styles.weatherWrapper}>
             {weatherLoading ? (
               <Text style={styles.weatherPlaceholder}>Loading weather...</Text>
@@ -915,6 +932,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
   },
+  topBarLeftButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
   settingsButton: {
     width: 40,
     height: 40,
@@ -930,7 +952,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   topBarSpacer: {
-    width: 40,
+    // Keep the weather pill centered by matching the left icon cluster width:
+    // 40 (settings) + 10 (gap) + 40 (guides)
+    width: 90,
     height: 40,
   },
   weatherPill: {

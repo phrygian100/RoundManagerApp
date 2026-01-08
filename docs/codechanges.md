@@ -1,5 +1,19 @@
 # Code Changes Log
 
+## January 8, 2026
+
+### Home: Added “?” Guides Button Next to Settings Icon
+
+**File Changed**: `app/(tabs)/index.tsx`
+
+**Change**:
+- Added a new **“?” help/guides button** next to the existing settings gear icon on the logged-in home screen.
+- Tapping it opens `https://guvnor.app/guides` (via React Native `Linking`) so it works on mobile, desktop, and web targets.
+
+**User Impact**: Users can quickly access the Guides from the home screen without digging through settings.
+
+---
+
 ## December 31, 2025
 
 ### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice
