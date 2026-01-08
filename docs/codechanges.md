@@ -27,6 +27,16 @@
 
 ---
 
+### Web (App): Use Guvnor logo for favicon (`/favicon.ico`)
+
+**Files Changed**:
+- `assets/images/favicon.png`
+- `vercel.json`
+
+**Change**:
+- Replaced the Expo web favicon source image with the Guvnor mark so the exported app uses the Guvnor icon in browser tabs.
+- Set a no-cache policy for `/favicon.ico` to reduce stubborn Chrome favicon caching after deploys.
+
 ### Marketing: Rename guides hub label for collaboration guide
 
 **Files Changed**:
