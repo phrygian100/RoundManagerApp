@@ -38,6 +38,7 @@
 
 **Change**:
 - Added introductory copy and section headers for bulk vs individual payments.
+- Added “Adding Bulk Payments” section copy and screenshot.
 
 ## December 31, 2025
 

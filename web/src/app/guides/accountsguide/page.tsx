@@ -21,6 +21,30 @@ export default function AccountsGuidePage() {
             Adding Bulk Payments
           </h2>
 
+          <div className="space-y-6 mb-10">
+            <p className="text-gray-700">
+              In the accounts section, to the top right you will see a Button labelled &quot;Add Bulk Payments&quot;
+              Simply download your bank statement and paste the received payments into this screen.
+            </p>
+
+            <Image
+              src="/importPayments.png"
+              alt="Add Bulk Payments screen"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+
+            <p className="text-gray-700">
+              Because you&apos;ve instructed your users to reference their account number, Guvnor will look for
+              &quot;RWC&quot; and catch the reference, attributing the payment to their account. If in the event they
+              have mistakenly written something else, Guvnor will highlight that payment item and give you a window
+              to search an item you can see in the payment, such as the customers name or address. Ofcourse if there
+              is no way of telling where the payment has come from, then it will go into &quot;Unknown Payments&quot;
+              where you can later attribute to a customer account in future.
+            </p>
+          </div>
+
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-8">
             Individual payments
           </h2>
