@@ -12,9 +12,18 @@ export default function AccountsGuidePage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
             Updating Accounts
           </h1>
-          <p className="text-gray-600 mb-8">
-            This guide is coming soon.
+          <p className="text-gray-700 mb-6">
+            You can choose to update your accounts however frequently you prefer, either by adding payments as
+            you receive them or in batches.
           </p>
+
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
+            Adding Bulk Payments
+          </h2>
+
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-8">
+            Individual payments
+          </h2>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link

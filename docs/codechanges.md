@@ -32,6 +32,13 @@
 **Change**:
 - Applied agreed spelling/grammar improvements (e.g. Setup, Guvnor capitalization, home screen, e.g. usage, and minor sentence fixes).
 
+### Marketing: Start `/guides/accountsguide` content
+
+**File Changed**: `web/src/app/guides/accountsguide/page.tsx`
+
+**Change**:
+- Added introductory copy and section headers for bulk vs individual payments.
+
 ## December 31, 2025
 
 ### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice
