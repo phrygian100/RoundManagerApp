@@ -43,7 +43,7 @@ export default function FindingCustomersPage() {
               alt="New Business alert indicator on the homescreen"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/2 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
