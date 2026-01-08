@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   title: "Guvnor - Cleaning Round Management Made Simple",
   description: "Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients, upgrade for unlimited growth at £18/month.",
   keywords: "cleaning business, round management, client management, cleaning software, business management",
+  icons: {
+    // Cache-bust to ensure browsers refresh the favicon after deployments.
+    icon: [{ url: "/icon.png?v=2026-01-08", type: "image/png" }],
+    shortcut: [{ url: "/icon.png?v=2026-01-08", type: "image/png" }],
+    apple: [{ url: "/icon.png?v=2026-01-08", type: "image/png" }],
+  },
   openGraph: {
     title: "Guvnor - Cleaning Round Management Made Simple",
     description: "Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients.",

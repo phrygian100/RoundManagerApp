@@ -19,9 +19,11 @@
 **Files Changed**:
 - `web/src/app/icon.png`
 - `web/src/app/favicon.ico` (removed)
+- `web/src/app/layout.tsx`
 
 **Change**:
 - Added a Next.js App Router `icon.png` and removed the stale `favicon.ico` so the marketing site uses the Guvnor icon in the browser tab.
+- Added `metadata.icons` with a versioned icon URL to **cache-bust** stubborn browser favicon caching after deploys.
 
 ---
 
