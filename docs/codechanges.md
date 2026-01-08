@@ -88,6 +88,7 @@
   - `/guides/memberaccounts`
   - `/guides/accountsguide`
 - Added the above sub-guide pages.
+- Added `/guides/migrationguide` content and screenshot (`import-clientsScreenShot.png`) and ensured the asset is available via `web/public` (copied into root `public` during build).
 - Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
 - Updated `vercel.json` rewrites so `/guides/*` routes to the matching marketing export (prevents the main app router treating it as a business slug).
 

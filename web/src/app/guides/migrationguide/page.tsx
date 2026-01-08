@@ -13,8 +13,19 @@ export default function MigrationGuidePage() {
             Established Window Cleaners set up guide
           </h1>
           <p className="text-gray-600 mb-8">
-            This guide is coming soon.
+            As an established window cleaner approaching guvnor, you will want to import your customers in one
+            go with the import function you can find by clicking on the settings icon in the homescreen.
           </p>
+
+          <div className="mb-10">
+            <Image
+              src="/import-clientsScreenShot.png"
+              alt="Import Clients screen in Settings"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
