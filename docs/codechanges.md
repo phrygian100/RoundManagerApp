@@ -14,6 +14,15 @@
 
 ---
 
+### Marketing: Rename guides hub label for collaboration guide
+
+**Files Changed**:
+- `web/src/app/guides/page.tsx`
+- `web/src/app/guides/memberaccounts/page.tsx`
+
+**Change**:
+- Renamed the `/guides` button and the `/guides/memberaccounts` page title from “How to Manage Subcontractors And Staff” to **“Collaborating with others on Guvnor”** (URL unchanged).
+
 ## December 31, 2025
 
 ### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice
