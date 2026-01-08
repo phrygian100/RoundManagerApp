@@ -82,11 +82,14 @@
 
 **Change**:
 - Added a new marketing page at `/guides` designed as a beginner learning resource.
-- Updated `/guides` copy for established window cleaners section.
-- Removed the `/guides` hero banner (title/subtitle + buttons) per updated marketing requirements.
-- Fixed Next.js build lint (`react/no-unescaped-entities`) by escaping apostrophes in `/guides` copy.
+- Replaced the `/guides` page layout with a simple button hub linking to sub-guides:
+  - `/guides/migrationguide`
+  - `/guides/findingcustomers`
+  - `/guides/memberaccounts`
+  - `/guides/accountsguide`
+- Added the above sub-guide pages.
 - Added a “Guides” link (`/guides`) into the footer navigation across all existing marketing pages that render the footer.
-- Updated `vercel.json` rewrites to serve `/guides` from `dist/_marketing` (prevents the main app router treating `guides` as a business slug).
+- Updated `vercel.json` rewrites so `/guides/*` routes to the matching marketing export (prevents the main app router treating it as a business slug).
 
 **User Impact**: New users can find onboarding resources from any marketing page footer and access the new `/guides` page.
 

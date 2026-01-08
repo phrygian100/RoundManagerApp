@@ -2,73 +2,32 @@ import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
 
-export default function GuidesPage() {
+export default function MemberAccountsGuidePage() {
   return (
     <div className="min-h-screen bg-white">
       <MarketingNav />
 
-      {/* Content */}
       <div className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-            Guides
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            How to Manage Subcontractors And Staff
           </h1>
+          <p className="text-gray-600 mb-8">
+            This guide is coming soon.
+          </p>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="flex flex-col sm:flex-row gap-3">
             <Link
-              href="/guides/migrationguide"
-              className="group rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
+              href="/guides"
+              className="inline-flex justify-center border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-5 py-3 rounded-lg font-semibold transition-colors"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-lg font-semibold text-gray-900">
-                  Established Window Cleaners set up guide
-                </div>
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+              Back to Guides
             </Link>
-
             <Link
-              href="/guides/findingcustomers"
-              className="group rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
+              href="/contact"
+              className="inline-flex justify-center bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-3 rounded-lg font-semibold transition-colors"
             >
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-lg font-semibold text-gray-900">
-                  How To Find Your 1st Customer
-                </div>
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </Link>
-
-            <Link
-              href="/guides/memberaccounts"
-              className="group rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-lg font-semibold text-gray-900">
-                  How to Manage Subcontractors And Staff
-                </div>
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </Link>
-
-            <Link
-              href="/guides/accountsguide"
-              className="group rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-center justify-between gap-4">
-                <div className="text-lg font-semibold text-gray-900">
-                  Updating Accounts
-                </div>
-                <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+              Ask a question
             </Link>
           </div>
         </div>
