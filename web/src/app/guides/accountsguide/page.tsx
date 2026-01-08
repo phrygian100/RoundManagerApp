@@ -49,6 +49,21 @@ export default function AccountsGuidePage() {
             Individual payments
           </h2>
 
+          <div className="space-y-6 mb-10">
+            <p className="text-gray-700">
+              You can note payments on Guvnor as you receive them, such as when you take cash after completing a
+              job. Navigate to the Add Payment screen via Accounts or from any Client account
+            </p>
+
+            <Image
+              src="/addingIndividualPayments.jpg"
+              alt="Add Payment screen"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/guides"
