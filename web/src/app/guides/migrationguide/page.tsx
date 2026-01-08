@@ -1,6 +1,6 @@
+import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
-import { MarketingNav } from "@/components/MarketingNav";
 
 export default function MigrationGuidePage() {
   return (
@@ -12,9 +12,13 @@ export default function MigrationGuidePage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
             Established Window Cleaners set up guide
           </h1>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
+            Importing your clients
+          </h2>
           <p className="text-gray-600 mb-8">
             As an established window cleaner approaching guvnor, you will want to import your customers in one
-            go with the import function you can find by clicking on the settings icon in the homescreen.
+            go with the import function you can find by clicking on the settings icon in the homescreen. This is
+            an area of Guvnor that is best used with a full desktop instead of a smartphone
           </p>
 
           <div className="mb-10">
