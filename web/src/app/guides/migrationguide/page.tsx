@@ -94,6 +94,24 @@ export default function MigrationGuidePage() {
             />
           </div>
 
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
+            Importing Past Completed Jobs
+          </h2>
+          <p className="text-gray-600 mb-8">
+            Opening the settings menu from the homescreen, lastly you can import completed jobs in the same manner
+            as the above two items.
+          </p>
+
+          <div className="mb-10">
+            <Image
+              src="/ImportingPastCompletedpJobs.png"
+              alt="Importing past completed jobs"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/guides"
