@@ -70,6 +70,20 @@ export default function GuidesPage() {
                 </svg>
               </div>
             </Link>
+
+            <Link
+              href="/guides/gocardlesssetup"
+              className="group rounded-xl border border-gray-200 bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="text-lg font-semibold text-gray-900">
+                  Setting up GoCardless
+                </div>
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-indigo-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </Link>
           </div>
         </div>
       </div>

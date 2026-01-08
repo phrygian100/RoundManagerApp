@@ -14,6 +14,17 @@
 
 ---
 
+### Web (Marketing): Use Guvnor logo for browser tab icon
+
+**Files Changed**:
+- `web/src/app/icon.png`
+- `web/src/app/favicon.ico` (removed)
+
+**Change**:
+- Added a Next.js App Router `icon.png` and removed the stale `favicon.ico` so the marketing site uses the Guvnor icon in the browser tab.
+
+---
+
 ### Marketing: Rename guides hub label for collaboration guide
 
 **Files Changed**:
