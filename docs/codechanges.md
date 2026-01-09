@@ -111,6 +111,21 @@
  
  ---
 
+### Auth: Restore verification email sender `noreply@guvnor.app` (Resend) instead of Firebase default sender
+
+**File Changed**:
+- `functions/index.js`
+
+**Problem**:
+- New user verification emails were being sent from `noreply@roundmanagerapp.firebaseapp.com`.
+- Root cause: the Resend Secret Manager key (`RESEND_KEY`) was not present, so the callable `sendVerificationEmail` failed and the client registration flow fell back to Firebase `sendEmailVerification()`.
+
+**Solution**:
+- Re-enabled Secret Manager usage for `RESEND_KEY` and wired the email-sending Cloud Functions to use `RESEND_KEY.value()` when deployed.
+
+**Notes**:
+- This requires setting the `RESEND_KEY` secret in Firebase Secret Manager (one-time) before deploying functions.
+
 ## January 5, 2026
 
 ### Runsheet Day Complete: Fix GoCardless DDs not creating local payment records

@@ -20,6 +20,8 @@ const crypto = require("crypto");
 // Secure Stripe secrets (managed via Firebase Secret Manager)
 const STRIPE_SECRET_KEY = defineSecret('STRIPE_SECRET_KEY');
 const STRIPE_WEBHOOK_SECRET = defineSecret('STRIPE_WEBHOOK_SECRET');
+// Resend API key (Firebase Secret Manager)
+const RESEND_KEY = defineSecret('RESEND_KEY');
 
 // Initialize Firebase Admin
 if (!admin.apps.length) {
@@ -302,7 +304,7 @@ exports.createGoCardlessPayment = onCall(async (request) => {
 
 // Removed sendTeamInviteEmail as email is now handled in inviteMember
 
-exports.inviteMember = onCall(async (request) => {
+exports.inviteMember = onCall({ secrets: [RESEND_KEY] }, async (request) => {
   console.log('inviteMember called with:', request.data);
   const { email } = request.data;
   const caller = request.auth;
@@ -321,7 +323,7 @@ exports.inviteMember = onCall(async (request) => {
   }
   // Generate inviteCode
   const inviteCode = String(Math.floor(100000 + Math.random() * 900000));
-  const apiKey = process.env.RESEND_KEY;
+  const apiKey = RESEND_KEY.value() || process.env.RESEND_KEY;
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
           throw new HttpsError('internal', 'Configuration error.');
@@ -1168,7 +1170,7 @@ exports.createCustomerPortalSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }
 });
 
 // Contact form submission function
-exports.submitContactForm = onCall(async (request) => {
+exports.submitContactForm = onCall({ secrets: [RESEND_KEY] }, async (request) => {
   console.log('submitContactForm called with:', request.data);
   
   const { firstName, lastName, email, phone, company, subject, message } = request.data;
@@ -1194,7 +1196,7 @@ exports.submitContactForm = onCall(async (request) => {
     if (e instanceof HttpsError) throw e;
   }
 
-  const apiKey = process.env.RESEND_KEY;
+  const apiKey = RESEND_KEY.value() || process.env.RESEND_KEY;
   if (!apiKey) {
     console.error('No Resend API key found in environment!');
     throw new HttpsError('internal', 'Email service configuration error.');
@@ -1260,7 +1262,7 @@ exports.submitContactForm = onCall(async (request) => {
 });
 
 // Send Firebase email verification using a custom sender domain (Resend)
-exports.sendVerificationEmail = onCall(async (request) => {
+exports.sendVerificationEmail = onCall({ secrets: [RESEND_KEY] }, async (request) => {
   const caller = request.auth;
   if (!caller) {
     throw new HttpsError('unauthenticated', 'You must be logged in.');
@@ -1278,7 +1280,7 @@ exports.sendVerificationEmail = onCall(async (request) => {
       return { success: true, message: 'Email is already verified.' };
     }
 
-    const apiKey = process.env.RESEND_KEY;
+    const apiKey = RESEND_KEY.value() || process.env.RESEND_KEY;
     if (!apiKey) {
       console.error('No Resend API key found in environment!');
       throw new HttpsError('internal', 'Configuration error.');
