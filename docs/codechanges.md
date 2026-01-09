@@ -81,6 +81,14 @@
 - Added “Individual payments” section copy and screenshot (`addingIndividualPayments.jpg`).
 - Reduced the size of the “Add Payment” screenshot under “Individual payments”.
 
+### Marketing: Add member accounts guide content + screenshots
+
+**File Changed**: `web/src/app/guides/memberaccounts/page.tsx`
+
+**Change**:
+- Added the “Collaborating with others on Guvnor” guide content (inviting team members + joining with code).
+- Added supporting screenshots and ensured they are served via `web/public` (Team Members / invite email / join code / join owner / team member added).
+
 ## December 31, 2025
 
 ### Runsheet: Enhanced Account Summary SMS with Portal Link and Payment Notice

@@ -12,9 +12,75 @@ export default function MemberAccountsGuidePage() {
           <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
             Collaborating with others on Guvnor
           </h1>
-          <p className="text-gray-600 mb-8">
-            This guide is coming soon.
-          </p>
+          <div className="space-y-8 mb-10">
+            <p className="text-gray-700">
+              Guvnor allows you to create member accounts which are intended for multi-person businesses to
+              collaborate with one User account. Currently it is free to create member accounts with access to
+              unlimited clients provided you are subscribed to the premium service.
+            </p>
+
+            <p className="text-gray-700">
+              To invite someone to join your team, go into Settings and then Team Members
+            </p>
+
+            <Image
+              src="/TeamMembersScreen.jpg"
+              alt="Team Members screen in Settings"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+
+            <p className="text-gray-700">
+              Provided that user has an account with Guvnor, they will receive an email with a code.
+            </p>
+
+            <Image
+              src="/membersInvite.png"
+              alt="Team member invite email with code"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+
+            <p className="text-gray-700">
+              They will then need to input this code when they log in for the first time.
+            </p>
+
+            <Image
+              src="/FirstTimeLoginAddTeamCode.jpg"
+              alt="First time login - add team code"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+
+            <p className="text-gray-700">
+              Or alternatively they can go into the teams screen in settings where you sent the code.
+            </p>
+
+            <Image
+              src="/JoinOwnerAccount.jpg"
+              alt="Join owner account screen"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+
+            <p className="text-gray-700">
+              After they have done this, you may need to refresh and then you will see them added to the Team
+              Members screen where you can configure them into a vehicle, allocate what they can access in your
+              space and determine their daily capacity for work which determines the automatic Runsheet generation.
+            </p>
+
+            <Image
+              src="/teamMemberAdded.jpg"
+              alt="Team member added screen"
+              width={1200}
+              height={800}
+              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+            />
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
