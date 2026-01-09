@@ -90,6 +90,7 @@
 - Added supporting screenshots and ensured they are served via `web/public` (Team Members / invite email / join code / join owner / team member added).
 - Reduced the size of the memberaccounts screenshots for desktop layouts.
 - Applied agreed spelling/grammar tweaks to the memberaccounts guide copy (punctuation, capitalization, and clearer phrasing).
+- Increased the invite email screenshot size on desktop.
 
 ## December 31, 2025
 

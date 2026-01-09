@@ -40,7 +40,7 @@ export default function MemberAccountsGuidePage() {
               alt="Team member invite email with code"
               width={1200}
               height={800}
-              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-[37.5%] h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
