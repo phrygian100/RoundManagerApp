@@ -11,6 +11,7 @@
 **Change**:
 - Updated the floating “+” action on `/team` to be an explicit **“Add van”** button (plus icon + label) and autofocus the van name field when opened.
 - Added a `/team` card/button to **link this account to another owner using a code** (routes to the existing `/enter-invite-code` flow, with a confirmation prompt).
+- The “Enter code” option is **hidden/blocked** if the current account already has team members (prevents joining another team while you have members linked to you).
 - Updated the invite-code screen header comment to reflect the current Firebase implementation (no Supabase).
 
 ---

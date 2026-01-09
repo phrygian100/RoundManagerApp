@@ -29,6 +29,9 @@ export default function TeamScreen() {
   const vehicleNameInputRef = useRef<TextInputType>(null);
   const router = useRouter();
 
+  // If this account already has team members, prevent it from joining another team as a member.
+  const hasNonOwnerMembers = members.some(m => m.role !== 'owner');
+
   const loadMembers = async () => {
     try {
       console.log('Loading members...');
@@ -66,6 +69,17 @@ export default function TeamScreen() {
   };
 
   const handleLinkAccountWithCode = () => {
+    if (hasNonOwnerMembers) {
+      const msg =
+        "This account already has team members. You can't join another team while you have members linked to this account.";
+      if (typeof window !== 'undefined' && window.alert) {
+        window.alert(msg);
+      } else {
+        Alert.alert('Not available', msg);
+      }
+      return;
+    }
+
     const message =
       "This will link your account to another owner using a code. You'll become a team member on their account and lose owner access to this team until you leave that team.";
 
@@ -267,15 +281,17 @@ export default function TeamScreen() {
       <ThemedView style={styles.container}>
         <ThemedText type="title">Team Members</ThemedText>
 
-          <ThemedView style={styles.infoCard}>
-            <ThemedText style={styles.infoTitle}>Have a team code?</ThemedText>
-            <ThemedText style={styles.infoSubtitle}>
-              Link this account to another owner (you’ll become a team member).
-            </ThemedText>
-            <TouchableOpacity style={styles.infoButton} onPress={handleLinkAccountWithCode}>
-              <Text style={styles.infoButtonText}>Enter code</Text>
-            </TouchableOpacity>
-          </ThemedView>
+          {!hasNonOwnerMembers && (
+            <ThemedView style={styles.infoCard}>
+              <ThemedText style={styles.infoTitle}>Have a team code?</ThemedText>
+              <ThemedText style={styles.infoSubtitle}>
+                Link this account to another owner (you’ll become a team member).
+              </ThemedText>
+              <TouchableOpacity style={styles.infoButton} onPress={handleLinkAccountWithCode}>
+                <Text style={styles.infoButtonText}>Enter code</Text>
+              </TouchableOpacity>
+            </ThemedView>
+          )}
 
         <View style={styles.inviteRow}>
           <TextInput
