@@ -28,7 +28,7 @@ export default function MemberAccountsGuidePage() {
               alt="Team Members screen in Settings"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -40,7 +40,7 @@ export default function MemberAccountsGuidePage() {
               alt="Team member invite email with code"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -52,7 +52,7 @@ export default function MemberAccountsGuidePage() {
               alt="First time login - add team code"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -64,7 +64,7 @@ export default function MemberAccountsGuidePage() {
               alt="Join owner account screen"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -78,7 +78,7 @@ export default function MemberAccountsGuidePage() {
               alt="Team member added screen"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
           </div>
 
