@@ -1,5 +1,20 @@
 # Code Changes Log
 
+## January 9, 2026
+
+### Team: Make “+” button clearly add vans + add “Enter code” link-to-owner action
+
+**Files Changed**:
+- `app/(tabs)/team.tsx`
+- `app/enter-invite-code.tsx`
+
+**Change**:
+- Updated the floating “+” action on `/team` to be an explicit **“Add van”** button (plus icon + label) and autofocus the van name field when opened.
+- Added a `/team` card/button to **link this account to another owner using a code** (routes to the existing `/enter-invite-code` flow, with a confirmation prompt).
+- Updated the invite-code screen header comment to reflect the current Firebase implementation (no Supabase).
+
+---
+
 ## January 8, 2026
 
 ### Home: Added “?” Guides Button Next to Settings Icon

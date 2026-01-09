@@ -1,7 +1,8 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import type { TextInput as TextInputType } from 'react-native';
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -25,6 +26,7 @@ export default function TeamScreen() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [vehicleName, setVehicleName] = useState('');
+  const vehicleNameInputRef = useRef<TextInputType>(null);
   const router = useRouter();
 
   const loadMembers = async () => {
@@ -51,6 +53,35 @@ export default function TeamScreen() {
     loadMembers();
     loadVehicles();
   }, []);
+
+  useEffect(() => {
+    if (!showVehicleModal) return;
+    // Allow the modal to render before focusing (helps on web + native)
+    const t = setTimeout(() => vehicleNameInputRef.current?.focus?.(), 50);
+    return () => clearTimeout(t);
+  }, [showVehicleModal]);
+
+  const handleOpenAddVan = () => {
+    setShowVehicleModal(true);
+  };
+
+  const handleLinkAccountWithCode = () => {
+    const message =
+      "This will link your account to another owner using a code. You'll become a team member on their account and lose owner access to this team until you leave that team.";
+
+    const proceed = () => router.push('/enter-invite-code');
+
+    if (typeof window !== 'undefined' && window.confirm) {
+      const ok = window.confirm(`Join another team?\n\n${message}`);
+      if (ok) proceed();
+      return;
+    }
+
+    Alert.alert('Join another team?', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Continue', style: 'destructive', onPress: proceed },
+    ]);
+  };
 
   const handleToggle = async (uid: string, permKey: string, value: boolean) => {
     const member = members.find(m => m.uid === uid);
@@ -236,6 +267,16 @@ export default function TeamScreen() {
       <ThemedView style={styles.container}>
         <ThemedText type="title">Team Members</ThemedText>
 
+          <ThemedView style={styles.infoCard}>
+            <ThemedText style={styles.infoTitle}>Have a team code?</ThemedText>
+            <ThemedText style={styles.infoSubtitle}>
+              Link this account to another owner (you’ll become a team member).
+            </ThemedText>
+            <TouchableOpacity style={styles.infoButton} onPress={handleLinkAccountWithCode}>
+              <Text style={styles.infoButtonText}>Enter code</Text>
+            </TouchableOpacity>
+          </ThemedView>
+
         <View style={styles.inviteRow}>
           <TextInput
             placeholder="email@example.com"
@@ -269,7 +310,7 @@ export default function TeamScreen() {
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Manage Vehicles</Text>
+                <Text style={styles.modalTitle}>Vans</Text>
                 <TouchableOpacity onPress={() => setShowVehicleModal(false)} style={styles.closeButton}>
                   <Text style={styles.closeButtonText}>✕</Text>
                 </TouchableOpacity>
@@ -288,7 +329,8 @@ export default function TeamScreen() {
                 ))}
               </ScrollView>
               <TextInput
-                placeholder="Name / Registration"
+                ref={vehicleNameInputRef}
+                placeholder="Van name / registration"
                 value={vehicleName}
                 onChangeText={setVehicleName}
                 style={styles.input}
@@ -310,15 +352,22 @@ export default function TeamScreen() {
                     }
                   }}
                 >
-                  <Text style={styles.buttonText}>Add New</Text>
+                  <Text style={styles.buttonText}>Add van</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
         </Modal>
 
-        <TouchableOpacity style={styles.fab} onPress={() => setShowVehicleModal(true)}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={handleOpenAddVan}
+          accessibilityRole="button"
+          accessibilityLabel="Add van"
+          accessibilityHint="Opens the vans manager where you can add a new van"
+        >
           <Text style={styles.fabIcon}>+</Text>
+          <Text style={styles.fabLabel}>Add van</Text>
         </TouchableOpacity>
       </ThemedView>
     </PermissionGate>
@@ -381,8 +430,21 @@ const styles = StyleSheet.create({
   permBadgeActive: { backgroundColor: '#007AFF' },
   permBadgeInactive: { backgroundColor: '#ccc' },
   permText: { color: '#fff', fontSize: 12 },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#007AFF', width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center', elevation: 4 },
-  fabIcon: { color: 'white', fontSize: 32, lineHeight: 32 },
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    backgroundColor: '#007AFF',
+    height: 56,
+    borderRadius: 28,
+    paddingHorizontal: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+  },
+  fabIcon: { color: 'white', fontSize: 30, marginRight: 10 },
+  fabLabel: { color: 'white', fontSize: 16, fontWeight: 'bold' },
   modalTitle: { fontWeight: 'bold', fontSize: 18 },
   vehicleList: { maxHeight: 200 },
   vehicleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
@@ -416,4 +478,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  infoTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
+  infoSubtitle: { fontSize: 13, color: '#4b5563', marginBottom: 10 },
+  infoButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#111827',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  infoButtonText: { color: 'white', fontWeight: 'bold' },
 }); 

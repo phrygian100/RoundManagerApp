@@ -1,4 +1,4 @@
-// Invite code via Supabase removed. TODO: Implement Firebase invite code flow here.
+// Enter a team invite code to link this user to an owner account (Firebase callable: acceptTeamInvite).
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { doc, updateDoc } from 'firebase/firestore';
