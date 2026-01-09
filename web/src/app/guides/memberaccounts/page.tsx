@@ -1,6 +1,6 @@
+import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
-import { MarketingNav } from "@/components/MarketingNav";
 
 export default function MemberAccountsGuidePage() {
   return (
@@ -14,13 +14,13 @@ export default function MemberAccountsGuidePage() {
           </h1>
           <div className="space-y-8 mb-10">
             <p className="text-gray-700">
-              Guvnor allows you to create member accounts which are intended for multi-person businesses to
-              collaborate with one User account. Currently it is free to create member accounts with access to
-              unlimited clients provided you are subscribed to the premium service.
+              Guvnor allows you to create member accounts that are intended for multi-person businesses to
+              collaborate with one User account. Currently, it is free to create member accounts with access to
+              unlimited clients provided you are subscribed to the Premium plan.
             </p>
 
             <p className="text-gray-700">
-              To invite someone to join your team, go into Settings and then Team Members
+              To invite someone to join your team, go to Settings → Team Members.
             </p>
 
             <Image
@@ -32,7 +32,7 @@ export default function MemberAccountsGuidePage() {
             />
 
             <p className="text-gray-700">
-              Provided that user has an account with Guvnor, they will receive an email with a code.
+              Provided the user has an account with Guvnor, they will receive an email with a code.
             </p>
 
             <Image
@@ -56,7 +56,7 @@ export default function MemberAccountsGuidePage() {
             />
 
             <p className="text-gray-700">
-              Or alternatively they can go into the teams screen in settings where you sent the code.
+              Alternatively, they can go into the Teams screen in Settings, where you sent the code.
             </p>
 
             <Image
@@ -68,9 +68,9 @@ export default function MemberAccountsGuidePage() {
             />
 
             <p className="text-gray-700">
-              After they have done this, you may need to refresh and then you will see them added to the Team
-              Members screen where you can configure them into a vehicle, allocate what they can access in your
-              space and determine their daily capacity for work which determines the automatic Runsheet generation.
+              After they have done this, you may need to refresh the page/app. You will then see them added to the
+              Team Members screen, where you can assign them to a vehicle, set what they can access in your account
+              and determine their daily capacity for work, which determines the automatic Runsheet generation.
             </p>
 
             <Image

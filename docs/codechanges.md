@@ -89,6 +89,7 @@
 - Added the “Collaborating with others on Guvnor” guide content (inviting team members + joining with code).
 - Added supporting screenshots and ensured they are served via `web/public` (Team Members / invite email / join code / join owner / team member added).
 - Reduced the size of the memberaccounts screenshots for desktop layouts.
+- Applied agreed spelling/grammar tweaks to the memberaccounts guide copy (punctuation, capitalization, and clearer phrasing).
 
 ## December 31, 2025
 
