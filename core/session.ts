@@ -63,7 +63,6 @@ export async function getUserSession(): Promise<UserSession | null> {
     accountId = claimsAccountId;
   } else {
     accountId = user.uid;
-  } else {
     // keep default; we'll fill perms/isOwner below
   }
 

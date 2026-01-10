@@ -1,5 +1,17 @@
 # Code Changes Log
 
+## January 10, 2026
+
+### Core: Fixed syntax error in session.ts preventing builds
+
+**File Changed**: `core/session.ts`
+
+**Issue**: Vercel build was failing with "SyntaxError: Unexpected token (66:4)" due to malformed if-else chain with two consecutive `else` statements.
+
+**Fix**: Corrected the conditional logic by removing the duplicate `else` clause and moving the comment inside the final else block.
+
+---
+
 ## January 9, 2026
 
 ### Team: Make “+” button clearly add vans + add “Enter code” link-to-owner action
