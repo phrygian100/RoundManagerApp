@@ -16,6 +16,16 @@
 
 ---
 
+### Jobs/Runsheets: Prevent duplicate recurring jobs after client import
+
+**File Changed**: `services/jobService.ts`
+
+**Change**:
+- Made `generateRecurringJobs()` **idempotent** by de-duping at the **date level** per `(clientId + serviceId)`, using both `scheduledTime` and `originalScheduledTime` (so rerunning imports/settings generation won’t duplicate runsheet jobs).
+- This does **not** block users from manually creating multiple jobs on the same day; it only prevents the auto-generation routine from re-creating the same recurring occurrence.
+
+---
+
 ## January 8, 2026
 
 ### Home: Added “?” Guides Button Next to Settings Icon

@@ -490,47 +490,102 @@ export async function handleWeeklyRollover(): Promise<{ jobsCreated: number; job
 export async function generateRecurringJobs() {
   const ownerId = await getDataOwnerId();
   if (!ownerId) return;
-  const querySnapshot = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+  const clientsSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+
+  // Normalize "today" to midnight so date comparisons are consistent.
   const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
   const jobsRef = collection(db, 'jobs');
-  
   const jobsToCreate: any[] = [];
-  querySnapshot.forEach((docSnap) => {
-    const client: any = { id: docSnap.id, ...docSnap.data() };
-    if (!client.nextVisit || !client.frequency || client.frequency === 'one-off') return;
+
+  // NOTE:
+  // - This function is called by bulk import flows to populate runsheets.
+  // - Historically it could be run multiple times and would create duplicates.
+  // - We dedupe at *date level* (yyyy-MM-dd) per (clientId + serviceId), which still allows
+  //   users to manually create multiple jobs on the same day when needed.
+  //
+  // Dedupe is based on BOTH scheduledTime and originalScheduledTime (moved jobs should still
+  // reserve their original date, matching the behavior in createJobsForClient()).
+  for (const clientDoc of clientsSnap.docs) {
+    const client: any = { id: clientDoc.id, ...clientDoc.data() };
+    if (!client.nextVisit || !client.frequency || client.frequency === 'one-off') continue;
+
+    const freq = Number(client.frequency);
+    if (!Number.isFinite(freq) || freq <= 0) continue;
+
+    // Load existing jobs for this client once, so repeated runs are idempotent.
+    const existingSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', client.id)
+    ));
+
+    const existingKeys = new Set<string>();
+    existingSnap.docs.forEach((d) => {
+      const data: any = d.data();
+      const serviceId = data.serviceId || 'window-cleaning';
+
+      const scheduledDate = typeof data.scheduledTime === 'string' ? data.scheduledTime.split('T')[0] : null;
+      if (scheduledDate) existingKeys.add(`${serviceId}|${scheduledDate}`);
+
+      const originalDate = typeof data.originalScheduledTime === 'string' ? data.originalScheduledTime.split('T')[0] : null;
+      if (originalDate) existingKeys.add(`${serviceId}|${originalDate}`);
+    });
+
     let visitDate = parseISO(client.nextVisit);
-    for (let i = 0; i < 8; i++) { // Generate for 8 weeks
+    visitDate.setHours(0, 0, 0, 0);
+
+    for (let i = 0; i < 8; i++) {
       if (isBefore(visitDate, today)) {
-        visitDate = addWeeks(visitDate, Number(client.frequency));
+        visitDate = addWeeks(visitDate, freq);
         continue;
       }
-      const weekStr = format(visitDate, 'yyyy-MM-dd');
 
-      // Build job data, filtering out undefined values
-      const jobData: any = {
-        ownerId,
-        clientId: client.id,
-        providerId: 'test-provider-1',
-        serviceId: 'window-cleaning',
-        propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
-        scheduledTime: weekStr + 'T09:00:00',
-        status: 'pending',
-        price: typeof client.quote === 'number' ? client.quote : 25,
-        paymentStatus: 'unpaid',
-        gocardlessEnabled: client.gocardlessEnabled || false,
-      };
-      
-      // Only include gocardlessCustomerId if it has a value
-      if (client.gocardlessCustomerId) {
-        jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+      const dateStr = format(visitDate, 'yyyy-MM-dd');
+      const serviceId = 'window-cleaning';
+      const key = `${serviceId}|${dateStr}`;
+
+      if (!existingKeys.has(key)) {
+        const jobData: any = {
+          ownerId,
+          clientId: client.id,
+          providerId: 'test-provider-1',
+          serviceId,
+          propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+          scheduledTime: dateStr + 'T09:00:00',
+          status: 'pending',
+          price: typeof client.quote === 'number' ? client.quote : 25,
+          paymentStatus: 'unpaid',
+          gocardlessEnabled: client.gocardlessEnabled || false,
+        };
+
+        if (client.gocardlessCustomerId) {
+          jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+        }
+
+        jobsToCreate.push(jobData);
+        // Prevent duplicates within the same run too.
+        existingKeys.add(key);
       }
-      
-      jobsToCreate.push(jobData);
-      
-      visitDate = addWeeks(visitDate, Number(client.frequency));
+
+      visitDate = addWeeks(visitDate, freq);
     }
-  });
-  await Promise.all(jobsToCreate.map(job => addDoc(jobsRef, job)));
+  }
+
+  if (jobsToCreate.length === 0) return;
+
+  // Write in batches (Firestore limit: 500 ops per batch).
+  const batchSize = 450;
+  for (let i = 0; i < jobsToCreate.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const slice = jobsToCreate.slice(i, i + batchSize);
+    slice.forEach((job) => {
+      const ref = doc(collection(db, JOBS_COLLECTION));
+      batch.set(ref, job);
+    });
+    await batch.commit();
+  }
 }
 
 /**
