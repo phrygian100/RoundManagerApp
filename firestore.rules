@@ -10,10 +10,11 @@ service cloud.firestore {
       return resource.data.ownerId == request.auth.uid;
     }
 
-    // Check if user has access to account data (either owner or member)
-    function hasAccountAccess(ownerId) {
-      return request.auth.uid == ownerId || 
-        exists(/databases/$(database)/documents/accounts/$(ownerId)/members/$(request.auth.uid));
+    // Check if user has access to account data (either owner or member).
+    // IMPORTANT: avoid circular dependencies with /accounts/{accountId}/members rules.
+    function hasAccountAccess(accountId) {
+      return request.auth.uid == accountId ||
+        exists(/databases/$(database)/documents/accounts/$(accountId)/members/$(request.auth.uid));
     }
 
     function getAccountIdFromData(data) {
@@ -130,7 +131,9 @@ service cloud.firestore {
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;
 
       match /members/{memberId} {
-        allow read: if isSignedIn() && hasAccountAccess(accountId);
+        // Allow owner to read all members; allow members to read their own membership doc.
+        // This avoids circular hasAccountAccess() evaluation when rules use exists(/members/{uid}).
+        allow read: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
         // Only owners can create/update member records. Members can delete their own record (leave team).
         allow create, update: if isSignedIn() && request.auth.uid == accountId;
         allow delete: if isSignedIn() && (request.auth.uid == accountId || request.auth.uid == memberId);
@@ -151,13 +154,9 @@ service cloud.firestore {
     match /completedWeeks/{docId} {
       // Allow list operations for signed in users
       allow list: if isSignedIn();
-      // Allow read if user is signed in and either:
-      // 1. Document has accountId field and user has access to that account
-      // 2. Document has ownerId field and user has access to that owner
-      // 3. The docId contains the user's ID (for backward compatibility)
+      // Allow read for owners/members based on either accountId or ownerId on the doc.
       allow get: if isSignedIn() && (
-        ('accountId' in resource.data && hasAccountAccess(resource.data.accountId)) ||
-        ('ownerId' in resource.data && hasAccountAccess(resource.data.ownerId)) ||
+        (getAccountIdFromData(resource.data) != null && hasAccountAccess(getAccountIdFromData(resource.data))) ||
         (docId.matches('.*' + request.auth.uid + '.*'))
       );
       allow create: if isSignedIn() && hasCreateAccess();

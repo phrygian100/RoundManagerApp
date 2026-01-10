@@ -1,4 +1,4 @@
-import { collectionGroup, doc, getDoc, getDocs, limit, query, where } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from './firebase';
 
 export type UserSession = {
@@ -26,6 +26,23 @@ export async function getUserSession(): Promise<UserSession | null> {
   const user = auth.currentUser;
   if (!user) return null;
 
+  // Prefer Auth token claims (set via refreshClaims Cloud Function) to avoid brittle Firestore lookups.
+  // This is important under locked-down rules where collectionGroup member discovery may be denied.
+  let claimsAccountId: string | null = null;
+  let claimsIsOwner: boolean | null = null;
+  try {
+    const tokenResult = await user.getIdTokenResult();
+    const claims: any = tokenResult?.claims || {};
+    if (typeof claims.accountId === 'string' && claims.accountId) {
+      claimsAccountId = claims.accountId;
+    }
+    if (typeof claims.isOwner === 'boolean') {
+      claimsIsOwner = claims.isOwner;
+    }
+  } catch (_) {
+    // Ignore and fall back to Firestore-derived session
+  }
+
   // Try to load user doc
   const userDoc = await getDoc(doc(db, 'users', user.uid));
   if (!userDoc.exists()) {
@@ -38,47 +55,41 @@ export async function getUserSession(): Promise<UserSession | null> {
   let perms: Record<string, boolean> = {};
   let accountId = user.uid;
 
+  // Determine accountId from best available source
   if (userData.accountId && userData.accountId !== user.uid) {
     // Member of a team
     accountId = userData.accountId;
-    const memberDoc = await getDoc(doc(db, `accounts/${accountId}/members/${user.uid}`));
-    if (memberDoc.exists()) {
-      const memberData = memberDoc.data() as MemberData;
-      isOwner = memberData.role === 'owner';
-      perms = memberData.perms || {};
-    } else {
-      // Fallback: treat as owner if no member doc
-      isOwner = true;
+  } else if (claimsAccountId && claimsAccountId !== user.uid) {
+    accountId = claimsAccountId;
+  } else {
+    accountId = user.uid;
+  } else {
+    // keep default; we'll fill perms/isOwner below
+  }
+
+  // Resolve member/owner role and permissions
+  if (accountId !== user.uid) {
+    // Member of a team (or at least operating under a team accountId)
+    try {
+      const memberDoc = await getDoc(doc(db, `accounts/${accountId}/members/${user.uid}`));
+      if (memberDoc.exists()) {
+        const memberData = memberDoc.data() as MemberData;
+        isOwner = memberData.role === 'owner';
+        perms = memberData.perms || {};
+      } else {
+        // If claims say owner/member, respect that; otherwise deny elevated perms
+        isOwner = claimsIsOwner ?? false;
+        perms = {};
+      }
+    } catch (err) {
+      // If we can't read member doc, fall back to claims only
+      isOwner = claimsIsOwner ?? false;
       perms = {};
     }
   } else {
-    // Owner of their own account OR potential legacy member without accountId
-    isOwner = true;
+    // Owner of their own account
+    isOwner = claimsIsOwner ?? true;
     perms = userData.perms || { viewClients: true, viewRunsheet: true, viewPayments: false };
-    accountId = user.uid;
-
-    // 🔄 Legacy fallback: if accountId equals user.uid we might be dealing with a historical member record
-    try {
-      const memberQuery = query(
-        collectionGroup(db, 'members'),
-        where('uid', '==', user.uid),
-        where('status', '==', 'active'),
-        limit(1)
-      );
-      const memberSnap = await getDocs(memberQuery);
-      if (!memberSnap.empty) {
-        const memberDoc = memberSnap.docs[0];
-        const legacyAccountId = memberDoc.ref.parent.parent?.id;
-        if (legacyAccountId) {
-          accountId = legacyAccountId;
-          const memberData = memberDoc.data() as MemberData;
-          isOwner = memberData.role === 'owner';
-          perms = memberData.perms || perms;
-        }
-      }
-    } catch (err) {
-      console.warn('⚠️ Fallback member record lookup failed:', err);
-    }
   }
 
   return {
