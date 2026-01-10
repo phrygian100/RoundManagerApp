@@ -17,6 +17,8 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
       return { success: false, jobsReset: 0, error: 'No owner ID found' };
     }
 
+    console.log('resetDayToRoundOrder: starting with ownerId:', ownerId, 'day:', dayDate.toISOString());
+
     const startStr = format(dayDate, 'yyyy-MM-dd') + 'T00:00:00';
     const endStr = format(addDays(dayDate, 1), 'yyyy-MM-dd') + 'T00:00:00';
 
@@ -34,8 +36,10 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
         where('scheduledTime', '>=', startStr),
         where('scheduledTime', '<', endStr)
       );
+      console.log('resetDayToRoundOrder: trying primary query with', startStr, 'to', endStr);
       const jobsSnapshot = await getDocs(jobsQuery);
       docsToConsider = jobsSnapshot.docs;
+      console.log('resetDayToRoundOrder: primary query found', docsToConsider.length, 'docs');
     } catch (err) {
       console.warn('resetDayToRoundOrder: primary query failed; falling back to owner-only query', err);
       const ownerOnlyQuery = query(jobsRef, where('ownerId', '==', ownerId));
@@ -45,13 +49,17 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
         const st = data?.scheduledTime;
         return typeof st === 'string' && st >= startStr && st < endStr;
       });
+      console.log('resetDayToRoundOrder: fallback query found', docsToConsider.length, 'docs');
     }
 
     // Clear ETAs/vehicle assignments for all non-completed jobs (includes jobs with missing status).
     const jobsToReset = docsToConsider.filter((d) => {
       const data: any = d.data();
+      console.log('resetDayToRoundOrder: job', d.id, 'status:', data?.status, 'scheduledTime:', data?.scheduledTime);
       return data?.status !== 'completed';
     });
+
+    console.log('resetDayToRoundOrder: will reset', jobsToReset.length, 'jobs');
 
     if (jobsToReset.length === 0) {
       return { success: true, jobsReset: 0 };
@@ -59,24 +67,27 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
 
     // Reset jobs in batch
     const batch = writeBatch(db);
-    
+
     jobsToReset.forEach((jobDoc) => {
       const jobRef = doc(db, 'jobs', jobDoc.id);
+      console.log('resetDayToRoundOrder: batch updating job', jobDoc.id);
       batch.update(jobRef, {
         eta: null,
         vehicleId: null
       });
     });
 
+    console.log('resetDayToRoundOrder: committing batch...');
     await batch.commit();
+    console.log('resetDayToRoundOrder: batch committed successfully');
 
     return { success: true, jobsReset: jobsToReset.length };
   } catch (error) {
     console.error('Error resetting day to round order:', error);
-    return { 
-      success: false, 
-      jobsReset: 0, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      jobsReset: 0,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
