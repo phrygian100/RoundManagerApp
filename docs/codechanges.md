@@ -81,6 +81,14 @@
 - Added “Individual payments” section copy and screenshot (`addingIndividualPayments.jpg`).
 - Reduced the size of the “Add Payment” screenshot under “Individual payments”.
 
+### Marketing: Add GoCardless setup guide + screenshots
+
+**File Changed**: `web/src/app/guides/gocardlesssetup/page.tsx`
+
+**Change**:
+- Added `/guides/gocardlesssetup` guide content and screenshots for linking GoCardless + setting up customer IDs.
+- Copied the GoCardless screenshots into `web/public` so the marketing build serves them.
+
 ### Marketing: Add member accounts guide content + screenshots
 
 **File Changed**: `web/src/app/guides/memberaccounts/page.tsx`

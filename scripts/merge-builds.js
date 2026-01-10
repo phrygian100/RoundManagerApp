@@ -49,6 +49,7 @@ try {
     'guides/findingcustomers',
     'guides/memberaccounts',
     'guides/accountsguide',
+    'guides/gocardlesssetup',
   ];
   
   for (const route of routes) {
