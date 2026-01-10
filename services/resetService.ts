@@ -8,7 +8,7 @@ import { manualRefreshWeekCapacity, triggerCapacityRedistribution } from './capa
  * Resets jobs for a specific day back to round order by:
  * - Removing all ETAs (setting eta: null)
  * - Removing all manual vehicle assignments (setting vehicleId: null)
- * - Only affects jobs with status 'pending' or 'scheduled'
+ * - Affects all non-completed jobs on that day (includes jobs with missing/legacy statuses)
  */
 export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: boolean; jobsReset: number; error?: string }> {
   try {
@@ -17,20 +17,40 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
       return { success: false, jobsReset: 0, error: 'No owner ID found' };
     }
 
-    const dateStr = format(dayDate, 'yyyy-MM-dd');
-    
-    // Query jobs for the specific day
-    const jobsRef = collection(db, 'jobs');
-    const jobsQuery = query(
-      jobsRef,
-      where('ownerId', '==', ownerId),
-      where('scheduledTime', '>=', dateStr),
-      where('scheduledTime', '<', format(addDays(dayDate, 1), 'yyyy-MM-dd')),
-      where('status', 'in', ['pending', 'scheduled'])
-    );
+    const startStr = format(dayDate, 'yyyy-MM-dd') + 'T00:00:00';
+    const endStr = format(addDays(dayDate, 1), 'yyyy-MM-dd') + 'T00:00:00';
 
-    const jobsSnapshot = await getDocs(jobsQuery);
-    const jobsToReset = jobsSnapshot.docs;
+    // Query jobs for the specific day.
+    // Primary: range query on scheduledTime.
+    // Fallback: owner-only query + client-side filtering (avoids missing composite index issues).
+    const jobsRef = collection(db, 'jobs');
+    let docsToConsider: typeof (await getDocs(query(jobsRef))).docs;
+
+    try {
+      const jobsQuery = query(
+        jobsRef,
+        where('ownerId', '==', ownerId),
+        where('scheduledTime', '>=', startStr),
+        where('scheduledTime', '<', endStr)
+      );
+      const jobsSnapshot = await getDocs(jobsQuery);
+      docsToConsider = jobsSnapshot.docs;
+    } catch (err) {
+      console.warn('resetDayToRoundOrder: primary query failed; falling back to owner-only query', err);
+      const ownerOnlyQuery = query(jobsRef, where('ownerId', '==', ownerId));
+      const fallbackSnap = await getDocs(ownerOnlyQuery);
+      docsToConsider = fallbackSnap.docs.filter((d) => {
+        const data: any = d.data();
+        const st = data?.scheduledTime;
+        return typeof st === 'string' && st >= startStr && st < endStr;
+      });
+    }
+
+    // Clear ETAs/vehicle assignments for all non-completed jobs (includes jobs with missing status).
+    const jobsToReset = docsToConsider.filter((d) => {
+      const data: any = d.data();
+      return data?.status !== 'completed';
+    });
 
     if (jobsToReset.length === 0) {
       return { success: true, jobsReset: 0 };

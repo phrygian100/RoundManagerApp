@@ -255,6 +255,25 @@
 
 **User Impact**: The orange ↻ button now affects **only the chosen day**, preventing accidental week-wide changes. (Week-level reset/redistribution remains available via the week reset tooling where intended.)
 
+---
+
+## January 10, 2026
+
+### Runsheet: “Reset day” now clears manual ETAs even when job status isn’t `pending`/`scheduled`
+
+**File Changed**:
+- `services/resetService.ts`
+
+**Problem**:
+- Pressing the day reset (orange ↻) was expected to remove **all manual ETAs** and **manual vehicle assignments** for that specific day.
+- ETAs were sometimes not cleared because `resetDayToRoundOrder()` only targeted jobs with `status` in `['pending', 'scheduled']`. Jobs in other states (e.g. `in_progress`, `accounted`, legacy/missing status) were skipped and kept their `eta`.
+
+**Solution**:
+- `resetDayToRoundOrder()` now targets **all jobs on that day** and clears `eta` and `vehicleId` for all **non-completed** jobs.
+- Added a safe fallback query (owner-only + client-side date filtering) to avoid failures if Firestore indexes are missing for the range query.
+
+**User Impact**: Day reset reliably removes manual ETAs/vehicle assignments for the selected day, matching the confirmation copy and user expectations.
+
 ### Runsheet: ETA ordering now overrides “Rollover” priority within a day
 
 **File Changed**:
