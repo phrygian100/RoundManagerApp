@@ -88,6 +88,7 @@
 **Change**:
 - Added `/guides/gocardlesssetup` guide content and screenshots for linking GoCardless + setting up customer IDs.
 - Copied the GoCardless screenshots into `web/public` so the marketing build serves them.
+- Reduced the size of the GoCardless setup screenshots for desktop layouts.
 
 ### Marketing: Add member accounts guide content + screenshots
 

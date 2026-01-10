@@ -33,7 +33,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="Link GoCardless settings screen"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -53,7 +53,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="GoCardless Developers / API settings"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -66,7 +66,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="Create GoCardless access token"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -79,7 +79,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="Pasted GoCardless API token with Test button"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -100,7 +100,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="GoCardless customer ID"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
@@ -113,7 +113,7 @@ export default function GoCardlessSetupGuidePage() {
               alt="Copy GoCardless customer ID into Guvnor"
               width={1200}
               height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
+              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
             />
 
             <p className="text-gray-700">
