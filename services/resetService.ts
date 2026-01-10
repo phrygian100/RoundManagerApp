@@ -24,7 +24,8 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
     // Primary: range query on scheduledTime.
     // Fallback: owner-only query + client-side filtering (avoids missing composite index issues).
     const jobsRef = collection(db, 'jobs');
-    let docsToConsider: typeof (await getDocs(query(jobsRef))).docs;
+    // NOTE: Keep this type simple — some bundlers choke on `await` inside type queries.
+    let docsToConsider: any[];
 
     try {
       const jobsQuery = query(
