@@ -164,6 +164,20 @@
 
 ## January 5, 2026
 
+### Firestore rules: Fix reset-day permissions when `accountId` exists but is null/empty
+
+**File Changed**:
+- `firestore.rules`
+
+**Problem**:
+- Runsheet “Reset day” (↻) started failing with `FirebaseError: Missing or insufficient permissions`.
+- Root cause: some legacy job documents have an `accountId` field present but set to `null`/empty. The rules helper treated “accountId exists” as authoritative and ignored `ownerId`, causing `hasResourceAccess` to deny updates even for valid owners/members.
+
+**Solution**:
+- Updated the rules helper to prefer `accountId` only when it is non-empty; otherwise it falls back to `ownerId`.
+
+**User Impact**: Reset-day should work again without reopening public data access.
+
 ### Runsheet Day Complete: Fix GoCardless DDs not creating local payment records
 
 **Files Changed**:

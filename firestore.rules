@@ -17,8 +17,10 @@ service cloud.firestore {
     }
 
     function getAccountIdFromData(data) {
-      return ('accountId' in data) ? data.accountId :
-             (('ownerId' in data) ? data.ownerId : null);
+      // Prefer accountId only if it's present AND non-empty; otherwise fall back to ownerId.
+      return (('accountId' in data) && data.accountId != null && data.accountId != '')
+        ? data.accountId
+        : (('ownerId' in data) ? data.ownerId : null);
     }
 
     // Check if user has access to existing resource
