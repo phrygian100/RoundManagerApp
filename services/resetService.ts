@@ -1,5 +1,5 @@
 import { addDays, endOfWeek, format, isThisWeek, startOfWeek } from 'date-fns';
-import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { manualRefreshWeekCapacity, triggerCapacityRedistribution } from './capacityService';
@@ -53,33 +53,61 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
     }
 
     // Clear ETAs/vehicle assignments for all non-completed jobs (includes jobs with missing status).
+    // Also verify ownership to avoid permission errors in batch update.
     const jobsToReset = docsToConsider.filter((d) => {
       const data: any = d.data();
-      console.log('resetDayToRoundOrder: job', d.id, 'status:', data?.status, 'scheduledTime:', data?.scheduledTime);
-      return data?.status !== 'completed';
+      const jobOwnerId = data?.ownerId || data?.accountId;
+      const isNotCompleted = data?.status !== 'completed';
+      const hasCorrectOwner = jobOwnerId === ownerId;
+      
+      console.log('resetDayToRoundOrder: job', d.id, 'status:', data?.status, 'ownerId:', jobOwnerId, 'matches:', hasCorrectOwner, 'scheduledTime:', data?.scheduledTime);
+      
+      if (!hasCorrectOwner) {
+        console.warn('resetDayToRoundOrder: skipping job', d.id, '- ownerId mismatch. Expected:', ownerId, 'Got:', jobOwnerId);
+      }
+      
+      return isNotCompleted && hasCorrectOwner;
     });
 
-    console.log('resetDayToRoundOrder: will reset', jobsToReset.length, 'jobs');
+    console.log('resetDayToRoundOrder: will reset', jobsToReset.length, 'jobs (after ownership validation)');
 
     if (jobsToReset.length === 0) {
       return { success: true, jobsReset: 0 };
     }
 
-    // Reset jobs in batch
-    const batch = writeBatch(db);
+    // Update jobs individually to get better error reporting
+    // Using updateDoc (same pattern as runsheet defer functionality)
+    let successCount = 0;
+    const errors: string[] = [];
 
-    jobsToReset.forEach((jobDoc) => {
-      const jobRef = doc(db, 'jobs', jobDoc.id);
-      console.log('resetDayToRoundOrder: batch updating job', jobDoc.id);
-      batch.update(jobRef, {
-        eta: null,
-        vehicleId: null
-      });
-    });
+    for (const jobDoc of jobsToReset) {
+      try {
+        const jobRef = doc(db, 'jobs', jobDoc.id);
+        const data = jobDoc.data();
+        console.log('resetDayToRoundOrder: updating job', jobDoc.id, 'ownerId:', data?.ownerId || data?.accountId);
+        await updateDoc(jobRef, {
+          eta: null,
+          vehicleId: null
+        });
+        successCount++;
+      } catch (jobError: any) {
+        const errorMsg = `Job ${jobDoc.id}: ${jobError?.message || 'Unknown error'}`;
+        console.error('resetDayToRoundOrder: failed to update', jobDoc.id, ':', jobError);
+        errors.push(errorMsg);
+      }
+    }
 
-    console.log('resetDayToRoundOrder: committing batch...');
-    await batch.commit();
-    console.log('resetDayToRoundOrder: batch committed successfully');
+    console.log('resetDayToRoundOrder: updated', successCount, 'of', jobsToReset.length, 'jobs');
+
+    if (errors.length > 0) {
+      console.warn('resetDayToRoundOrder: some jobs failed to update:', errors);
+      // Still return success if at least some jobs were updated
+      if (successCount > 0) {
+        return { success: true, jobsReset: successCount };
+      } else {
+        return { success: false, jobsReset: 0, error: `All updates failed: ${errors.join('; ')}` };
+      }
+    }
 
     return { success: true, jobsReset: jobsToReset.length };
   } catch (error) {
