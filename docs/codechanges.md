@@ -273,6 +273,44 @@
 
 ---
 
+## January 10, 2026
+
+### Runsheet: Fix reset day error handling - refresh failures no longer mask successful resets
+
+**Files Changed**:
+- `app/runsheet/[week].tsx`
+- `services/resetService.ts`
+
+**Problem**:
+- The runsheet day reset (orange ↻ button) was successfully clearing ETAs and vehicle assignments in the database
+- However, refresh errors (Firestore permissions during client re-fetch) were causing the operation to show as "failed"
+- Users had to manually refresh the page to see that ETAs were actually cleared
+
+**Solution**:
+- Wrapped the refresh logic in `handleResetDay` in a try-catch block
+- Refresh failures are now logged as warnings but don't fail the operation
+- Success message is shown even if refresh fails (since the database updates succeeded)
+- Added note in success message to refresh page if UI doesn't update automatically
+
+**User Impact**: The reset button now correctly shows success when ETAs/vehicle assignments are cleared, even if the UI refresh step fails. Users will see "Successfully reset X jobs" instead of an error, and can refresh manually to see changes if needed.
+
+### Runsheet: Fix reset day to clear ETAs for all non-completed jobs
+
+**File Changed**: `services/resetService.ts`
+
+**Problem**: 
+- Reset day function only cleared ETAs for jobs with status 'pending' or 'scheduled'
+- Jobs with missing/legacy statuses (or other statuses like 'in_progress') kept their ETAs after reset
+
+**Solution**:
+- Changed filter to clear ETAs/vehicle assignments for ALL non-completed jobs (any status except 'completed')
+- Uses `getJobsForWeek` pattern (same as runsheet) for consistency
+- Updated individual jobs instead of batch to get better error reporting
+
+**User Impact**: Reset day now clears ETAs and vehicle assignments for all jobs on the selected day, regardless of their status (except completed jobs).
+
+---
+
 ## December 29, 2025
 
 ### Runsheet: “Reset day” (orange ↻) no longer reshuffles the whole week
