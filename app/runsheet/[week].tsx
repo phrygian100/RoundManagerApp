@@ -2128,51 +2128,58 @@ ${signOff}`;
       const result = await resetDayToRoundOrder(dayDate);
       
       if (result.success) {
-        // Refresh the jobs data to show the reset state
-        const startDate = format(weekStart, 'yyyy-MM-dd');
-        const endDate = format(weekEnd, 'yyyy-MM-dd');
-        const jobsForWeek = await getJobsForWeek(startDate, endDate);
-        
-        if (jobsForWeek.length > 0) {
-          // Re-fetch client data and update state
-          const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
-          const clientChunks = [];
-          for (let i = 0; i < clientIds.length; i += 30) {
-            clientChunks.push(clientIds.slice(i, i + 30));
-          }
+        // Try to refresh the jobs data to show the reset state
+        // If refresh fails, still show success since the reset worked
+        try {
+          const startDate = format(weekStart, 'yyyy-MM-dd');
+          const endDate = format(weekEnd, 'yyyy-MM-dd');
+          const jobsForWeek = await getJobsForWeek(startDate, endDate);
           
-          const clientsMap = new Map<string, Client>();
-          for (const chunk of clientChunks) {
-            const validClientIds = chunk.filter(id => id && id !== 'NOTE_JOB' && id !== 'QUOTE_JOB');
-            if (validClientIds.length > 0) {
-              const clientsRef = collection(db, 'clients');
-              const clientsQuery = query(clientsRef, where('__name__', 'in', validClientIds));
-              const clientsSnapshot = await getDocs(clientsQuery);
-              clientsSnapshot.docs.forEach(doc => {
-                clientsMap.set(doc.id, { id: doc.id, ...doc.data() } as Client);
-              });
+          if (jobsForWeek.length > 0) {
+            // Re-fetch client data and update state
+            const clientIds = [...new Set(jobsForWeek.map(job => job.clientId))];
+            const clientChunks = [];
+            for (let i = 0; i < clientIds.length; i += 30) {
+              clientChunks.push(clientIds.slice(i, i + 30));
             }
-          }
-          
-          const jobsWithClients = jobsForWeek.map(job => ({
-            ...job,
-            client: job.clientId ? clientsMap.get(job.clientId) || null : null,
-          }));
-          
-          // Update completion map from database
-          const updatedCompletionMap: Record<string, number> = {};
-          jobsWithClients.forEach(job => {
-            if (job.status === 'completed' && (job as any).completionSequence) {
-              updatedCompletionMap[job.id] = (job as any).completionSequence;
+            
+            const clientsMap = new Map<string, Client>();
+            for (const chunk of clientChunks) {
+              const validClientIds = chunk.filter(id => id && id !== 'NOTE_JOB' && id !== 'QUOTE_JOB');
+              if (validClientIds.length > 0) {
+                const clientsRef = collection(db, 'clients');
+                const clientsQuery = query(clientsRef, where('__name__', 'in', validClientIds));
+                const clientsSnapshot = await getDocs(clientsQuery);
+                clientsSnapshot.docs.forEach(doc => {
+                  clientsMap.set(doc.id, { id: doc.id, ...doc.data() } as Client);
+                });
+              }
             }
-          });
-          setCompletionMap(updatedCompletionMap);
-          
-          setJobs(jobsWithClients);
+            
+            const jobsWithClients = jobsForWeek.map(job => ({
+              ...job,
+              client: job.clientId ? clientsMap.get(job.clientId) || null : null,
+            }));
+            
+            // Update completion map from database
+            const updatedCompletionMap: Record<string, number> = {};
+            jobsWithClients.forEach(job => {
+              if (job.status === 'completed' && (job as any).completionSequence) {
+                updatedCompletionMap[job.id] = (job as any).completionSequence;
+              }
+            });
+            setCompletionMap(updatedCompletionMap);
+            
+            setJobs(jobsWithClients);
+          }
+        } catch (refreshError) {
+          // Refresh failed, but reset succeeded - log warning but don't fail
+          console.warn('Failed to refresh jobs after reset (non-fatal):', refreshError);
+          // User can manually refresh to see changes
         }
         
         const message = result.jobsReset > 0 
-          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} on ${dayTitle} to round order.`
+          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} on ${dayTitle} to round order.${Platform.OS === 'web' ? ' Please refresh the page to see changes.' : ''}`
           : `No jobs needed resetting on ${dayTitle}.`;
           
         if (Platform.OS === 'web') {
