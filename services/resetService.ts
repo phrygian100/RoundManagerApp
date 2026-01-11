@@ -71,17 +71,39 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
       try {
         const jobId = jobDoc.id;
         const jobRef = doc(db, 'jobs', jobId);
+        
+        // Test read access first (same permission check as update)
+        console.log('resetDayToRoundOrder: testing read access for job', jobId);
+        const testRead = await getDoc(jobRef);
+        if (!testRead.exists()) {
+          console.error('resetDayToRoundOrder: job', jobId, 'does not exist or cannot be read');
+          errors.push(`Job ${jobId}: Cannot read document`);
+          continue;
+        }
+        console.log('resetDayToRoundOrder: read access OK, job data:', { 
+          id: jobId, 
+          ownerId: testRead.data()?.ownerId,
+          accountId: testRead.data()?.accountId,
+          status: testRead.data()?.status 
+        });
+        
         console.log('resetDayToRoundOrder: updating job', jobId);
         await updateDoc(jobRef, {
           eta: null,
           vehicleId: null
         });
+        console.log('resetDayToRoundOrder: successfully updated job', jobId);
         successCount++;
       } catch (jobError: any) {
         const jobId = jobDoc.id;
         const errorMsg = `Job ${jobId}: ${jobError?.message || 'Unknown error'}`;
-        console.error('resetDayToRoundOrder: failed to update', jobId, ':', jobError);
+        console.error('resetDayToRoundOrder: failed to update', jobId);
+        console.error('resetDayToRoundOrder: error:', jobError);
         console.error('resetDayToRoundOrder: error code:', jobError?.code);
+        console.error('resetDayToRoundOrder: error name:', jobError?.name);
+        if (jobError?.stack) {
+          console.error('resetDayToRoundOrder: error stack:', jobError.stack);
+        }
         errors.push(errorMsg);
       }
     }
