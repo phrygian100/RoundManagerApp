@@ -1,7 +1,8 @@
 import { addDays, endOfWeek, format, isThisWeek, startOfWeek } from 'date-fns';
-import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { getJobsForWeek } from './jobService';
 import { manualRefreshWeekCapacity, triggerCapacityRedistribution } from './capacityService';
 
 /**
@@ -19,54 +20,39 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
 
     console.log('resetDayToRoundOrder: starting with ownerId:', ownerId, 'day:', dayDate.toISOString());
 
-    const startStr = format(dayDate, 'yyyy-MM-dd') + 'T00:00:00';
-    const endStr = format(addDays(dayDate, 1), 'yyyy-MM-dd') + 'T00:00:00';
+    const startStr = format(dayDate, 'yyyy-MM-dd');
+    const endStr = format(addDays(dayDate, 1), 'yyyy-MM-dd');
 
-    // Query jobs for the specific day.
-    // Primary: range query on scheduledTime.
-    // Fallback: owner-only query + client-side filtering (avoids missing composite index issues).
-    const jobsRef = collection(db, 'jobs');
-    // NOTE: Keep this type simple — some bundlers choke on `await` inside type queries.
-    let docsToConsider: any[];
-
-    try {
-      const jobsQuery = query(
-        jobsRef,
-        where('ownerId', '==', ownerId),
-        where('scheduledTime', '>=', startStr),
-        where('scheduledTime', '<', endStr)
-      );
-      console.log('resetDayToRoundOrder: trying primary query with', startStr, 'to', endStr);
-      const jobsSnapshot = await getDocs(jobsQuery);
-      docsToConsider = jobsSnapshot.docs;
-      console.log('resetDayToRoundOrder: primary query found', docsToConsider.length, 'docs');
-    } catch (err) {
-      console.warn('resetDayToRoundOrder: primary query failed; falling back to owner-only query', err);
-      const ownerOnlyQuery = query(jobsRef, where('ownerId', '==', ownerId));
-      const fallbackSnap = await getDocs(ownerOnlyQuery);
-      docsToConsider = fallbackSnap.docs.filter((d) => {
-        const data: any = d.data();
-        const st = data?.scheduledTime;
-        return typeof st === 'string' && st >= startStr && st < endStr;
-      });
-      console.log('resetDayToRoundOrder: fallback query found', docsToConsider.length, 'docs');
-    }
+    // Use the same job loading pattern as the runsheet (getJobsForWeek)
+    // This ensures we're using the same query/permission pattern that works elsewhere
+    console.log('resetDayToRoundOrder: loading jobs using getJobsForWeek pattern', startStr, 'to', endStr);
+    const jobsForDay = await getJobsForWeek(startStr, endStr);
+    
+    // Filter to jobs on the specific day
+    const dayStartStr = startStr + 'T00:00:00';
+    const dayEndStr = endStr + 'T00:00:00';
+    const jobsOnDay = jobsForDay.filter(job => {
+      const st = job.scheduledTime;
+      return typeof st === 'string' && st >= dayStartStr && st < dayEndStr;
+    });
+    
+    console.log('resetDayToRoundOrder: found', jobsOnDay.length, 'jobs for day');
+    
+    // Convert to document-like format for consistency with rest of function
+    const docsToConsider = jobsOnDay.map(job => ({
+      id: job.id,
+      data: () => job as any
+    }));
 
     // Clear ETAs/vehicle assignments for all non-completed jobs (includes jobs with missing status).
-    // Also verify ownership to avoid permission errors in batch update.
     const jobsToReset = docsToConsider.filter((d) => {
-      const data: any = d.data();
-      const jobOwnerId = data?.ownerId || data?.accountId;
+      const data: any = typeof d.data === 'function' ? d.data() : d.data;
+      const jobId = d.id;
       const isNotCompleted = data?.status !== 'completed';
-      const hasCorrectOwner = jobOwnerId === ownerId;
       
-      console.log('resetDayToRoundOrder: job', d.id, 'status:', data?.status, 'ownerId:', jobOwnerId, 'matches:', hasCorrectOwner, 'scheduledTime:', data?.scheduledTime);
+      console.log('resetDayToRoundOrder: job', jobId, 'status:', data?.status, 'scheduledTime:', data?.scheduledTime);
       
-      if (!hasCorrectOwner) {
-        console.warn('resetDayToRoundOrder: skipping job', d.id, '- ownerId mismatch. Expected:', ownerId, 'Got:', jobOwnerId);
-      }
-      
-      return isNotCompleted && hasCorrectOwner;
+      return isNotCompleted;
     });
 
     console.log('resetDayToRoundOrder: will reset', jobsToReset.length, 'jobs (after ownership validation)');
@@ -76,23 +62,26 @@ export async function resetDayToRoundOrder(dayDate: Date): Promise<{ success: bo
     }
 
     // Update jobs individually to get better error reporting
-    // Using updateDoc (same pattern as runsheet defer functionality)
+    // First verify we can access each job document (permissions check)
+    // Using getDoc + updateDoc (same pattern as runsheet defer functionality)
     let successCount = 0;
     const errors: string[] = [];
 
     for (const jobDoc of jobsToReset) {
       try {
-        const jobRef = doc(db, 'jobs', jobDoc.id);
-        const data = jobDoc.data();
-        console.log('resetDayToRoundOrder: updating job', jobDoc.id, 'ownerId:', data?.ownerId || data?.accountId);
+        const jobId = jobDoc.id;
+        const jobRef = doc(db, 'jobs', jobId);
+        console.log('resetDayToRoundOrder: updating job', jobId);
         await updateDoc(jobRef, {
           eta: null,
           vehicleId: null
         });
         successCount++;
       } catch (jobError: any) {
-        const errorMsg = `Job ${jobDoc.id}: ${jobError?.message || 'Unknown error'}`;
-        console.error('resetDayToRoundOrder: failed to update', jobDoc.id, ':', jobError);
+        const jobId = jobDoc.id;
+        const errorMsg = `Job ${jobId}: ${jobError?.message || 'Unknown error'}`;
+        console.error('resetDayToRoundOrder: failed to update', jobId, ':', jobError);
+        console.error('resetDayToRoundOrder: error code:', jobError?.code);
         errors.push(errorMsg);
       }
     }
