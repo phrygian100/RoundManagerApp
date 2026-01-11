@@ -292,7 +292,7 @@
 - Success message is shown even if refresh fails (since the database updates succeeded)
 - Added note in success message to refresh page if UI doesn't update automatically
 
-**User Impact**: The reset button now correctly shows success when ETAs/vehicle assignments are cleared, even if the UI refresh step fails. Users will see "Successfully reset X jobs" instead of an error, and can refresh manually to see changes if needed.
+**User Impact**: The reset button now correctly shows success when ETAs/vehicle assignments are cleared, even if the UI refresh step fails. The browser automatically refreshes after showing the success message (web only) to display the updated runsheet with jobs sorted by round order.
 
 ### Runsheet: Fix reset day to clear ETAs for all non-completed jobs
 

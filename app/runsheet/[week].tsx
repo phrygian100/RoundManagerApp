@@ -2179,11 +2179,13 @@ ${signOff}`;
         }
         
         const message = result.jobsReset > 0 
-          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} on ${dayTitle} to round order.${Platform.OS === 'web' ? ' Please refresh the page to see changes.' : ''}`
+          ? `Successfully reset ${result.jobsReset} job${result.jobsReset !== 1 ? 's' : ''} on ${dayTitle} to round order.`
           : `No jobs needed resetting on ${dayTitle}.`;
           
         if (Platform.OS === 'web') {
           window.alert(message);
+          // Automatically refresh the page to show the updated runsheet
+          window.location.reload();
         } else {
           Alert.alert('Reset Complete', message);
         }
