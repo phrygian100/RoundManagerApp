@@ -78,6 +78,18 @@ export async function backfillAccountIds(options?: { maxDocs?: number; dryRun?: 
   return result.data as BackfillAccountIdsResult;
 }
 
+export async function refreshClaims(): Promise<void> {
+  const functions = getFunctions();
+  const fn = httpsCallable(functions, 'refreshClaims');
+  await fn();
+
+  // Force token refresh to pick up new claims immediately
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    await currentUser.getIdToken(true);
+  }
+}
+
 export async function leaveTeamSelf(): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');

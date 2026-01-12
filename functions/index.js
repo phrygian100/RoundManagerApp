@@ -502,6 +502,36 @@ exports.backfillAccountIds = onCall(async (request) => {
 
   const db = admin.firestore();
   const accountId = caller.token.accountId;
+  const callerUid = caller.uid;
+
+  // Ensure the owner membership doc exists (rules rely on exists(/accounts/{accountId}/members/{uid}))
+  // Some legacy accounts may be missing this doc, which blocks reads/writes under locked-down rules.
+  try {
+    const ownerMemberRef = db.collection(`accounts/${accountId}/members`).doc(callerUid);
+    const ownerMemberSnap = await ownerMemberRef.get();
+    if (!ownerMemberSnap.exists) {
+      await ownerMemberRef.set({
+        uid: callerUid,
+        email: caller.token.email || '',
+        role: 'owner',
+        perms: { viewClients: true, viewRunsheet: true, viewPayments: false },
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      }, { merge: true });
+    }
+  } catch (e) {
+    console.warn('[backfillAccountIds] failed ensuring owner membership doc', e);
+  }
+
+  // Ensure caller's users/{uid}.accountId matches token accountId (helps client session resolution)
+  try {
+    await db.collection('users').doc(callerUid).set({
+      accountId,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true });
+  } catch (e) {
+    console.warn('[backfillAccountIds] failed updating users/{uid}.accountId', e);
+  }
 
   const dryRun = !!(request.data && request.data.dryRun);
   const maxDocs = Math.max(1, Math.min(Number((request.data && request.data.maxDocs) || 2000), 10000));

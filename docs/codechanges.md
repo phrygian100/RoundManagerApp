@@ -38,6 +38,7 @@ Some legacy documents may have `ownerId` set to a **team member UID** (instead o
   - Loads active member UIDs under `accounts/{accountId}/members`
   - For each member UID, rewrites `ownerId` and `accountId` on `clients/jobs/payments/servicePlans/quotes` where `ownerId == memberUid` to the canonical `accountId`
 - Added an **Admin Tools** button in Settings: “Repair Firestore Permissions (Fix existing clients/jobs)” to run the repair in safe chunks.
+- Updated the repair flow to **refresh claims first** (ensures app + callable functions agree on `accountId/isOwner`) and to **ensure the owner membership doc exists** under `accounts/{accountId}/members/{uid}` before backfilling (rules rely on `exists()` checks).
 
 **Impact**:
 - ✅ Existing clients/jobs created under member UIDs become readable/writable again

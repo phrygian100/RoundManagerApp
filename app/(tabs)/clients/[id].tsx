@@ -779,6 +779,13 @@ export default function ClientDetailScreen() {
   };
 
   const handleAddJob = async () => {
+    // Ensure Auth is ready before write (prevents unauthenticated writes on web)
+    const user = await waitForAuthReady(5000);
+    if (!user) {
+      Alert.alert('Error', 'Authentication error. Please refresh and try again.');
+      return;
+    }
+
     if (!jobPrice) {
       Alert.alert('Error', 'Please enter a price for the job.');
       return;
@@ -804,6 +811,7 @@ export default function ClientDetailScreen() {
       }
     }
 
+    const session = await getUserSession();
     const ownerId = await getDataOwnerId();
     if (!ownerId) {
       Alert.alert('Error', 'Could not determine owner.');
@@ -831,6 +839,13 @@ export default function ClientDetailScreen() {
     }
 
     console.log('➕ Creating adhoc job:', jobData);
+    console.log('🔐 Job create session debug:', {
+      authUid: user.uid,
+      sessionAccountId: session?.accountId,
+      sessionIsOwner: session?.isOwner,
+      jobOwnerId: jobData.ownerId,
+      jobAccountId: jobData.accountId,
+    });
 
     try {
       await addDoc(collection(db, 'jobs'), jobData);
@@ -852,6 +867,15 @@ export default function ClientDetailScreen() {
       setCustomJobType('');
     } catch (error) {
       console.error('Error adding job:', error);
+      // Try to surface the exact reason in web console
+      try {
+        const anyErr: any = error;
+        console.error('Error details:', {
+          code: anyErr?.code,
+          message: anyErr?.message,
+          name: anyErr?.name,
+        });
+      } catch (_) {}
       Alert.alert('Error', 'Failed to add job.');
     }
   };

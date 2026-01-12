@@ -13,7 +13,7 @@ import { ThemedView } from '../../components/ThemedView';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
-import { backfillAccountIds } from '../../services/accountService';
+import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
@@ -2834,6 +2834,12 @@ export default function SettingsScreen() {
 
                 try {
                   setLoading(true);
+                  // Step 1: Refresh claims + token so the app and callable functions agree on accountId/isOwner.
+                  try {
+                    await refreshClaims();
+                  } catch (e) {
+                    console.warn('refreshClaims failed (continuing to backfill anyway):', e);
+                  }
 
                   // Run in small pages to avoid function timeouts.
                   let totalUpdated = 0;
