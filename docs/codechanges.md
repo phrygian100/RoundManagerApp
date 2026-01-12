@@ -1,5 +1,28 @@
 # Code Changes Log
 
+## January 12, 2026
+
+### Firestore/Auth: Prevent transient “Missing or insufficient permissions” on web by waiting for Auth hydration
+
+**Files Changed**:
+- `core/session.ts`
+- `app/(tabs)/clients/[id].tsx`
+- `app/(tabs)/clients/[id]/manage-services.tsx`
+
+**Issue**:
+After Firestore was locked down (no public reads), some screens were making Firestore reads (e.g. `getDoc(clients/<id>)`) immediately on mount / focus. On web, Firebase Auth can take a moment to hydrate persistence, so these reads could fire **unauthenticated** and throw **`FirebaseError: Missing or insufficient permissions`** even though the user is signed in moments later.
+
+**Solution**:
+- Added `waitForAuthReady()` helper to `core/session.ts` (waits briefly for `onAuthStateChanged` to fire).
+- Updated client detail screens to call `waitForAuthReady()` before reading protected collections.
+- Added defensive try/catch around initial client document reads so we don’t crash/unhandled-promise on transient auth timing.
+
+**Impact**:
+- ✅ Existing clients should load reliably on web (no auth-race permission errors)
+- ✅ Future clients continue to work (with `accountId` being set on create from the previous fix)
+
+---
+
 ## January 10, 2026
 
 ### CRITICAL FIX: Job and Client Creation Permission Errors After CORS Security Changes

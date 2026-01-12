@@ -1,4 +1,5 @@
 import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged, type User } from 'firebase/auth';
 import { auth, db } from './firebase';
 
 export type UserSession = {
@@ -7,6 +8,39 @@ export type UserSession = {
   isOwner: boolean;
   perms: Record<string, boolean>;
 };
+
+/**
+ * Waits for Firebase Auth to finish initializing and returns the current user (or null).
+ *
+ * Why: After locking Firestore down (no public reads), calling Firestore before Auth hydration
+ * can throw "Missing or insufficient permissions" on web due to unauthenticated reads.
+ */
+export async function waitForAuthReady(timeoutMs: number = 5000): Promise<User | null> {
+  if (auth.currentUser) return auth.currentUser;
+
+  return await new Promise<User | null>((resolve) => {
+    let done = false;
+    const finish = (u: User | null) => {
+      if (done) return;
+      done = true;
+      resolve(u);
+    };
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
+      unsubscribe();
+      finish(u);
+    });
+
+    setTimeout(() => {
+      try {
+        unsubscribe();
+      } catch (_) {
+        // ignore
+      }
+      finish(auth.currentUser ?? null);
+    }, timeoutMs);
+  });
+}
 
 type UserData = {
   accountId?: string;

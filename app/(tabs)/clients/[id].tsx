@@ -13,7 +13,7 @@ import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
 import { Colors } from '../../../constants/Colors';
 import { auth, db } from '../../../core/firebase';
-import { getDataOwnerId, getUserSession } from '../../../core/session';
+import { getDataOwnerId, getUserSession, waitForAuthReady } from '../../../core/session';
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { updateClientGoCardlessSettings } from '../../../services/clientService';
@@ -177,12 +177,28 @@ export default function ClientDetailScreen() {
 
   const fetchClient = useCallback(async () => {
     if (typeof id === 'string') {
-      const docRef = doc(db, 'clients', id);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setClient({ id: docSnap.id, ...data } as Client);
-        setNotes(data.runsheetNotes || data.notes || '');
+      try {
+        // IMPORTANT: wait for Auth hydration before hitting locked-down Firestore.
+        // Without this, web can throw "Missing or insufficient permissions" transiently.
+        const user = await waitForAuthReady(5000);
+        if (!user) {
+          setClient(null);
+          setLoading(false);
+          return;
+        }
+
+        const docRef = doc(db, 'clients', id);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setClient({ id: docSnap.id, ...data } as Client);
+          setNotes(data.runsheetNotes || data.notes || '');
+        } else {
+          setClient(null);
+        }
+      } catch (error) {
+        console.error('Error fetching client:', error);
+        setClient(null);
       }
       
       // Fetch service plans

@@ -8,7 +8,7 @@ import { Alert, Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Swit
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
-import { getDataOwnerId } from '../../../../core/session';
+import { getDataOwnerId, waitForAuthReady } from '../../../../core/session';
 import type { AdditionalService, Client } from '../../../../types/client';
 import type { ServicePlan } from '../../../../types/servicePlan';
 
@@ -63,6 +63,16 @@ export default function ManageServicesScreen() {
 		if (!clientId) return;
 		setLoading(true);
 		try {
+			// IMPORTANT: wait for Auth hydration before hitting locked-down Firestore.
+			// Without this, web can throw "Missing or insufficient permissions" transiently.
+			const user = await waitForAuthReady(5000);
+			if (!user) {
+				setPlans([]);
+				setClient(null);
+				setPendingJobs([]);
+				return;
+			}
+
 			// 1) Attempt to load plans, but do not block legacy fetch if this fails
 			try {
 				const ownerId = await getDataOwnerId();
@@ -95,6 +105,7 @@ export default function ManageServicesScreen() {
 				}
 			} catch (clientErr) {
 				console.error('Failed to load client', clientErr);
+				setClient(null);
 			}
 
 			// 3) Fetch pending jobs regardless
