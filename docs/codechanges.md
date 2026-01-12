@@ -2,31 +2,45 @@
 
 ## January 10, 2026
 
-### CRITICAL FIX: Job Creation Permission Errors After CORS Security Changes
+### CRITICAL FIX: Job and Client Creation Permission Errors After CORS Security Changes
 
 **Files Changed**:
 - `app/(tabs)/clients/[id].tsx`
 - `services/jobService.ts` (multiple functions)
 - `app/(tabs)/clients/[id]/manage-services.tsx` (3 locations)
 - `app/quotes.tsx`
-- `app/(tabs)/settings.tsx` (2 locations)
+- `app/(tabs)/settings.tsx` (2 locations for jobs, 3 locations for clients)
 - `app/import-completed-jobs.tsx`
 - `app/runsheet/[week].tsx`
+- `app/add-client.tsx`
+- `app/import-clients.tsx`
 
 **Issue**: 
-After tightening Firestore security rules to prevent malicious users from accessing data via DevTools, users were unable to create new adhoc jobs via the "Add a new job" modal from the clients info screen. The error was "Missing or insufficient permissions" (FirebaseError).
+After tightening Firestore security rules to prevent malicious users from accessing data via DevTools, users were unable to create new adhoc jobs via the "Add a new job" modal from the clients info screen. The error was "Missing or insufficient permissions" (FirebaseError). Additionally, reading client documents was also failing for team members.
 
 **Root Cause**:
-The Firestore security rules' `hasCreateAccess()` function checks for `accountId` first (preferred field), then falls back to `ownerId`. However, all job creation code was only setting `ownerId`, not `accountId`. For team members, the `hasAccountAccess()` function uses `exists()` to check member documents, which can fail if the accountId field is not explicitly set.
+The Firestore security rules' `hasCreateAccess()` and `hasResourceAccess()` functions check for `accountId` first (preferred field), then fall back to `ownerId`. However:
+1. All job creation code was only setting `ownerId`, not `accountId`
+2. All client creation code was only setting `ownerId`, not `accountId`
+3. When team members tried to read existing clients (which only had `ownerId`), the permission check could fail
+
+For team members, the `hasAccountAccess()` function uses `exists()` to check member documents, which works better when `accountId` is explicitly set.
 
 **Solution**:
-Added `accountId: ownerId` to all job creation locations throughout the codebase. Since `getDataOwnerId()` returns the accountId (which is the owner's UID for owners, or the team's accountId for members), we set both fields for compatibility with Firestore rules.
+Added `accountId: ownerId` to:
+1. All job creation locations throughout the codebase (12 locations)
+2. All client creation locations throughout the codebase (5 locations)
+
+Since `getDataOwnerId()` returns the accountId (which is the owner's UID for owners, or the team's accountId for members), we set both fields for compatibility with Firestore rules.
 
 **Impact**:
 - ✅ Fixed job creation permission errors for all users (owners and team members)
+- ✅ Fixed client creation to include `accountId` for proper rule evaluation
 - ✅ All job creation methods now work: adhoc jobs, recurring jobs, quote jobs, imported jobs, note jobs
+- ✅ All client creation methods now work: manual creation, import, quote conversion
 - ✅ Maintains backward compatibility with existing `ownerId` field
 - ✅ Aligns with Firestore rules' preference for `accountId` field
+- ⚠️ **Note**: Existing clients in the database that only have `ownerId` (not `accountId`) may still cause read permission issues for team members. A migration script may be needed to add `accountId` to existing clients.
 
 ---
 

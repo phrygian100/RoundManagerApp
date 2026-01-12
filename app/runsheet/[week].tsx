@@ -3395,6 +3395,7 @@ ${signOff}`;
                   accountNumber: `RWC${nextAcc}`,
                   roundOrderNumber: Number(quoteForm.roundOrder),
                   ownerId,
+                  accountId: ownerId, // Explicitly set accountId for Firestore rules
                 });
                 // Remove quote and job
                 await deleteDoc(doc(db, 'quotes', (job as any).quoteId));

@@ -368,6 +368,7 @@ export default function ImportClientsScreen() {
           dateAdded: new Date().toISOString(),
           status: 'active',
           ownerId,
+          accountId: ownerId, // Explicitly set accountId for Firestore rules
         });
         imported++;
       }

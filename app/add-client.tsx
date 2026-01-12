@@ -335,6 +335,7 @@ export default function AddClientScreen() {
         email,
         startingBalance: startingBalanceValue,
         ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules (getDataOwnerId returns accountId)
       });
 
       console.log('Client created with ID:', clientRef.id);
