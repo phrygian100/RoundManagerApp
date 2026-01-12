@@ -56,6 +56,28 @@ export async function removeMember(uid: string): Promise<void> {
   await removeMemberFn({ memberUid: uid });
 }
 
+export type BackfillAccountIdsResult = {
+  ok: boolean;
+  accountId: string;
+  dryRun: boolean;
+  maxDocs: number;
+  memberUids: string[];
+  scanned: number;
+  updated: number;
+  updatedByCollection: Record<string, number>;
+  truncated: boolean;
+};
+
+export async function backfillAccountIds(options?: { maxDocs?: number; dryRun?: boolean }): Promise<BackfillAccountIdsResult> {
+  const functions = getFunctions();
+  const fn = httpsCallable(functions, 'backfillAccountIds');
+  const result = await fn({
+    maxDocs: options?.maxDocs ?? 2000,
+    dryRun: options?.dryRun ?? false,
+  });
+  return result.data as BackfillAccountIdsResult;
+}
+
 export async function leaveTeamSelf(): Promise<void> {
   const sess = await getUserSession();
   if (!sess) throw new Error('Not authenticated');

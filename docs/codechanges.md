@@ -23,6 +23,28 @@ After Firestore was locked down (no public reads), some screens were making Fire
 
 ---
 
+### Firestore/Data Repair: Owner-only backfill for legacy ownerId/accountId mismatches (fix existing clients/jobs created by team members)
+
+**Files Changed**:
+- `functions/index.js`
+- `services/accountService.ts`
+- `app/(tabs)/settings.tsx`
+
+**Issue**:
+Some legacy documents may have `ownerId` set to a **team member UID** (instead of the account owner UID / accountId). Under locked-down Firestore rules, that can **lock owners and other members out** of those documents permanently (reads + writes).
+
+**Solution**:
+- Added callable Cloud Function `backfillAccountIds` (owner-only) that:
+  - Loads active member UIDs under `accounts/{accountId}/members`
+  - For each member UID, rewrites `ownerId` and `accountId` on `clients/jobs/payments/servicePlans/quotes` where `ownerId == memberUid` to the canonical `accountId`
+- Added an **Admin Tools** button in Settings: “Repair Firestore Permissions (Fix existing clients/jobs)” to run the repair in safe chunks.
+
+**Impact**:
+- ✅ Existing clients/jobs created under member UIDs become readable/writable again
+- ✅ Prevents ongoing “Missing or insufficient permissions” caused by legacy ownership mismatches
+
+---
+
 ## January 10, 2026
 
 ### CRITICAL FIX: Job and Client Creation Permission Errors After CORS Security Changes

@@ -13,6 +13,7 @@ import { ThemedView } from '../../components/ThemedView';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
+import { backfillAccountIds } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
@@ -2820,6 +2821,61 @@ export default function SettingsScreen() {
             <ThemedText style={styles.warningText}>
               ⚠️ Dangerous operations - use with caution
             </ThemedText>
+
+            <StyledButton
+              title="Repair Firestore Permissions (Fix existing clients/jobs)"
+              onPress={async () => {
+                // This repairs legacy/team-created docs where ownerId/accountId mismatches lock users out.
+                const firstConfirm = await showConfirm(
+                  'Repair Firestore Permissions',
+                  'This will run a server-side repair to normalize ownerId/accountId on your data.\n\nIt is safe and does NOT delete anything.\n\nProceed?'
+                );
+                if (!firstConfirm) return;
+
+                try {
+                  setLoading(true);
+
+                  // Run in small pages to avoid function timeouts.
+                  let totalUpdated = 0;
+                  let totalScanned = 0;
+                  let passes = 0;
+                  let truncated = true;
+                  let lastResult: any = null;
+
+                  while (truncated && passes < 10) {
+                    passes += 1;
+                    const res = await backfillAccountIds({ maxDocs: 1500, dryRun: false });
+                    lastResult = res;
+                    totalUpdated += res.updated || 0;
+                    totalScanned += res.scanned || 0;
+                    truncated = !!res.truncated;
+
+                    // If a pass made no changes and scanned nothing, stop.
+                    if ((res.updated || 0) === 0 && (res.scanned || 0) === 0) break;
+                    // If a pass scanned docs but made no updates, we're likely done.
+                    if ((res.updated || 0) === 0 && (res.scanned || 0) > 0) break;
+                  }
+
+                  const perColl = lastResult?.updatedByCollection
+                    ? Object.entries(lastResult.updatedByCollection)
+                        .map(([k, v]) => `${k}: ${v}`)
+                        .join('\n')
+                    : 'No breakdown available';
+
+                  showAlert(
+                    'Repair Complete',
+                    `Scanned: ${totalScanned}\nUpdated: ${totalUpdated}\nPasses: ${passes}\n\nUpdated by collection (last pass):\n${perColl}\n\nIf you still see permission errors, tell me which screen triggers it.`
+                  );
+                } catch (error) {
+                  console.error('Repair Firestore Permissions failed:', error);
+                  const msg = error instanceof Error ? error.message : String(error);
+                  showAlert('Repair failed', msg);
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+            />
             
             <StyledButton
               title="Delete All Clients"

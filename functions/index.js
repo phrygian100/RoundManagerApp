@@ -476,6 +476,124 @@ exports.listMembers = onCall(async (request) => {
   return members;
 });
 
+/**
+ * Backfill / normalize `ownerId` + `accountId` across top-level collections.
+ *
+ * Why:
+ * - Firestore rules now prefer `accountId` and use it for access checks.
+ * - Older documents (especially created by team members) may have `ownerId` set to the
+ *   member UID instead of the account owner UID, which can lock owners/members out.
+ *
+ * Strategy:
+ * - Owner-only.
+ * - Enumerate active member UIDs under accounts/{accountId}/members.
+ * - For each member UID, query each collection by ownerId==memberUid and rewrite to accountId.
+ *
+ * NOTE: This function uses Admin SDK so it can repair documents even if rules would deny access.
+ */
+exports.backfillAccountIds = onCall(async (request) => {
+  const caller = request.auth;
+  if (!caller || !caller.token || !caller.token.accountId) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+  }
+  if (!caller.token.isOwner) {
+    throw new HttpsError('permission-denied', 'Only owners can run data repairs.');
+  }
+
+  const db = admin.firestore();
+  const accountId = caller.token.accountId;
+
+  const dryRun = !!(request.data && request.data.dryRun);
+  const maxDocs = Math.max(1, Math.min(Number((request.data && request.data.maxDocs) || 2000), 10000));
+
+  // Collect active member UIDs for this account (including the owner).
+  const membersSnap = await db.collection(`accounts/${accountId}/members`).get();
+  const memberUids = new Set([accountId]);
+  membersSnap.docs.forEach((d) => {
+    const data = d.data() || {};
+    const uid = data.uid || d.id;
+    const status = data.status || 'active';
+    if (uid && status === 'active') memberUids.add(uid);
+  });
+
+  const collections = ['clients', 'jobs', 'payments', 'servicePlans', 'quotes'];
+  const summary = {
+    ok: true,
+    accountId,
+    dryRun,
+    maxDocs,
+    memberUids: Array.from(memberUids),
+    scanned: 0,
+    updated: 0,
+    updatedByCollection: {},
+    truncated: false,
+  };
+
+  let remaining = maxDocs;
+
+  for (const coll of collections) {
+    if (remaining <= 0) {
+      summary.truncated = true;
+      break;
+    }
+
+    let updatedForColl = 0;
+
+    for (const uid of memberUids) {
+      if (remaining <= 0) {
+        summary.truncated = true;
+        break;
+      }
+
+      // Only pull a bounded number of docs per uid so we don't time out.
+      const snap = await db.collection(coll).where('ownerId', '==', uid).limit(Math.min(500, remaining)).get();
+      summary.scanned += snap.size;
+      remaining -= snap.size;
+
+      if (snap.empty) continue;
+
+      let batch = db.batch();
+      let batchOps = 0;
+
+      for (const docSnap of snap.docs) {
+        const data = docSnap.data() || {};
+        const needsOwner = data.ownerId !== accountId;
+        const needsAccount = data.accountId !== accountId;
+
+        if (!needsOwner && !needsAccount) continue;
+
+        updatedForColl += 1;
+        summary.updated += 1;
+
+        if (!dryRun) {
+          batch.update(docSnap.ref, { ownerId: accountId, accountId });
+          batchOps += 1;
+        }
+
+        // Firestore batch limit is 500 ops; keep some buffer.
+        if (!dryRun && batchOps >= 450) {
+          await batch.commit();
+          batch = db.batch();
+          batchOps = 0;
+        }
+      }
+
+      if (!dryRun && batchOps > 0) {
+        await batch.commit();
+      }
+
+      if (remaining <= 0) {
+        summary.truncated = true;
+        break;
+      }
+    }
+
+    summary.updatedByCollection[coll] = updatedForColl;
+  }
+
+  return summary;
+});
+
 exports.listVehicles = onCall(async (request) => {
   const user = request.auth;
   if (!user || !user.token.accountId) {
