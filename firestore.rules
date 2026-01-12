@@ -156,8 +156,10 @@ service cloud.firestore {
       allow list: if isSignedIn();
       // Allow read for owners/members based on either accountId or ownerId on the doc.
       allow get: if isSignedIn() && (
-        (getAccountIdFromData(resource.data) != null && hasAccountAccess(getAccountIdFromData(resource.data))) ||
-        (docId.matches('.*' + request.auth.uid + '.*'))
+        // IMPORTANT: check docId pattern first to avoid touching resource.data on non-existent docs
+        // (which can otherwise surface as "Missing or insufficient permissions").
+        (docId.matches('.*' + request.auth.uid + '.*')) ||
+        (getAccountIdFromData(resource.data) != null && hasAccountAccess(getAccountIdFromData(resource.data)))
       );
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && (

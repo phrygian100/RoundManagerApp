@@ -864,16 +864,22 @@ export async function isTodayMarkedComplete(): Promise<boolean> {
   const weekStart = startOfWeek(today, { weekStartsOn: 1 });
   const weekStartStr = format(weekStart, 'yyyy-MM-dd');
   const ownerId = await getDataOwnerId();
-  const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
-  if (completedDoc.exists()) {
-    const data = completedDoc.data();
+  if (!ownerId) return false;
+
+  try {
+    const completedDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${weekStartStr}`));
+    if (!completedDoc.exists()) return false;
+
+    const data: any = completedDoc.data();
     const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     // getDay: 0=Sunday, 1=Monday, ...
     const todayDay = daysOfWeek[today.getDay() === 0 ? 6 : today.getDay() - 1];
-    if (data.completedDays && data.completedDays.includes(todayDay)) {
-      return true;
-    }
+    return Array.isArray(data.completedDays) && data.completedDays.includes(todayDay);
+  } catch (err) {
+    // IMPORTANT: If we can't read completedWeeks due to rules / missing doc behavior,
+    // do NOT block job creation. Treat as "not marked complete".
+    console.warn('isTodayMarkedComplete: unable to read completedWeeks; treating as not complete', err);
+    return false;
   }
-  return false;
 }
 

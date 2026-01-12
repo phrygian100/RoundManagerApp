@@ -46,6 +46,27 @@ Some legacy documents may have `ownerId` set to a **team member UID** (instead o
 
 ---
 
+### Jobs: Fix “Add a New Job” failing due to completedWeeks permission read on “today” checks
+
+**Files Changed**:
+- `services/jobService.ts`
+- `firestore.rules`
+- `app/(tabs)/clients/[id].tsx`
+
+**Issue**:
+When adding an adhoc job for **today**, the UI checks whether “today is marked complete” via `completedWeeks/<ownerId>_<weekStart>`. Under locked-down rules, a non-existent `completedWeeks` doc can surface as **`FirebaseError: Missing or insufficient permissions`**, which was aborting job creation before the `jobs` write even ran.
+
+**Solution**:
+- Made `isTodayMarkedComplete()` **never throw**; on read errors it logs a warning and returns `false` (do not block job creation).
+- Reordered `completedWeeks` `allow get` rule to evaluate the docId pattern match **before** touching `resource.data`, preventing permission errors on non-existent docs.
+- Wrapped the client screen’s “today complete” check in a defensive try/catch to avoid unhandled promise rejection.
+
+**Impact**:
+- ✅ Owners can create adhoc jobs for today from the client detail modal
+- ✅ Removes noisy “Missing or insufficient permissions” errors caused by optional completedWeeks docs
+
+---
+
 ## January 10, 2026
 
 ### CRITICAL FIX: Job and Client Creation Permission Errors After CORS Security Changes

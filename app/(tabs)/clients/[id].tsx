@@ -804,7 +804,13 @@ export default function ClientDetailScreen() {
     const jobDateOnly = new Date(jobDate);
     jobDateOnly.setHours(0, 0, 0, 0);
     if (jobDateOnly.getTime() === today.getTime()) {
-      const todayComplete = await isTodayMarkedComplete();
+      let todayComplete = false;
+      try {
+        todayComplete = await isTodayMarkedComplete();
+      } catch (e) {
+        console.warn('Add job: isTodayMarkedComplete failed; treating as not complete', e);
+        todayComplete = false;
+      }
       if (todayComplete) {
         Alert.alert('Cannot add job', 'Today is marked as complete. You cannot add a job for today.');
         return;
