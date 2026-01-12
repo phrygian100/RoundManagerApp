@@ -14,7 +14,6 @@ const admin = require("firebase-admin");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { Resend } = require("resend");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
-const functionsV1 = require("firebase-functions");
 const { defineSecret } = require("firebase-functions/params");
 const crypto = require("crypto");
 
@@ -492,23 +491,20 @@ exports.listMembers = onCall(async (request) => {
  *
  * NOTE: This function uses Admin SDK so it can repair documents even if rules would deny access.
  */
-// NOTE: This is intentionally a Gen-1 callable (firebase-functions v1) to avoid Gen-2 deploy
-// dependencies (Eventarc/Compute) that can block hotfix rollouts.
-exports.backfillAccountIds = functionsV1.https.onCall(async (data, context) => {
-  const caller = context.auth;
-  const token = caller?.token || {};
-  if (!caller || !token.accountId) {
-    throw new functionsV1.https.HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
+exports.backfillAccountIds = onCall(async (request) => {
+  const caller = request.auth;
+  if (!caller || !caller.token || !caller.token.accountId) {
+    throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
-  if (!token.isOwner) {
-    throw new functionsV1.https.HttpsError('permission-denied', 'Only owners can run data repairs.');
+  if (!caller.token.isOwner) {
+    throw new HttpsError('permission-denied', 'Only owners can run data repairs.');
   }
 
   const db = admin.firestore();
-  const accountId = token.accountId;
+  const accountId = caller.token.accountId;
 
-  const dryRun = !!(data && data.dryRun);
-  const maxDocs = Math.max(1, Math.min(Number((data && data.maxDocs) || 2000), 10000));
+  const dryRun = !!(request.data && request.data.dryRun);
+  const maxDocs = Math.max(1, Math.min(Number((request.data && request.data.maxDocs) || 2000), 10000));
 
   // Collect active member UIDs for this account (including the owner).
   const membersSnap = await db.collection(`accounts/${accountId}/members`).get();
