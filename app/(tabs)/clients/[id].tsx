@@ -796,7 +796,8 @@ export default function ClientDetailScreen() {
 
     // Build job data, filtering out undefined values that Firebase doesn't allow
     const jobData: any = {
-      ownerId, // <-- Ensure ownerId is set
+      ownerId, // Legacy support
+      accountId: ownerId, // Explicitly set accountId for Firestore rules (getDataOwnerId returns accountId)
       clientId: id,
       providerId: 'test-provider-1',
       serviceId: finalJobType,

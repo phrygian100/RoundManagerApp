@@ -2,6 +2,36 @@
 
 ## January 10, 2026
 
+### CRITICAL FIX: Job Creation Permission Errors After CORS Security Changes
+
+**Files Changed**:
+- `app/(tabs)/clients/[id].tsx`
+- `services/jobService.ts` (multiple functions)
+- `app/(tabs)/clients/[id]/manage-services.tsx` (3 locations)
+- `app/quotes.tsx`
+- `app/(tabs)/settings.tsx` (2 locations)
+- `app/import-completed-jobs.tsx`
+- `app/runsheet/[week].tsx`
+
+**Issue**: 
+After tightening Firestore security rules to prevent malicious users from accessing data via DevTools, users were unable to create new adhoc jobs via the "Add a new job" modal from the clients info screen. The error was "Missing or insufficient permissions" (FirebaseError).
+
+**Root Cause**:
+The Firestore security rules' `hasCreateAccess()` function checks for `accountId` first (preferred field), then falls back to `ownerId`. However, all job creation code was only setting `ownerId`, not `accountId`. For team members, the `hasAccountAccess()` function uses `exists()` to check member documents, which can fail if the accountId field is not explicitly set.
+
+**Solution**:
+Added `accountId: ownerId` to all job creation locations throughout the codebase. Since `getDataOwnerId()` returns the accountId (which is the owner's UID for owners, or the team's accountId for members), we set both fields for compatibility with Firestore rules.
+
+**Impact**:
+- ✅ Fixed job creation permission errors for all users (owners and team members)
+- ✅ All job creation methods now work: adhoc jobs, recurring jobs, quote jobs, imported jobs, note jobs
+- ✅ Maintains backward compatibility with existing `ownerId` field
+- ✅ Aligns with Firestore rules' preference for `accountId` field
+
+---
+
+## January 10, 2026
+
 ### Core: Fixed syntax error in session.ts preventing builds
 
 **File Changed**: `core/session.ts`

@@ -2436,6 +2436,7 @@ export default function SettingsScreen() {
                 // Build job data, filtering out undefined values
                 const jobData: any = {
                   ownerId,
+                  accountId: ownerId, // Explicitly set accountId for Firestore rules
                   clientId: clientInfo.id,
                   providerId: 'test-provider-1',
                   serviceId: 'Historic Completed Service',
@@ -2602,6 +2603,7 @@ export default function SettingsScreen() {
             // Build job data, filtering out undefined values
             const jobData: any = {
               ownerId,
+              accountId: ownerId, // Explicitly set accountId for Firestore rules
               clientId: clientInfo.id,
               providerId: 'test-provider-1',
               serviceId: 'Historic Completed Service',

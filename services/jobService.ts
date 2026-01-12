@@ -56,6 +56,7 @@ export async function createJob(job: Omit<Job, 'id'>) {
   const jobData: any = {
     ...job, 
     ownerId,
+    accountId: ownerId, // Explicitly set accountId for Firestore rules (getDataOwnerId returns accountId)
     gocardlessEnabled
   };
   
@@ -549,6 +550,7 @@ export async function generateRecurringJobs() {
       if (!existingKeys.has(key)) {
         const jobData: any = {
           ownerId,
+          accountId: ownerId, // Explicitly set accountId for Firestore rules
           clientId: client.id,
           providerId: 'test-provider-1',
           serviceId,
@@ -643,6 +645,7 @@ export async function createJobsForServicePlan(plan: ServicePlan, client: Client
     if (existingJobs.length === 0) {
       jobsToCreate.push({
         ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules
         clientId: client.id,
         providerId: 'test-provider-1',
         serviceId: plan.serviceType,
@@ -735,6 +738,7 @@ export async function createJobsForAdditionalServices(clientId: string, maxWeeks
           // Build job data, filtering out undefined values
           const jobData: any = {
             ownerId,
+            accountId: ownerId, // Explicitly set accountId for Firestore rules
             clientId: client.id,
             providerId: 'test-provider-1',
             serviceId: service.serviceType,

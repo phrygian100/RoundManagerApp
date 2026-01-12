@@ -1716,6 +1716,7 @@ ${signOff}`;
       // Create the note job with a special structure
       const noteJobData = {
         ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules
         clientId: 'NOTE_JOB', // Special clientId for note jobs
         serviceId: 'note',
         propertyDetails: addNoteText.trim(),

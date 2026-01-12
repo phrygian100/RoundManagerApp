@@ -129,6 +129,7 @@ export default function QuotesScreen() {
     // Create a 'Quote' job on the runsheet for the selected date
     await addDoc(collection(db, 'jobs'), {
       ownerId,
+      accountId: ownerId, // Explicitly set accountId for Firestore rules
       clientId: 'QUOTE_' + docRef.id,
       scheduledTime: form.date + 'T09:00:00',
       status: 'pending',

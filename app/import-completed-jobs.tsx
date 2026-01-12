@@ -198,6 +198,7 @@ export default function ImportCompletedJobsScreen() {
       for (const j of jobsToCreate) {
         const jobData: any = {
           ownerId,
+          accountId: ownerId, // Explicitly set accountId for Firestore rules
           clientId: j.client.id,
           providerId: 'test-provider-1',
           serviceId: 'Historic Completed Service',

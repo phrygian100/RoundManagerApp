@@ -525,6 +525,7 @@ export default function ManageServicesScreen() {
 												} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
 													await addDoc(collection(db, 'jobs'), {
 														ownerId,
+														accountId: ownerId, // Explicitly set accountId for Firestore rules
 														clientId,
 														providerId: 'test-provider-1',
 														serviceId: plan.serviceType,
@@ -606,6 +607,7 @@ export default function ManageServicesScreen() {
 															// Create single job for one-off service
 															const jobData = {
 																ownerId,
+																accountId: ownerId, // Explicitly set accountId for Firestore rules
 																clientId: clientId,
 																providerId: 'test-provider-1',
 																serviceId: plan.serviceType,
@@ -805,7 +807,14 @@ export default function ManageServicesScreen() {
 								<Button title="Add Job" onPress={async () => {
 									if (!clientId) return;
 									try {
+										const ownerId = await getDataOwnerId();
+										if (!ownerId) {
+											Alert.alert('Error', 'Could not determine account owner.');
+											return;
+										}
 										await addDoc(collection(db, 'jobs'), {
+											ownerId,
+											accountId: ownerId, // Explicitly set accountId for Firestore rules
 											clientId,
 											providerId: 'test-provider-1',
 											serviceId: jobType === 'Other' ? customJobType.trim() : jobType,
