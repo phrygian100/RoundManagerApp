@@ -34,6 +34,7 @@ After Firestore was locked down (no public reads), some screens were making Fire
 - When processing a New Business quote request via **Schedule Quote**, the created quote now uses `status: 'scheduled'` (matching the `/quotes` pipeline).
 - Also writes `date` alongside the existing `scheduledTime` field for compatibility with `/quotes` list rendering and grouping.
 - Also creates the corresponding `jobs` “quote job” on the runsheet for the selected date (same shape as quote jobs created from `/quotes`).
+- Quote + job creation is now done in a single Firestore batch to prevent partial writes (no more “quote created but job missing” state).
 
 **User Impact**:
 - ✅ Portal-originated quotes appear under **Scheduled** in `/quotes` (instead of being pre-advanced to Pending).

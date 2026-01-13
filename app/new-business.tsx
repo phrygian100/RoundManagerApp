@@ -3,7 +3,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
@@ -161,13 +161,18 @@ export default function NewBusinessScreen() {
         source: finalSource,
         notes: quoteForm.notes.trim(),
         ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules + consistency
         createdAt: new Date().toISOString()
       };
 
-      const quoteRef = await addDoc(collection(db, 'quotes'), quoteData);
+      // Create quote + runsheet job atomically so we never end up with "quote exists but job missing"
+      const batch = writeBatch(db);
 
-      // Create a 'Quote' job on the runsheet for the scheduled date (matches /quotes behavior)
-      await addDoc(collection(db, 'jobs'), {
+      const quoteRef = doc(collection(db, 'quotes'));
+      batch.set(quoteRef, quoteData);
+
+      const jobRef = doc(collection(db, 'jobs'));
+      batch.set(jobRef, {
         ownerId,
         accountId: ownerId, // Explicitly set accountId for Firestore rules
         clientId: 'QUOTE_' + quoteRef.id,
@@ -184,20 +189,30 @@ export default function NewBusinessScreen() {
         source: finalSource,
       });
 
+      await batch.commit();
+
       // Log the action
-      await logAction(
-        'quote_created',
-        'quote',
-        quoteRef.id,
-        formatAuditDescription('quote_created', `${quoteForm.address}, ${quoteForm.town}`)
-      );
+      try {
+        await logAction(
+          'quote_created',
+          'quote',
+          quoteRef.id,
+          formatAuditDescription('quote_created', `${quoteForm.address}, ${quoteForm.town}`)
+        );
+      } catch (e) {
+        console.warn('Quote created but audit log failed:', e);
+      }
 
       // Update the quote request status to 'contacted'
       if (selectedRequest) {
-        await updateDoc(doc(db, 'quoteRequests', selectedRequest.id), {
-          status: 'contacted',
-          updatedAt: new Date().toISOString()
-        });
+        try {
+          await updateDoc(doc(db, 'quoteRequests', selectedRequest.id), {
+            status: 'contacted',
+            updatedAt: new Date().toISOString()
+          });
+        } catch (e) {
+          console.warn('Quote created but updating quote request status failed:', e);
+        }
       }
 
       setScheduleModalVisible(false);
