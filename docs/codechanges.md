@@ -23,6 +23,22 @@ After Firestore was locked down (no public reads), some screens were making Fire
 
 ---
 
+## January 13, 2026
+
+### New Business → Quotes: Schedule-quote flow now creates quotes as `scheduled` (not `pending`)
+
+**File Changed**:
+- `app/new-business.tsx`
+
+**Change**:
+- When processing a New Business quote request via **Schedule Quote**, the created quote now uses `status: 'scheduled'` (matching the `/quotes` pipeline).
+- Also writes `date` alongside the existing `scheduledTime` field for compatibility with `/quotes` list rendering and grouping.
+
+**User Impact**:
+- ✅ Portal-originated quotes appear under **Scheduled** in `/quotes` (instead of being pre-advanced to Pending).
+
+---
+
 ### Firestore/Data Repair: Owner-only backfill for legacy ownerId/accountId mismatches (fix existing clients/jobs created by team members)
 
 **Files Changed**:

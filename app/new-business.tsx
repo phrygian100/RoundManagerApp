@@ -150,8 +150,11 @@ export default function NewBusinessScreen() {
         address: quoteForm.address.trim(),
         town: quoteForm.town.trim(),
         number: quoteForm.number.trim(),
+        // Align with /quotes screen expectations (it displays/group-bys using `date` + `status`)
+        date: quoteForm.date || new Date().toISOString().split('T')[0],
+        // Keep legacy field for backward compatibility (some older code may read scheduledTime)
         scheduledTime: quoteForm.date || new Date().toISOString().split('T')[0],
-        status: 'pending',
+        status: 'scheduled',
         source: quoteForm.source === 'Other' ? quoteForm.customSource : quoteForm.source,
         notes: quoteForm.notes.trim(),
         ownerId,
