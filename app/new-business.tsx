@@ -145,23 +145,44 @@ export default function NewBusinessScreen() {
       const ownerId = await getDataOwnerId();
       if (!ownerId) throw new Error('No owner ID');
 
+      const scheduledDate = quoteForm.date || new Date().toISOString().split('T')[0];
+      const finalSource = quoteForm.source === 'Other' ? quoteForm.customSource : quoteForm.source;
+
       const quoteData = {
         name: quoteForm.name.trim(),
         address: quoteForm.address.trim(),
         town: quoteForm.town.trim(),
         number: quoteForm.number.trim(),
         // Align with /quotes screen expectations (it displays/group-bys using `date` + `status`)
-        date: quoteForm.date || new Date().toISOString().split('T')[0],
+        date: scheduledDate,
         // Keep legacy field for backward compatibility (some older code may read scheduledTime)
-        scheduledTime: quoteForm.date || new Date().toISOString().split('T')[0],
+        scheduledTime: scheduledDate,
         status: 'scheduled',
-        source: quoteForm.source === 'Other' ? quoteForm.customSource : quoteForm.source,
+        source: finalSource,
         notes: quoteForm.notes.trim(),
         ownerId,
         createdAt: new Date().toISOString()
       };
 
       const quoteRef = await addDoc(collection(db, 'quotes'), quoteData);
+
+      // Create a 'Quote' job on the runsheet for the scheduled date (matches /quotes behavior)
+      await addDoc(collection(db, 'jobs'), {
+        ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules
+        clientId: 'QUOTE_' + quoteRef.id,
+        scheduledTime: scheduledDate + 'T09:00:00',
+        status: 'pending',
+        type: 'quote',
+        serviceId: 'quote',
+        label: 'Quote',
+        name: quoteForm.name.trim(),
+        address: quoteForm.address.trim(),
+        town: quoteForm.town.trim(),
+        number: quoteForm.number.trim(),
+        quoteId: quoteRef.id,
+        source: finalSource,
+      });
 
       // Log the action
       await logAction(
