@@ -20,6 +20,15 @@ export default function GoCardlessSettingsModal({
   const [customerId, setCustomerId] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const alertUser = (title: string, message: string) => {
+    // On web, React Native's Alert.alert can be unreliable. Use window.alert for consistency.
+    if (Platform.OS === 'web') {
+      window.alert(message);
+      return;
+    }
+    Alert.alert(title, message);
+  };
+
   // Initialize modal with current client settings
   useEffect(() => {
     if (client) {
@@ -31,21 +40,30 @@ export default function GoCardlessSettingsModal({
   const handleToggle = () => {
     if (enabled && customerId.trim()) {
       // Show warning when disabling
-      Alert.alert(
-        'Disable GoCardless',
-        'Are you sure you want to disable GoCardless for this client? This will clear the Customer ID.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable',
-            style: 'destructive',
-            onPress: () => {
-              setEnabled(false);
-              setCustomerId('');
-            }
+      const message =
+        'Are you sure you want to disable GoCardless for this client? This will clear the Customer ID.';
+
+      // On web, Alert.alert can fail to render; use window.confirm.
+      if (Platform.OS === 'web') {
+        const confirmed = window.confirm(message);
+        if (confirmed) {
+          setEnabled(false);
+          setCustomerId('');
+        }
+        return;
+      }
+
+      Alert.alert('Disable GoCardless', message, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Disable',
+          style: 'destructive',
+          onPress: () => {
+            setEnabled(false);
+            setCustomerId('');
           }
-        ]
-      );
+        }
+      ]);
     } else {
       setEnabled(!enabled);
       if (!enabled) {
@@ -56,7 +74,7 @@ export default function GoCardlessSettingsModal({
 
   const handleSave = async () => {
     if (enabled && !customerId.trim()) {
-      Alert.alert('Error', 'GoCardless Customer ID is required when enabled.');
+      alertUser('Error', 'GoCardless Customer ID is required when enabled.');
       return;
     }
 
@@ -77,7 +95,7 @@ export default function GoCardlessSettingsModal({
       onClose();
     } catch (error) {
       console.error('Error saving GoCardless settings:', error);
-      Alert.alert('Error', 'Failed to save settings. Please try again.');
+      alertUser('Error', 'Failed to save settings. Please try again.');
     } finally {
       setSaving(false);
     }

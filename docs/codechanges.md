@@ -38,6 +38,22 @@ Restoring an ex-client could fail on web due to Auth hydration timing (locked-do
 
 ---
 
+### Clients: GoCardless Settings toggle works on web (confirm dialogs)
+
+**File Changed**:
+- `components/GoCardlessSettingsModal.tsx`
+
+**Issue**:
+On web, disabling GoCardless required a confirmation prompt implemented with `Alert.alert`, which can fail to render in React Native Web. This made the toggle appear to do nothing.
+
+**Solution**:
+- Use `window.confirm`/`window.alert` on web for the disable confirmation and error prompts, keeping native `Alert.alert` on mobile.
+
+**Impact**:
+- ✅ Users can toggle GoCardless off on web reliably.
+
+---
+
 ## January 12, 2026
 
 ### Firestore/Auth: Prevent transient “Missing or insufficient permissions” on web by waiting for Auth hydration
