@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router';
 import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -61,57 +61,65 @@ export default function ExClientsScreen() {
   const handleRestoreClient = (clientId: string) => {
     const client = exClients.find(c => c.id === clientId);
     if (!client) return;
-    Alert.alert(
-      "Restore Client",
-      "Are you sure you want to restore this client? They will be moved back to the active client list and you will be prompted to set their round order.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Restore",
-          onPress: async () => {
-            try {
-              // IMPORTANT: wait for Auth hydration before write (prevents unauthenticated writes on web).
-              const user = await waitForAuthReady(5000);
-              if (!user) {
-                Alert.alert('Error', 'Authentication error. Please refresh and try again.');
-                return;
-              }
+    const restore = async () => {
+      try {
+        // IMPORTANT: wait for Auth hydration before write (prevents unauthenticated writes on web).
+        const user = await waitForAuthReady(5000);
+        if (!user) {
+          if (Platform.OS === 'web') window.alert('Authentication error. Please refresh and try again.');
+          else Alert.alert('Error', 'Authentication error. Please refresh and try again.');
+          return;
+        }
 
-              const ownerId = await getDataOwnerId();
-              if (!ownerId) {
-                Alert.alert('Error', 'Could not determine account owner. Please log out and back in.');
-                return;
-              }
+        const ownerId = await getDataOwnerId();
+        if (!ownerId) {
+          if (Platform.OS === 'web') window.alert('Could not determine account owner. Please log out and back in.');
+          else Alert.alert('Error', 'Could not determine account owner. Please log out and back in.');
+          return;
+        }
 
-              // Restore and normalize ownership fields for locked-down rules/query consistency.
-              await updateDoc(doc(db, 'clients', clientId), {
-                status: 'active',
-                roundOrderNumber: null,
-                ownerId,
-                accountId: ownerId,
-                updatedAt: new Date().toISOString(),
-              });
-              // After status is updated, navigate to round order manager
-              router.push({
-                pathname: '/round-order-manager',
-                params: { newClientData: JSON.stringify({ ...client, status: 'active', roundOrderNumber: null }) }
-              });
-            } catch (error) {
-              console.error("Error restoring client: ", error);
-              const msg = error instanceof Error ? error.message : String(error || '');
-              if (msg.includes('Missing or insufficient permissions') || msg.includes('permission-denied')) {
-                Alert.alert(
-                  'Permission Error',
-                  'Could not restore this client due to account permissions. Please go to Settings and tap "Refresh Account", or log out and back in.'
-                );
-              } else {
-                Alert.alert("Error", "Could not restore client.");
-              }
-            }
-          },
-        },
-      ]
-    );
+        // Restore and normalize ownership fields for locked-down rules/query consistency.
+        await updateDoc(doc(db, 'clients', clientId), {
+          status: 'active',
+          roundOrderNumber: null,
+          ownerId,
+          accountId: ownerId,
+          updatedAt: new Date().toISOString(),
+        });
+
+        // After status is updated, navigate to round order manager
+        router.push({
+          pathname: '/round-order-manager',
+          params: { newClientData: JSON.stringify({ ...client, status: 'active', roundOrderNumber: null }) }
+        });
+      } catch (error) {
+        console.error("Error restoring client: ", error);
+        const msg = error instanceof Error ? error.message : String(error || '');
+        const isPerm = msg.includes('Missing or insufficient permissions') || msg.includes('permission-denied');
+        const userMessage = isPerm
+          ? 'Could not restore this client due to account permissions. Please go to Settings and tap "Refresh Account", or log out and back in.'
+          : 'Could not restore client.';
+
+        if (Platform.OS === 'web') window.alert(userMessage);
+        else Alert.alert(isPerm ? 'Permission Error' : 'Error', userMessage);
+      }
+    };
+
+    const confirmMsg =
+      "Are you sure you want to restore this client? They will be moved back to the active client list and you will be prompted to set their round order.";
+
+    // On web, Alert.alert may not render reliably; use window.confirm instead.
+    if (Platform.OS === 'web') {
+      if (window.confirm(confirmMsg)) {
+        void restore();
+      }
+      return;
+    }
+
+    Alert.alert("Restore Client", confirmMsg, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Restore", onPress: restore },
+    ]);
   };
 
   const renderClient = ({ item }: { item: Client }) => {

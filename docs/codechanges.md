@@ -29,6 +29,7 @@ Restoring an ex-client could fail on web due to Auth hydration timing (locked-do
 
 **Solution**:
 - Wait for Auth hydration before starting the Firestore listener and before performing the restore write.
+- Use `window.confirm`/`window.alert` on web (Alert dialogs can be unreliable in RN web), keeping native `Alert.alert` on mobile.
 - On restore, normalize `ownerId`/`accountId`, clear `roundOrderNumber`, and set `updatedAt`.
 - Improve user-facing messaging for permission-related failures.
 
