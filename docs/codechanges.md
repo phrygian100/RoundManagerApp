@@ -1,5 +1,42 @@
 # Code Changes Log
 
+## January 18, 2026
+
+### Web: Fix payment date picker not updating after other form changes
+
+**File Changed**:
+- `app/add-payment.tsx`
+
+**Issue**:
+On web, the **Payment Date** picker could become unreliable after interacting with other fields (method/reference/notes), making it feel like the date “won’t change”.
+
+**Solution**:
+- Switched web to a native `<input type="date">` to avoid React Native DateTimePicker web quirks.
+- Added safe parsing for the stored `yyyy-MM-dd` string so the native date picker receives a stable Date object.
+
+**Impact**:
+- ✅ Payment date can be changed reliably on web, without affecting iOS/Android behavior.
+
+---
+
+### Ex-Clients: Restore no longer fails due to web auth hydration / missing ownership fields
+
+**File Changed**:
+- `app/ex-clients.tsx`
+
+**Issue**:
+Restoring an ex-client could fail on web due to Auth hydration timing (locked-down Firestore) and/or inconsistent ownership fields needed for security rules and scoped queries.
+
+**Solution**:
+- Wait for Auth hydration before starting the Firestore listener and before performing the restore write.
+- On restore, normalize `ownerId`/`accountId`, clear `roundOrderNumber`, and set `updatedAt`.
+- Improve user-facing messaging for permission-related failures.
+
+**Impact**:
+- ✅ Ex-client restore is reliable on web and remains unchanged on mobile.
+
+---
+
 ## January 12, 2026
 
 ### Firestore/Auth: Prevent transient “Missing or insufficient permissions” on web by waiting for Auth hydration

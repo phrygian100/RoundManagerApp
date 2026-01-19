@@ -5,7 +5,7 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, View } from 
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { getDataOwnerId, waitForAuthReady } from '../core/session';
 import type { Client } from '../types/client';
 
 export default function ExClientsScreen() {
@@ -15,19 +15,42 @@ export default function ExClientsScreen() {
 
   useEffect(() => {
     const setupListener = async () => {
-      const ownerId = await getDataOwnerId();
-      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
-      const unsubscribe = onSnapshot(clientsQuery, (querySnapshot) => {
-        const clientsData: Client[] = [];
-        querySnapshot.forEach((doc) => {
-          const client = { id: doc.id, ...doc.data() } as Client;
-          if (client.status === 'ex-client') {
-            clientsData.push(client);
-          }
-        });
-        setExClients(clientsData);
+      // IMPORTANT: wait for Auth hydration before hitting locked-down Firestore (web).
+      const user = await waitForAuthReady(5000);
+      if (!user) {
+        setExClients([]);
         setLoading(false);
-      });
+        return () => {};
+      }
+
+      const ownerId = await getDataOwnerId();
+      if (!ownerId) {
+        setExClients([]);
+        setLoading(false);
+        return () => {};
+      }
+
+      const clientsQuery = query(collection(db, 'clients'), where('ownerId', '==', ownerId));
+      const unsubscribe = onSnapshot(
+        clientsQuery,
+        (querySnapshot) => {
+          const clientsData: Client[] = [];
+          querySnapshot.forEach((doc) => {
+            const client = { id: doc.id, ...doc.data() } as Client;
+            if (client.status === 'ex-client') {
+              clientsData.push(client);
+            }
+          });
+          setExClients(clientsData);
+          setLoading(false);
+        },
+        (error) => {
+          console.error('ExClients listener error:', error);
+          setExClients([]);
+          setLoading(false);
+        }
+      );
+
       return unsubscribe;
     };
     let unsub: () => void;
@@ -47,7 +70,27 @@ export default function ExClientsScreen() {
           text: "Restore",
           onPress: async () => {
             try {
-              await updateDoc(doc(db, 'clients', clientId), { status: 'active' });
+              // IMPORTANT: wait for Auth hydration before write (prevents unauthenticated writes on web).
+              const user = await waitForAuthReady(5000);
+              if (!user) {
+                Alert.alert('Error', 'Authentication error. Please refresh and try again.');
+                return;
+              }
+
+              const ownerId = await getDataOwnerId();
+              if (!ownerId) {
+                Alert.alert('Error', 'Could not determine account owner. Please log out and back in.');
+                return;
+              }
+
+              // Restore and normalize ownership fields for locked-down rules/query consistency.
+              await updateDoc(doc(db, 'clients', clientId), {
+                status: 'active',
+                roundOrderNumber: null,
+                ownerId,
+                accountId: ownerId,
+                updatedAt: new Date().toISOString(),
+              });
               // After status is updated, navigate to round order manager
               router.push({
                 pathname: '/round-order-manager',
@@ -55,7 +98,15 @@ export default function ExClientsScreen() {
               });
             } catch (error) {
               console.error("Error restoring client: ", error);
-              Alert.alert("Error", "Could not restore client.");
+              const msg = error instanceof Error ? error.message : String(error || '');
+              if (msg.includes('Missing or insufficient permissions') || msg.includes('permission-denied')) {
+                Alert.alert(
+                  'Permission Error',
+                  'Could not restore this client due to account permissions. Please go to Settings and tap "Refresh Account", or log out and back in.'
+                );
+              } else {
+                Alert.alert("Error", "Could not restore client.");
+              }
             }
           },
         },

@@ -3,7 +3,7 @@ import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -29,6 +29,16 @@ export default function AddPaymentScreen() {
   const [clientSearch, setClientSearch] = useState('');
   const [showClientList, setShowClientList] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Parse yyyy-MM-dd into a stable local Date (avoids inconsistent Date(string) parsing on web).
+  const paymentDateObj = useMemo(() => {
+    if (!paymentDate) return new Date();
+    const parts = paymentDate.split('-').map((p) => parseInt(p, 10));
+    if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return new Date();
+    const [y, m, d] = parts;
+    if (!y || !m || !d) return new Date();
+    return new Date(y, m - 1, d);
+  }, [paymentDate]);
 
   useEffect(() => {
     const fetchClients = async () => {
@@ -270,26 +280,33 @@ export default function AddPaymentScreen() {
 
           <View style={styles.inputGroup}>
             <ThemedText style={styles.label}>Payment Date *</ThemedText>
-            <Pressable
-              style={styles.input}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <ThemedText>
-                {paymentDate ? paymentDate : 'Select date'}
-              </ThemedText>
-            </Pressable>
-            {showDatePicker && (
-              <DateTimePicker
-                value={paymentDate ? new Date(paymentDate) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) {
-                    setPaymentDate(format(selectedDate, 'yyyy-MM-dd'));
-                  }
-                }}
+            {Platform.OS === 'web' ? (
+              <input
+                type="date"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                style={styles.webDateInput as any}
               />
+            ) : (
+              <>
+                <Pressable style={styles.input} onPress={() => setShowDatePicker(true)}>
+                  <ThemedText>{paymentDate ? paymentDate : 'Select date'}</ThemedText>
+                </Pressable>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={paymentDateObj}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      // Android can send dismissed events; always close picker.
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setPaymentDate(format(selectedDate, 'yyyy-MM-dd'));
+                      }
+                    }}
+                  />
+                )}
+              </>
             )}
           </View>
 
@@ -424,6 +441,16 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  webDateInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    color: '#333',
+    minHeight: 48,
   },
   clientList: {
     maxHeight: 180,
