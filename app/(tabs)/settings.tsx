@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -249,14 +249,30 @@ export default function SettingsScreen() {
     try {
       setLoading(true);
       const res = await runScheduleDiagnostic();
-      showAlert(
+
+      if (res.activeWithNoFutureJobs === 0) {
+        showAlert(
+          'Schedule Diagnostic',
+          `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: 0\n\nAll active clients already have future jobs. Nothing to do.`
+        );
+        return;
+      }
+
+      const proceed = await showConfirm(
         'Schedule Diagnostic',
-        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: ${res.activeWithNoFutureJobs}`
+        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: ${res.activeWithNoFutureJobs}\n\nGenerate ~24 months of jobs for these ${res.activeWithNoFutureJobs} clients?`
+      );
+      if (!proceed) return;
+
+      const genRes = await generateJobsForActivePlansWithNoFuture(24);
+      showAlert(
+        'Generation Complete',
+        `Clients processed: ${genRes.clientsProcessed}\nJobs created: ${genRes.jobsCreated}`
       );
     } catch (e) {
-      console.error('Schedule diagnostic failed:', e);
+      console.error('Schedule diagnostic/generation failed:', e);
       const msg = e instanceof Error ? e.message : String(e);
-      showAlert('Diagnostic failed', msg);
+      showAlert('Failed', msg);
     } finally {
       setLoading(false);
     }

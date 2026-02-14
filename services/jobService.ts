@@ -224,6 +224,11 @@ export type ScheduleDiagnosticResult = {
   activeWithNoFutureJobs: number;
 };
 
+export type GenerateForActivePlansResult = {
+  clientsProcessed: number;
+  jobsCreated: number;
+};
+
 export type MigrateLegacyPlansResult = {
   clientsScanned: number;
   alreadyHavePlans: number;
@@ -511,6 +516,202 @@ export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult>
     withActiveServices,
     activeWithNoFutureJobs,
   };
+}
+
+/**
+ * For active-service clients with zero future jobs, generate ~24 months of recurring jobs
+ * based on their active service plans, anchored from the last completed job for each service.
+ */
+export async function generateJobsForActivePlansWithNoFuture(monthsAhead: number = 24): Promise<GenerateForActivePlansResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return { clientsProcessed: 0, jobsCreated: 0 };
+
+  const today = normalizeMidnight(new Date());
+
+  // --- Load all clients (merge ownerId + accountId) ---
+  const clientsByOwnerSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+  const clientsByAccountSnap = await getDocs(query(collection(db, 'clients'), where('accountId', '==', ownerId)));
+  const clientMap = new Map<string, any>();
+  clientsByOwnerSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  clientsByAccountSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  const nonArchived = Array.from(clientMap.values()).filter((c: any) => (c?.status || '') !== 'ex-client');
+
+  // --- Load all service plans (merge ownerId + accountId) ---
+  const plansByOwnerSnap = await getDocs(query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId)));
+  const plansByAccountSnap = await getDocs(query(collection(db, 'servicePlans'), where('accountId', '==', ownerId)));
+  const planDocMap = new Map<string, any>();
+  plansByOwnerSnap.docs.forEach(d => planDocMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  plansByAccountSnap.docs.forEach(d => planDocMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  const allPlans = Array.from(planDocMap.values());
+
+  // Group active recurring plans by clientId.
+  const plansByClient = new Map<string, any[]>();
+  for (const p of allPlans) {
+    if (!p || p.isActive !== true) continue;
+    const st = typeof p.scheduleType === 'string' ? p.scheduleType.trim().toLowerCase() : '';
+    if (st !== 'recurring') continue;
+    const freq = Number(p.frequencyWeeks);
+    if (!Number.isFinite(freq) || freq <= 0) continue;
+    if (!p.clientId || !p.serviceType) continue;
+    const arr = plansByClient.get(p.clientId) || [];
+    arr.push({ ...p, frequencyWeeks: freq, scheduleType: st });
+    plansByClient.set(p.clientId, arr);
+  }
+
+  // Clients with at least one active recurring plan.
+  const activeServiceClients = nonArchived.filter(c => plansByClient.has(c.id));
+
+  // --- Load ALL jobs for this account once (merge ownerId + accountId) ---
+  const jobsByOwnerSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('ownerId', '==', ownerId)));
+  const jobsByAccountSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('accountId', '==', ownerId)));
+  const jobDocMap = new Map<string, any>();
+  jobsByOwnerSnap.docs.forEach(d => jobDocMap.set(d.id, d.data() as any));
+  jobsByAccountSnap.docs.forEach(d => jobDocMap.set(d.id, d.data() as any));
+  const allJobs = Array.from(jobDocMap.values());
+
+  // Index jobs by clientId for fast lookup.
+  const jobsByClientId = new Map<string, any[]>();
+  for (const j of allJobs) {
+    if (!j || !j.clientId) continue;
+    const arr = jobsByClientId.get(j.clientId) || [];
+    arr.push(j);
+    jobsByClientId.set(j.clientId, arr);
+  }
+
+  // Find clients with future upcoming jobs (to skip them).
+  const clientsWithFutureJob = new Set<string>();
+  for (const j of allJobs) {
+    if (!j || !j.clientId) continue;
+    if (!isUpcomingStatus(j.status)) continue;
+    const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+    const d = dStr ? parseFlexibleDateOnly(dStr) : null;
+    if (!d) continue;
+    if (!isBefore(d, today)) clientsWithFutureJob.add(j.clientId);
+  }
+
+  let clientsProcessed = 0;
+  let totalJobsCreated = 0;
+  const completedStatuses = new Set(['completed', 'accounted', 'paid']);
+
+  for (const client of activeServiceClients) {
+    // Only process clients with zero future jobs.
+    if (clientsWithFutureJob.has(client.id)) continue;
+
+    const clientJobs = jobsByClientId.get(client.id) || [];
+    const clientPlans = plansByClient.get(client.id) || [];
+    let clientCreated = 0;
+
+    for (const plan of clientPlans) {
+      const serviceId = plan.serviceType;
+      const freq = plan.frequencyWeeks;
+
+      // Respect lastServiceDate.
+      if (plan.lastServiceDate) {
+        const last = parseFlexibleDateOnly(plan.lastServiceDate);
+        if (last && isBefore(last, today)) continue;
+      }
+
+      // Find last completed job for this service.
+      let lastCompleted: Date | null = null;
+      let lastAnyPast: Date | null = null;
+      for (const j of clientJobs) {
+        if (j.serviceId !== serviceId) continue;
+        const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+        const d = dStr ? parseFlexibleDateOnly(dStr) : null;
+        if (!d) continue;
+        if (isBefore(d, today) || d.getTime() === today.getTime()) {
+          if (!lastAnyPast || d.getTime() > lastAnyPast.getTime()) lastAnyPast = d;
+          if (completedStatuses.has(j.status) && (!lastCompleted || d.getTime() > lastCompleted.getTime())) {
+            lastCompleted = d;
+          }
+        }
+      }
+
+      const base = lastCompleted || lastAnyPast;
+      let anchorDate: Date | null = null;
+      if (base) {
+        anchorDate = normalizeMidnight(addWeeks(base, freq));
+      } else if (plan.startDate) {
+        anchorDate = parseFlexibleDateOnly(plan.startDate);
+      }
+      if (!anchorDate) continue;
+
+      while (isBefore(anchorDate, today)) {
+        anchorDate = normalizeMidnight(addWeeks(anchorDate, freq));
+      }
+
+      const horizonEnd = normalizeMidnight(addMonths(anchorDate, Math.max(1, Math.floor(monthsAhead))));
+
+      // Build dedupe keys for this service.
+      const existingKeys = new Set<string>();
+      for (const j of clientJobs) {
+        if (j.serviceId !== serviceId) continue;
+        const scheduled = dateOnlyFromIsoDateTime(j.scheduledTime);
+        if (scheduled) existingKeys.add(scheduled);
+        const original = dateOnlyFromIsoDateTime(j.originalScheduledTime);
+        if (original) existingKeys.add(original);
+      }
+
+      const toCreate: any[] = [];
+      let visitDate = anchorDate;
+      while (visitDate.getTime() <= horizonEnd.getTime()) {
+        if (plan.lastServiceDate) {
+          const last = parseFlexibleDateOnly(plan.lastServiceDate);
+          if (last && isBefore(last, visitDate)) break;
+        }
+        const dayStr = format(visitDate, 'yyyy-MM-dd');
+        if (!existingKeys.has(dayStr)) {
+          const jobData: any = {
+            ownerId,
+            accountId: ownerId,
+            clientId: client.id,
+            providerId: 'test-provider-1',
+            serviceId,
+            propertyDetails: `${client.address1 || client.address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+            scheduledTime: dayStr + 'T09:00:00',
+            status: 'pending' as const,
+            price: Number(plan.price) || (typeof client.quote === 'number' ? client.quote : 25),
+            paymentStatus: 'unpaid' as const,
+            gocardlessEnabled: client.gocardlessEnabled || false,
+          };
+          if (client.gocardlessCustomerId) jobData.gocardlessCustomerId = client.gocardlessCustomerId;
+          toCreate.push(jobData);
+          existingKeys.add(dayStr);
+        }
+        visitDate = normalizeMidnight(addWeeks(visitDate, freq));
+      }
+
+      if (toCreate.length > 0) {
+        const batchSize = 450;
+        for (let i = 0; i < toCreate.length; i += batchSize) {
+          const batch = writeBatch(db);
+          const slice = toCreate.slice(i, i + batchSize);
+          slice.forEach((jd) => {
+            const ref = doc(collection(db, JOBS_COLLECTION));
+            batch.set(ref, jd);
+          });
+          await batch.commit();
+        }
+        clientCreated += toCreate.length;
+
+        // Update plan anchor for UX.
+        try {
+          const anchorStr = format(anchorDate, 'yyyy-MM-dd');
+          const planStart = plan.startDate ? parseFlexibleDateOnly(plan.startDate) : null;
+          if (!planStart || isBefore(planStart, today)) {
+            await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: anchorStr, updatedAt: new Date().toISOString() });
+          }
+        } catch {}
+      }
+    }
+
+    if (clientCreated > 0) {
+      clientsProcessed++;
+      totalJobsCreated += clientCreated;
+    }
+  }
+
+  return { clientsProcessed, jobsCreated: totalJobsCreated };
 }
 
 /**
