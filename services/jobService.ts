@@ -208,6 +208,14 @@ export type BackfillRecurringSchedulesResult = {
   plansBackfilled: number;
   clientsAffected: number;
   jobsCreated: number;
+  // Small debug payload for UI display (bounded)
+  affectedClients?: Array<{
+    clientId: string;
+    name?: string;
+    accountNumber?: string;
+    servicesBackfilled: string[];
+    jobsCreated: number;
+  }>;
 };
 
 /**
@@ -239,15 +247,26 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
   ));
 
   const allPlans = plansSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ServicePlan[];
-  const recurringPlans = allPlans.filter(p =>
-    p &&
-    p.isActive === true &&
-    p.scheduleType === 'recurring' &&
-    typeof p.clientId === 'string' &&
-    typeof p.serviceType === 'string' &&
-    Number.isFinite(p.frequencyWeeks) &&
-    (p.frequencyWeeks as number) > 0
-  );
+  const recurringPlans = allPlans
+    .map((p: any) => {
+      if (!p) return null;
+      const scheduleType = typeof p.scheduleType === 'string' ? p.scheduleType.trim().toLowerCase() : '';
+      const freq = Number(p.frequencyWeeks);
+      return {
+        ...p,
+        scheduleType,
+        frequencyWeeks: freq,
+      } as any as ServicePlan;
+    })
+    .filter((p: any) =>
+      p &&
+      p.isActive === true &&
+      p.scheduleType === 'recurring' &&
+      typeof p.clientId === 'string' &&
+      typeof p.serviceType === 'string' &&
+      Number.isFinite(p.frequencyWeeks) &&
+      p.frequencyWeeks > 0
+    ) as ServicePlan[];
 
   // Group by clientId so we can load jobs once per client.
   const plansByClient = new Map<string, ServicePlan[]>();
@@ -261,6 +280,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
   let plansBackfilled = 0;
   let clientsAffected = 0;
   let jobsCreated = 0;
+  const affectedClients: BackfillRecurringSchedulesResult['affectedClients'] = [];
 
   for (const [clientId, clientPlans] of plansByClient.entries()) {
     const client = await getClientById(clientId);
@@ -289,6 +309,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
     }
 
     let clientCreatedAny = 0;
+    const servicesBackfilledForClient: string[] = [];
 
     for (const plan of clientPlans) {
       const serviceId = plan.serviceType;
@@ -306,7 +327,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
 
       if (hasUpcomingByService.get(serviceId) === true) continue;
 
-      const freq = Number(plan.frequencyWeeks);
+      const freq = Number((plan as any).frequencyWeeks);
       if (!Number.isFinite(freq) || freq <= 0) continue;
 
       // Determine anchor from the last completed job for this recurring service.
@@ -408,6 +429,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
         plansBackfilled += 1;
         clientCreatedAny += toCreate.length;
         jobsCreated += toCreate.length;
+        servicesBackfilledForClient.push(serviceId);
 
         // Mark this service as having upcoming jobs now (prevents re-backfill for same client/service in this run).
         hasUpcomingByService.set(serviceId, true);
@@ -427,6 +449,15 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
 
     if (clientCreatedAny > 0) {
       clientsAffected += 1;
+      if ((affectedClients || []).length < 10) {
+        affectedClients?.push({
+          clientId,
+          name: (client as any).name,
+          accountNumber: (client as any).accountNumber,
+          servicesBackfilled: Array.from(new Set(servicesBackfilledForClient)),
+          jobsCreated: clientCreatedAny,
+        });
+      }
     }
   }
 
@@ -436,6 +467,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
     plansBackfilled,
     clientsAffected,
     jobsCreated,
+    affectedClients,
   };
 }
 
@@ -478,8 +510,8 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
     if (!last) return 0;
     if (isBefore(last, today)) return 0;
   }
-  if (!plan.isActive || plan.scheduleType !== 'recurring' || !plan.frequencyWeeks) return 0;
-  if (!Number.isFinite(plan.frequencyWeeks) || plan.frequencyWeeks <= 0) return 0;
+  const freq = Number((plan as any).frequencyWeeks);
+  if (!plan.isActive || plan.scheduleType !== 'recurring' || !Number.isFinite(freq) || freq <= 0) return 0;
 
   const client = await getClientById(clientId);
   if (!client) return 0;
@@ -512,10 +544,10 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   }
 
   // Choose anchor: next scheduled job if present, otherwise derive from recurrence.
-  let anchor = nextScheduled ? nextScheduled : addWeeks(completedDate, plan.frequencyWeeks);
+  let anchor = nextScheduled ? nextScheduled : addWeeks(completedDate, freq);
   anchor = normalizeMidnight(anchor);
   while (isBefore(anchor, today)) {
-    anchor = normalizeMidnight(addWeeks(anchor, plan.frequencyWeeks));
+    anchor = normalizeMidnight(addWeeks(anchor, freq));
   }
 
   const horizonEnd = normalizeMidnight(addMonths(anchor, Math.max(1, Math.floor(monthsAhead))));
@@ -562,7 +594,7 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
       existingKeys.add(dayStr);
     }
 
-    visitDate = normalizeMidnight(addWeeks(visitDate, plan.frequencyWeeks));
+    visitDate = normalizeMidnight(addWeeks(visitDate, freq));
   }
 
   if (jobsToCreate.length > 0) {

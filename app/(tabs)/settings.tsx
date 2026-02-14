@@ -255,9 +255,18 @@ export default function SettingsScreen() {
     try {
       setLoading(true);
       const res = await backfillRecurringSchedulesForActivePlans(24);
+      const affectedLines = (res.affectedClients || [])
+        .map((c) => {
+          const who = [c.name, c.accountNumber].filter(Boolean).join(' — ') || c.clientId;
+          const svcs = (c.servicesBackfilled || []).join(', ') || 'unknown service';
+          return `- ${who} (${svcs}) +${c.jobsCreated}`;
+        })
+        .slice(0, 10)
+        .join('\n');
       showAlert(
         'Backfill Complete',
-        `Plans scanned: ${res.plansScanned}\nClients scanned: ${res.clientsScanned}\nPlans backfilled: ${res.plansBackfilled}\nClients affected: ${res.clientsAffected}\nJobs created: ${res.jobsCreated}`
+        `Plans scanned: ${res.plansScanned}\nClients scanned: ${res.clientsScanned}\nPlans backfilled: ${res.plansBackfilled}\nClients affected: ${res.clientsAffected}\nJobs created: ${res.jobsCreated}` +
+          (affectedLines ? `\n\nAffected (up to 10):\n${affectedLines}` : '')
       );
     } catch (e) {
       console.error('Backfill recurring schedules failed:', e);
