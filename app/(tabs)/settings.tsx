@@ -251,7 +251,7 @@ export default function SettingsScreen() {
       const res = await runScheduleDiagnostic();
       showAlert(
         'Schedule Diagnostic',
-        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}`
+        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: ${res.activeWithNoFutureJobs}`
       );
     } catch (e) {
       console.error('Schedule diagnostic failed:', e);

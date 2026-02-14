@@ -221,6 +221,7 @@ export type BackfillRecurringSchedulesResult = {
 export type ScheduleDiagnosticResult = {
   totalClients: number;
   withActiveServices: number;
+  activeWithNoFutureJobs: number;
 };
 
 export type MigrateLegacyPlansResult = {
@@ -423,7 +424,7 @@ export async function migrateLegacyToServicePlans(): Promise<MigrateLegacyPlansR
  */
 export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult> {
   const ownerId = await getDataOwnerId();
-  if (!ownerId) return { totalClients: 0, withActiveServices: 0 };
+  if (!ownerId) return { totalClients: 0, withActiveServices: 0, activeWithNoFutureJobs: 0 };
 
   // Load ALL clients for this account (merge ownerId + accountId queries).
   const clientsByOwnerSnap = await getDocs(query(
@@ -465,11 +466,50 @@ export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult>
   }
 
   // Intersect: only count non-archived clients that appear in the active-plan set.
-  const withActiveServices = nonArchived.filter(c => clientsWithActivePlan.has(c.id)).length;
+  const activeServiceClients = nonArchived.filter(c => clientsWithActivePlan.has(c.id));
+  const withActiveServices = activeServiceClients.length;
+
+  // For each of those, check if they have at least one upcoming job (any service).
+  const today = normalizeMidnight(new Date());
+  let activeWithNoFutureJobs = 0;
+
+  // Load ALL jobs for this account once (merge ownerId + accountId).
+  const jobsByOwnerSnap = await getDocs(query(
+    collection(db, JOBS_COLLECTION),
+    where('ownerId', '==', ownerId)
+  ));
+  const jobsByAccountSnap = await getDocs(query(
+    collection(db, JOBS_COLLECTION),
+    where('accountId', '==', ownerId)
+  ));
+  const jobMap = new Map<string, any>();
+  jobsByOwnerSnap.docs.forEach(d => jobMap.set(d.id, d.data() as any));
+  jobsByAccountSnap.docs.forEach(d => jobMap.set(d.id, d.data() as any));
+  const allJobs = Array.from(jobMap.values());
+
+  // Build a set of clientIds that have at least one future upcoming job.
+  const clientsWithFutureJob = new Set<string>();
+  for (const j of allJobs) {
+    if (!j || !j.clientId) continue;
+    if (!isUpcomingStatus(j.status)) continue;
+    const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+    const d = dStr ? parseFlexibleDateOnly(dStr) : null;
+    if (!d) continue;
+    if (!isBefore(d, today)) {
+      clientsWithFutureJob.add(j.clientId);
+    }
+  }
+
+  for (const c of activeServiceClients) {
+    if (!clientsWithFutureJob.has(c.id)) {
+      activeWithNoFutureJobs++;
+    }
+  }
 
   return {
     totalClients: nonArchived.length,
     withActiveServices,
+    activeWithNoFutureJobs,
   };
 }
 
