@@ -152,6 +152,40 @@ function dateOnlyFromIsoDateTime(value: any): string | null {
   return value.includes('T') ? value.split('T')[0] : value;
 }
 
+function parseFlexibleDateOnly(value: any): Date | null {
+  if (!value || typeof value !== 'string') return null;
+  const s = value.trim();
+  if (!s) return null;
+
+  // Accept `yyyy-MM-dd` (Firestore / HTML date input value)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    try {
+      return normalizeMidnight(parseISO(s));
+    } catch {
+      return null;
+    }
+  }
+
+  // Accept legacy `dd/MM/yyyy` or `dd-MM-yyyy`
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    const dd = Number(m[1]);
+    const mm = Number(m[2]);
+    const yyyy = Number(m[3]);
+    if (!Number.isFinite(dd) || !Number.isFinite(mm) || !Number.isFinite(yyyy)) return null;
+    if (yyyy < 1900 || mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+    // Use local time midnight; JS Date months are 0-based.
+    const d = new Date(yyyy, mm - 1, dd);
+    if (Number.isNaN(d.getTime())) return null;
+    return normalizeMidnight(d);
+  }
+
+  // Fallback: try Date parsing (last resort)
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return null;
+  return normalizeMidnight(d);
+}
+
 function normalizeMidnight(d: Date): Date {
   const copy = new Date(d);
   copy.setHours(0, 0, 0, 0);
@@ -212,9 +246,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
     typeof p.clientId === 'string' &&
     typeof p.serviceType === 'string' &&
     Number.isFinite(p.frequencyWeeks) &&
-    (p.frequencyWeeks as number) > 0 &&
-    typeof p.startDate === 'string' &&
-    p.startDate.length >= 8
+    (p.frequencyWeeks as number) > 0
   );
 
   // Group by clientId so we can load jobs once per client.
@@ -250,7 +282,8 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
       if (!isUpcomingStatus(j.status)) continue;
       const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
       if (!dStr) continue;
-      const d = normalizeMidnight(parseISO(dStr));
+      const d = parseFlexibleDateOnly(dStr);
+      if (!d) continue;
       if (isBefore(d, today)) continue;
       hasUpcomingByService.set(sid, true);
     }
@@ -263,7 +296,8 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
       // Respect lastServiceDate: if it's in the past, treat as inactive.
       if (plan.lastServiceDate) {
         try {
-          const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+          const last = parseFlexibleDateOnly(plan.lastServiceDate);
+          if (!last) throw new Error('Invalid lastServiceDate');
           if (isBefore(last, today)) continue;
         } catch {
           // Ignore parse failures; proceed.
@@ -272,15 +306,42 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
 
       if (hasUpcomingByService.get(serviceId) === true) continue;
 
-      // Determine anchor from plan.startDate rolled forward (never in the past).
-      let anchorDate: Date;
-      try {
-        anchorDate = normalizeMidnight(parseISO(plan.startDate as string));
-      } catch {
-        continue;
-      }
       const freq = Number(plan.frequencyWeeks);
       if (!Number.isFinite(freq) || freq <= 0) continue;
+
+      // Determine anchor from the last completed job for this recurring service.
+      // If none exist, fall back to plan.startDate (if parseable).
+      const jobsForService = existingJobs
+        .filter(j => j && j.serviceId === serviceId && typeof j.scheduledTime === 'string');
+
+      const completedStatuses = new Set(['completed', 'accounted', 'paid']);
+      let lastCompleted: Date | null = null;
+      let lastAnyPast: Date | null = null;
+
+      for (const j of jobsForService) {
+        const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+        const d = dStr ? parseFlexibleDateOnly(dStr) : null;
+        if (!d) continue;
+        if (isBefore(d, today) || d.getTime() === today.getTime()) {
+          // Track last job of any status in the past/present
+          if (!lastAnyPast || d.getTime() > lastAnyPast.getTime()) lastAnyPast = d;
+          // Track last completed-like job in the past/present
+          if (completedStatuses.has(j.status) && (!lastCompleted || d.getTime() > lastCompleted.getTime())) {
+            lastCompleted = d;
+          }
+        }
+      }
+
+      const base = lastCompleted || lastAnyPast;
+      let anchorDate: Date | null = null;
+      if (base) {
+        anchorDate = normalizeMidnight(addWeeks(base, freq));
+      } else if (plan.startDate) {
+        // If we have no history for this service, use plan.startDate as a seed.
+        anchorDate = parseFlexibleDateOnly(plan.startDate);
+      }
+      if (!anchorDate) continue;
+
       while (isBefore(anchorDate, today)) {
         anchorDate = normalizeMidnight(addWeeks(anchorDate, freq));
       }
@@ -303,7 +364,8 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
         // Respect lastServiceDate as an inclusive hard stop.
         if (plan.lastServiceDate) {
           try {
-            const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+            const last = parseFlexibleDateOnly(plan.lastServiceDate);
+            if (!last) throw new Error('Invalid lastServiceDate');
             if (isBefore(last, visitDate)) break;
           } catch {}
         }
@@ -353,7 +415,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
         // Keep plan anchor aligned for UX (so Manage Services shows a future "Next Service").
         try {
           const anchorStr = format(anchorDate, 'yyyy-MM-dd');
-          const planStart = plan.startDate ? normalizeMidnight(parseISO(plan.startDate)) : null;
+          const planStart = plan.startDate ? parseFlexibleDateOnly(plan.startDate) : null;
           if (!planStart || isBefore(planStart, today)) {
             await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: anchorStr, updatedAt: new Date().toISOString() });
           }
@@ -412,7 +474,8 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   // Defensive check: if lastServiceDate is in the past, treat as inactive.
   const today = normalizeMidnight(new Date());
   if (plan.lastServiceDate) {
-    const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+    const last = parseFlexibleDateOnly(plan.lastServiceDate);
+    if (!last) return 0;
     if (isBefore(last, today)) return 0;
   }
   if (!plan.isActive || plan.scheduleType !== 'recurring' || !plan.frequencyWeeks) return 0;
@@ -432,7 +495,8 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   // Determine completed job date (midnight)
   const completedDateStr = dateOnlyFromIsoDateTime(completedJob.scheduledTime);
   if (!completedDateStr) return 0;
-  const completedDate = normalizeMidnight(parseISO(completedDateStr));
+  const completedDate = parseFlexibleDateOnly(completedDateStr);
+  if (!completedDate) return 0;
 
   // Find the next already-scheduled upcoming job (pending/scheduled/in_progress) for this service after the completed date.
   let nextScheduled: Date | null = null;
@@ -441,7 +505,8 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
     if (!isUpcomingStatus(j.status)) continue;
     const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
     if (!dStr) continue;
-    const d = normalizeMidnight(parseISO(dStr));
+    const d = parseFlexibleDateOnly(dStr);
+    if (!d) continue;
     if (d.getTime() <= completedDate.getTime()) continue;
     if (!nextScheduled || d.getTime() < nextScheduled.getTime()) nextScheduled = d;
   }
@@ -471,7 +536,8 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   while (visitDate.getTime() <= horizonEnd.getTime()) {
     // Respect lastServiceDate as an inclusive hard stop.
     if (plan.lastServiceDate) {
-      const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+      const last = parseFlexibleDateOnly(plan.lastServiceDate);
+      if (!last) break;
       // Break if we've moved beyond the last allowed service date.
       if (isBefore(last, visitDate)) break;
     }
@@ -515,7 +581,7 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   // Keep the plan anchor ("Next Service") aligned to the next future occurrence for UX clarity.
   try {
     const anchorStr = format(anchor, 'yyyy-MM-dd');
-    const planStart = plan.startDate ? normalizeMidnight(parseISO(plan.startDate)) : null;
+    const planStart = plan.startDate ? parseFlexibleDateOnly(plan.startDate) : null;
     if (!planStart || isBefore(planStart, today)) {
       await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: anchorStr, updatedAt: new Date().toISOString() });
     }

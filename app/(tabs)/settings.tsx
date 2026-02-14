@@ -248,7 +248,7 @@ export default function SettingsScreen() {
   const handleBackfillSchedules = useCallback(async () => {
     const confirmed = await showConfirm(
       'Backfill Recurring Schedules',
-      'This will scan your ACTIVE recurring service plans.\n\nIf a client has no upcoming jobs for a planned service, it will generate up to ~24 months of jobs for that service.\n\nThis will NOT generate for ad-hoc/one-off jobs.\n\nProceed?'
+      'This will scan your ACTIVE recurring service plans.\n\nIf a client has no upcoming jobs for a planned service, it will look at the last completed job for that recurring service and generate up to ~24 months of jobs after it.\n\nThis will NOT generate for ad-hoc/one-off jobs.\n\nProceed?'
     );
     if (!confirmed) return;
 
