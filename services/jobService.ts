@@ -218,6 +218,67 @@ export type BackfillRecurringSchedulesResult = {
   }>;
 };
 
+export type ScheduleDiagnosticResult = {
+  totalClients: number;
+  withActiveServices: number;
+};
+
+/**
+ * Simple diagnostic: count total non-archived clients and how many have
+ * at least one active service plan (isActive === true in servicePlans collection).
+ */
+export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return { totalClients: 0, withActiveServices: 0 };
+
+  // Load ALL clients for this account (merge ownerId + accountId queries).
+  const clientsByOwnerSnap = await getDocs(query(
+    collection(db, 'clients'),
+    where('ownerId', '==', ownerId)
+  ));
+  const clientsByAccountSnap = await getDocs(query(
+    collection(db, 'clients'),
+    where('accountId', '==', ownerId)
+  ));
+  const clientMap = new Map<string, any>();
+  clientsByOwnerSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  clientsByAccountSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+  const allClients = Array.from(clientMap.values());
+  const nonArchived = allClients.filter(c => (c?.status || '') !== 'ex-client');
+
+  // Load ALL service plans for this account (merge ownerId + accountId queries).
+  const plansByOwnerSnap = await getDocs(query(
+    collection(db, 'servicePlans'),
+    where('ownerId', '==', ownerId)
+  ));
+  const plansByAccountSnap = await getDocs(query(
+    collection(db, 'servicePlans'),
+    where('accountId', '==', ownerId)
+  ));
+  const planMap = new Map<string, any>();
+  plansByOwnerSnap.docs.forEach(d => planMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  plansByAccountSnap.docs.forEach(d => planMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+  const allPlans = Array.from(planMap.values());
+
+  // Find client IDs that have at least one plan with isActive === true.
+  const clientsWithActivePlan = new Set<string>();
+  for (const p of allPlans) {
+    if (p && p.isActive === true && typeof p.clientId === 'string') {
+      clientsWithActivePlan.add(p.clientId);
+    }
+  }
+
+  // Intersect: only count non-archived clients that appear in the active-plan set.
+  const withActiveServices = nonArchived.filter(c => clientsWithActivePlan.has(c.id)).length;
+
+  return {
+    totalClients: nonArchived.length,
+    withActiveServices,
+  };
+}
+
 /**
  * Manual maintenance tool:
  * For each active recurring service plan, if the client has NO upcoming jobs for that service,

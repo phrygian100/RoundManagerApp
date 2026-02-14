@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount, runScheduleDiagnostic } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -246,32 +246,17 @@ export default function SettingsScreen() {
   };
 
   const handleBackfillSchedules = useCallback(async () => {
-    const confirmed = await showConfirm(
-      'Backfill Recurring Schedules',
-      'This will scan your ACTIVE recurring service plans.\n\nIf a client has no upcoming jobs for a planned service, it will look at the last completed job for that recurring service and generate up to ~24 months of jobs after it.\n\nThis will NOT generate for ad-hoc/one-off jobs.\n\nProceed?'
-    );
-    if (!confirmed) return;
-
     try {
       setLoading(true);
-      const res = await backfillRecurringSchedulesForActivePlans(24);
-      const affectedLines = (res.affectedClients || [])
-        .map((c) => {
-          const who = [c.name, c.accountNumber].filter(Boolean).join(' — ') || c.clientId;
-          const svcs = (c.servicesBackfilled || []).join(', ') || 'unknown service';
-          return `- ${who} (${svcs}) +${c.jobsCreated}`;
-        })
-        .slice(0, 10)
-        .join('\n');
+      const res = await runScheduleDiagnostic();
       showAlert(
-        'Backfill Complete',
-        `Plans scanned: ${res.plansScanned}\nClients scanned: ${res.clientsScanned}\nPlans backfilled: ${res.plansBackfilled}\nClients affected: ${res.clientsAffected}\nJobs created: ${res.jobsCreated}` +
-          (affectedLines ? `\n\nAffected (up to 10):\n${affectedLines}` : '')
+        'Schedule Diagnostic',
+        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}`
       );
     } catch (e) {
-      console.error('Backfill recurring schedules failed:', e);
+      console.error('Schedule diagnostic failed:', e);
       const msg = e instanceof Error ? e.message : String(e);
-      showAlert('Backfill failed', msg);
+      showAlert('Diagnostic failed', msg);
     } finally {
       setLoading(false);
     }
