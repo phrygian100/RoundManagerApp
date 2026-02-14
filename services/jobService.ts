@@ -1,4 +1,4 @@
-import { addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
+import { addMonths, addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -100,6 +100,25 @@ export async function updateJobStatus(jobId: string, status: Job['status'], comp
   const jobRef = doc(db, JOBS_COLLECTION, jobId);
   const updateData: any = { status };
   
+  // Read current state so we only trigger follow-up logic on true transitions.
+  let previousStatus: Job['status'] | undefined;
+  let shouldTriggerTopUp = false;
+  try {
+    if (status === 'completed') {
+      const snap = await getDoc(jobRef);
+      if (snap.exists()) {
+        const data: any = snap.data();
+        previousStatus = data?.status;
+        // Only trigger once when transitioning into completed
+        shouldTriggerTopUp = previousStatus !== 'completed';
+      }
+    }
+  } catch (e) {
+    // If we can't read the job doc (rules / transient), don't block completion.
+    // We also won't attempt top-up because we can't safely determine transition.
+    shouldTriggerTopUp = false;
+  }
+  
   // If marking as completed, also save the completion sequence and date
   if (status === 'completed' && completionSequence !== undefined) {
     updateData.completionSequence = completionSequence;
@@ -111,11 +130,192 @@ export async function updateJobStatus(jobId: string, status: Job['status'], comp
   }
   
   await updateDoc(jobRef, updateData);
+
+  // After marking a job completed, ensure future recurring jobs exist (24-month rolling window).
+  // This is best-effort: never block job completion if generation fails.
+  if (status === 'completed' && shouldTriggerTopUp) {
+    try {
+      await topUpRecurringJobsAfterCompletion(jobId, 24);
+    } catch (e) {
+      console.warn('updateJobStatus: schedule top-up failed (non-fatal)', e);
+    }
+  }
 }
 
 export async function deleteJob(jobId: string): Promise<void> {
   const jobRef = doc(db, JOBS_COLLECTION, jobId);
   await deleteDoc(jobRef);
+}
+
+function dateOnlyFromIsoDateTime(value: any): string | null {
+  if (!value || typeof value !== 'string') return null;
+  return value.includes('T') ? value.split('T')[0] : value;
+}
+
+function normalizeMidnight(d: Date): Date {
+  const copy = new Date(d);
+  copy.setHours(0, 0, 0, 0);
+  return copy;
+}
+
+function isUpcomingStatus(status: any): boolean {
+  return status === 'pending' || status === 'scheduled' || status === 'in_progress';
+}
+
+async function getActiveRecurringPlanForService(clientId: string, serviceId: string): Promise<ServicePlan | null> {
+  const plans = await getServicePlansForClient(clientId);
+  const match = plans.find(p => p.serviceType === serviceId && p.isActive && p.scheduleType === 'recurring');
+  return match || null;
+}
+
+/**
+ * After a job is marked completed, ensure we have a rolling window of future jobs
+ * for the matching active recurring service plan.
+ *
+ * Rules:
+ * - Only runs for service plans that are `isActive` and `scheduleType === 'recurring'`.
+ * - Uses the next already-scheduled upcoming job for that service as the anchor (if present),
+ *   otherwise derives the next occurrence from the completed job date + frequency.
+ * - Generates occurrences for `monthsAhead` into the future (default 24 months).
+ * - Dedupes by date (yyyy-MM-dd) across both `scheduledTime` and `originalScheduledTime`.
+ * - Does NOT generate for ad-hoc/one-off jobs that have no matching recurring service plan.
+ */
+export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhead: number = 24): Promise<number> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return 0;
+
+  const completedJobSnap = await getDoc(doc(db, JOBS_COLLECTION, jobId));
+  if (!completedJobSnap.exists()) return 0;
+  const completedJob: any = { id: completedJobSnap.id, ...(completedJobSnap.data() as any) };
+
+  const clientId = String(completedJob.clientId || '');
+  const serviceId = String(completedJob.serviceId || '');
+  if (!clientId || !serviceId) return 0;
+
+  // Only proceed if this job corresponds to an active recurring service plan.
+  let plan = await getActiveRecurringPlanForService(clientId, serviceId);
+  if (!plan) return 0;
+
+  // Auto-deactivate if past lastServiceDate, then re-check active.
+  try {
+    await deactivatePlanIfPastLastService(plan.id);
+  } catch {}
+  // Defensive check: if lastServiceDate is in the past, treat as inactive.
+  const today = normalizeMidnight(new Date());
+  if (plan.lastServiceDate) {
+    const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+    if (isBefore(last, today)) return 0;
+  }
+  if (!plan.isActive || plan.scheduleType !== 'recurring' || !plan.frequencyWeeks) return 0;
+  if (!Number.isFinite(plan.frequencyWeeks) || plan.frequencyWeeks <= 0) return 0;
+
+  const client = await getClientById(clientId);
+  if (!client) return 0;
+
+  // Load all jobs for this client once; filter in memory to avoid composite index requirements.
+  const existingSnap = await getDocs(query(
+    collection(db, JOBS_COLLECTION),
+    where('ownerId', '==', ownerId),
+    where('clientId', '==', clientId)
+  ));
+  const existingJobs = existingSnap.docs.map(d => d.data() as any);
+
+  // Determine completed job date (midnight)
+  const completedDateStr = dateOnlyFromIsoDateTime(completedJob.scheduledTime);
+  if (!completedDateStr) return 0;
+  const completedDate = normalizeMidnight(parseISO(completedDateStr));
+
+  // Find the next already-scheduled upcoming job (pending/scheduled/in_progress) for this service after the completed date.
+  let nextScheduled: Date | null = null;
+  for (const j of existingJobs) {
+    if (j.serviceId !== serviceId) continue;
+    if (!isUpcomingStatus(j.status)) continue;
+    const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+    if (!dStr) continue;
+    const d = normalizeMidnight(parseISO(dStr));
+    if (d.getTime() <= completedDate.getTime()) continue;
+    if (!nextScheduled || d.getTime() < nextScheduled.getTime()) nextScheduled = d;
+  }
+
+  // Choose anchor: next scheduled job if present, otherwise derive from recurrence.
+  let anchor = nextScheduled ? nextScheduled : addWeeks(completedDate, plan.frequencyWeeks);
+  anchor = normalizeMidnight(anchor);
+  while (isBefore(anchor, today)) {
+    anchor = normalizeMidnight(addWeeks(anchor, plan.frequencyWeeks));
+  }
+
+  const horizonEnd = normalizeMidnight(addMonths(anchor, Math.max(1, Math.floor(monthsAhead))));
+
+  // Build dedupe keys for this service (scheduled date + original date).
+  const existingKeys = new Set<string>();
+  for (const j of existingJobs) {
+    if (j.serviceId !== serviceId) continue;
+    const scheduled = dateOnlyFromIsoDateTime(j.scheduledTime);
+    if (scheduled) existingKeys.add(scheduled);
+    const original = dateOnlyFromIsoDateTime(j.originalScheduledTime);
+    if (original) existingKeys.add(original);
+  }
+
+  const jobsToCreate: any[] = [];
+  let visitDate = anchor;
+
+  while (visitDate.getTime() <= horizonEnd.getTime()) {
+    // Respect lastServiceDate as an inclusive hard stop.
+    if (plan.lastServiceDate) {
+      const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+      // Break if we've moved beyond the last allowed service date.
+      if (isBefore(last, visitDate)) break;
+    }
+
+    const dayStr = format(visitDate, 'yyyy-MM-dd');
+    if (!existingKeys.has(dayStr)) {
+      const jobData: any = {
+        ownerId,
+        accountId: ownerId, // Explicitly set accountId for Firestore rules
+        clientId: client.id,
+        providerId: 'test-provider-1',
+        serviceId,
+        propertyDetails: `${client.address1 || (client as any).address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+        scheduledTime: dayStr + 'T09:00:00',
+        status: 'pending' as const,
+        price: Number(plan.price) || (typeof (client as any).quote === 'number' ? (client as any).quote : 25),
+        paymentStatus: 'unpaid' as const,
+        gocardlessEnabled: (client as any).gocardlessEnabled || false,
+      };
+      if ((client as any).gocardlessCustomerId) jobData.gocardlessCustomerId = (client as any).gocardlessCustomerId;
+      jobsToCreate.push(jobData);
+      existingKeys.add(dayStr);
+    }
+
+    visitDate = normalizeMidnight(addWeeks(visitDate, plan.frequencyWeeks));
+  }
+
+  if (jobsToCreate.length > 0) {
+    const batchSize = 450;
+    for (let i = 0; i < jobsToCreate.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const slice = jobsToCreate.slice(i, i + batchSize);
+      slice.forEach((jobData) => {
+        const ref = doc(collection(db, JOBS_COLLECTION));
+        batch.set(ref, jobData);
+      });
+      await batch.commit();
+    }
+  }
+
+  // Keep the plan anchor ("Next Service") aligned to the next future occurrence for UX clarity.
+  try {
+    const anchorStr = format(anchor, 'yyyy-MM-dd');
+    const planStart = plan.startDate ? normalizeMidnight(parseISO(plan.startDate)) : null;
+    if (!planStart || isBefore(planStart, today)) {
+      await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: anchorStr, updatedAt: new Date().toISOString() });
+    }
+  } catch (e) {
+    // Non-fatal: job generation already happened.
+    console.warn('topUpRecurringJobsAfterCompletion: failed to update plan startDate (non-fatal)', e);
+  }
+
+  return jobsToCreate.length;
 }
 
 export async function getJobsForWeek(startDate: string, endDate: string): Promise<Job[]> {
@@ -608,8 +808,20 @@ export async function createJobsForServicePlan(plan: ServicePlan, client: Client
   visitDate.setHours(0, 0, 0, 0);
   
   // If the start date is in the past, calculate the next occurrence
+  const originalStart = new Date(visitDate);
   while (visitDate < today) {
     visitDate = addWeeks(visitDate, plan.frequencyWeeks);
+  }
+  
+  // Keep the plan's "Next Service" anchor in the future for UX/consistency.
+  // This helps avoid stale startDate values lingering in Manage Services.
+  try {
+    if (visitDate.getTime() !== originalStart.getTime()) {
+      const newAnchor = format(visitDate, 'yyyy-MM-dd');
+      await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: newAnchor, updatedAt: new Date().toISOString() });
+    }
+  } catch (e) {
+    console.warn('createJobsForServicePlan: failed to update plan startDate (non-fatal)', e);
   }
   
   const jobsToCreate = [];

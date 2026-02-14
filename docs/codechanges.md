@@ -1,5 +1,33 @@
 # Code Changes Log
 
+## February 14, 2026
+
+### Service Plans: Auto-regenerate recurring jobs on completion (rolling 24 months)
+
+**Files Changed**:
+- `services/jobService.ts`
+- `app/(tabs)/clients/[id]/manage-services.tsx`
+
+**Problem**:
+Some clients had active recurring service plans visible in **Manage Services**, but would eventually end up with **no pending jobs** because nothing automatically extended the schedule after jobs were completed.
+
+**Solution**:
+- Added a **best-effort schedule “top-up”** that runs **after a job transitions to `completed`**:
+  - Only applies when the completed job matches an **active recurring** service plan (`isActive: true`, `scheduleType: 'recurring'`).
+  - Uses the **next already-scheduled upcoming job** for that service as the anchor (if present); otherwise derives the next occurrence from the completed job date + `frequencyWeeks`.
+  - Generates missing jobs for a **rolling 24-month window**, de-duping by **date** using both `scheduledTime` and `originalScheduledTime` (moved jobs still reserve their original date).
+  - Respects `lastServiceDate` as an inclusive hard stop.
+  - Does **not** generate for ad-hoc/one-off jobs that have **no matching recurring service plan**.
+- Updated `createJobsForServicePlan()` to **roll stale `startDate` forward** (keeps “Next Service” in the future for better UX consistency).
+- Updated Manage Services plan activation/regeneration to generate **~2 years** (`104` weeks) instead of `52` weeks.
+
+**Impact**:
+- ✅ Recurring service schedules maintain a forward-looking horizon automatically as work is completed
+- ✅ Inactive plans remain inactive (no jobs generated)
+- ✅ Ad-hoc/one-off jobs do not trigger automatic regeneration
+
+---
+
 ## January 18, 2026
 
 ### Web: Fix payment date picker not updating after other form changes

@@ -532,7 +532,7 @@ export default function ManageServicesScreen() {
 												// Turning ON: regenerate jobs based on current plan
 												if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
 													const { createJobsForServicePlan } = await import('../../../../services/jobService');
-													await createJobsForServicePlan({ ...plan, isActive: true }, client as Client, 52);
+													await createJobsForServicePlan({ ...plan, isActive: true }, client as Client, 104);
 												} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
 													await addDoc(collection(db, 'jobs'), {
 														ownerId,
@@ -611,7 +611,7 @@ export default function ManageServicesScreen() {
 														if (plan.scheduleType === 'recurring' && plan.frequencyWeeks && plan.startDate) {
 															console.log('Creating recurring jobs for plan:', plan);
 															const { createJobsForServicePlan } = await import('../../../../services/jobService');
-															const jobsCreated = await createJobsForServicePlan(plan, client as Client, 52); // Generate 1 year of jobs
+															const jobsCreated = await createJobsForServicePlan(plan, client as Client, 104); // Generate ~2 years of jobs
 															console.log('Created', jobsCreated, 'new jobs');
 														} else if (plan.scheduleType === 'one_off' && plan.scheduledDate) {
 															console.log('Creating one-off job for plan:', plan);
