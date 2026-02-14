@@ -37,7 +37,8 @@ Some migrated clients already had **active recurring service plans** but **no up
 
 **Solution**:
 - Added an owner-only **Settings → Admin Tools** button: **“Backfill Missing Schedules (Generate 24 months)”**
-- The tool scans active recurring service plans and, for any `(clientId + serviceType)` with **no upcoming jobs**, anchors off the **last completed job** for that recurring service and generates missing jobs out to ~24 months.
+- The tool scans **active (non-archived) clients** and active recurring service plans, and only backfills clients with **zero upcoming jobs**.
+- It anchors off the **last completed job** for each recurring service (fallback: last past job) and generates missing jobs out to ~24 months.
 
 **Impact**:
 - ✅ One-time repair for accounts with missing schedules

@@ -268,7 +268,15 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
       p.frequencyWeeks > 0
     ) as ServicePlan[];
 
-  // Group by clientId so we can load jobs once per client.
+  // Load all clients for this owner and exclude archived (ex-client).
+  const clientsSnap = await getDocs(query(
+    collection(db, 'clients'),
+    where('ownerId', '==', ownerId)
+  ));
+  const clients = clientsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any[];
+  const activeClients = clients.filter(c => (c?.status || '') !== 'ex-client');
+
+  // Group plans by clientId so we can load jobs once per client.
   const plansByClient = new Map<string, ServicePlan[]>();
   for (const plan of recurringPlans) {
     const cid = plan.clientId;
@@ -282,11 +290,18 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
   let jobsCreated = 0;
   const affectedClients: BackfillRecurringSchedulesResult['affectedClients'] = [];
 
-  for (const [clientId, clientPlans] of plansByClient.entries()) {
-    const client = await getClientById(clientId);
-    if (!client) continue;
+  // Only consider clients that have at least one active recurring plan.
+  const candidateClients = activeClients.filter(c => plansByClient.has(c.id));
 
-    // Load all jobs for this client once; filter in memory to avoid composite index requirements.
+  for (const c of candidateClients) {
+    const clientId = c.id;
+    const clientPlans = plansByClient.get(clientId) || [];
+    if (clientPlans.length === 0) continue;
+
+    // Use the client record we already loaded (includes address parts, quote, GoCardless flags, etc.)
+    const client: any = c;
+
+    // Load all jobs for this client once; filter in memory.
     const existingSnap = await getDocs(query(
       collection(db, JOBS_COLLECTION),
       where('ownerId', '==', ownerId),
@@ -294,19 +309,15 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
     ));
     const existingJobs = existingSnap.docs.map(d => d.data() as any);
 
-    // Precompute upcoming job presence per serviceId.
-    const hasUpcomingByService = new Map<string, boolean>();
-    for (const j of existingJobs) {
-      const sid = typeof j.serviceId === 'string' ? j.serviceId : '';
-      if (!sid) continue;
-      if (!isUpcomingStatus(j.status)) continue;
-      const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
-      if (!dStr) continue;
-      const d = parseFlexibleDateOnly(dStr);
-      if (!d) continue;
-      if (isBefore(d, today)) continue;
-      hasUpcomingByService.set(sid, true);
-    }
+    // Requirement: only backfill clients with 0 upcoming jobs (any service).
+    const upcomingCount = existingJobs.filter(j => {
+      if (!isUpcomingStatus(j?.status)) return false;
+      const dStr = dateOnlyFromIsoDateTime(j?.scheduledTime);
+      const d = dStr ? parseFlexibleDateOnly(dStr) : null;
+      if (!d) return false;
+      return !isBefore(d, today);
+    }).length;
+    if (upcomingCount > 0) continue;
 
     let clientCreatedAny = 0;
     const servicesBackfilledForClient: string[] = [];
@@ -324,8 +335,6 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
           // Ignore parse failures; proceed.
         }
       }
-
-      if (hasUpcomingByService.get(serviceId) === true) continue;
 
       const freq = Number((plan as any).frequencyWeeks);
       if (!Number.isFinite(freq) || freq <= 0) continue;
@@ -431,9 +440,6 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
         jobsCreated += toCreate.length;
         servicesBackfilledForClient.push(serviceId);
 
-        // Mark this service as having upcoming jobs now (prevents re-backfill for same client/service in this run).
-        hasUpcomingByService.set(serviceId, true);
-
         // Keep plan anchor aligned for UX (so Manage Services shows a future "Next Service").
         try {
           const anchorStr = format(anchorDate, 'yyyy-MM-dd');
@@ -452,8 +458,8 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
       if ((affectedClients || []).length < 10) {
         affectedClients?.push({
           clientId,
-          name: (client as any).name,
-          accountNumber: (client as any).accountNumber,
+          name: c?.name,
+          accountNumber: c?.accountNumber,
           servicesBackfilled: Array.from(new Set(servicesBackfilledForClient)),
           jobsCreated: clientCreatedAny,
         });
@@ -463,7 +469,7 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
 
   return {
     plansScanned: recurringPlans.length,
-    clientsScanned: plansByClient.size,
+    clientsScanned: candidateClients.length,
     plansBackfilled,
     clientsAffected,
     jobsCreated,
