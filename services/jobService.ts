@@ -239,14 +239,23 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
 
   const today = normalizeMidnight(new Date());
 
-  // Fetch active plans for this account; filter scheduleType client-side to avoid index churn.
-  const plansSnap = await getDocs(query(
+  // Fetch plans for this account.
+  // IMPORTANT: In some legacy/team-created docs, `ownerId` may be a member UID while `accountId`
+  // is the true account owner. We scan BOTH and merge, then filter client-side.
+  const plansByOwnerSnap = await getDocs(query(
     collection(db, 'servicePlans'),
     where('ownerId', '==', ownerId),
-    where('isActive', '==', true)
+  ));
+  const plansByAccountSnap = await getDocs(query(
+    collection(db, 'servicePlans'),
+    where('accountId', '==', ownerId),
   ));
 
-  const allPlans = plansSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ServicePlan[];
+  const planMap = new Map<string, any>();
+  plansByOwnerSnap.docs.forEach(d => planMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  plansByAccountSnap.docs.forEach(d => planMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+  const allPlans = Array.from(planMap.values()) as ServicePlan[];
   const recurringPlans = allPlans
     .map((p: any) => {
       if (!p) return null;
@@ -269,11 +278,21 @@ export async function backfillRecurringSchedulesForActivePlans(monthsAhead: numb
     ) as ServicePlan[];
 
   // Load all clients for this owner and exclude archived (ex-client).
-  const clientsSnap = await getDocs(query(
+  // IMPORTANT: Same as above, scan BOTH `ownerId` and `accountId` and merge.
+  const clientsByOwnerSnap = await getDocs(query(
     collection(db, 'clients'),
     where('ownerId', '==', ownerId)
   ));
-  const clients = clientsSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as any[];
+  const clientsByAccountSnap = await getDocs(query(
+    collection(db, 'clients'),
+    where('accountId', '==', ownerId)
+  ));
+
+  const clientMap = new Map<string, any>();
+  clientsByOwnerSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  clientsByAccountSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+  const clients = Array.from(clientMap.values()) as any[];
   const activeClients = clients.filter(c => (c?.status || '') !== 'ex-client');
 
   // Group plans by clientId so we can load jobs once per client.
