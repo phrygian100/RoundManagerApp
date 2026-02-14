@@ -168,6 +168,215 @@ async function getActiveRecurringPlanForService(clientId: string, serviceId: str
   return match || null;
 }
 
+export type BackfillRecurringSchedulesResult = {
+  plansScanned: number;
+  clientsScanned: number;
+  plansBackfilled: number;
+  clientsAffected: number;
+  jobsCreated: number;
+};
+
+/**
+ * Manual maintenance tool:
+ * For each active recurring service plan, if the client has NO upcoming jobs for that service,
+ * generate a rolling window of jobs for the next `monthsAhead` months.
+ *
+ * This is intended to repair clients who currently show "No pending jobs" despite having active plans.
+ *
+ * Notes:
+ * - Only considers `servicePlans` (does not use legacy client frequency/nextVisit).
+ * - Only applies to `isActive: true` + `scheduleType: 'recurring'` plans.
+ * - Dedupe is date-level for (clientId + serviceId), using both `scheduledTime` and `originalScheduledTime`.
+ * - Respects `lastServiceDate` as an inclusive hard stop.
+ */
+export async function backfillRecurringSchedulesForActivePlans(monthsAhead: number = 24): Promise<BackfillRecurringSchedulesResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) {
+    return { plansScanned: 0, clientsScanned: 0, plansBackfilled: 0, clientsAffected: 0, jobsCreated: 0 };
+  }
+
+  const today = normalizeMidnight(new Date());
+
+  // Fetch active plans for this account; filter scheduleType client-side to avoid index churn.
+  const plansSnap = await getDocs(query(
+    collection(db, 'servicePlans'),
+    where('ownerId', '==', ownerId),
+    where('isActive', '==', true)
+  ));
+
+  const allPlans = plansSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) })) as ServicePlan[];
+  const recurringPlans = allPlans.filter(p =>
+    p &&
+    p.isActive === true &&
+    p.scheduleType === 'recurring' &&
+    typeof p.clientId === 'string' &&
+    typeof p.serviceType === 'string' &&
+    Number.isFinite(p.frequencyWeeks) &&
+    (p.frequencyWeeks as number) > 0 &&
+    typeof p.startDate === 'string' &&
+    p.startDate.length >= 8
+  );
+
+  // Group by clientId so we can load jobs once per client.
+  const plansByClient = new Map<string, ServicePlan[]>();
+  for (const plan of recurringPlans) {
+    const cid = plan.clientId;
+    const arr = plansByClient.get(cid) || [];
+    arr.push(plan);
+    plansByClient.set(cid, arr);
+  }
+
+  let plansBackfilled = 0;
+  let clientsAffected = 0;
+  let jobsCreated = 0;
+
+  for (const [clientId, clientPlans] of plansByClient.entries()) {
+    const client = await getClientById(clientId);
+    if (!client) continue;
+
+    // Load all jobs for this client once; filter in memory to avoid composite index requirements.
+    const existingSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', clientId)
+    ));
+    const existingJobs = existingSnap.docs.map(d => d.data() as any);
+
+    // Precompute upcoming job presence per serviceId.
+    const hasUpcomingByService = new Map<string, boolean>();
+    for (const j of existingJobs) {
+      const sid = typeof j.serviceId === 'string' ? j.serviceId : '';
+      if (!sid) continue;
+      if (!isUpcomingStatus(j.status)) continue;
+      const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+      if (!dStr) continue;
+      const d = normalizeMidnight(parseISO(dStr));
+      if (isBefore(d, today)) continue;
+      hasUpcomingByService.set(sid, true);
+    }
+
+    let clientCreatedAny = 0;
+
+    for (const plan of clientPlans) {
+      const serviceId = plan.serviceType;
+
+      // Respect lastServiceDate: if it's in the past, treat as inactive.
+      if (plan.lastServiceDate) {
+        try {
+          const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+          if (isBefore(last, today)) continue;
+        } catch {
+          // Ignore parse failures; proceed.
+        }
+      }
+
+      if (hasUpcomingByService.get(serviceId) === true) continue;
+
+      // Determine anchor from plan.startDate rolled forward (never in the past).
+      let anchorDate: Date;
+      try {
+        anchorDate = normalizeMidnight(parseISO(plan.startDate as string));
+      } catch {
+        continue;
+      }
+      const freq = Number(plan.frequencyWeeks);
+      if (!Number.isFinite(freq) || freq <= 0) continue;
+      while (isBefore(anchorDate, today)) {
+        anchorDate = normalizeMidnight(addWeeks(anchorDate, freq));
+      }
+
+      const horizonEnd = normalizeMidnight(addMonths(anchorDate, Math.max(1, Math.floor(monthsAhead))));
+
+      // Build dedupe keys for this service (scheduled date + original date).
+      const existingKeys = new Set<string>();
+      for (const j of existingJobs) {
+        if (j.serviceId !== serviceId) continue;
+        const scheduled = dateOnlyFromIsoDateTime(j.scheduledTime);
+        if (scheduled) existingKeys.add(scheduled);
+        const original = dateOnlyFromIsoDateTime(j.originalScheduledTime);
+        if (original) existingKeys.add(original);
+      }
+
+      const toCreate: any[] = [];
+      let visitDate = anchorDate;
+      while (visitDate.getTime() <= horizonEnd.getTime()) {
+        // Respect lastServiceDate as an inclusive hard stop.
+        if (plan.lastServiceDate) {
+          try {
+            const last = normalizeMidnight(parseISO(plan.lastServiceDate));
+            if (isBefore(last, visitDate)) break;
+          } catch {}
+        }
+
+        const dayStr = format(visitDate, 'yyyy-MM-dd');
+        if (!existingKeys.has(dayStr)) {
+          const jobData: any = {
+            ownerId,
+            accountId: ownerId,
+            clientId: client.id,
+            providerId: 'test-provider-1',
+            serviceId,
+            propertyDetails: `${client.address1 || (client as any).address || ''}, ${client.town || ''}, ${client.postcode || ''}`,
+            scheduledTime: dayStr + 'T09:00:00',
+            status: 'pending' as const,
+            price: Number(plan.price) || (typeof (client as any).quote === 'number' ? (client as any).quote : 25),
+            paymentStatus: 'unpaid' as const,
+            gocardlessEnabled: (client as any).gocardlessEnabled || false,
+          };
+          if ((client as any).gocardlessCustomerId) jobData.gocardlessCustomerId = (client as any).gocardlessCustomerId;
+          toCreate.push(jobData);
+          existingKeys.add(dayStr);
+        }
+
+        visitDate = normalizeMidnight(addWeeks(visitDate, freq));
+      }
+
+      if (toCreate.length > 0) {
+        const batchSize = 450;
+        for (let i = 0; i < toCreate.length; i += batchSize) {
+          const batch = writeBatch(db);
+          const slice = toCreate.slice(i, i + batchSize);
+          slice.forEach((jobData) => {
+            const ref = doc(collection(db, JOBS_COLLECTION));
+            batch.set(ref, jobData);
+          });
+          await batch.commit();
+        }
+
+        plansBackfilled += 1;
+        clientCreatedAny += toCreate.length;
+        jobsCreated += toCreate.length;
+
+        // Mark this service as having upcoming jobs now (prevents re-backfill for same client/service in this run).
+        hasUpcomingByService.set(serviceId, true);
+
+        // Keep plan anchor aligned for UX (so Manage Services shows a future "Next Service").
+        try {
+          const anchorStr = format(anchorDate, 'yyyy-MM-dd');
+          const planStart = plan.startDate ? normalizeMidnight(parseISO(plan.startDate)) : null;
+          if (!planStart || isBefore(planStart, today)) {
+            await updateDoc(doc(db, 'servicePlans', plan.id), { startDate: anchorStr, updatedAt: new Date().toISOString() });
+          }
+        } catch (e) {
+          console.warn('backfillRecurringSchedulesForActivePlans: failed to update plan startDate (non-fatal)', e);
+        }
+      }
+    }
+
+    if (clientCreatedAny > 0) {
+      clientsAffected += 1;
+    }
+  }
+
+  return {
+    plansScanned: recurringPlans.length,
+    clientsScanned: plansByClient.size,
+    plansBackfilled,
+    clientsAffected,
+    jobsCreated,
+  };
+}
+
 /**
  * After a job is marked completed, ensure we have a rolling window of future jobs
  * for the matching active recurring service plan.

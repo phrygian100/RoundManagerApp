@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -244,6 +244,29 @@ export default function SettingsScreen() {
       Alert.alert('Upgrade Successful', '🎉 Welcome to Premium! Your upgrade was successful.');
     }
   };
+
+  const handleBackfillSchedules = useCallback(async () => {
+    const confirmed = await showConfirm(
+      'Backfill Recurring Schedules',
+      'This will scan your ACTIVE recurring service plans.\n\nIf a client has no upcoming jobs for a planned service, it will generate up to ~24 months of jobs for that service.\n\nThis will NOT generate for ad-hoc/one-off jobs.\n\nProceed?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const res = await backfillRecurringSchedulesForActivePlans(24);
+      showAlert(
+        'Backfill Complete',
+        `Plans scanned: ${res.plansScanned}\nClients scanned: ${res.clientsScanned}\nPlans backfilled: ${res.plansBackfilled}\nClients affected: ${res.clientsAffected}\nJobs created: ${res.jobsCreated}`
+      );
+    } catch (e) {
+      console.error('Backfill recurring schedules failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert('Backfill failed', msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // Load user profile data for editing
   const loadUserProfile = async () => {
@@ -2821,6 +2844,12 @@ export default function SettingsScreen() {
             <ThemedText style={styles.warningText}>
               ⚠️ Dangerous operations - use with caution
             </ThemedText>
+
+            <StyledButton
+              title="Backfill Missing Schedules (Generate 24 months)"
+              onPress={handleBackfillSchedules}
+              disabled={loading}
+            />
 
             <StyledButton
               title="Repair Firestore Permissions (Fix existing clients/jobs)"

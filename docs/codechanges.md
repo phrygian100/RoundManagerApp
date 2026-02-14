@@ -26,6 +26,23 @@ Some clients had active recurring service plans visible in **Manage Services**, 
 - ✅ Inactive plans remain inactive (no jobs generated)
 - ✅ Ad-hoc/one-off jobs do not trigger automatic regeneration
 
+### Service Plans: Admin backfill for clients with no upcoming jobs
+
+**Files Changed**:
+- `services/jobService.ts`
+- `app/(tabs)/settings.tsx`
+
+**Problem**:
+Some migrated clients already had **active recurring service plans** but **no upcoming jobs** (so their schedule looked empty until a future completion event occurred).
+
+**Solution**:
+- Added an owner-only **Settings → Admin Tools** button: **“Backfill Missing Schedules (Generate 24 months)”**
+- The tool scans active recurring service plans and, for any `(clientId + serviceType)` with **no upcoming jobs**, generates missing jobs out to ~24 months.
+
+**Impact**:
+- ✅ One-time repair for accounts with missing schedules
+- ✅ Does not generate for inactive plans or ad-hoc/one-off jobs
+
 ---
 
 ## January 18, 2026
