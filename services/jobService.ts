@@ -223,6 +223,200 @@ export type ScheduleDiagnosticResult = {
   withActiveServices: number;
 };
 
+export type MigrateLegacyPlansResult = {
+  clientsScanned: number;
+  alreadyHavePlans: number;
+  plansCreated: number;
+  skippedNoAnchor: number;
+};
+
+/**
+ * Batch-convert legacy client schedule fields (frequency, nextVisit, additionalServices)
+ * into servicePlans documents. Idempotent: skips clients that already have a plan for a given serviceType.
+ */
+export async function migrateLegacyToServicePlans(): Promise<MigrateLegacyPlansResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return { clientsScanned: 0, alreadyHavePlans: 0, plansCreated: 0, skippedNoAnchor: 0 };
+
+  const today = normalizeMidnight(new Date());
+
+  // Load all clients (merge ownerId + accountId).
+  const clientsByOwnerSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', ownerId)));
+  const clientsByAccountSnap = await getDocs(query(collection(db, 'clients'), where('accountId', '==', ownerId)));
+  const clientMap = new Map<string, any>();
+  clientsByOwnerSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  clientsByAccountSnap.docs.forEach(d => clientMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  const allClients = Array.from(clientMap.values()).filter((c: any) => (c?.status || '') !== 'ex-client');
+
+  // Load all existing service plans (merge ownerId + accountId).
+  const plansByOwnerSnap = await getDocs(query(collection(db, 'servicePlans'), where('ownerId', '==', ownerId)));
+  const plansByAccountSnap = await getDocs(query(collection(db, 'servicePlans'), where('accountId', '==', ownerId)));
+  const existingPlanMap = new Map<string, any>();
+  plansByOwnerSnap.docs.forEach(d => existingPlanMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+  plansByAccountSnap.docs.forEach(d => existingPlanMap.set(d.id, { id: d.id, ...(d.data() as any) }));
+
+  // Build a set of "clientId|serviceType" keys for plans that already exist.
+  const existingPlanKeys = new Set<string>();
+  for (const p of existingPlanMap.values()) {
+    if (p.clientId && p.serviceType) {
+      existingPlanKeys.add(`${p.clientId}|${p.serviceType}`);
+    }
+  }
+
+  let alreadyHavePlans = 0;
+  let plansCreated = 0;
+  let skippedNoAnchor = 0;
+
+  // Helper: roll a seed date forward so anchor is not in the past.
+  function rollForward(seed: string, freqWeeks: number): string | null {
+    const d = parseFlexibleDateOnly(seed);
+    if (!d) return null;
+    let anchor = d;
+    while (isBefore(anchor, today)) {
+      anchor = normalizeMidnight(addWeeks(anchor, freqWeeks));
+    }
+    return format(anchor, 'yyyy-MM-dd');
+  }
+
+  // Helper: find earliest pending job for a client+service on or after today.
+  async function earliestPending(clientId: string, serviceId: string): Promise<string | null> {
+    // We load jobs per client; small overhead but avoids needing a huge pre-load.
+    const jobsSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', clientId)
+    ));
+    let earliest: Date | null = null;
+    for (const d of jobsSnap.docs) {
+      const j: any = d.data();
+      if (!isUpcomingStatus(j?.status)) continue;
+      if (serviceId && j.serviceId !== serviceId) continue;
+      const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+      const dt = dStr ? parseFlexibleDateOnly(dStr) : null;
+      if (!dt) continue;
+      if (isBefore(dt, today)) continue;
+      if (!earliest || dt.getTime() < earliest.getTime()) earliest = dt;
+    }
+    return earliest ? format(earliest, 'yyyy-MM-dd') : null;
+  }
+
+  // Helper: find last completed job date for a client+service.
+  async function lastCompletedDate(clientId: string, serviceId: string): Promise<string | null> {
+    const jobsSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('clientId', '==', clientId)
+    ));
+    const completedStatuses = new Set(['completed', 'accounted', 'paid']);
+    let latest: Date | null = null;
+    for (const d of jobsSnap.docs) {
+      const j: any = d.data();
+      if (!completedStatuses.has(j?.status)) continue;
+      if (serviceId && j.serviceId !== serviceId) continue;
+      const dStr = dateOnlyFromIsoDateTime(j.scheduledTime);
+      const dt = dStr ? parseFlexibleDateOnly(dStr) : null;
+      if (!dt) continue;
+      if (!latest || dt.getTime() > latest.getTime()) latest = dt;
+    }
+    return latest ? format(latest, 'yyyy-MM-dd') : null;
+  }
+
+  async function ensurePlan(
+    clientId: string,
+    serviceType: string,
+    scheduleType: 'recurring' | 'one_off',
+    frequencyWeeks: number | undefined,
+    seedDate: string,
+    price: number
+  ): Promise<boolean> {
+    const key = `${clientId}|${serviceType}`;
+    if (existingPlanKeys.has(key)) {
+      alreadyHavePlans++;
+      return false;
+    }
+    const now = new Date().toISOString();
+    const docData: any = {
+      ownerId,
+      accountId: ownerId,
+      clientId,
+      serviceType,
+      scheduleType,
+      price: Number(price) || 25,
+      isActive: true,
+      lastServiceDate: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (scheduleType === 'recurring') {
+      docData.frequencyWeeks = frequencyWeeks || 4;
+      docData.startDate = seedDate;
+    } else {
+      docData.scheduledDate = seedDate;
+    }
+    await addDoc(collection(db, 'servicePlans'), docData);
+    existingPlanKeys.add(key);
+    plansCreated++;
+    return true;
+  }
+
+  for (const client of allClients) {
+    const rawFreq = client.frequency;
+    const parsed = typeof rawFreq === 'number' ? rawFreq : parseInt(String(rawFreq || '').replace(/[^0-9]/g, ''), 10);
+    const isRecurring = !!rawFreq && String(rawFreq) !== 'one-off' && !isNaN(parsed) && parsed > 0;
+
+    // Base window-cleaning plan
+    if (isRecurring) {
+      // Determine anchor: earliest pending job, or last completed + freq rolled forward, or nextVisit rolled forward.
+      let anchor = await earliestPending(client.id, 'window-cleaning');
+      if (!anchor) {
+        const lastDone = await lastCompletedDate(client.id, 'window-cleaning');
+        if (lastDone) {
+          anchor = rollForward(lastDone, parsed);
+        }
+      }
+      if (!anchor && client.nextVisit) {
+        anchor = rollForward(client.nextVisit, parsed);
+      }
+      if (anchor) {
+        await ensurePlan(client.id, 'window-cleaning', 'recurring', parsed, anchor, Number(client.quote) || 25);
+      } else {
+        skippedNoAnchor++;
+      }
+    }
+
+    // Additional services
+    if (Array.isArray(client.additionalServices)) {
+      for (const s of client.additionalServices) {
+        if (!s || !s.isActive) continue;
+        const sFreq = Number(s.frequency);
+        if (!Number.isFinite(sFreq) || sFreq <= 0) continue;
+        let anchor = await earliestPending(client.id, s.serviceType);
+        if (!anchor) {
+          const lastDone = await lastCompletedDate(client.id, s.serviceType);
+          if (lastDone) {
+            anchor = rollForward(lastDone, sFreq);
+          }
+        }
+        if (!anchor && s.nextVisit) {
+          anchor = rollForward(s.nextVisit, sFreq);
+        }
+        if (anchor) {
+          await ensurePlan(client.id, s.serviceType, 'recurring', sFreq, anchor, Number(s.price) || 25);
+        } else {
+          skippedNoAnchor++;
+        }
+      }
+    }
+  }
+
+  return {
+    clientsScanned: allClients.length,
+    alreadyHavePlans,
+    plansCreated,
+    skippedNoAnchor,
+  };
+}
+
 /**
  * Simple diagnostic: count total non-archived clients and how many have
  * at least one active service plan (isActive === true in servicePlans collection).

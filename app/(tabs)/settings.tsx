@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount, runScheduleDiagnostic } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -257,6 +257,29 @@ export default function SettingsScreen() {
       console.error('Schedule diagnostic failed:', e);
       const msg = e instanceof Error ? e.message : String(e);
       showAlert('Diagnostic failed', msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleMigrateLegacyPlans = useCallback(async () => {
+    const confirmed = await showConfirm(
+      'Migrate Legacy Schedules',
+      'This will create service plan records for all clients that still use the old frequency/nextVisit fields.\n\nExisting service plans will NOT be overwritten.\n\nProceed?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const res = await migrateLegacyToServicePlans();
+      showAlert(
+        'Migration Complete',
+        `Clients scanned: ${res.clientsScanned}\nAlready had plans: ${res.alreadyHavePlans}\nPlans created: ${res.plansCreated}\nSkipped (no anchor date): ${res.skippedNoAnchor}`
+      );
+    } catch (e) {
+      console.error('Migrate legacy plans failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert('Migration failed', msg);
     } finally {
       setLoading(false);
     }
@@ -2840,8 +2863,14 @@ export default function SettingsScreen() {
             </ThemedText>
 
             <StyledButton
-              title="Backfill Missing Schedules (Generate 24 months)"
+              title="Schedule Diagnostic"
               onPress={handleBackfillSchedules}
+              disabled={loading}
+            />
+
+            <StyledButton
+              title="Migrate Legacy Schedules to Service Plans"
+              onPress={handleMigrateLegacyPlans}
               disabled={loading}
             />
 
