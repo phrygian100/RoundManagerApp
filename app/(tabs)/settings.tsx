@@ -2879,6 +2879,18 @@ export default function SettingsScreen() {
             </ThemedText>
 
             <StyledButton
+              title="Schedule Diagnostic"
+              onPress={handleBackfillSchedules}
+              disabled={loading}
+            />
+
+            <StyledButton
+              title="Migrate Legacy Schedules to Service Plans"
+              onPress={handleMigrateLegacyPlans}
+              disabled={loading}
+            />
+
+            <StyledButton
               title="Delete All Clients"
               onPress={async () => {
                 try {
