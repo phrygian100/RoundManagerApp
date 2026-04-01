@@ -1,5 +1,16 @@
 # Code Changes Log
 
+## April 1, 2026
+
+### Web (Marketing): Minor copy consistency on Guides pages
+
+**Files Changed**:
+- `web/src/app/guides/page.tsx`
+- `web/src/app/guides/findingcustomers/page.tsx`
+
+**Change**:
+- Adjusted title casing from "How To" → "How to" for consistent wording across the Guides index and guide page.
+
 ## February 14, 2026
 
 ### Service Plans: Auto-regenerate recurring jobs on completion (rolling 24 months)
