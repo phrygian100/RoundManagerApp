@@ -46,6 +46,13 @@ service cloud.firestore {
       (request.auth.uid == request.resource.data.ownerId);
     }
 
+    match /quoteWizards/{quoteWizardId} {
+      allow list: if isSignedIn();
+      allow get: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess();
+      allow update, delete: if isSignedIn() && hasResourceAccess(resource);
+    }
+
     match /quotes/{quoteId} {
       // Allow list operations for signed in users - the query filter will handle access control
       allow list: if isSignedIn();

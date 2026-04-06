@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
 import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
 import { ThemedText } from '../../components/ThemedText';
@@ -2744,7 +2744,7 @@ export default function SettingsScreen() {
           )}
           <StyledButton
             title="Quote Wizard"
-            onPress={() => Linking.openURL('https://guvnor.app/quote-wizard')}
+            onPress={() => router.push('/quote-wizard')}
           />
         </View>
 

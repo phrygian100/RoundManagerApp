@@ -2,23 +2,42 @@
 
 ## April 6, 2026
 
-### Quote Wizard: New tool for building image-based quotes with recurring and one-off pricing
+### Quote Wizard: In-app image-based quoting tool (per customer, behind login)
 
 **Files Changed**:
+- `app/quote-wizard.tsx` (new)
 - `app/(tabs)/settings.tsx`
-- `web/src/app/quote-wizard/page.tsx` (new)
-- `vercel.json`
+- `core/firebase.ts`
+- `core/firebase.web.ts`
+- `firestore.rules`
+- `vercel.json` (reverted marketing rewrite)
+- `web/src/app/quote-wizard/page.tsx` (removed)
 
 **Change**:
-- Added a **"Quote Wizard"** button to the **Profile** section in Settings. Tapping it opens `https://guvnor.app/quote-wizard` via `Linking.openURL`, so it works on mobile, desktop, and web.
-- Created the `/quote-wizard` page on the marketing site (Next.js). The page allows users to:
-  - **Upload images** (drag-and-drop or file picker) representing areas to quote on (e.g. windows, gutters, conservatories).
-  - Set a **recurring cost** (£) and **frequency** (1–12 weeks) per image.
-  - Optionally toggle a **one-off** cost (£) per image, independently or alongside a recurring price.
-  - View a live **Quote Summary** with per-item breakdown and totals.
-- Added Vercel rewrite for `/quote-wizard` → marketing build and excluded it from the Expo app catch-all route.
+- Removed the previous marketing-site Quote Wizard page and Vercel rewrite.
+- Added a **"Quote Wizard"** button to the **Profile** section in Settings. It navigates to `/quote-wizard` via `router.push` (in-app, behind auth).
+- Created `app/quote-wizard.tsx` — a full Expo Router screen with two views:
+  - **List view**: shows all saved quote wizards for the user, with thumbnail strips, customer name, item counts, and totals.
+  - **Create/Edit view**: form with customer name/address, image upload (gallery on all platforms, camera on mobile), and per-image pricing:
+    - **Recurring**: £ cost per visit + frequency (1–12 weeks chip selector on mobile, dropdown on web).
+    - **One-Off**: toggle + £ cost, independent of or alongside recurring.
+  - Live **Quote Summary** with per-item breakdown and grand totals.
+  - **Save** persists to Firestore `quoteWizards` collection; **Delete** removes the Firestore document and all associated Firebase Storage images.
+- Initialised **Firebase Storage** in `core/firebase.ts` and `core/firebase.web.ts` (previously unused despite `storageBucket` being in the config).
+- Added `expo-image-picker` dependency for cross-platform image selection.
+- Added Firestore rules for the `quoteWizards` collection (same `hasResourceAccess`/`hasCreateAccess` pattern as other collections).
 
-**User Impact**: Users can quickly build visual quotes with per-item pricing and frequency directly from the Profile section in Settings.
+**Data Model** — `quoteWizards/{autoId}`:
+- `ownerId`, `accountId` — scoped to user account
+- `customerName`, `customerAddress` — prospect details
+- `items[]` — each with `id`, `storagePath`, `imageUrl`, `recurringCost`, `frequencyWeeks`, `isOneOff`, `oneOffCost`
+- `createdAt`, `updatedAt`
+
+Images stored at `quoteWizards/{accountId}/{quoteId}/{itemId}.{ext}` in Firebase Storage.
+
+**Note**: Firebase Storage security rules are managed via the Firebase Console for this project (no local `storage.rules` file). Ensure authenticated read/write is enabled for the `quoteWizards/` path.
+
+**User Impact**: Users can build visual, image-based quotes for customers with recurring and/or one-off pricing, saved per account.
 
 ---
 

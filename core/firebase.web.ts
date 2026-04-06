@@ -1,11 +1,13 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 import { FIREBASE_CONFIG } from '../config';
 
 let app;
 let auth;
 let db;
+let storage;
 
 // Validate that all expected keys are present so the build fails fast with a clear error.
 const requiredKeys = [
@@ -34,5 +36,6 @@ if (!getApps().length) {
 
 auth = getAuth(app);
 db = getFirestore(app);
+storage = getStorage(app);
 
-export { app, auth, db };
+export { app, auth, db, storage };

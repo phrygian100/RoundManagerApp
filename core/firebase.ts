@@ -2,12 +2,14 @@ import Constants from 'expo-constants';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
+import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 import { FIREBASE_CONFIG } from '../config';
 
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage;
 
 // Prefer EXPO_PUBLIC_* env vars; fall back to app config extra.firebase; then to FIREBASE_CONFIG
 const extraFirebase: Partial<Record<string, string>> =
@@ -73,6 +75,7 @@ if (Platform.OS !== 'web') {
   auth = getAuth(app);
 }
 db = getFirestore(app);
+storage = getStorage(app);
 
-export { app, auth, db };
+export { app, auth, db, storage };
 
