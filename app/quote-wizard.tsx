@@ -682,30 +682,9 @@ export default function QuoteWizardScreen() {
               {item.pricingLines.map((ln, lnIdx) => (
                 <View key={ln.id} style={s.pricingLineCard}>
                   <View style={s.pricingLineHeader}>
-                    <View style={s.oneOffToggleRow}>
-                      <TouchableOpacity
-                        onPress={() =>
-                          updatePricingLine(item.id, ln.id, {
-                            isOneOff: !ln.isOneOff,
-                            frequencyWeeks: '',
-                          })
-                        }
-                        style={[
-                          s.toggleTrack,
-                          ln.isOneOff && s.toggleTrackOn,
-                        ]}
-                      >
-                        <View
-                          style={[
-                            s.toggleThumb,
-                            ln.isOneOff && s.toggleThumbOn,
-                          ]}
-                        />
-                      </TouchableOpacity>
-                      <Text style={s.pricingLineType}>
-                        {ln.isOneOff ? 'One-Off' : 'Recurring'}
-                      </Text>
-                    </View>
+                    <Text style={s.pricingLineType}>
+                      {ln.isOneOff ? 'One-Off' : ln.frequencyWeeks ? `Every ${ln.frequencyWeeks} ${ln.frequencyWeeks === '1' ? 'week' : 'weeks'}` : 'Select frequency'}
+                    </Text>
                     {item.pricingLines.length > 1 && (
                       <TouchableOpacity
                         onPress={() => removePricingLine(item.id, ln.id)}
@@ -717,9 +696,7 @@ export default function QuoteWizardScreen() {
                   </View>
                   <View style={s.pricingRow}>
                     <View style={s.pricingField}>
-                      <ThemedText style={s.pricingFieldLabel}>
-                        {ln.isOneOff ? 'One-off cost' : 'Cost per visit'}
-                      </ThemedText>
+                      <ThemedText style={s.pricingFieldLabel}>Cost</ThemedText>
                       <View style={s.currencyInputWrap}>
                         <Text style={s.currencySign}>£</Text>
                         <TextInput
@@ -734,75 +711,107 @@ export default function QuoteWizardScreen() {
                         />
                       </View>
                     </View>
-                    {!ln.isOneOff && (
-                      <View style={s.pricingField}>
-                        <ThemedText style={s.pricingFieldLabel}>
-                          Every
-                        </ThemedText>
-                        {Platform.OS === 'web' ? (
-                          <select
-                            value={ln.frequencyWeeks}
-                            onChange={(e: any) =>
+                    <View style={s.pricingField}>
+                      <ThemedText style={s.pricingFieldLabel}>
+                        Frequency
+                      </ThemedText>
+                      {Platform.OS === 'web' ? (
+                        <select
+                          value={ln.isOneOff ? 'one-off' : ln.frequencyWeeks}
+                          onChange={(e: any) => {
+                            const val = e.target.value;
+                            if (val === 'one-off') {
                               updatePricingLine(item.id, ln.id, {
-                                frequencyWeeks: e.target.value,
-                              })
+                                isOneOff: true,
+                                frequencyWeeks: '',
+                              });
+                            } else {
+                              updatePricingLine(item.id, ln.id, {
+                                isOneOff: false,
+                                frequencyWeeks: val,
+                              });
                             }
-                            style={{
-                              height: 42,
-                              borderRadius: 8,
-                              borderWidth: 1,
-                              borderColor: '#ddd',
-                              paddingLeft: 10,
-                              paddingRight: 10,
-                              fontSize: 15,
-                              backgroundColor: '#fff',
-                              color: '#333',
-                              width: '100%',
-                            } as any}
+                          }}
+                          style={{
+                            height: 42,
+                            borderRadius: 8,
+                            borderWidth: 1,
+                            borderColor: '#ddd',
+                            paddingLeft: 10,
+                            paddingRight: 10,
+                            fontSize: 15,
+                            backgroundColor: '#fff',
+                            color: '#333',
+                            width: '100%',
+                          } as any}
+                        >
+                          <option value="">Select</option>
+                          {frequencyOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                          <option value="one-off">One-Off</option>
+                        </select>
+                      ) : (
+                        <View style={s.freqPickerNative}>
+                          <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
                           >
-                            <option value="">Select</option>
                             {frequencyOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        ) : (
-                          <View style={s.freqPickerNative}>
-                            <ScrollView
-                              horizontal
-                              showsHorizontalScrollIndicator={false}
-                            >
-                              {frequencyOptions.map((opt) => (
-                                <TouchableOpacity
-                                  key={opt.value}
-                                  onPress={() =>
-                                    updatePricingLine(item.id, ln.id, {
-                                      frequencyWeeks: opt.value,
-                                    })
-                                  }
-                                  style={[
-                                    s.freqChip,
+                              <TouchableOpacity
+                                key={opt.value}
+                                onPress={() =>
+                                  updatePricingLine(item.id, ln.id, {
+                                    isOneOff: false,
+                                    frequencyWeeks: opt.value,
+                                  })
+                                }
+                                style={[
+                                  s.freqChip,
+                                  !ln.isOneOff &&
                                     ln.frequencyWeeks === opt.value &&
-                                      s.freqChipSelected,
+                                    s.freqChipSelected,
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    s.freqChipText,
+                                    !ln.isOneOff &&
+                                      ln.frequencyWeeks === opt.value &&
+                                      s.freqChipTextSelected,
                                   ]}
                                 >
-                                  <Text
-                                    style={[
-                                      s.freqChipText,
-                                      ln.frequencyWeeks === opt.value &&
-                                        s.freqChipTextSelected,
-                                    ]}
-                                  >
-                                    {opt.value}w
-                                  </Text>
-                                </TouchableOpacity>
-                              ))}
-                            </ScrollView>
-                          </View>
-                        )}
-                      </View>
-                    )}
+                                  {opt.value}w
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity
+                              onPress={() =>
+                                updatePricingLine(item.id, ln.id, {
+                                  isOneOff: true,
+                                  frequencyWeeks: '',
+                                })
+                              }
+                              style={[
+                                s.freqChip,
+                                ln.isOneOff && s.freqChipSelected,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  s.freqChipText,
+                                  ln.isOneOff && s.freqChipTextSelected,
+                                ]}
+                              >
+                                1-Off
+                              </Text>
+                            </TouchableOpacity>
+                          </ScrollView>
+                        </View>
+                      )}
+                    </View>
                   </View>
                 </View>
               ))}
@@ -1130,24 +1139,7 @@ const s = StyleSheet.create({
   dividerLine: { flex: 1, height: 1, backgroundColor: '#e5e7eb' },
   dividerLabel: { fontSize: 11, fontWeight: '600', color: '#aaa', textTransform: 'uppercase' },
 
-  // Toggle
-  oneOffToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 0 },
-  toggleTrack: {
-    width: 44,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#ddd',
-    padding: 2,
-    justifyContent: 'center',
-  },
-  toggleTrackOn: { backgroundColor: '#007AFF' },
-  toggleThumb: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: '#fff',
-  },
-  toggleThumbOn: { alignSelf: 'flex-end' },
+  // (toggle styles removed — one-off is now in the frequency picker)
 
   // Summary
   summaryCard: {
