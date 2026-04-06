@@ -101,6 +101,7 @@ export default function ClientPortalScreen() {
   const [selectedLine, setSelectedLine] = useState<any | null>(null);
   const [extraGutters, setExtraGutters] = useState(false);
   const [extraConservatory, setExtraConservatory] = useState(false);
+  const [extraSolarPanels, setExtraSolarPanels] = useState(false);
   const [extraOther, setExtraOther] = useState('');
 
   
@@ -398,6 +399,7 @@ export default function ClientPortalScreen() {
       const extras: string[] = [];
       if (extraGutters) extras.push('Gutter cleaning/clearing');
       if (extraConservatory) extras.push('Conservatory roof');
+      if (extraSolarPanels) extras.push('Solar panel cleaning');
       if (extraOther.trim()) extras.push(extraOther.trim());
 
       const bodyPayload = {
@@ -454,6 +456,7 @@ export default function ClientPortalScreen() {
     setSelectedLine(null);
     setExtraGutters(false);
     setExtraConservatory(false);
+    setExtraSolarPanels(false);
     setExtraOther('');
     setQuoteError('');
     setQuoteName('');
@@ -1018,6 +1021,16 @@ export default function ClientPortalScreen() {
                     <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>Conservatory roof</Text>
                   </Pressable>
 
+                  <Pressable
+                    onPress={() => setExtraSolarPanels(!extraSolarPanels)}
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, borderWidth: 2, borderColor: extraSolarPanels ? '#007AFF' : '#e5e7eb', backgroundColor: extraSolarPanels ? '#f0f7ff' : '#fff', marginBottom: 10 }}
+                  >
+                    <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: extraSolarPanels ? '#007AFF' : '#ccc', backgroundColor: extraSolarPanels ? '#007AFF' : '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {extraSolarPanels && <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✓</Text>}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>Solar panel cleaning</Text>
+                  </Pressable>
+
                   <View style={{ marginBottom: 10 }}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 6 }}>Anything else?</Text>
                     <TextInput
@@ -1061,11 +1074,12 @@ export default function ClientPortalScreen() {
                       </Text>
                     </View>
                   </View>
-                  {(extraGutters || extraConservatory || extraOther.trim()) && (
+                  {(extraGutters || extraConservatory || extraSolarPanels || extraOther.trim()) && (
                     <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' }}>
                       <Text style={{ fontSize: 13, fontWeight: '700', color: '#555', textTransform: 'uppercase', marginBottom: 8 }}>Additional services requested</Text>
                       {extraGutters && <Text style={{ fontSize: 14, color: '#333', marginBottom: 4 }}>• Gutter cleaning / clearing</Text>}
                       {extraConservatory && <Text style={{ fontSize: 14, color: '#333', marginBottom: 4 }}>• Conservatory roof</Text>}
+                      {extraSolarPanels && <Text style={{ fontSize: 14, color: '#333', marginBottom: 4 }}>• Solar panel cleaning</Text>}
                       {extraOther.trim() ? <Text style={{ fontSize: 14, color: '#333' }}>• {extraOther.trim()}</Text> : null}
                     </View>
                   )}

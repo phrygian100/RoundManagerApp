@@ -1844,7 +1844,7 @@ exports.portalApi = onRequest(async (req, res) => {
         return;
       }
 
-      await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 20, 60 * 60 * 1000);
+      await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 100, 60 * 60 * 1000);
 
       const clean = (v, max) => String(v || '').trim().slice(0, max);
       const payload = {
