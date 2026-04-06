@@ -1836,6 +1836,7 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedImageUrl,
         selectedFrequency,
         selectedCost,
+        additionalServices,
       } = req.body || {};
 
       if (!businessId || typeof businessId !== 'string') {
@@ -1859,6 +1860,7 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedImageUrl: selectedImageUrl && typeof selectedImageUrl === 'string' ? clean(selectedImageUrl, 500) : null,
         selectedFrequency: selectedFrequency && typeof selectedFrequency === 'string' ? clean(selectedFrequency, 20) : null,
         selectedCost: selectedCost != null && !isNaN(Number(selectedCost)) ? Number(selectedCost) : null,
+        additionalServices: Array.isArray(additionalServices) ? additionalServices.map(s => String(s).slice(0, 200)).slice(0, 10) : null,
         status: 'pending',
         createdAt: new Date().toISOString(),
         source: 'client_portal',

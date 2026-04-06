@@ -32,6 +32,7 @@ interface QuoteRequest {
   selectedImageUrl?: string;
   selectedFrequency?: string;
   selectedCost?: number;
+  additionalServices?: string[];
 }
 
 const sourceOptions = [
@@ -392,6 +393,15 @@ export default function NewBusinessScreen() {
                           {request.selectedFrequency === 'one-off' ? 'One-off' : `${request.selectedFrequency} Weekly`} at £{Number(request.selectedCost).toFixed(2)}
                         </Text>
                       </View>
+                    </View>
+                  )}
+
+                  {request.additionalServices && request.additionalServices.length > 0 && (
+                    <View style={styles.extrasBox}>
+                      <Text style={styles.extrasLabel}>Additional services requested:</Text>
+                      {request.additionalServices.map((svc, i) => (
+                        <Text key={i} style={styles.extrasItem}>• {svc}</Text>
+                      ))}
                     </View>
                   )}
                 </View>
@@ -811,6 +821,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#1d4ed8',
+  },
+  extrasBox: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: '#fefce8',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  extrasLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+    marginBottom: 4,
+  },
+  extrasItem: {
+    fontSize: 14,
+    color: '#78350f',
+    marginBottom: 2,
   },
   actionButtons: {
     flexDirection: 'row',

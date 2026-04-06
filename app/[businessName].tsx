@@ -92,13 +92,17 @@ export default function ClientPortalScreen() {
   const [quoteEmail, setQuoteEmail] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
-  const [quoteStep, setQuoteStep] = useState<'form' | 'pickImage' | 'pickService' | 'review' | 'done'>('form');
+  const [quoteStep, setQuoteStep] = useState<'form' | 'pickImage' | 'pickService' | 'extras' | 'review' | 'done'>('form');
   const [quoteError, setQuoteError] = useState('');
 
   // Quote selection state
   const [quoteOptions, setQuoteOptions] = useState<any[]>([]);
   const [selectedImage, setSelectedImage] = useState<any | null>(null);
   const [selectedLine, setSelectedLine] = useState<any | null>(null);
+  const [extraGutters, setExtraGutters] = useState(false);
+  const [extraConservatory, setExtraConservatory] = useState(false);
+  const [extraOther, setExtraOther] = useState('');
+
   
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
@@ -391,6 +395,11 @@ export default function ClientPortalScreen() {
   const submitQuoteToBackend = async (imageUrl?: string, frequency?: string, cost?: number) => {
     if (!businessUser) return;
     try {
+      const extras: string[] = [];
+      if (extraGutters) extras.push('Gutter cleaning/clearing');
+      if (extraConservatory) extras.push('Conservatory roof');
+      if (extraOther.trim()) extras.push(extraOther.trim());
+
       const bodyPayload = {
         businessId: businessUser.id,
         businessName: businessUser.businessName,
@@ -404,9 +413,8 @@ export default function ClientPortalScreen() {
         selectedImageUrl: imageUrl || null,
         selectedFrequency: frequency || null,
         selectedCost: cost ?? null,
+        additionalServices: extras.length > 0 ? extras : null,
       };
-      console.log('[Portal] submitQuoteToBackend args:', { imageUrl, frequency, cost });
-      console.log('[Portal] full payload selection:', { selectedImageUrl: bodyPayload.selectedImageUrl, selectedFrequency: bodyPayload.selectedFrequency, selectedCost: bodyPayload.selectedCost });
       const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/submitQuoteRequest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -444,6 +452,9 @@ export default function ClientPortalScreen() {
     setQuoteOptions([]);
     setSelectedImage(null);
     setSelectedLine(null);
+    setExtraGutters(false);
+    setExtraConservatory(false);
+    setExtraOther('');
     setQuoteError('');
     setQuoteName('');
     setQuotePhone('');
@@ -956,7 +967,7 @@ export default function ClientPortalScreen() {
                     return (
                       <Pressable
                         key={ln.id}
-                        onPress={() => { setSelectedLine(ln); setQuoteStep('review'); }}
+                        onPress={() => { setSelectedLine(ln); setQuoteStep('extras'); }}
                         style={({ pressed }) => ({
                           flexDirection: 'row',
                           justifyContent: 'space-between',
@@ -976,10 +987,62 @@ export default function ClientPortalScreen() {
                   })}
                 </View>
 
+              /* STEP: extras */
+              ) : quoteStep === 'extras' && selectedLine ? (
+                <View style={{ padding: 16 }}>
+                  <Pressable onPress={() => setQuoteStep('pickService')} style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#007AFF', fontSize: 14 }}>← Back</Text>
+                  </Pressable>
+                  <Text style={styles.formTitle}>Any additional services?</Text>
+                  <Text style={[styles.formSubtitle, { marginBottom: 16 }]}>
+                    Tick any extras you&apos;d like a quote for
+                  </Text>
+
+                  <Pressable
+                    onPress={() => setExtraGutters(!extraGutters)}
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, borderWidth: 2, borderColor: extraGutters ? '#007AFF' : '#e5e7eb', backgroundColor: extraGutters ? '#f0f7ff' : '#fff', marginBottom: 10 }}
+                  >
+                    <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: extraGutters ? '#007AFF' : '#ccc', backgroundColor: extraGutters ? '#007AFF' : '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {extraGutters && <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✓</Text>}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>Gutter cleaning / clearing</Text>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={() => setExtraConservatory(!extraConservatory)}
+                    style={{ flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, borderWidth: 2, borderColor: extraConservatory ? '#007AFF' : '#e5e7eb', backgroundColor: extraConservatory ? '#f0f7ff' : '#fff', marginBottom: 10 }}
+                  >
+                    <View style={{ width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: extraConservatory ? '#007AFF' : '#ccc', backgroundColor: extraConservatory ? '#007AFF' : '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                      {extraConservatory && <Text style={{ color: '#fff', fontWeight: '700', fontSize: 14 }}>✓</Text>}
+                    </View>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333' }}>Conservatory roof</Text>
+                  </Pressable>
+
+                  <View style={{ marginBottom: 10 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 6 }}>Anything else?</Text>
+                    <TextInput
+                      style={{ borderWidth: 1, borderColor: '#ddd', borderRadius: 10, padding: 12, fontSize: 15, color: '#333', minHeight: 60, textAlignVertical: 'top' }}
+                      placeholder="Describe any other services you'd like quoted"
+                      placeholderTextColor="#999"
+                      value={extraOther}
+                      onChangeText={setExtraOther}
+                      multiline
+                      numberOfLines={3}
+                    />
+                  </View>
+
+                  <Pressable
+                    onPress={() => setQuoteStep('review')}
+                    style={[styles.quoteSubmitButton, { marginTop: 8 }]}
+                  >
+                    <Text style={styles.submitButtonText}>Continue</Text>
+                  </Pressable>
+                </View>
+
               /* STEP: review */
               ) : quoteStep === 'review' && selectedImage && selectedLine ? (
                 <View style={{ padding: 16 }}>
-                  <Pressable onPress={() => setQuoteStep('pickService')} style={{ marginBottom: 12 }}>
+                  <Pressable onPress={() => setQuoteStep('extras')} style={{ marginBottom: 12 }}>
                     <Text style={{ color: '#007AFF', fontSize: 14 }}>← Back</Text>
                   </Pressable>
                   <Text style={styles.formTitle}>Confirm your quote</Text>
@@ -998,6 +1061,14 @@ export default function ClientPortalScreen() {
                       </Text>
                     </View>
                   </View>
+                  {(extraGutters || extraConservatory || extraOther.trim()) && (
+                    <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: '#555', textTransform: 'uppercase', marginBottom: 8 }}>Additional services requested</Text>
+                      {extraGutters && <Text style={{ fontSize: 14, color: '#333', marginBottom: 4 }}>• Gutter cleaning / clearing</Text>}
+                      {extraConservatory && <Text style={{ fontSize: 14, color: '#333', marginBottom: 4 }}>• Conservatory roof</Text>}
+                      {extraOther.trim() ? <Text style={{ fontSize: 14, color: '#333' }}>• {extraOther.trim()}</Text> : null}
+                    </View>
+                  )}
                   <Text style={{ fontSize: 13, color: '#666', marginBottom: 16, textAlign: 'center' }}>
                     This is a provisional quote. Final pricing may vary after an on-site assessment.
                   </Text>
