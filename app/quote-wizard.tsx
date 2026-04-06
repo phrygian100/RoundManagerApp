@@ -38,14 +38,18 @@ import { getDataOwnerId } from '../core/session';
 
 // ─── Types ──────────────────────────────────────────────
 
+interface PricingLine {
+  id: string;
+  isOneOff: boolean;
+  frequencyWeeks: string;
+  cost: string;
+}
+
 interface QuoteWizardItem {
   id: string;
   storagePath: string;
   imageUrl: string;
-  recurringCost: string;
-  frequencyWeeks: string;
-  isOneOff: boolean;
-  oneOffCost: string;
+  pricingLines: PricingLine[];
 }
 
 interface QuoteWizard {
@@ -53,7 +57,6 @@ interface QuoteWizard {
   ownerId: string;
   accountId: string;
   customerName: string;
-  customerAddress: string;
   items: QuoteWizardItem[];
   createdAt: string;
   updatedAt: string;
@@ -80,7 +83,6 @@ export default function QuoteWizardScreen() {
   // Edit state
   const [editId, setEditId] = useState<string | null>(null);
   const [customerName, setCustomerName] = useState('');
-  const [customerAddress, setCustomerAddress] = useState('');
   const [items, setItems] = useState<QuoteWizardItem[]>([]);
 
   // ─── Load quotes ────────────────────────────────────
@@ -120,7 +122,6 @@ export default function QuoteWizardScreen() {
   const openNew = () => {
     setEditId(null);
     setCustomerName('');
-    setCustomerAddress('');
     setItems([]);
     setMode('edit');
   };
@@ -128,10 +129,38 @@ export default function QuoteWizardScreen() {
   const openExisting = (q: QuoteWizard) => {
     setEditId(q.id);
     setCustomerName(q.customerName);
-    setCustomerAddress(q.customerAddress);
-    setItems(q.items || []);
+    setItems(
+      (q.items || []).map((it: any) => ({
+        ...it,
+        pricingLines: it.pricingLines || migrateOldItem(it),
+      }))
+    );
     setMode('edit');
   };
+
+  function migrateOldItem(it: any): PricingLine[] {
+    const lines: PricingLine[] = [];
+    if (it.recurringCost && it.frequencyWeeks) {
+      lines.push({
+        id: genId(),
+        isOneOff: false,
+        frequencyWeeks: String(it.frequencyWeeks),
+        cost: String(it.recurringCost),
+      });
+    }
+    if (it.isOneOff && it.oneOffCost) {
+      lines.push({
+        id: genId(),
+        isOneOff: true,
+        frequencyWeeks: '',
+        cost: String(it.oneOffCost),
+      });
+    }
+    if (lines.length === 0) {
+      lines.push({ id: genId(), isOneOff: false, frequencyWeeks: '', cost: '' });
+    }
+    return lines;
+  }
 
   // ─── Image picking ──────────────────────────────────
 
@@ -174,10 +203,7 @@ export default function QuoteWizardScreen() {
           id: itemId,
           storagePath,
           imageUrl,
-          recurringCost: '',
-          frequencyWeeks: '',
-          isOneOff: false,
-          oneOffCost: '',
+          pricingLines: [{ id: genId(), isOneOff: false, frequencyWeeks: '', cost: '' }],
         });
       }
 
@@ -226,10 +252,7 @@ export default function QuoteWizardScreen() {
           id: itemId,
           storagePath,
           imageUrl,
-          recurringCost: '',
-          frequencyWeeks: '',
-          isOneOff: false,
-          oneOffCost: '',
+          pricingLines: [{ id: genId(), isOneOff: false, frequencyWeeks: '', cost: '' }],
         },
       ]);
     } catch (err) {
@@ -264,7 +287,7 @@ export default function QuoteWizardScreen() {
 
   const handleSave = async () => {
     if (!customerName.trim()) {
-      Alert.alert('Missing info', 'Please enter a customer name.');
+      Alert.alert('Missing info', 'Please enter a type/description.');
       return;
     }
     if (items.length === 0) {
@@ -285,15 +308,16 @@ export default function QuoteWizardScreen() {
         ownerId: id,
         accountId: id,
         customerName: customerName.trim(),
-        customerAddress: customerAddress.trim(),
         items: items.map((it) => ({
           id: it.id,
           storagePath: it.storagePath,
           imageUrl: it.imageUrl,
-          recurringCost: it.recurringCost ? parseFloat(it.recurringCost) || 0 : null,
-          frequencyWeeks: it.frequencyWeeks ? parseInt(it.frequencyWeeks, 10) || null : null,
-          isOneOff: it.isOneOff,
-          oneOffCost: it.isOneOff && it.oneOffCost ? parseFloat(it.oneOffCost) || 0 : null,
+          pricingLines: it.pricingLines.map((ln) => ({
+            id: ln.id,
+            isOneOff: ln.isOneOff,
+            frequencyWeeks: !ln.isOneOff && ln.frequencyWeeks ? parseInt(ln.frequencyWeeks, 10) : null,
+            cost: ln.cost ? parseFloat(ln.cost) || 0 : null,
+          })),
         })),
         updatedAt: now,
       };
@@ -364,29 +388,88 @@ export default function QuoteWizardScreen() {
 
   // ─── Summary helpers ────────────────────────────────
 
-  const totalRecurring = items.reduce((sum, it) => {
-    const v = parseFloat(it.recurringCost);
-    return !isNaN(v) && it.frequencyWeeks ? sum + v : sum;
-  }, 0);
+  const addPricingLine = (itemId: string) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === itemId
+          ? {
+              ...it,
+              pricingLines: [
+                ...it.pricingLines,
+                { id: genId(), isOneOff: false, frequencyWeeks: '', cost: '' },
+              ],
+            }
+          : it
+      )
+    );
+  };
 
-  const totalOneOff = items.reduce((sum, it) => {
-    const v = parseFloat(it.oneOffCost);
-    return it.isOneOff && !isNaN(v) ? sum + v : sum;
+  const updatePricingLine = (
+    itemId: string,
+    lineId: string,
+    updates: Partial<PricingLine>
+  ) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === itemId
+          ? {
+              ...it,
+              pricingLines: it.pricingLines.map((ln) =>
+                ln.id === lineId ? { ...ln, ...updates } : ln
+              ),
+            }
+          : it
+      )
+    );
+  };
+
+  const removePricingLine = (itemId: string, lineId: string) => {
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === itemId
+          ? { ...it, pricingLines: it.pricingLines.filter((ln) => ln.id !== lineId) }
+          : it
+      )
+    );
+  };
+
+  const getLineTotals = (lines: PricingLine[]) => {
+    let recurring = 0;
+    let oneOff = 0;
+    for (const ln of lines) {
+      const v = parseFloat(ln.cost as any) || 0;
+      if (!v) continue;
+      if (ln.isOneOff) oneOff += v;
+      else if (ln.frequencyWeeks) recurring += v;
+    }
+    return { recurring, oneOff };
+  };
+
+  const allLines = items.flatMap((it) => it.pricingLines || []);
+  const totalRecurring = allLines.reduce((sum, ln) => {
+    if (ln.isOneOff) return sum;
+    const v = parseFloat(ln.cost as any) || 0;
+    return ln.frequencyWeeks && v ? sum + v : sum;
+  }, 0);
+  const totalOneOff = allLines.reduce((sum, ln) => {
+    if (!ln.isOneOff) return sum;
+    return sum + (parseFloat(ln.cost as any) || 0);
   }, 0);
 
   const getQuoteTotal = (q: QuoteWizard) => {
     let recurring = 0;
     let oneOff = 0;
     for (const it of q.items || []) {
-      if (typeof it.recurringCost === 'number' && it.recurringCost)
-        recurring += it.recurringCost as any;
-      else if (typeof it.recurringCost === 'string')
-        recurring += parseFloat(it.recurringCost) || 0;
-      if (it.isOneOff) {
-        if (typeof it.oneOffCost === 'number' && it.oneOffCost)
-          oneOff += it.oneOffCost as any;
-        else if (typeof it.oneOffCost === 'string')
-          oneOff += parseFloat(it.oneOffCost) || 0;
+      const lines: any[] = (it as any).pricingLines || [];
+      for (const ln of lines) {
+        const v = parseFloat(ln.cost) || 0;
+        if (!v) continue;
+        if (ln.isOneOff) oneOff += v;
+        else recurring += v;
+      }
+      if (lines.length === 0) {
+        recurring += parseFloat((it as any).recurringCost) || 0;
+        if ((it as any).isOneOff) oneOff += parseFloat((it as any).oneOffCost) || 0;
       }
     }
     return { recurring, oneOff };
@@ -467,11 +550,6 @@ export default function QuoteWizardScreen() {
                     <ThemedText style={s.quoteCardName}>
                       {q.customerName}
                     </ThemedText>
-                    {q.customerAddress ? (
-                      <ThemedText style={s.quoteCardAddr}>
-                        {q.customerAddress}
-                      </ThemedText>
-                    ) : null}
                     <View style={s.quoteCardMeta}>
                       <Text style={s.metaBadge}>
                         {q.items?.length || 0} item
@@ -537,26 +615,16 @@ export default function QuoteWizardScreen() {
         contentContainerStyle={s.editContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Customer info */}
+        {/* Quote info */}
         <View style={s.section}>
-          <ThemedText style={s.sectionTitle}>Customer Details</ThemedText>
+          <ThemedText style={s.sectionTitle}>Quote Example</ThemedText>
           <View style={s.fieldRow}>
-            <ThemedText style={s.fieldLabel}>Name</ThemedText>
+            <ThemedText style={s.fieldLabel}>Type</ThemedText>
             <TextInput
               style={s.input}
               value={customerName}
               onChangeText={setCustomerName}
-              placeholder="Customer name"
-              placeholderTextColor="#999"
-            />
-          </View>
-          <View style={s.fieldRow}>
-            <ThemedText style={s.fieldLabel}>Address</ThemedText>
-            <TextInput
-              style={s.input}
-              value={customerAddress}
-              onChangeText={setCustomerAddress}
-              placeholder="Address (optional)"
+              placeholder="Eg. 2 bed semi"
               placeholderTextColor="#999"
             />
           </View>
@@ -608,148 +676,143 @@ export default function QuoteWizardScreen() {
               </View>
             </View>
 
-            {/* Recurring */}
+            {/* Pricing lines */}
             <View style={s.pricingSection}>
-              <ThemedText style={s.pricingSectionLabel}>
-                Recurring Service
-              </ThemedText>
-              <View style={s.pricingRow}>
-                <View style={s.pricingField}>
-                  <ThemedText style={s.pricingFieldLabel}>
-                    Cost per visit
-                  </ThemedText>
-                  <View style={s.currencyInputWrap}>
-                    <Text style={s.currencySign}>£</Text>
-                    <TextInput
-                      style={s.currencyInput}
-                      value={item.recurringCost}
-                      onChangeText={(v) =>
-                        updateItem(item.id, { recurringCost: v })
-                      }
-                      placeholder="0.00"
-                      placeholderTextColor="#999"
-                      keyboardType="decimal-pad"
-                    />
-                  </View>
-                </View>
-                <View style={s.pricingField}>
-                  <ThemedText style={s.pricingFieldLabel}>Every</ThemedText>
-                  {Platform.OS === 'web' ? (
-                    <select
-                      value={item.frequencyWeeks}
-                      onChange={(e: any) =>
-                        updateItem(item.id, {
-                          frequencyWeeks: e.target.value,
-                        })
-                      }
-                      style={{
-                        height: 42,
-                        borderRadius: 8,
-                        borderWidth: 1,
-                        borderColor: '#ddd',
-                        paddingLeft: 10,
-                        paddingRight: 10,
-                        fontSize: 15,
-                        backgroundColor: '#fff',
-                        color: '#333',
-                        width: '100%',
-                      } as any}
-                    >
-                      <option value="">Select</option>
-                      {frequencyOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <View style={s.freqPickerNative}>
-                      <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
+              <ThemedText style={s.pricingSectionLabel}>Pricing</ThemedText>
+              {item.pricingLines.map((ln, lnIdx) => (
+                <View key={ln.id} style={s.pricingLineCard}>
+                  <View style={s.pricingLineHeader}>
+                    <View style={s.oneOffToggleRow}>
+                      <TouchableOpacity
+                        onPress={() =>
+                          updatePricingLine(item.id, ln.id, {
+                            isOneOff: !ln.isOneOff,
+                            frequencyWeeks: '',
+                          })
+                        }
+                        style={[
+                          s.toggleTrack,
+                          ln.isOneOff && s.toggleTrackOn,
+                        ]}
                       >
-                        {frequencyOptions.map((opt) => (
-                          <TouchableOpacity
-                            key={opt.value}
-                            onPress={() =>
-                              updateItem(item.id, {
-                                frequencyWeeks: opt.value,
+                        <View
+                          style={[
+                            s.toggleThumb,
+                            ln.isOneOff && s.toggleThumbOn,
+                          ]}
+                        />
+                      </TouchableOpacity>
+                      <Text style={s.pricingLineType}>
+                        {ln.isOneOff ? 'One-Off' : 'Recurring'}
+                      </Text>
+                    </View>
+                    {item.pricingLines.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => removePricingLine(item.id, ln.id)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle" size={22} color="#ccc" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <View style={s.pricingRow}>
+                    <View style={s.pricingField}>
+                      <ThemedText style={s.pricingFieldLabel}>
+                        {ln.isOneOff ? 'One-off cost' : 'Cost per visit'}
+                      </ThemedText>
+                      <View style={s.currencyInputWrap}>
+                        <Text style={s.currencySign}>£</Text>
+                        <TextInput
+                          style={s.currencyInput}
+                          value={ln.cost}
+                          onChangeText={(v) =>
+                            updatePricingLine(item.id, ln.id, { cost: v })
+                          }
+                          placeholder="0.00"
+                          placeholderTextColor="#999"
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+                    </View>
+                    {!ln.isOneOff && (
+                      <View style={s.pricingField}>
+                        <ThemedText style={s.pricingFieldLabel}>
+                          Every
+                        </ThemedText>
+                        {Platform.OS === 'web' ? (
+                          <select
+                            value={ln.frequencyWeeks}
+                            onChange={(e: any) =>
+                              updatePricingLine(item.id, ln.id, {
+                                frequencyWeeks: e.target.value,
                               })
                             }
-                            style={[
-                              s.freqChip,
-                              item.frequencyWeeks === opt.value &&
-                                s.freqChipSelected,
-                            ]}
+                            style={{
+                              height: 42,
+                              borderRadius: 8,
+                              borderWidth: 1,
+                              borderColor: '#ddd',
+                              paddingLeft: 10,
+                              paddingRight: 10,
+                              fontSize: 15,
+                              backgroundColor: '#fff',
+                              color: '#333',
+                              width: '100%',
+                            } as any}
                           >
-                            <Text
-                              style={[
-                                s.freqChipText,
-                                item.frequencyWeeks === opt.value &&
-                                  s.freqChipTextSelected,
-                              ]}
+                            <option value="">Select</option>
+                            {frequencyOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <View style={s.freqPickerNative}>
+                            <ScrollView
+                              horizontal
+                              showsHorizontalScrollIndicator={false}
                             >
-                              {opt.value}w
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  )}
-                </View>
-              </View>
-            </View>
-
-            {/* Divider */}
-            <View style={s.dividerRow}>
-              <View style={s.dividerLine} />
-              <Text style={s.dividerLabel}>AND / OR</Text>
-              <View style={s.dividerLine} />
-            </View>
-
-            {/* One-Off */}
-            <View style={s.pricingSection}>
-              <View style={s.oneOffToggleRow}>
-                <TouchableOpacity
-                  onPress={() =>
-                    updateItem(item.id, { isOneOff: !item.isOneOff })
-                  }
-                  style={[
-                    s.toggleTrack,
-                    item.isOneOff && s.toggleTrackOn,
-                  ]}
-                >
-                  <View
-                    style={[
-                      s.toggleThumb,
-                      item.isOneOff && s.toggleThumbOn,
-                    ]}
-                  />
-                </TouchableOpacity>
-                <ThemedText style={s.pricingSectionLabel}>One-Off</ThemedText>
-              </View>
-              {item.isOneOff && (
-                <View style={[s.pricingRow, { marginTop: 8 }]}>
-                  <View style={s.pricingField}>
-                    <ThemedText style={s.pricingFieldLabel}>
-                      One-off cost
-                    </ThemedText>
-                    <View style={s.currencyInputWrap}>
-                      <Text style={s.currencySign}>£</Text>
-                      <TextInput
-                        style={s.currencyInput}
-                        value={item.oneOffCost}
-                        onChangeText={(v) =>
-                          updateItem(item.id, { oneOffCost: v })
-                        }
-                        placeholder="0.00"
-                        placeholderTextColor="#999"
-                        keyboardType="decimal-pad"
-                      />
-                    </View>
+                              {frequencyOptions.map((opt) => (
+                                <TouchableOpacity
+                                  key={opt.value}
+                                  onPress={() =>
+                                    updatePricingLine(item.id, ln.id, {
+                                      frequencyWeeks: opt.value,
+                                    })
+                                  }
+                                  style={[
+                                    s.freqChip,
+                                    ln.frequencyWeeks === opt.value &&
+                                      s.freqChipSelected,
+                                  ]}
+                                >
+                                  <Text
+                                    style={[
+                                      s.freqChipText,
+                                      ln.frequencyWeeks === opt.value &&
+                                        s.freqChipTextSelected,
+                                    ]}
+                                  >
+                                    {opt.value}w
+                                  </Text>
+                                </TouchableOpacity>
+                              ))}
+                            </ScrollView>
+                          </View>
+                        )}
+                      </View>
+                    )}
                   </View>
                 </View>
-              )}
+              ))}
+              <TouchableOpacity
+                onPress={() => addPricingLine(item.id)}
+                style={s.addLineBtn}
+              >
+                <Ionicons name="add-circle-outline" size={18} color="#007AFF" />
+                <Text style={s.addLineBtnText}>Add pricing line</Text>
+              </TouchableOpacity>
             </View>
           </View>
         ))}
@@ -760,25 +823,31 @@ export default function QuoteWizardScreen() {
             <View style={s.summaryCard}>
               <ThemedText style={s.summaryTitle}>Quote Summary</ThemedText>
               {items.map((item, idx) => {
-                const hasRecurring =
-                  item.recurringCost && item.frequencyWeeks;
-                const hasOneOff = item.isOneOff && item.oneOffCost;
-                if (!hasRecurring && !hasOneOff) return null;
+                const lineTotals = getLineTotals(item.pricingLines || []);
+                if (!lineTotals.recurring && !lineTotals.oneOff) return null;
                 return (
                   <View key={item.id} style={s.summaryRow}>
                     <Text style={s.summaryItemLabel}>Item #{idx + 1}</Text>
                     <View style={s.summaryBadges}>
-                      {hasRecurring && (
-                        <Text style={s.summaryBadgeBlue}>
-                          £{parseFloat(item.recurringCost).toFixed(2)} /{' '}
-                          {item.frequencyWeeks}w
-                        </Text>
-                      )}
-                      {hasOneOff && (
-                        <Text style={s.summaryBadgeAmber}>
-                          £{parseFloat(item.oneOffCost).toFixed(2)} one-off
-                        </Text>
-                      )}
+                      {(item.pricingLines || []).map((ln) => {
+                        const v = parseFloat(ln.cost as any) || 0;
+                        if (!v) return null;
+                        if (ln.isOneOff) {
+                          return (
+                            <Text key={ln.id} style={s.summaryBadgeAmber}>
+                              £{v.toFixed(2)} one-off
+                            </Text>
+                          );
+                        }
+                        if (ln.frequencyWeeks) {
+                          return (
+                            <Text key={ln.id} style={s.summaryBadgeBlue}>
+                              £{v.toFixed(2)} / {ln.frequencyWeeks}w
+                            </Text>
+                          );
+                        }
+                        return null;
+                      })}
                     </View>
                   </View>
                 );
@@ -1133,6 +1202,31 @@ const s = StyleSheet.create({
   },
   summaryTotalLabel: { fontSize: 14, fontWeight: '600', color: '#333' },
   summaryTotalValue: { fontSize: 14, fontWeight: '700', color: '#111' },
+
+  // Pricing line card
+  pricingLineCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#eee',
+    padding: 12,
+    marginBottom: 8,
+  },
+  pricingLineHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  pricingLineType: { fontSize: 13, fontWeight: '600', color: '#555' },
+  addLineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    justifyContent: 'center',
+  },
+  addLineBtnText: { color: '#007AFF', fontWeight: '600', fontSize: 14 },
 
   // Delete
   deleteBtn: {
