@@ -2,6 +2,28 @@
 
 ## April 6, 2026
 
+### Client Portal: Prospect selects property type and service from Quote Wizard images
+
+**Files Changed**:
+- `functions/index.js`
+- `app/[businessName].tsx`
+- `app/new-business.tsx`
+
+**Change**:
+- Added `getQuoteOptions` portal API endpoint that returns the business owner's Quote Wizard images and pricing lines (public, rate-limited).
+- Updated `submitQuoteRequest` endpoint to accept optional `selectedImageUrl`, `selectedFrequency`, and `selectedCost` fields.
+- After a prospect fills in the quote form on the client portal, instead of immediately showing "Request Sent!", the portal now enters a multi-step flow:
+  1. **Pick property type** -- shows the business owner's Quote Wizard images as clickable cards with labels.
+  2. **Pick service** -- shows pricing lines for the selected image (e.g. "4 Weekly - £30.00", "One-off - £50.00").
+  3. **Review** -- summary of selection with provisional quote disclaimer and "Confirm & Submit" button.
+  4. **Done** -- confirmation message.
+- If the business owner has no Quote Wizard entries, the form submits immediately as before (backwards compatible).
+- On the `/new-business` page, quote request cards now show a "Prospect selected: X Weekly at £Y" badge (with optional thumbnail) when the prospect chose a service.
+
+**User Impact**: Prospects get an instant provisional quote based on property type, and business owners see exactly which service the prospect agreed to.
+
+---
+
 ### Quote Wizard: In-app image-based quoting tool (per customer, behind login)
 
 **Files Changed**:

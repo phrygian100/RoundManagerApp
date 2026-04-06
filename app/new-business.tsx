@@ -5,7 +5,7 @@ import { format } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -29,6 +29,9 @@ interface QuoteRequest {
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
   source: string;
+  selectedImageUrl?: string;
+  selectedFrequency?: string;
+  selectedCost?: number;
 }
 
 const sourceOptions = [
@@ -375,6 +378,20 @@ export default function NewBusinessScreen() {
                     <View style={styles.notesBox}>
                       <Text style={styles.notesLabel}>Notes:</Text>
                       <Text style={styles.notesText}>{request.notes}</Text>
+                    </View>
+                  )}
+
+                  {request.selectedFrequency && request.selectedCost != null && (
+                    <View style={styles.selectedServiceBox}>
+                      {request.selectedImageUrl && (
+                        <Image source={{ uri: request.selectedImageUrl }} style={styles.selectedServiceThumb} resizeMode="cover" />
+                      )}
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.selectedServiceLabel}>Prospect selected:</Text>
+                        <Text style={styles.selectedServiceValue}>
+                          {request.selectedFrequency === 'one-off' ? 'One-off' : `${request.selectedFrequency} Weekly`} at £{Number(request.selectedCost).toFixed(2)}
+                        </Text>
+                      </View>
                     </View>
                   )}
                 </View>
@@ -767,6 +784,33 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 14,
     color: '#374151',
+  },
+  selectedServiceBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#eff6ff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    gap: 12,
+  },
+  selectedServiceThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+  },
+  selectedServiceLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 2,
+  },
+  selectedServiceValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1d4ed8',
   },
   actionButtons: {
     flexDirection: 'row',

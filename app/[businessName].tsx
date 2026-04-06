@@ -92,8 +92,13 @@ export default function ClientPortalScreen() {
   const [quoteEmail, setQuoteEmail] = useState('');
   const [quoteNotes, setQuoteNotes] = useState('');
   const [quoteSubmitting, setQuoteSubmitting] = useState(false);
-  const [quoteSubmitted, setQuoteSubmitted] = useState(false);
+  const [quoteStep, setQuoteStep] = useState<'form' | 'pickImage' | 'pickService' | 'review' | 'done'>('form');
   const [quoteError, setQuoteError] = useState('');
+
+  // Quote selection state
+  const [quoteOptions, setQuoteOptions] = useState<any[]>([]);
+  const [selectedImage, setSelectedImage] = useState<any | null>(null);
+  const [selectedLine, setSelectedLine] = useState<any | null>(null);
   
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
@@ -350,37 +355,41 @@ export default function ClientPortalScreen() {
     return `Every ${weeks} weeks`;
   };
 
-  // Handle quote request submission
+  // Handle quote form: validate then check for quote options
   const handleQuoteSubmit = async () => {
-    // Validate required fields
-    if (!quoteName.trim()) {
-      setQuoteError('Please enter your name');
-      return;
-    }
-    if (!quotePhone.trim()) {
-      setQuoteError('Please enter your contact number');
-      return;
-    }
-    if (!quoteAddress.trim()) {
-      setQuoteError('Please enter your address');
-      return;
-    }
-    if (!quoteTown.trim()) {
-      setQuoteError('Please enter your town');
-      return;
-    }
-    if (!quotePostcode.trim()) {
-      setQuoteError('Please enter your postcode');
-      return;
-    }
-    if (!businessUser) {
-      setQuoteError('Business information not available');
-      return;
-    }
+    if (!quoteName.trim()) { setQuoteError('Please enter your name'); return; }
+    if (!quotePhone.trim()) { setQuoteError('Please enter your contact number'); return; }
+    if (!quoteAddress.trim()) { setQuoteError('Please enter your address'); return; }
+    if (!quoteTown.trim()) { setQuoteError('Please enter your town'); return; }
+    if (!quotePostcode.trim()) { setQuoteError('Please enter your postcode'); return; }
+    if (!businessUser) { setQuoteError('Business information not available'); return; }
 
     setQuoteError('');
     setQuoteSubmitting(true);
 
+    try {
+      const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/getQuoteOptions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ businessId: businessUser.id }),
+      });
+      const data = await resp.json();
+      if (data?.ok && data.items?.length > 0) {
+        setQuoteOptions(data.items);
+        setQuoteStep('pickImage');
+      } else {
+        await submitQuoteToBackend();
+      }
+    } catch (err) {
+      console.error('Error fetching quote options:', err);
+      await submitQuoteToBackend();
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
+  const submitQuoteToBackend = async (imageUrl?: string, frequency?: string, cost?: number) => {
+    if (!businessUser) return;
     try {
       const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/submitQuoteRequest`, {
         method: 'POST',
@@ -395,27 +404,47 @@ export default function ClientPortalScreen() {
           postcode: quotePostcode.trim(),
           email: quoteEmail.trim() || null,
           notes: quoteNotes.trim() || null,
+          selectedImageUrl: imageUrl || null,
+          selectedFrequency: frequency || null,
+          selectedCost: cost ?? null,
         }),
       });
       const data = await resp.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to submit request');
-
-      setQuoteSubmitted(true);
-      // Clear form
-      setQuoteName('');
-      setQuotePhone('');
-      setQuoteAddress('');
-      setQuoteTown('');
-      setQuotePostcode('');
-      setQuoteEmail('');
-      setQuoteNotes('');
-
+      setQuoteStep('done');
     } catch (err) {
       console.error('Error submitting quote request:', err);
       setQuoteError('Failed to submit request. Please try again.');
+      setQuoteStep('form');
+    }
+  };
+
+  const handleConfirmQuote = async () => {
+    setQuoteSubmitting(true);
+    try {
+      await submitQuoteToBackend(
+        selectedImage?.imageUrl,
+        selectedLine?.isOneOff ? 'one-off' : selectedLine?.frequencyWeeks,
+        selectedLine?.cost
+      );
     } finally {
       setQuoteSubmitting(false);
     }
+  };
+
+  const resetQuoteFlow = () => {
+    setQuoteStep('form');
+    setQuoteOptions([]);
+    setSelectedImage(null);
+    setSelectedLine(null);
+    setQuoteError('');
+    setQuoteName('');
+    setQuotePhone('');
+    setQuoteAddress('');
+    setQuoteTown('');
+    setQuotePostcode('');
+    setQuoteEmail('');
+    setQuoteNotes('');
   };
 
   // Go back to account step
@@ -858,20 +887,134 @@ export default function ClientPortalScreen() {
 
             {/* Get a Quote Card */}
             <View style={[styles.quoteCard, styles.formCard, isNarrowWeb && styles.quoteCardMobile, isNarrowWeb && styles.formCardMobile]}>
-              {quoteSubmitted ? (
+
+              {/* STEP: done */}
+              {quoteStep === 'done' ? (
                 <View style={styles.quoteSuccessContainer}>
                   <Text style={styles.quoteSuccessIcon}>✓</Text>
-                  <Text style={styles.quoteSuccessTitle}>Request Sent!</Text>
+                  <Text style={styles.quoteSuccessTitle}>Quote Request Received!</Text>
                   <Text style={styles.quoteSuccessText}>
-                    Thank you for your enquiry. {businessUser.businessName} will be in touch soon.
+                    Your request has been received and {businessUser.businessName} will be in touch shortly.
                   </Text>
-                  <Pressable 
-                    style={styles.quoteAnotherButton}
-                    onPress={() => setQuoteSubmitted(false)}
-                  >
+                  <Pressable style={styles.quoteAnotherButton} onPress={resetQuoteFlow}>
                     <Text style={styles.quoteAnotherButtonText}>Submit Another Request</Text>
                   </Pressable>
                 </View>
+
+              /* STEP: pickImage */
+              ) : quoteStep === 'pickImage' ? (
+                <View style={{ padding: 16 }}>
+                  <Text style={styles.formTitle}>Which looks most like your property?</Text>
+                  <Text style={[styles.formSubtitle, { marginBottom: 16 }]}>
+                    Select the option that best matches your home
+                  </Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+                    {quoteOptions.map((opt: any) => (
+                      <Pressable
+                        key={opt.id}
+                        onPress={() => { setSelectedImage(opt); setQuoteStep('pickService'); }}
+                        style={({ pressed }) => ({
+                          width: isNarrowWeb ? '100%' : '47%',
+                          borderRadius: 12,
+                          overflow: 'hidden',
+                          borderWidth: 2,
+                          borderColor: pressed ? '#007AFF' : '#e5e7eb',
+                          backgroundColor: '#fff',
+                        })}
+                      >
+                        <Image source={{ uri: opt.imageUrl }} style={{ width: '100%', height: 140 }} resizeMode="cover" />
+                        <Text style={{ padding: 10, fontSize: 14, fontWeight: '600', color: '#333', textAlign: 'center' }}>
+                          {opt.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+              /* STEP: pickService */
+              ) : quoteStep === 'pickService' && selectedImage ? (
+                <View style={{ padding: 16 }}>
+                  <Pressable onPress={() => setQuoteStep('pickImage')} style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#007AFF', fontSize: 14 }}>← Back</Text>
+                  </Pressable>
+                  <Image source={{ uri: selectedImage.imageUrl }} style={{ width: '100%', height: 160, borderRadius: 10, marginBottom: 12 }} resizeMode="cover" />
+                  <Text style={styles.formTitle}>Choose your service</Text>
+                  <Text style={[styles.formSubtitle, { marginBottom: 16 }]}>
+                    Select the option that suits you best
+                  </Text>
+                  {(selectedImage.pricingLines || []).map((ln: any) => {
+                    const v = ln.cost != null ? Number(ln.cost) : 0;
+                    if (!v) return null;
+                    const label = ln.isOneOff ? 'One-off' : `${ln.frequencyWeeks} Weekly`;
+                    return (
+                      <Pressable
+                        key={ln.id}
+                        onPress={() => { setSelectedLine(ln); setQuoteStep('review'); }}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: 16,
+                          borderRadius: 10,
+                          borderWidth: 2,
+                          borderColor: pressed ? '#007AFF' : '#e5e7eb',
+                          backgroundColor: pressed ? '#f0f7ff' : '#fff',
+                          marginBottom: 10,
+                        })}
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>{label}</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '700', color: '#007AFF' }}>£{v.toFixed(2)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+              /* STEP: review */
+              ) : quoteStep === 'review' && selectedImage && selectedLine ? (
+                <View style={{ padding: 16 }}>
+                  <Pressable onPress={() => setQuoteStep('pickService')} style={{ marginBottom: 12 }}>
+                    <Text style={{ color: '#007AFF', fontSize: 14 }}>← Back</Text>
+                  </Pressable>
+                  <Text style={styles.formTitle}>Confirm your quote</Text>
+                  <Text style={[styles.formSubtitle, { marginBottom: 16 }]}>
+                    Please review your selection
+                  </Text>
+                  <View style={{ backgroundColor: '#f9fafb', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#e5e7eb' }}>
+                    <Image source={{ uri: selectedImage.imageUrl }} style={{ width: '100%', height: 120, borderRadius: 8, marginBottom: 12 }} resizeMode="cover" />
+                    <Text style={{ fontSize: 15, fontWeight: '600', color: '#333', marginBottom: 4 }}>{selectedImage.label}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+                      <Text style={{ fontSize: 16, fontWeight: '600', color: '#333' }}>
+                        {selectedLine.isOneOff ? 'One-off' : `${selectedLine.frequencyWeeks} Weekly`}
+                      </Text>
+                      <Text style={{ fontSize: 20, fontWeight: '700', color: '#007AFF' }}>
+                        £{Number(selectedLine.cost).toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 13, color: '#666', marginBottom: 16, textAlign: 'center' }}>
+                    This is a provisional quote. Final pricing may vary after an on-site assessment.
+                  </Text>
+
+                  {quoteError ? (
+                    <View style={styles.errorContainer}>
+                      <Text style={styles.errorText}>{quoteError}</Text>
+                    </View>
+                  ) : null}
+
+                  <Pressable
+                    style={[styles.quoteSubmitButton, quoteSubmitting && styles.submitButtonDisabled]}
+                    onPress={handleConfirmQuote}
+                    disabled={quoteSubmitting}
+                  >
+                    {quoteSubmitting ? (
+                      <ActivityIndicator color="#fff" size="small" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Confirm &amp; Submit</Text>
+                    )}
+                  </Pressable>
+                </View>
+
+              /* STEP: form (default) */
               ) : (
                 <>
                   <View style={styles.formHeader}>

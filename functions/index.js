@@ -1790,6 +1790,38 @@ exports.portalApi = onRequest(async (req, res) => {
       return;
     }
 
+    if (action === 'getQuoteOptions') {
+      const { businessId } = req.body || {};
+      if (!businessId || typeof businessId !== 'string') {
+        res.status(400).json({ ok: false, error: 'Business ID required' });
+        return;
+      }
+
+      await enforceRateLimit(db, `portal:quoteOpts:${ipKey}:${businessId}`, 60, 60 * 60 * 1000);
+
+      const snap = await db.collection('quoteWizards').where('ownerId', '==', businessId).get();
+      const items = [];
+      snap.forEach((doc) => {
+        const d = doc.data();
+        for (const item of d.items || []) {
+          items.push({
+            id: item.id,
+            imageUrl: item.imageUrl,
+            label: d.customerName || '',
+            pricingLines: (item.pricingLines || []).map((ln) => ({
+              id: ln.id,
+              isOneOff: !!ln.isOneOff,
+              frequencyWeeks: ln.frequencyWeeks != null ? String(ln.frequencyWeeks) : '',
+              cost: ln.cost != null ? Number(ln.cost) : 0,
+            })),
+          });
+        }
+      });
+
+      res.status(200).json({ ok: true, items });
+      return;
+    }
+
     if (action === 'submitQuoteRequest') {
       const {
         businessId,
@@ -1801,6 +1833,9 @@ exports.portalApi = onRequest(async (req, res) => {
         postcode,
         email,
         notes,
+        selectedImageUrl,
+        selectedFrequency,
+        selectedCost,
       } = req.body || {};
 
       if (!businessId || typeof businessId !== 'string') {
@@ -1808,7 +1843,7 @@ exports.portalApi = onRequest(async (req, res) => {
         return;
       }
 
-      await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 20, 60 * 60 * 1000); // 20/hr per IP per business
+      await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 20, 60 * 60 * 1000);
 
       const clean = (v, max) => String(v || '').trim().slice(0, max);
       const payload = {
@@ -1821,6 +1856,9 @@ exports.portalApi = onRequest(async (req, res) => {
         postcode: clean(postcode, 20),
         email: clean(email, 160) || null,
         notes: clean(notes, 2000) || null,
+        selectedImageUrl: selectedImageUrl && typeof selectedImageUrl === 'string' ? clean(selectedImageUrl, 500) : null,
+        selectedFrequency: selectedFrequency && typeof selectedFrequency === 'string' ? clean(selectedFrequency, 20) : null,
+        selectedCost: selectedCost != null && !isNaN(Number(selectedCost)) ? Number(selectedCost) : null,
         status: 'pending',
         createdAt: new Date().toISOString(),
         source: 'client_portal',
