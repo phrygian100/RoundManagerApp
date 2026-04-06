@@ -15,7 +15,7 @@ import {
   deleteObject,
   getDownloadURL,
   ref,
-  uploadBytes,
+  uploadString,
 } from 'firebase/storage';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -151,6 +151,7 @@ export default function QuoteWizardScreen() {
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
         quality: 0.7,
+        base64: true,
       });
 
       if (result.canceled || !result.assets?.length) return;
@@ -160,13 +161,13 @@ export default function QuoteWizardScreen() {
 
       for (const asset of result.assets) {
         const itemId = genId();
-        const ext = asset.uri.split('.').pop()?.toLowerCase() || 'jpg';
+        const mimeType = asset.mimeType || 'image/jpeg';
+        const ext = mimeType.split('/')[1] || 'jpg';
         const storagePath = `quoteWizards/${ownerId}/${editId || 'draft'}/${itemId}.${ext}`;
         const storageRef = ref(storage, storagePath);
 
-        const response = await fetch(asset.uri);
-        const blob = await response.blob();
-        await uploadBytes(storageRef, blob);
+        const dataUrl = `data:${mimeType};base64,${asset.base64}`;
+        await uploadString(storageRef, dataUrl, 'data_url');
         const imageUrl = await getDownloadURL(storageRef);
 
         newItems.push({
@@ -202,6 +203,7 @@ export default function QuoteWizardScreen() {
 
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.7,
+        base64: true,
       });
 
       if (result.canceled || !result.assets?.length) return;
@@ -209,12 +211,13 @@ export default function QuoteWizardScreen() {
       setUploading(true);
       const asset = result.assets[0];
       const itemId = genId();
-      const storagePath = `quoteWizards/${ownerId}/${editId || 'draft'}//${itemId}.jpg`;
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const ext = mimeType.split('/')[1] || 'jpg';
+      const storagePath = `quoteWizards/${ownerId}/${editId || 'draft'}/${itemId}.${ext}`;
       const storageRef = ref(storage, storagePath);
 
-      const response = await fetch(asset.uri);
-      const blob = await response.blob();
-      await uploadBytes(storageRef, blob);
+      const dataUrl = `data:${mimeType};base64,${asset.base64}`;
+      await uploadString(storageRef, dataUrl, 'data_url');
       const imageUrl = await getDownloadURL(storageRef);
 
       setItems((prev) => [
