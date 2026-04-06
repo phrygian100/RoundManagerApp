@@ -2,9 +2,9 @@ rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
 
-    // Quote Wizard images — authenticated users can read/write under their own account path
-    match /quoteWizards/{accountId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == accountId;
+    // Quote Wizard images — any authenticated user can read/write
+    match /quoteWizards/{allPaths=**} {
+      allow read, write: if request.auth != null;
     }
 
     // Deny everything else by default
