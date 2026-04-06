@@ -517,7 +517,9 @@ export default function QuoteWizardScreen() {
             contentContainerStyle={s.listContent}
           >
             {quotes.map((q) => {
-              const totals = getQuoteTotal(q);
+              const allQuoteLines: any[] = (q.items || []).flatMap(
+                (it: any) => it.pricingLines || []
+              );
               return (
                 <Pressable
                   key={q.id}
@@ -551,20 +553,25 @@ export default function QuoteWizardScreen() {
                       {q.customerName}
                     </ThemedText>
                     <View style={s.quoteCardMeta}>
-                      <Text style={s.metaBadge}>
-                        {q.items?.length || 0} item
-                        {(q.items?.length || 0) !== 1 ? 's' : ''}
-                      </Text>
-                      {totals.recurring > 0 && (
-                        <Text style={[s.metaBadge, s.metaBadgeBlue]}>
-                          £{totals.recurring.toFixed(2)} recurring
-                        </Text>
-                      )}
-                      {totals.oneOff > 0 && (
-                        <Text style={[s.metaBadge, s.metaBadgeAmber]}>
-                          £{totals.oneOff.toFixed(2)} one-off
-                        </Text>
-                      )}
+                      {allQuoteLines.map((ln: any) => {
+                        const v = parseFloat(ln.cost) || 0;
+                        if (!v) return null;
+                        if (ln.isOneOff) {
+                          return (
+                            <Text key={ln.id} style={[s.metaBadge, s.metaBadgeAmber]}>
+                              One-off – £{v.toFixed(2)}
+                            </Text>
+                          );
+                        }
+                        if (ln.frequencyWeeks) {
+                          return (
+                            <Text key={ln.id} style={[s.metaBadge, s.metaBadgeBlue]}>
+                              {ln.frequencyWeeks} Weekly – £{v.toFixed(2)}
+                            </Text>
+                          );
+                        }
+                        return null;
+                      })}
                     </View>
                   </View>
                   <Ionicons
@@ -827,62 +834,34 @@ export default function QuoteWizardScreen() {
         ))}
 
         {/* Summary */}
-        {items.length > 0 &&
-          (totalRecurring > 0 || totalOneOff > 0) && (
-            <View style={s.summaryCard}>
-              <ThemedText style={s.summaryTitle}>Quote Summary</ThemedText>
-              {items.map((item, idx) => {
-                const lineTotals = getLineTotals(item.pricingLines || []);
-                if (!lineTotals.recurring && !lineTotals.oneOff) return null;
+        {allLines.some((ln) => (parseFloat(ln.cost as any) || 0) > 0) && (
+          <View style={s.summaryCard}>
+            <ThemedText style={s.summaryTitle}>Quote Summary</ThemedText>
+            {allLines.map((ln) => {
+              const v = parseFloat(ln.cost as any) || 0;
+              if (!v) return null;
+              if (ln.isOneOff) {
                 return (
-                  <View key={item.id} style={s.summaryRow}>
-                    <Text style={s.summaryItemLabel}>Item #{idx + 1}</Text>
-                    <View style={s.summaryBadges}>
-                      {(item.pricingLines || []).map((ln) => {
-                        const v = parseFloat(ln.cost as any) || 0;
-                        if (!v) return null;
-                        if (ln.isOneOff) {
-                          return (
-                            <Text key={ln.id} style={s.summaryBadgeAmber}>
-                              £{v.toFixed(2)} one-off
-                            </Text>
-                          );
-                        }
-                        if (ln.frequencyWeeks) {
-                          return (
-                            <Text key={ln.id} style={s.summaryBadgeBlue}>
-                              £{v.toFixed(2)} / {ln.frequencyWeeks}w
-                            </Text>
-                          );
-                        }
-                        return null;
-                      })}
-                    </View>
+                  <View key={ln.id} style={s.summaryRow}>
+                    <Text style={s.summaryItemLabel}>One-off</Text>
+                    <Text style={s.summaryTotalValue}>£{v.toFixed(2)}</Text>
                   </View>
                 );
-              })}
-              <View style={s.summaryTotals}>
-                {totalRecurring > 0 && (
-                  <View style={s.summaryTotalRow}>
-                    <Text style={s.summaryTotalLabel}>
-                      Total recurring / visit
+              }
+              if (ln.frequencyWeeks) {
+                return (
+                  <View key={ln.id} style={s.summaryRow}>
+                    <Text style={s.summaryItemLabel}>
+                      {ln.frequencyWeeks} Weekly
                     </Text>
-                    <Text style={s.summaryTotalValue}>
-                      £{totalRecurring.toFixed(2)}
-                    </Text>
+                    <Text style={s.summaryTotalValue}>£{v.toFixed(2)}</Text>
                   </View>
-                )}
-                {totalOneOff > 0 && (
-                  <View style={s.summaryTotalRow}>
-                    <Text style={s.summaryTotalLabel}>Total one-off</Text>
-                    <Text style={s.summaryTotalValue}>
-                      £{totalOneOff.toFixed(2)}
-                    </Text>
-                  </View>
-                )}
-              </View>
-            </View>
-          )}
+                );
+              }
+              return null;
+            })}
+          </View>
+        )}
 
         {/* Delete button (only for existing quotes) */}
         {editId && (
