@@ -391,23 +391,26 @@ export default function ClientPortalScreen() {
   const submitQuoteToBackend = async (imageUrl?: string, frequency?: string, cost?: number) => {
     if (!businessUser) return;
     try {
+      const bodyPayload = {
+        businessId: businessUser.id,
+        businessName: businessUser.businessName,
+        name: quoteName.trim(),
+        phone: quotePhone.trim(),
+        address: quoteAddress.trim(),
+        town: quoteTown.trim(),
+        postcode: quotePostcode.trim(),
+        email: quoteEmail.trim() || null,
+        notes: quoteNotes.trim() || null,
+        selectedImageUrl: imageUrl || null,
+        selectedFrequency: frequency || null,
+        selectedCost: cost ?? null,
+      };
+      console.log('[Portal] submitQuoteToBackend args:', { imageUrl, frequency, cost });
+      console.log('[Portal] full payload selection:', { selectedImageUrl: bodyPayload.selectedImageUrl, selectedFrequency: bodyPayload.selectedFrequency, selectedCost: bodyPayload.selectedCost });
       const resp = await fetch(`${PORTAL_API_ORIGIN}/api/portal/submitQuoteRequest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          businessId: businessUser.id,
-          businessName: businessUser.businessName,
-          name: quoteName.trim(),
-          phone: quotePhone.trim(),
-          address: quoteAddress.trim(),
-          town: quoteTown.trim(),
-          postcode: quotePostcode.trim(),
-          email: quoteEmail.trim() || null,
-          notes: quoteNotes.trim() || null,
-          selectedImageUrl: imageUrl || null,
-          selectedFrequency: frequency || null,
-          selectedCost: cost ?? null,
-        }),
+        body: JSON.stringify(bodyPayload),
       });
       const data = await resp.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to submit request');
@@ -420,6 +423,10 @@ export default function ClientPortalScreen() {
   };
 
   const handleConfirmQuote = async () => {
+    console.log('[Portal] handleConfirmQuote called with:', {
+      selectedImage: selectedImage ? { imageUrl: selectedImage.imageUrl?.substring(0, 50), label: selectedImage.label } : null,
+      selectedLine,
+    });
     setQuoteSubmitting(true);
     try {
       await submitQuoteToBackend(

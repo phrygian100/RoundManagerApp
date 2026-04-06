@@ -1869,6 +1869,13 @@ exports.portalApi = onRequest(async (req, res) => {
         return;
       }
 
+      console.log('[submitQuoteRequest] selection fields:', {
+        selectedImageUrl: payload.selectedImageUrl ? 'present' : null,
+        selectedFrequency: payload.selectedFrequency,
+        selectedCost: payload.selectedCost,
+        rawBody: { selectedImageUrl: req.body.selectedImageUrl, selectedFrequency: req.body.selectedFrequency, selectedCost: req.body.selectedCost },
+      });
+
       await db.collection('quoteRequests').add(payload);
       res.status(200).json({ ok: true });
       return;
