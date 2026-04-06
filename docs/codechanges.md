@@ -1,5 +1,27 @@
 # Code Changes Log
 
+## April 6, 2026
+
+### Quote Wizard: New tool for building image-based quotes with recurring and one-off pricing
+
+**Files Changed**:
+- `app/(tabs)/settings.tsx`
+- `web/src/app/quote-wizard/page.tsx` (new)
+- `vercel.json`
+
+**Change**:
+- Added a **"Quote Wizard"** button to the **Profile** section in Settings. Tapping it opens `https://guvnor.app/quote-wizard` via `Linking.openURL`, so it works on mobile, desktop, and web.
+- Created the `/quote-wizard` page on the marketing site (Next.js). The page allows users to:
+  - **Upload images** (drag-and-drop or file picker) representing areas to quote on (e.g. windows, gutters, conservatories).
+  - Set a **recurring cost** (£) and **frequency** (1–12 weeks) per image.
+  - Optionally toggle a **one-off** cost (£) per image, independently or alongside a recurring price.
+  - View a live **Quote Summary** with per-item breakdown and totals.
+- Added Vercel rewrite for `/quote-wizard` → marketing build and excluded it from the Expo app catch-all route.
+
+**User Impact**: Users can quickly build visual quotes with per-item pricing and frequency directly from the Profile section in Settings.
+
+---
+
 ## April 1, 2026
 
 ### Web (Marketing): Minor copy consistency on Guides pages
