@@ -1,5 +1,32 @@
 # Code Changes Log
 
+## April 7, 2026
+
+### Completed Jobs: Prevent infinite spinner on Firestore permission/auth race failures
+
+**File Changed**:
+- `app/completed-jobs.tsx`
+
+**Issue**:
+Opening `/completed-jobs` could show an infinite spinner on web, with console errors like `FirebaseError: Missing or insufficient permissions`.
+
+**Root Causes**:
+- The screen started Firestore reads before Auth hydration could complete on web.
+- The jobs listener had no error callback, so permission failures never cleared loading state.
+- Client hydration used batched `where('__name__', 'in', ids)` lookups, where one unreadable client doc could fail the entire batch.
+
+**Solution**:
+- Wait for `waitForAuthReady(5000)` before attaching Firestore listeners.
+- Guard missing auth/account owner states and explicitly clear loading in those cases.
+- Add `onSnapshot` error handling and setup-level catch handling so failures are non-blocking in UI.
+- Replace batched client list query with per-doc `getDoc` + `Promise.allSettled` so one unreadable/missing client does not break the whole completed-jobs list.
+
+**Impact**:
+- ✅ `/completed-jobs` no longer hangs indefinitely on permission/auth timing failures.
+- ✅ Job list remains visible even if a subset of client docs cannot be read.
+
+---
+
 ## April 6, 2026
 
 ### Client Portal: Prospect selects property type and service from Quote Wizard images

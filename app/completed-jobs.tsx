@@ -1,12 +1,12 @@
 import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { getDataOwnerId, waitForAuthReady } from '../core/session';
 import { deleteJob } from '../services/jobService';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
@@ -28,59 +28,107 @@ export default function CompletedJobsScreen() {
   const router = useRouter();
 
   useEffect(() => {
+    let mounted = true;
+    let unsubscribe: (() => void) | null = null;
+
     const fetchJobs = async () => {
       setLoading(true);
-      
+
+      // IMPORTANT: wait for Auth hydration before reading locked-down Firestore on web.
+      const user = await waitForAuthReady(5000);
+      if (!mounted) return;
+      if (!user) {
+        setCompletedJobs([]);
+        setFilteredJobs([]);
+        setLoading(false);
+        return;
+      }
+
       const jobsRef = collection(db, 'jobs');
       const ownerId = await getDataOwnerId();
+      if (!mounted) return;
+      if (!ownerId) {
+        setCompletedJobs([]);
+        setFilteredJobs([]);
+        setLoading(false);
+        return;
+      }
+
       const completedJobsQuery = query(jobsRef, where('ownerId', '==', ownerId), where('status', '==', 'completed'));
-      
-      const unsubscribe = onSnapshot(completedJobsQuery, async (querySnapshot) => {
-        const jobsData: (Job & { client: Client | null })[] = [];
-        
-        const clientIds = [...new Set(querySnapshot.docs.map(doc => doc.data().clientId))];
-        
-        if (clientIds.length === 0) {
+
+      unsubscribe = onSnapshot(
+        completedJobsQuery,
+        async (querySnapshot) => {
+          try {
+            const jobsData: (Job & { client: Client | null })[] = [];
+            const clientIds = [...new Set(
+              querySnapshot.docs
+                .map((docSnap) => docSnap.data().clientId)
+                .filter((id): id is string => typeof id === 'string' && id.length > 0)
+            )];
+
+            const clientsMap = new Map<string, Client>();
+            if (clientIds.length > 0) {
+              // Fetching clients by doc id avoids one unreadable client doc failing an entire batched list query.
+              const clientFetches = await Promise.allSettled(
+                clientIds.map(async (clientId) => {
+                  const clientSnap = await getDoc(doc(db, 'clients', clientId));
+                  if (!clientSnap.exists()) return null;
+                  return { id: clientSnap.id, ...clientSnap.data() } as Client;
+                })
+              );
+
+              clientFetches.forEach((result) => {
+                if (result.status === 'fulfilled' && result.value?.id) {
+                  clientsMap.set(result.value.id, result.value);
+                } else if (result.status === 'rejected') {
+                  console.warn('CompletedJobs: failed to fetch one client doc (continuing)', result.reason);
+                }
+              });
+            }
+
+            querySnapshot.forEach((docSnap) => {
+              const jobData = { id: docSnap.id, ...docSnap.data() } as Job;
+              const client = clientsMap.get(jobData.clientId) || null;
+              jobsData.push({ ...jobData, client });
+            });
+
+            jobsData.sort((a, b) => new Date(b.scheduledTime).getTime() - new Date(a.scheduledTime).getTime());
+
+            if (!mounted) return;
+            setCompletedJobs(jobsData);
+            setFilteredJobs(jobsData);
+            setLoading(false);
+          } catch (error) {
+            console.error('CompletedJobs listener processing error:', error);
+            if (!mounted) return;
+            setCompletedJobs([]);
+            setFilteredJobs([]);
+            setLoading(false);
+          }
+        },
+        (error) => {
+          console.error('CompletedJobs listener error:', error);
+          if (!mounted) return;
           setCompletedJobs([]);
           setFilteredJobs([]);
           setLoading(false);
-          return;
         }
-        
-        const clientChunks = [];
-        for (let i = 0; i < clientIds.length; i += 30) {
-          clientChunks.push(clientIds.slice(i, i + 30));
-        }
-        
-        const clientsMap = new Map<string, Client>();
-        const clientPromises = clientChunks.map(chunk => 
-          getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
-        );
-        const clientSnapshots = await Promise.all(clientPromises);
-        
-        clientSnapshots.forEach((snapshot: any) => {
-          snapshot.forEach((docSnap: any) => {
-            clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
-          });
-        });
-        
-        querySnapshot.forEach((doc) => {
-          const jobData = { id: doc.id, ...doc.data() } as Job;
-          const client = clientsMap.get(jobData.clientId) || null;
-          jobsData.push({ ...jobData, client });
-        });
-        
-        jobsData.sort((a, b) => new Date(b.scheduledTime).getTime() - new Date(a.scheduledTime).getTime());
-        
-        setCompletedJobs(jobsData);
-        setFilteredJobs(jobsData);
-        setLoading(false);
-      });
-      
-      return unsubscribe;
+      );
     };
-    
-    fetchJobs();
+
+    fetchJobs().catch((error) => {
+      console.error('CompletedJobs setup error:', error);
+      if (!mounted) return;
+      setCompletedJobs([]);
+      setFilteredJobs([]);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+      if (unsubscribe) unsubscribe();
+    };
   }, []);
 
   // Filter jobs based on search query
