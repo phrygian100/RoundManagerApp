@@ -943,10 +943,7 @@ export default function ClientPortalScreen() {
                           backgroundColor: '#fff',
                         })}
                       >
-                        <Image source={{ uri: opt.imageUrl }} style={{ width: '100%', height: 140 }} resizeMode="cover" />
-                        <Text style={{ padding: 10, fontSize: 14, fontWeight: '600', color: '#333', textAlign: 'center' }}>
-                          {opt.label}
-                        </Text>
+                        <Image source={{ uri: opt.imageUrl }} style={{ width: '100%', height: 140, borderRadius: 10 }} resizeMode="cover" />
                       </Pressable>
                     ))}
                   </View>
