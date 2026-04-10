@@ -5,7 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Alert, Button, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 let DatePicker: any = null;
 if (Platform.OS === 'web') {
@@ -25,6 +25,11 @@ import { checkClientLimit } from '../services/subscriptionService';
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function getParamValue(value: string | string[] | undefined): string {
+  if (Array.isArray(value)) return String(value[0] || '');
+  return String(value || '');
 }
 
 export default function AddClientScreen() {
@@ -57,6 +62,7 @@ export default function AddClientScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [webDate, setWebDate] = useState<Date>(new Date());
   const [startingBalance, setStartingBalance] = useState('0');
+  const lastAppliedParamsSignatureRef = useRef<string>('');
   const { quoteData, clearQuoteData } = useQuoteToClient();
 
   const sourceOptions = [
@@ -105,6 +111,12 @@ export default function AddClientScreen() {
     }
   }, []);
 
+  const handleQuickFrequencySelect = useCallback((weeks: number) => {
+    setIsOneOff(false);
+    setFrequency(weeks);
+    setFrequencyText(String(weeks));
+  }, []);
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false;
@@ -149,27 +161,58 @@ export default function AddClientScreen() {
   }, []);
 
   useEffect(() => {
-    // If returning from round order manager, update all fields from params if present
+    const incoming = {
+      roundOrderNumber: getParamValue(params.roundOrderNumber as any),
+      name: getParamValue(params.name as any),
+      address1: getParamValue(params.address1 as any),
+      town: getParamValue(params.town as any),
+      postcode: getParamValue(params.postcode as any),
+      nextVisit: getParamValue(params.nextVisit as any),
+      mobileNumber: getParamValue(params.mobileNumber as any),
+      quote: getParamValue(params.quote as any),
+      accountNumber: getParamValue(params.accountNumber as any),
+      source: getParamValue(params.source as any),
+      email: getParamValue(params.email as any),
+      frequency: getParamValue(params.frequency as any),
+    };
+
+    // Prevent re-applying identical params on every render.
+    const signature = JSON.stringify(incoming);
+    if (lastAppliedParamsSignatureRef.current === signature) {
+      return;
+    }
+
+    // If there are no incoming params, don't overwrite local edits.
+    const hasAnyIncomingValue = Object.values(incoming).some(Boolean);
+    if (!hasAnyIncomingValue) {
+      return;
+    }
+    lastAppliedParamsSignatureRef.current = signature;
+
+    // If returning from round order manager, update all fields from params if present.
     const updates: (() => void)[] = [];
     
-    if (params.roundOrderNumber) updates.push(() => setRoundOrderNumber(Number(params.roundOrderNumber)));
-    if (params.name) updates.push(() => setName(String(params.name)));
-    if (params.address1) updates.push(() => setAddress1(String(params.address1)));
-    if (params.town) updates.push(() => setTown(String(params.town)));
-    if (params.postcode) updates.push(() => setPostcode(String(params.postcode)));
-    if (params.nextVisit) updates.push(() => {
-      setNextVisit(String(params.nextVisit));
-      setWebDate(parseISO(String(params.nextVisit)));
+    if (incoming.roundOrderNumber) updates.push(() => setRoundOrderNumber(Number(incoming.roundOrderNumber)));
+    if (incoming.name) updates.push(() => setName(incoming.name));
+    if (incoming.address1) updates.push(() => setAddress1(incoming.address1));
+    if (incoming.town) updates.push(() => setTown(incoming.town));
+    if (incoming.postcode) updates.push(() => setPostcode(incoming.postcode));
+    if (incoming.nextVisit) updates.push(() => {
+      setNextVisit(incoming.nextVisit);
+      const parsedDate = parseISO(incoming.nextVisit);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        setWebDate(parsedDate);
+      }
     });
-    if (params.mobileNumber) updates.push(() => setMobileNumber(String(params.mobileNumber)));
-    if (params.quote) updates.push(() => setQuote(String(params.quote)));
-    if (params.accountNumber) updates.push(() => setAccountNumber(Number(params.accountNumber)));
-    if (params.source) updates.push(() => setSource(String(params.source)));
-    if (params.email) updates.push(() => setEmail(String(params.email)));
+    if (incoming.mobileNumber) updates.push(() => setMobileNumber(incoming.mobileNumber));
+    if (incoming.quote) updates.push(() => setQuote(incoming.quote));
+    if (incoming.accountNumber) updates.push(() => setAccountNumber(Number(incoming.accountNumber)));
+    if (incoming.source) updates.push(() => setSource(incoming.source));
+    if (incoming.email) updates.push(() => setEmail(incoming.email));
     
     // Handle frequency updates in a batch
-    if (params.frequency) {
-      const freq = String(params.frequency);
+    if (incoming.frequency) {
+      const freq = incoming.frequency;
       if (freq === 'one-off') {
         updates.push(() => {
           setIsOneOff(true);
@@ -188,7 +231,20 @@ export default function AddClientScreen() {
     
     // Batch all updates
     updates.forEach(update => update());
-  }, [params]);
+  }, [
+    params.roundOrderNumber,
+    params.name,
+    params.address1,
+    params.town,
+    params.postcode,
+    params.nextVisit,
+    params.mobileNumber,
+    params.quote,
+    params.accountNumber,
+    params.source,
+    params.email,
+    params.frequency,
+  ]);
 
   useEffect(() => {
     if (quoteData) {
@@ -525,11 +581,29 @@ export default function AddClientScreen() {
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <View style={styles.frequencyContainer}>
+          <View style={styles.quickFrequencyRow}>
+            {[4, 6, 8].map((weeks) => {
+              const isActive = !isOneOff && Number(frequency) === weeks;
+              return (
+                <Pressable
+                  key={weeks}
+                  style={[styles.quickFrequencyChip, isActive && styles.quickFrequencyChipActive]}
+                  onPress={() => handleQuickFrequencySelect(weeks)}
+                >
+                  <ThemedText style={[styles.quickFrequencyChipText, isActive && styles.quickFrequencyChipTextActive]}>
+                    {weeks} weekly
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
           <Pressable 
             style={[styles.checkboxContainer, isOneOff && styles.checkboxChecked]}
             onPress={handleOneOffToggle}
           >
-            <ThemedText style={styles.checkboxText}>One-off</ThemedText>
+            <ThemedText style={[styles.checkboxText, isOneOff && styles.checkboxTextChecked]}>
+              {isOneOff ? '✓ One-off job' : 'One-off job'}
+            </ThemedText>
           </Pressable>
           <View 
             style={[
@@ -549,7 +623,7 @@ export default function AddClientScreen() {
           </View>
         </View>
 
-        <ThemedText style={styles.label}>Starting Date</ThemedText>
+        <ThemedText style={styles.label}>First Service Date</ThemedText>
         <Pressable
           style={[styles.input, { justifyContent: 'center' }]}
           onPress={() => setShowDatePicker(true)}
@@ -600,10 +674,13 @@ export default function AddClientScreen() {
           keyboardType="numeric"
         />
 
-        <Button
-          title={isSaving ? 'Saving...' : 'Save Client'}
+        <Pressable
+          style={[styles.saveButton, isSaving && styles.saveButtonDisabled]}
           onPress={handleSave}
-        />
+          disabled={isSaving}
+        >
+          <ThemedText style={styles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Client'}</ThemedText>
+        </Pressable>
       </ScrollView>
 
       {/* Web Date Picker Overlay - outside ScrollView for proper positioning */}
@@ -700,6 +777,30 @@ const styles = StyleSheet.create({
   frequencyContainer: {
     gap: 12,
   },
+  quickFrequencyRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickFrequencyChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#cfd8dc',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  quickFrequencyChipActive: {
+    borderColor: '#007AFF',
+    backgroundColor: '#eaf3ff',
+  },
+  quickFrequencyChipText: {
+    color: '#37474f',
+    fontWeight: '600',
+  },
+  quickFrequencyChipTextActive: {
+    color: '#007AFF',
+  },
   checkboxContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -717,6 +818,9 @@ const styles = StyleSheet.create({
   checkboxText: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  checkboxTextChecked: {
+    color: '#fff',
   },
   frequencyInputContainer: {
     flexDirection: 'row',
@@ -766,5 +870,21 @@ const styles = StyleSheet.create({
   cancelDateText: {
     color: '#007AFF',
     fontSize: 16,
+  },
+  saveButton: {
+    backgroundColor: '#007AFF',
+    marginTop: 24,
+    borderRadius: 10,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9ec3f7',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

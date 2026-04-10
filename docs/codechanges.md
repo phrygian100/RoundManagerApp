@@ -2010,5 +2010,22 @@ If the diagnostic script finds clients without a status field:
 3. Clients with round order numbers are likely active
 4. Clients without round order numbers might be ex-clients that were archived before proper status tracking
 
+## April 10, 2026
+
+### Add Client form reliability + UX improvements
+- **Location**: `app/add-client.tsx`
+- **Fix: weekly interval getting reset (e.g. 4 -> 8 not sticking)**  
+  - Root cause was repeated route-param hydration overriding user edits after typing.
+  - Added signature-based guard so identical params are applied once and no longer re-applied on each render.
+  - Switched the effect dependency from the whole `params` object to specific route keys.
+- **Fix: first service date sometimes not applying**
+  - Route-param date hydration now validates parsed dates before updating the web date state.
+  - This prevents bad/empty route values from clobbering date selection state.
+- **UX updates**
+  - Added quick frequency chips (`4 weekly`, `6 weekly`, `8 weekly`) for faster selection.
+  - Improved one-off toggle clarity with explicit checked label styling.
+  - Updated label from `Starting Date` to `First Service Date`.
+  - Replaced default save `Button` with styled `Pressable` for a clearer, more consistent submit action.
+
 ## Previous Changes
 [Previous changes would be listed here]
