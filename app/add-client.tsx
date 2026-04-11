@@ -79,28 +79,19 @@ export default function AddClientScreen() {
   ];
 
   // Memoized handlers to prevent unnecessary re-renders
-  const handleOneOffToggle = useCallback(() => {
-    const newIsOneOff = !isOneOff;
-    setIsOneOff(newIsOneOff);
-    
-    if (newIsOneOff) {
+  const handleFrequencySelect = useCallback((itemValue: string) => {
+    if (itemValue === 'one-off') {
+      setIsOneOff(true);
       setFrequency('one-off');
       setFrequencyText('');
-    } else {
-      const newFrequency = Number(frequencyText) || 4;
-      setFrequency(newFrequency);
+      return;
     }
-  }, [isOneOff, frequencyText]);
 
-  const handleFrequencyTextChange = useCallback((text: string) => {
-    // Only allow positive numbers
-    if (/^\d*$/.test(text)) {
-      setFrequencyText(text);
-      const num = Number(text);
-      if (num > 0) {
-        setFrequency(num);
-      }
-    }
+    const parsed = Number(itemValue);
+    const weeks = Number.isFinite(parsed) && parsed > 0 ? parsed : 4;
+    setIsOneOff(false);
+    setFrequency(weeks);
+    setFrequencyText(String(weeks));
   }, []);
 
   const handleSourceChange = useCallback((itemValue: string) => {
@@ -109,12 +100,6 @@ export default function AddClientScreen() {
     if (itemValue !== 'Other') {
       setCustomSource('');
     }
-  }, []);
-
-  const handleQuickFrequencySelect = useCallback((weeks: number) => {
-    setIsOneOff(false);
-    setFrequency(weeks);
-    setFrequencyText(String(weeks));
   }, []);
 
   useEffect(() => {
@@ -321,9 +306,9 @@ export default function AddClientScreen() {
     }
 
     // Validate frequency
-    if (!isOneOff && (!frequencyText.trim() || isNaN(Number(frequencyText)) || Number(frequencyText) <= 0)) {
+    if (!isOneOff && (typeof frequency !== 'number' || !Number.isFinite(frequency) || Number(frequency) <= 0)) {
       console.log('Validation failed: invalid frequency');
-      Alert.alert('Error', 'Please enter a valid frequency (number of weeks) or select One-off.');
+      Alert.alert('Error', 'Please choose a valid visit frequency.');
       return;
     }
 
@@ -581,46 +566,20 @@ export default function AddClientScreen() {
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <View style={styles.frequencyContainer}>
-          <View style={styles.quickFrequencyRow}>
-            {[4, 6, 8].map((weeks) => {
-              const isActive = !isOneOff && Number(frequency) === weeks;
-              return (
-                <Pressable
-                  key={weeks}
-                  style={[styles.quickFrequencyChip, isActive && styles.quickFrequencyChipActive]}
-                  onPress={() => handleQuickFrequencySelect(weeks)}
-                >
-                  <ThemedText style={[styles.quickFrequencyChipText, isActive && styles.quickFrequencyChipTextActive]}>
-                    {weeks} weekly
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
-          <Pressable 
-            style={[styles.checkboxContainer, isOneOff && styles.checkboxChecked]}
-            onPress={handleOneOffToggle}
+          <Picker
+            selectedValue={isOneOff ? 'one-off' : String(frequency)}
+            onValueChange={handleFrequencySelect}
+            style={styles.frequencyPicker}
           >
-            <ThemedText style={[styles.checkboxText, isOneOff && styles.checkboxTextChecked]}>
-              {isOneOff ? '✓ One-off job' : 'One-off job'}
-            </ThemedText>
-          </Pressable>
-          <View 
-            style={[
-              styles.frequencyInputContainer, 
-              { display: isOneOff ? 'none' : 'flex' }
-            ]}
-            key="frequency-input-container"
-          >
-            <TextInput
-              value={frequencyText}
-              onChangeText={handleFrequencyTextChange}
-              style={styles.frequencyInput}
-              placeholder="e.g. 4"
-              keyboardType="numeric"
-            />
-            <ThemedText style={styles.frequencyLabel}>weeks</ThemedText>
-          </View>
+            <Picker.Item label="1 weekly" value="1" />
+            <Picker.Item label="2 weekly" value="2" />
+            <Picker.Item label="3 weekly" value="3" />
+            <Picker.Item label="4 weekly" value="4" />
+            <Picker.Item label="6 weekly" value="6" />
+            <Picker.Item label="8 weekly" value="8" />
+            <Picker.Item label="12 weekly" value="12" />
+            <Picker.Item label="One-off job" value="one-off" />
+          </Picker>
         </View>
 
         <ThemedText style={styles.label}>First Service Date</ThemedText>
@@ -775,71 +734,14 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   frequencyContainer: {
-    gap: 12,
-  },
-  quickFrequencyRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  quickFrequencyChip: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#cfd8dc',
-    borderRadius: 8,
-    backgroundColor: '#fff',
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  quickFrequencyChipActive: {
-    borderColor: '#007AFF',
-    backgroundColor: '#eaf3ff',
-  },
-  quickFrequencyChipText: {
-    color: '#37474f',
-    fontWeight: '600',
-  },
-  quickFrequencyChipTextActive: {
-    color: '#007AFF',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: '#ccc',
     borderRadius: 8,
     backgroundColor: '#fff',
+    overflow: 'hidden',
   },
-  checkboxChecked: {
-    backgroundColor: '#007AFF',
-    borderColor: '#007AFF',
-  },
-  checkboxText: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  checkboxTextChecked: {
-    color: '#fff',
-  },
-  frequencyInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  frequencyInput: {
+  frequencyPicker: {
     height: 50,
-    borderColor: '#ccc',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#fff',
-    flex: 1,
-    textAlign: 'center',
-  },
-  frequencyLabel: {
-    fontSize: 16,
-    color: '#666',
   },
   webDatePickerOverlay: {
     position: 'absolute',

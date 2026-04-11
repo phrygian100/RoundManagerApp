@@ -2022,8 +2022,7 @@ If the diagnostic script finds clients without a status field:
   - Route-param date hydration now validates parsed dates before updating the web date state.
   - This prevents bad/empty route values from clobbering date selection state.
 - **UX updates**
-  - Added quick frequency chips (`4 weekly`, `6 weekly`, `8 weekly`) for faster selection.
-  - Improved one-off toggle clarity with explicit checked label styling.
+  - Simplified frequency selection to a single dropdown selector (`1`, `2`, `3`, `4`, `6`, `8`, `12`, `One-off`).
   - Updated label from `Starting Date` to `First Service Date`.
   - Replaced default save `Button` with styled `Pressable` for a clearer, more consistent submit action.
 
