@@ -2915,13 +2915,10 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        {/* Admin Section - Owner Only */}
-        {isOwner && (
+        {/* Developer Section - Exempt tier only */}
+        {isOwner && subscription && subscription.tier === 'exempt' && (
           <View style={styles.section}>
-            <ThemedText style={styles.sectionTitle}>Admin Tools</ThemedText>
-            <ThemedText style={styles.warningText}>
-              ⚠️ Dangerous operations - use with caution
-            </ThemedText>
+            <ThemedText style={styles.sectionTitle}>Developer</ThemedText>
 
             <StyledButton
               title="Schedule Diagnostic"
