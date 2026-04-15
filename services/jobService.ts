@@ -222,6 +222,7 @@ export type ScheduleDiagnosticResult = {
   totalClients: number;
   withActiveServices: number;
   activeWithNoFutureJobs: number;
+  clientsWithNoFutureJobs: Array<{ clientId: string; name: string; accountNumber: string }>;
 };
 
 export type GenerateForActivePlansResult = {
@@ -693,7 +694,7 @@ export async function migrateLegacyToServicePlans(): Promise<MigrateLegacyPlansR
  */
 export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult> {
   const ownerId = await getDataOwnerId();
-  if (!ownerId) return { totalClients: 0, withActiveServices: 0, activeWithNoFutureJobs: 0 };
+  if (!ownerId) return { totalClients: 0, withActiveServices: 0, activeWithNoFutureJobs: 0, clientsWithNoFutureJobs: [] };
 
   // Load ALL clients for this account (merge ownerId + accountId queries).
   const clientsByOwnerSnap = await getDocs(query(
@@ -741,6 +742,7 @@ export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult>
   // For each of those, check if they have at least one upcoming job (any service).
   const today = normalizeMidnight(new Date());
   let activeWithNoFutureJobs = 0;
+  const clientsWithNoFutureJobs: ScheduleDiagnosticResult['clientsWithNoFutureJobs'] = [];
 
   // Load ALL jobs for this account once (merge ownerId + accountId).
   const jobsByOwnerSnap = await getDocs(query(
@@ -772,6 +774,11 @@ export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult>
   for (const c of activeServiceClients) {
     if (!clientsWithFutureJob.has(c.id)) {
       activeWithNoFutureJobs++;
+      clientsWithNoFutureJobs.push({
+        clientId: c.id,
+        name: c.name || '',
+        accountNumber: c.accountNumber || '',
+      });
     }
   }
 
@@ -779,6 +786,7 @@ export async function runScheduleDiagnostic(): Promise<ScheduleDiagnosticResult>
     totalClients: nonArchived.length,
     withActiveServices,
     activeWithNoFutureJobs,
+    clientsWithNoFutureJobs,
   };
 }
 

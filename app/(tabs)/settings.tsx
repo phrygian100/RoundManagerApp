@@ -258,9 +258,17 @@ export default function SettingsScreen() {
         return;
       }
 
+      const listing = (res.clientsWithNoFutureJobs || [])
+        .slice(0, 30)
+        .map(c => {
+          const who = [c.name, c.accountNumber].filter(Boolean).join(' — ') || c.clientId;
+          return `- ${who}`;
+        })
+        .join('\n');
+
       const proceed = await showConfirm(
         'Schedule Diagnostic',
-        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: ${res.activeWithNoFutureJobs}\n\nGenerate ~24 months of jobs for these ${res.activeWithNoFutureJobs} clients?`
+        `Total number of clients: ${res.totalClients}\nWith active services: ${res.withActiveServices}\nActive clients without future jobs scheduled: ${res.activeWithNoFutureJobs}\n\nClients needing schedules (up to 30):\n${listing}${res.activeWithNoFutureJobs > 30 ? `\n... and ${res.activeWithNoFutureJobs - 30} more` : ''}\n\nGenerate ~24 months of jobs for these ${res.activeWithNoFutureJobs} clients?`
       );
       if (!proceed) return;
 
