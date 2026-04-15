@@ -35,29 +35,35 @@ export async function fetchRotaRange(start: Date, end: Date): Promise<Record<str
     }
   });
 
-  // Merge default patterns from rotaRules for members without explicit entries
-  const rulesCol = collection(db, `accounts/${sess.accountId}/rotaRules`);
-  const rulesSnap = await getDocs(rulesCol);
-  if (!rulesSnap.empty) {
-    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    let current = new Date(start);
-    while (isBefore(current, end) || isEqual(current, end)) {
-      const key = formatISO(current, { representation: 'date' });
-      const dow = current.getDay(); // 0=Sun, 1=Mon ... 6=Sat
-      const dayName = dayNames[dow === 0 ? 6 : dow - 1];
+  // Merge default patterns from rotaRules for members without explicit entries.
+  // Wrapped in try/catch so a missing collection or undeployed security rules
+  // don't break the core rota fetch.
+  try {
+    const rulesCol = collection(db, `accounts/${sess.accountId}/rotaRules`);
+    const rulesSnap = await getDocs(rulesCol);
+    if (!rulesSnap.empty) {
+      const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      let current = new Date(start);
+      while (isBefore(current, end) || isEqual(current, end)) {
+        const key = formatISO(current, { representation: 'date' });
+        const dow = current.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+        const dayName = dayNames[dow === 0 ? 6 : dow - 1];
 
-      if (!result[key]) result[key] = {};
+        if (!result[key]) result[key] = {};
 
-      rulesSnap.docs.forEach(ruleDoc => {
-        const memberId = ruleDoc.id;
-        const pattern = ruleDoc.data().pattern;
-        if (pattern?.[dayName] && !result[key][memberId]) {
-          result[key][memberId] = pattern[dayName] as AvailabilityStatus;
-        }
-      });
+        rulesSnap.docs.forEach(ruleDoc => {
+          const memberId = ruleDoc.id;
+          const pattern = ruleDoc.data().pattern;
+          if (pattern?.[dayName] && !result[key][memberId]) {
+            result[key][memberId] = pattern[dayName] as AvailabilityStatus;
+          }
+        });
 
-      current = addDays(current, 1);
+        current = addDays(current, 1);
+      }
     }
+  } catch (err) {
+    console.warn('rotaRules merge skipped (rules may not be deployed yet):', err);
   }
 
   return result;

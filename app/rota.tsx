@@ -91,6 +91,11 @@ export default function RotaScreen() {
 
       const m = await listMembers();
       const sess = await getUserSession();
+
+      // Set session state early so permissions are correct even if data loading fails
+      setUserId(sess?.uid || null);
+      setCanEditAll(!!sess?.isOwner);
+
       let finalMembers = m;
       if (sess && !m.find(mm => mm.uid === sess.uid)) {
         const ownerEmail = (sess as any).email ?? 'owner';
@@ -115,9 +120,6 @@ export default function RotaScreen() {
         const currentWeekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
         await cleanupOldRota(currentWeekStart);
       }
-
-      setUserId(sess?.uid || null);
-      setCanEditAll(!!sess?.isOwner);
     } finally {
       setLoading(false);
     }
