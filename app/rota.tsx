@@ -281,15 +281,6 @@ export default function RotaScreen() {
                       >
                         {getMemberDisplayName(m)}
                       </Text>
-                      {canEditAll && (
-                        <Pressable
-                          onPress={() => openPatternModal(m)}
-                          hitSlop={8}
-                          style={styles.patternIconBtn}
-                        >
-                          <Ionicons name="repeat-outline" size={14} color={theme.tint} />
-                        </Pressable>
-                      )}
                     </View>
                   ))}
                 </View>
@@ -372,8 +363,28 @@ export default function RotaScreen() {
             </ScrollView>
           </View>
 
-          {/* My Pattern Button (for members) */}
-          {!canEditAll && userId && (
+          {/* Default Schedule Section */}
+          {canEditAll ? (
+            <View style={styles.defaultSection}>
+              <Text style={[styles.sectionLabel, { color: theme.secondaryText }]}>
+                Set Default Schedule
+              </Text>
+              <View style={styles.actionRow}>
+              {members.map(m => (
+                <Pressable
+                  key={m.uid}
+                  style={[styles.actionChip, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}
+                  onPress={() => openPatternModal(m)}
+                >
+                  <Ionicons name="calendar-outline" size={16} color={theme.tint} />
+                  <Text style={[styles.actionChipText, { color: theme.text }]} numberOfLines={1}>
+                    {getMemberDisplayName(m)}
+                  </Text>
+                </Pressable>
+              ))}
+              </View>
+            </View>
+          ) : userId ? (
             <Pressable
               style={[styles.actionBtn, { backgroundColor: theme.tint }]}
               onPress={() => {
@@ -381,10 +392,10 @@ export default function RotaScreen() {
                 if (me) openPatternModal(me);
               }}
             >
-              <Ionicons name="repeat-outline" size={18} color="#fff" />
+              <Ionicons name="calendar-outline" size={18} color="#fff" />
               <Text style={styles.actionBtnText}>Set My Default Schedule</Text>
             </Pressable>
-          )}
+          ) : null}
 
           {/* Legend */}
           <View style={[styles.legend, { borderColor: theme.cardBorder }]}>
@@ -652,9 +663,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-  patternIconBtn: {
-    marginTop: 2,
-  },
 
   // Day labels
   dayLabel: {
@@ -717,6 +725,34 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
+  },
+
+  // Default schedule section
+  defaultSection: {
+    marginTop: 16,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  actionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  actionChipText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 
   // Action button
