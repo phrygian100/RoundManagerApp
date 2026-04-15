@@ -2937,6 +2937,16 @@ export default function SettingsScreen() {
               onPress={handleMigrateLegacyPlans}
               disabled={loading}
             />
+          </View>
+        )}
+
+        {/* Data Management - Owner Only */}
+        {isOwner && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Data Management</ThemedText>
+            <ThemedText style={styles.warningText}>
+              ⚠️ Dangerous operations - use with caution
+            </ThemedText>
 
             <StyledButton
               title="Delete All Clients"
