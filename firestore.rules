@@ -153,7 +153,25 @@ service cloud.firestore {
 
       match /rota/{rotaId} {
         allow read: if isSignedIn() && hasAccountAccess(accountId);
-        allow write: if isSignedIn() && hasAccountAccess(accountId);
+        // Owners can write any field; members can only modify their own UID field
+        allow create: if isSignedIn() && hasAccountAccess(accountId) && (
+          request.auth.uid == accountId ||
+          request.resource.data.keys().hasOnly([request.auth.uid])
+        );
+        allow update: if isSignedIn() && hasAccountAccess(accountId) && (
+          request.auth.uid == accountId ||
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([request.auth.uid])
+        );
+        allow delete: if isSignedIn() && request.auth.uid == accountId;
+      }
+
+      match /rotaRules/{memberId} {
+        allow read: if isSignedIn() && hasAccountAccess(accountId);
+        // Owners can manage any rule; members can only manage their own
+        allow write: if isSignedIn() && hasAccountAccess(accountId) && (
+          request.auth.uid == accountId ||
+          request.auth.uid == memberId
+        );
       }
     }
 
