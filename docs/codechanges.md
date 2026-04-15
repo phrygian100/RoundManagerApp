@@ -2,17 +2,17 @@
 
 ## April 15, 2026
 
-### Rota: Full UI Redesign + Weekly Pattern Rules + Tightened Security
+### Rota: Full UI Redesign + Default Schedule Rules + Tightened Security
 
 **Files Changed**:
 - `app/rota.tsx` (rewritten)
+- `services/rotaService.ts` (enhanced `fetchRotaRange` with default pattern merge)
 - `services/rotaRulesService.ts` (new)
 - `firestore.rules`
 
 **Issues**:
 - Rota screen was visually inconsistent with the rest of the app — no theme integration, hardcoded colors, no dark mode support.
-- No way to set recurring weekly availability patterns (e.g. "always off Saturdays").
-- No informational summary (who's available today, per-day counts).
+- No way to set a default schedule (e.g. "Mon–Fri on, Sat–Sun off") that applies automatically to all future weeks.
 - Non-editable cells for members were not visually distinct enough.
 - Firestore rules allowed any team member to write any other member's rota field.
 
@@ -22,19 +22,18 @@
 - Wrapped in `ThemedView`/`ThemedText` with full `Colors[colorScheme]` integration for light/dark mode.
 - Added structured header with home button, title, and icon links to History and Activity Log.
 - Redesigned week navigator as a themed card with "This Week" badge.
-- Added summary bar showing today's availability count with warning when no staff available.
 - Replaced flat colored cells with rounded status pills (ON/OFF/—) using iOS system colors.
 - Added today row highlight, per-day availability counts, weekend text dimming.
 - Non-editable cells show lock icon and reduced opacity for clear permission visibility.
 - Added legend bar explaining status colors and lock icon.
 - Grid wrapped in a themed card with proper header row, borders, and spacing.
 
-**Weekly Pattern Rules (`services/rotaRulesService.ts`)**:
+**Default Schedule System**:
 - New `rotaRules` Firestore subcollection at `accounts/{accountId}/rotaRules/{memberId}`.
 - `WeeklyPattern` type: Mon–Sun map of availability status.
-- `getRotaRule` / `setRotaRule` / `getAllRotaRules` for CRUD on pattern rules.
-- `applyPatternForWeeks` writes standard rota documents (preserving `fetchRotaRange` contract).
-- Pattern modal in rota screen: owners can set patterns for any member (with member picker), members can set their own. Tap-to-toggle days through on/off/n/a. Apply for 4/8/12/26/52 weeks.
+- `fetchRotaRange` enhanced to merge default patterns: for any member/day without an explicit rota document entry, the member's default schedule fills the gap. Explicit manual overrides always take precedence.
+- This merge happens at the service layer so capacity service, runsheet, and rota UI all see consistent data.
+- "Default Schedule" modal: owners can set defaults for any member (with picker), members can set their own. Tap to toggle days through on/off/n/a. Saving the default applies it automatically to all weeks — no need to specify a number of weeks.
 
 **Firestore Security (`firestore.rules`)**:
 - Rota writes now enforce per-field ownership: owners (uid == accountId) can write any field; members can only create/update their own UID field via `affectedKeys().hasOnly([request.auth.uid])`.
@@ -45,14 +44,15 @@
 - `fetchRotaRange` return type `Record<string, Record<string, AvailabilityStatus>>` unchanged.
 - `setAvailability(date, memberId, status)` signature unchanged.
 - `AvailabilityStatus = 'on' | 'off' | 'n/a'` unchanged.
-- Default-to-`'on'` fallback in capacityService and runsheet unaffected.
+- Default-to-`'on'` fallback in capacityService and runsheet unaffected (but now fewer gaps thanks to pattern merge).
 - Firestore document structure `accounts/{accountId}/rota/{yyyy-MM-dd}` with flat `{uid: status}` fields unchanged.
 - `cleanupOldRota` behavior preserved.
 
 **Impact**:
 - Rota screen now matches the app's visual language (themed, card-based, dark mode ready).
-- Owners can set and apply weekly patterns for all team members.
-- Members can set their own weekly pattern but cannot modify other members' rota.
+- Owners can set default schedules for all team members; defaults apply to every week automatically.
+- Members can set their own default schedule but cannot modify other members' rota.
+- Capacity service and runsheet get correct availability for members with defaults, even on days with no explicit rota documents.
 - Security enforced at both UI and Firestore rules level.
 - No regression to capacity service, runsheet, or job redistribution logic.
 

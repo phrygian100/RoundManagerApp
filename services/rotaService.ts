@@ -1,4 +1,4 @@
-import { formatISO, isBefore, isEqual, parseISO, startOfWeek } from 'date-fns';
+import { addDays, formatISO, isBefore, isEqual, parseISO, startOfWeek } from 'date-fns';
 import { collection, deleteDoc, doc, getDocs, setDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -15,7 +15,9 @@ function dateKey(date: Date): string {
 }
 
 /**
- * Fetch rota documents between start (inclusive) and end (inclusive)
+ * Fetch rota documents between start (inclusive) and end (inclusive).
+ * Merges default patterns from rotaRules for any member/day without an explicit entry,
+ * so capacity service and runsheet see the same defaults as the rota UI.
  */
 export async function fetchRotaRange(start: Date, end: Date): Promise<Record<string, Record<string, AvailabilityStatus>>> {
   const sess = await getUserSession();
@@ -32,6 +34,32 @@ export async function fetchRotaRange(start: Date, end: Date): Promise<Record<str
       result[key] = data as Record<string, AvailabilityStatus>;
     }
   });
+
+  // Merge default patterns from rotaRules for members without explicit entries
+  const rulesCol = collection(db, `accounts/${sess.accountId}/rotaRules`);
+  const rulesSnap = await getDocs(rulesCol);
+  if (!rulesSnap.empty) {
+    const dayNames = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    let current = new Date(start);
+    while (isBefore(current, end) || isEqual(current, end)) {
+      const key = formatISO(current, { representation: 'date' });
+      const dow = current.getDay(); // 0=Sun, 1=Mon ... 6=Sat
+      const dayName = dayNames[dow === 0 ? 6 : dow - 1];
+
+      if (!result[key]) result[key] = {};
+
+      rulesSnap.docs.forEach(ruleDoc => {
+        const memberId = ruleDoc.id;
+        const pattern = ruleDoc.data().pattern;
+        if (pattern?.[dayName] && !result[key][memberId]) {
+          result[key][memberId] = pattern[dayName] as AvailabilityStatus;
+        }
+      });
+
+      current = addDays(current, 1);
+    }
+  }
+
   return result;
 }
 

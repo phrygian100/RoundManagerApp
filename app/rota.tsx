@@ -27,7 +27,6 @@ import {
   setAvailability,
 } from '../services/rotaService';
 import {
-  applyPatternForWeeks,
   DAY_KEYS,
   DEFAULT_PATTERN,
   getRotaRule,
@@ -72,11 +71,10 @@ export default function RotaScreen() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Pattern modal state
+  // Default schedule modal state
   const [patternModalVisible, setPatternModalVisible] = useState(false);
   const [patternMember, setPatternMember] = useState<MemberRecord | null>(null);
   const [patternData, setPatternData] = useState<WeeklyPattern>({ ...DEFAULT_PATTERN });
-  const [patternWeeks, setPatternWeeks] = useState(4);
   const [patternSaving, setPatternSaving] = useState(false);
   const [memberPickerOpen, setMemberPickerOpen] = useState(false);
 
@@ -158,10 +156,9 @@ export default function RotaScreen() {
     return members.filter(m => (rota[dateKey]?.[m.uid] ?? 'n/a') === 'on').length;
   };
 
-  // --- Pattern Modal ---
+  // --- Default Schedule Modal ---
   const openPatternModal = async (member: MemberRecord) => {
     setPatternMember(member);
-    setPatternWeeks(4);
     try {
       const existing = await getRotaRule(member.uid);
       setPatternData(existing ? { ...existing.pattern } : { ...DEFAULT_PATTERN });
@@ -183,12 +180,10 @@ export default function RotaScreen() {
     setPatternSaving(true);
     try {
       await setRotaRule(patternMember.uid, patternData);
-      const applyFrom = weekOffset === 0 ? new Date() : addDays(new Date(), weekOffset * 7);
-      await applyPatternForWeeks(patternMember.uid, patternData, applyFrom, patternWeeks);
       setPatternModalVisible(false);
       await loadData();
     } catch (err) {
-      console.error('Error saving pattern:', err);
+      console.error('Error saving default schedule:', err);
     } finally {
       setPatternSaving(false);
     }
@@ -196,12 +191,8 @@ export default function RotaScreen() {
 
   // --- Week header info ---
   const headerStart = startOfWeek(addDays(new Date(), weekOffset * 7), { weekStartsOn: 1 });
-  const todayKey = format(new Date(), 'yyyy-MM-dd');
-  const todayAvailable = weekOffset === 0 ? getAvailableCount(todayKey) : null;
 
   const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-  const WEEK_OPTIONS = [4, 8, 12, 26, 52];
 
   return (
     <ThemedView style={[styles.container, { paddingTop: insets.top }]}>
@@ -264,24 +255,6 @@ export default function RotaScreen() {
           />
         </Pressable>
       </View>
-
-      {/* Summary Bar */}
-      {weekOffset === 0 && todayAvailable !== null && (
-        <View style={[styles.summaryBar, { backgroundColor: theme.card, borderColor: theme.cardBorder }]}>
-          <View style={styles.summaryItem}>
-            <View style={[styles.summaryDot, { backgroundColor: colors.on }]} />
-            <ThemedText style={styles.summaryText}>
-              Today: {todayAvailable}/{members.length} available
-            </ThemedText>
-          </View>
-          {todayAvailable === 0 && (
-            <View style={styles.summaryWarning}>
-              <Ionicons name="warning" size={16} color="#FF9500" />
-              <Text style={[styles.warningText, { color: '#FF9500' }]}>No staff available</Text>
-            </View>
-          )}
-        </View>
-      )}
 
       {loading ? (
         <View style={styles.loadingContainer}>
@@ -407,7 +380,7 @@ export default function RotaScreen() {
               }}
             >
               <Ionicons name="repeat-outline" size={18} color="#fff" />
-              <Text style={styles.actionBtnText}>Set My Weekly Pattern</Text>
+              <Text style={styles.actionBtnText}>Set My Default Schedule</Text>
             </Pressable>
           )}
 
@@ -447,7 +420,7 @@ export default function RotaScreen() {
         <View style={[styles.modalOverlay, { backgroundColor: theme.modalOverlay }]}>
           <View style={[styles.modalContent, { backgroundColor: theme.modalBackground }]}>
             <View style={[styles.modalHeader, { borderBottomColor: theme.divider }]}>
-              <ThemedText type="subtitle">Weekly Pattern</ThemedText>
+              <ThemedText type="subtitle">Default Schedule</ThemedText>
               <Pressable onPress={() => setPatternModalVisible(false)} hitSlop={12}>
                 <Ionicons name="close" size={24} color={theme.text} />
               </Pressable>
@@ -456,7 +429,7 @@ export default function RotaScreen() {
             {/* Member selector (owners) or label (members) */}
             {canEditAll ? (
               <View style={styles.memberSelector}>
-                <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Setting pattern for</Text>
+                <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Setting default for</Text>
                 <Pressable
                   style={[styles.pickerBtn, { backgroundColor: theme.inputBackground, borderColor: theme.inputBorder }]}
                   onPress={() => setMemberPickerOpen(!memberPickerOpen)}
@@ -495,7 +468,7 @@ export default function RotaScreen() {
               </View>
             ) : (
               <View style={styles.memberSelector}>
-                <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Your weekly pattern</Text>
+                <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Your default schedule</Text>
               </View>
             )}
 
@@ -527,33 +500,10 @@ export default function RotaScreen() {
               })}
             </View>
 
-            {/* Weeks selector */}
-            <View style={styles.weeksSelector}>
-              <Text style={[styles.fieldLabel, { color: theme.secondaryText }]}>Apply for</Text>
-              <View style={styles.weeksOptions}>
-                {WEEK_OPTIONS.map(w => (
-                  <Pressable
-                    key={w}
-                    style={[
-                      styles.weekOption,
-                      { borderColor: theme.cardBorder },
-                      patternWeeks === w && { backgroundColor: theme.tint, borderColor: theme.tint },
-                    ]}
-                    onPress={() => setPatternWeeks(w)}
-                  >
-                    <Text
-                      style={[
-                        styles.weekOptionText,
-                        { color: theme.text },
-                        patternWeeks === w && { color: '#fff' },
-                      ]}
-                    >
-                      {w}w
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
+            {/* Explanation */}
+            <Text style={[styles.explanationText, { color: theme.tertiaryText }]}>
+              This schedule applies automatically to all weeks without a manual override. Tap any cell on the grid to override a specific day.
+            </Text>
 
             {/* Actions */}
             <View style={styles.modalActions}>
@@ -571,7 +521,7 @@ export default function RotaScreen() {
                 {patternSaving ? (
                   <ActivityIndicator size="small" color="#fff" />
                 ) : (
-                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save & Apply</Text>
+                  <Text style={[styles.modalBtnText, { color: '#fff' }]}>Save Default</Text>
                 )}
               </Pressable>
             </View>
@@ -647,42 +597,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 10,
     overflow: 'hidden',
-  },
-
-  // Summary
-  summaryBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 16,
-    marginTop: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  summaryItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  summaryDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  summaryText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  summaryWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  warningText: {
-    fontSize: 13,
-    fontWeight: '600',
   },
 
   // Loading
@@ -907,23 +821,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Weeks selector
-  weeksSelector: {
-    marginBottom: 20,
-  },
-  weeksOptions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  weekOption: {
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  weekOptionText: {
-    fontSize: 14,
-    fontWeight: '600',
+  // Explanation
+  explanationText: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 18,
   },
 
   // Modal actions
