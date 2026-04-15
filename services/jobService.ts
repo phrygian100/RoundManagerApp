@@ -355,6 +355,144 @@ export async function deleteOrphanJobs(jobIds: string[]): Promise<OrphanJobDelet
   return { deleted: jobIds.length };
 }
 
+export type DuplicateJobDetail = {
+  jobId: string;
+  clientId: string;
+  address: string;
+  serviceId: string;
+  scheduledDate: string;
+  groupSize: number;
+};
+
+export type DuplicateJobScanResult = {
+  jobsScanned: number;
+  duplicateGroupsFound: number;
+  duplicateJobsToDelete: number;
+  details: DuplicateJobDetail[];
+  jobIdsToDelete: string[];
+};
+
+export type DuplicateJobDeleteResult = {
+  deleted: number;
+};
+
+/**
+ * Scan all upcoming jobs for exact duplicates: same clientId + serviceId + scheduledTime date.
+ * Within each group, the first job (by doc ID sort) is kept; surplus jobs are flagged for deletion.
+ * Only pending/scheduled/in_progress jobs are considered.
+ */
+export async function scanDuplicateJobs(): Promise<DuplicateJobScanResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return { jobsScanned: 0, duplicateGroupsFound: 0, duplicateJobsToDelete: 0, details: [], jobIdsToDelete: [] };
+
+  // Load all jobs for this account (merge ownerId + accountId).
+  const ownerSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('ownerId', '==', ownerId)));
+  const accountSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('accountId', '==', ownerId)));
+  const jobMap = new Map<string, { id: string; data: any }>();
+  ownerSnap.docs.forEach(d => jobMap.set(d.id, { id: d.id, data: d.data() as any }));
+  accountSnap.docs.forEach(d => jobMap.set(d.id, { id: d.id, data: d.data() as any }));
+
+  // Filter to upcoming statuses only.
+  const upcoming = Array.from(jobMap.values()).filter(j => isUpcomingStatus(j.data?.status));
+
+  // Group by clientId|serviceId|date.
+  const groups = new Map<string, Array<{ id: string; data: any }>>();
+  for (const j of upcoming) {
+    const cid = j.data?.clientId;
+    const sid = j.data?.serviceId;
+    const dateStr = dateOnlyFromIsoDateTime(j.data?.scheduledTime);
+    if (!cid || !sid || !dateStr) continue;
+    const key = `${cid}|${sid}|${dateStr}`;
+    const arr = groups.get(key) || [];
+    arr.push(j);
+    groups.set(key, arr);
+  }
+
+  // Find groups with more than one job.
+  const duplicateGroups: Array<{ key: string; jobs: Array<{ id: string; data: any }> }> = [];
+  for (const [key, jobs] of groups.entries()) {
+    if (jobs.length > 1) {
+      // Sort by doc ID so the "kept" job is deterministic.
+      jobs.sort((a, b) => a.id.localeCompare(b.id));
+      duplicateGroups.push({ key, jobs });
+    }
+  }
+
+  // Collect unique clientIds for address lookup.
+  const clientIds = new Set<string>();
+  for (const g of duplicateGroups) {
+    const cid = g.jobs[0]?.data?.clientId;
+    if (cid) clientIds.add(cid);
+  }
+
+  const clientAddressMap = new Map<string, string>();
+  for (const cid of clientIds) {
+    try {
+      const snap = await getDoc(doc(db, 'clients', cid));
+      if (snap.exists()) {
+        const data: any = snap.data();
+        const parts = [data?.address1 || data?.address, data?.town, data?.postcode].filter(Boolean);
+        clientAddressMap.set(cid, parts.length > 0 ? parts.join(', ') : 'No address');
+      } else {
+        clientAddressMap.set(cid, 'Unknown (client deleted)');
+      }
+    } catch {
+      clientAddressMap.set(cid, 'Unknown');
+    }
+  }
+
+  // Build results: surplus jobs (all except the first in each group).
+  const jobIdsToDelete: string[] = [];
+  const details: DuplicateJobDetail[] = [];
+
+  for (const g of duplicateGroups) {
+    const surplus = g.jobs.slice(1);
+    const cid = g.jobs[0]?.data?.clientId || '';
+    const sid = g.jobs[0]?.data?.serviceId || '';
+    const dateStr = dateOnlyFromIsoDateTime(g.jobs[0]?.data?.scheduledTime) || '';
+    const address = clientAddressMap.get(cid) || 'Unknown';
+
+    for (const s of surplus) {
+      jobIdsToDelete.push(s.id);
+      if (details.length < 30) {
+        details.push({
+          jobId: s.id,
+          clientId: cid,
+          address,
+          serviceId: sid,
+          scheduledDate: dateStr,
+          groupSize: g.jobs.length,
+        });
+      }
+    }
+  }
+
+  return {
+    jobsScanned: upcoming.length,
+    duplicateGroupsFound: duplicateGroups.length,
+    duplicateJobsToDelete: jobIdsToDelete.length,
+    details,
+    jobIdsToDelete,
+  };
+}
+
+/**
+ * Delete a list of duplicate jobs by their IDs.
+ */
+export async function deleteDuplicateJobs(jobIds: string[]): Promise<DuplicateJobDeleteResult> {
+  if (jobIds.length === 0) return { deleted: 0 };
+  const batchSize = 450;
+  for (let i = 0; i < jobIds.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const slice = jobIds.slice(i, i + batchSize);
+    for (const id of slice) {
+      batch.delete(doc(db, JOBS_COLLECTION, id));
+    }
+    await batch.commit();
+  }
+  return { deleted: jobIds.length };
+}
+
 export type MigrateLegacyPlansResult = {
   clientsScanned: number;
   alreadyHavePlans: number;

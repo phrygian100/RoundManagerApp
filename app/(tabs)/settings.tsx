@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanOrphanJobs } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteDuplicateJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanDuplicateJobs, scanOrphanJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -335,6 +335,44 @@ export default function SettingsScreen() {
       );
     } catch (e) {
       console.error('Orphan job audit failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert('Audit failed', msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleDuplicateJobAudit = useCallback(async () => {
+    try {
+      setLoading(true);
+      const scan = await scanDuplicateJobs();
+
+      if (scan.duplicateJobsToDelete === 0) {
+        showAlert(
+          'Duplicate Job Audit',
+          `Jobs scanned: ${scan.jobsScanned}\n\nNo duplicate jobs found.`
+        );
+        return;
+      }
+
+      const listing = scan.details
+        .slice(0, 30)
+        .map(d => `- ${d.address} | ${d.scheduledDate} | ${d.serviceId} (${d.groupSize} copies)`)
+        .join('\n');
+
+      const proceed = await showConfirm(
+        'Duplicate Jobs Found',
+        `Jobs scanned: ${scan.jobsScanned}\nDuplicate groups: ${scan.duplicateGroupsFound}\nDuplicate jobs to delete: ${scan.duplicateJobsToDelete}\n\nDuplicates found (up to 30):\n${listing}${scan.duplicateJobsToDelete > 30 ? `\n... and ${scan.duplicateJobsToDelete - 30} more` : ''}\n\nDelete ${scan.duplicateJobsToDelete} duplicate job(s)? (One copy of each will be kept.)`
+      );
+      if (!proceed) return;
+
+      const delRes = await deleteDuplicateJobs(scan.jobIdsToDelete);
+      showAlert(
+        'Duplicates Deleted',
+        `Deleted ${delRes.deleted} duplicate job(s).`
+      );
+    } catch (e) {
+      console.error('Duplicate job audit failed:', e);
       const msg = e instanceof Error ? e.message : String(e);
       showAlert('Audit failed', msg);
     } finally {
@@ -2929,6 +2967,12 @@ export default function SettingsScreen() {
             <StyledButton
               title="Audit Orphan Jobs (Remove ghost jobs)"
               onPress={handleOrphanJobAudit}
+              disabled={loading}
+            />
+
+            <StyledButton
+              title="Audit Duplicate Jobs"
+              onPress={handleDuplicateJobAudit}
               disabled={loading}
             />
 
