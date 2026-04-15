@@ -229,26 +229,32 @@ export type GenerateForActivePlansResult = {
   jobsCreated: number;
 };
 
-export type OrphanJobAuditResult = {
+export type OrphanJobDetail = {
+  jobId: string;
+  clientId: string;
+  serviceId: string;
+  scheduledTime: string;
+  address: string;
+  reason: 'missing' | 'archived';
+};
+
+export type OrphanJobScanResult = {
   weeksScanned: number;
   jobsScanned: number;
-  orphanJobsDeleted: number;
-  orphanDetails: Array<{
-    jobId: string;
-    clientId: string;
-    serviceId: string;
-    scheduledTime: string;
-    reason: 'missing' | 'archived';
-  }>;
+  orphans: OrphanJobDetail[];
+};
+
+export type OrphanJobDeleteResult = {
+  deleted: number;
 };
 
 /**
- * Scan current week + next 12 weeks of jobs and delete any whose client
- * doesn't exist or is archived (status === 'ex-client').
+ * Scan current week + next N weeks of upcoming jobs and return any whose client
+ * doesn't exist or is archived (status === 'ex-client'). Does NOT delete anything.
  */
-export async function auditAndRemoveOrphanJobs(weeksAhead: number = 12): Promise<OrphanJobAuditResult> {
+export async function scanOrphanJobs(weeksAhead: number = 12): Promise<OrphanJobScanResult> {
   const ownerId = await getDataOwnerId();
-  if (!ownerId) return { weeksScanned: 0, jobsScanned: 0, orphanJobsDeleted: 0, orphanDetails: [] };
+  if (!ownerId) return { weeksScanned: 0, jobsScanned: 0, orphans: [] };
 
   const now = new Date();
   const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
@@ -257,7 +263,7 @@ export async function auditAndRemoveOrphanJobs(weeksAhead: number = 12): Promise
   const startStr = format(currentWeekStart, 'yyyy-MM-dd') + 'T00:00:00';
   const endStr = format(addDays(scanEnd, 1), 'yyyy-MM-dd') + 'T00:00:00';
 
-  // Load jobs in the date range. Use ownerId query with client-side fallback.
+  // Load jobs in the date range.
   let jobDocs: Array<{ id: string; data: any }> = [];
   try {
     const snap = await getDocs(query(
@@ -268,15 +274,8 @@ export async function auditAndRemoveOrphanJobs(weeksAhead: number = 12): Promise
     ));
     jobDocs = snap.docs.map(d => ({ id: d.id, data: d.data() as any }));
   } catch {
-    // Composite index may not exist; fall back to ownerId-only + client-side filter.
-    const ownerSnap = await getDocs(query(
-      collection(db, JOBS_COLLECTION),
-      where('ownerId', '==', ownerId)
-    ));
-    const accountSnap = await getDocs(query(
-      collection(db, JOBS_COLLECTION),
-      where('accountId', '==', ownerId)
-    ));
+    const ownerSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('ownerId', '==', ownerId)));
+    const accountSnap = await getDocs(query(collection(db, JOBS_COLLECTION), where('accountId', '==', ownerId)));
     const merged = new Map<string, any>();
     ownerSnap.docs.forEach(d => merged.set(d.id, { id: d.id, data: d.data() as any }));
     accountSnap.docs.forEach(d => merged.set(d.id, { id: d.id, data: d.data() as any }));
@@ -286,67 +285,74 @@ export async function auditAndRemoveOrphanJobs(weeksAhead: number = 12): Promise
     });
   }
 
-  // Only consider upcoming jobs (not completed/cancelled/etc).
   jobDocs = jobDocs.filter(j => isUpcomingStatus(j.data?.status));
 
-  // Collect unique clientIds referenced by these jobs.
+  // Collect unique clientIds.
   const clientIds = new Set<string>();
   for (const j of jobDocs) {
     if (j.data?.clientId) clientIds.add(j.data.clientId);
   }
 
-  // Batch-load client docs.
-  const clientStatusMap = new Map<string, 'active' | 'archived' | 'missing'>();
+  // Load client docs to get status + address.
+  const clientInfoMap = new Map<string, { status: 'active' | 'archived' | 'missing'; address: string }>();
   for (const cid of clientIds) {
     try {
       const snap = await getDoc(doc(db, 'clients', cid));
       if (!snap.exists()) {
-        clientStatusMap.set(cid, 'missing');
+        clientInfoMap.set(cid, { status: 'missing', address: 'Unknown (client deleted)' });
       } else {
         const data: any = snap.data();
-        clientStatusMap.set(cid, data?.status === 'ex-client' ? 'archived' : 'active');
+        const parts = [data?.address1 || data?.address, data?.town, data?.postcode].filter(Boolean);
+        const addr = parts.length > 0 ? parts.join(', ') : 'No address';
+        clientInfoMap.set(cid, {
+          status: data?.status === 'ex-client' ? 'archived' : 'active',
+          address: addr,
+        });
       }
     } catch {
-      clientStatusMap.set(cid, 'missing');
+      clientInfoMap.set(cid, { status: 'missing', address: 'Unknown (client deleted)' });
     }
   }
 
-  // Identify orphan jobs.
-  const orphans: OrphanJobAuditResult['orphanDetails'] = [];
+  const orphans: OrphanJobDetail[] = [];
   for (const j of jobDocs) {
     const cid = j.data?.clientId;
     if (!cid) continue;
-    const status = clientStatusMap.get(cid);
-    if (status === 'missing' || status === 'archived') {
+    const info = clientInfoMap.get(cid);
+    if (info && (info.status === 'missing' || info.status === 'archived')) {
       orphans.push({
         jobId: j.id,
         clientId: cid,
         serviceId: j.data?.serviceId || '',
         scheduledTime: j.data?.scheduledTime || '',
-        reason: status === 'missing' ? 'missing' : 'archived',
+        address: info.address,
+        reason: info.status === 'missing' ? 'missing' : 'archived',
       });
-    }
-  }
-
-  // Delete orphan jobs.
-  if (orphans.length > 0) {
-    const batchSize = 450;
-    for (let i = 0; i < orphans.length; i += batchSize) {
-      const batch = writeBatch(db);
-      const slice = orphans.slice(i, i + batchSize);
-      for (const o of slice) {
-        batch.delete(doc(db, JOBS_COLLECTION, o.jobId));
-      }
-      await batch.commit();
     }
   }
 
   return {
     weeksScanned: weeksAhead + 1,
     jobsScanned: jobDocs.length,
-    orphanJobsDeleted: orphans.length,
-    orphanDetails: orphans.slice(0, 20),
+    orphans,
   };
+}
+
+/**
+ * Delete a list of orphan jobs by their IDs.
+ */
+export async function deleteOrphanJobs(jobIds: string[]): Promise<OrphanJobDeleteResult> {
+  if (jobIds.length === 0) return { deleted: 0 };
+  const batchSize = 450;
+  for (let i = 0; i < jobIds.length; i += batchSize) {
+    const batch = writeBatch(db);
+    const slice = jobIds.slice(i, i + batchSize);
+    for (const id of slice) {
+      batch.delete(doc(db, JOBS_COLLECTION, id));
+    }
+    await batch.commit();
+  }
+  return { deleted: jobIds.length };
 }
 
 export type MigrateLegacyPlansResult = {

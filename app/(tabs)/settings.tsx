@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { auditAndRemoveOrphanJobs, backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
+import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanOrphanJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -302,22 +302,36 @@ export default function SettingsScreen() {
   }, []);
 
   const handleOrphanJobAudit = useCallback(async () => {
-    const confirmed = await showConfirm(
-      'Audit Orphan Jobs',
-      'This will scan the current week + next 12 weeks of scheduled jobs.\n\nAny pending jobs belonging to clients that no longer exist or are archived will be deleted.\n\nProceed?'
-    );
-    if (!confirmed) return;
-
     try {
       setLoading(true);
-      const res = await auditAndRemoveOrphanJobs(12);
-      const detailLines = (res.orphanDetails || [])
-        .map(o => `- ${o.scheduledTime.split('T')[0]} | ${o.serviceId} | ${o.reason}`)
+      const scan = await scanOrphanJobs(12);
+
+      if (scan.orphans.length === 0) {
+        showAlert(
+          'Orphan Job Audit',
+          `Weeks scanned: ${scan.weeksScanned}\nJobs scanned: ${scan.jobsScanned}\n\nNo orphan jobs found. All jobs belong to active clients.`
+        );
+        return;
+      }
+
+      const listing = scan.orphans
+        .slice(0, 30)
+        .map(o => {
+          const date = (o.scheduledTime || '').split('T')[0];
+          return `- ${o.address} | ${date} | ${o.serviceId} (${o.reason})`;
+        })
         .join('\n');
+
+      const proceed = await showConfirm(
+        'Orphan Jobs Found',
+        `Found ${scan.orphans.length} ghost job(s) across ${scan.weeksScanned} weeks.\n\nThese will be deleted:\n${listing}${scan.orphans.length > 30 ? `\n... and ${scan.orphans.length - 30} more` : ''}\n\nDelete all ${scan.orphans.length} orphan jobs?`
+      );
+      if (!proceed) return;
+
+      const delRes = await deleteOrphanJobs(scan.orphans.map(o => o.jobId));
       showAlert(
-        'Orphan Job Audit Complete',
-        `Weeks scanned: ${res.weeksScanned}\nJobs scanned: ${res.jobsScanned}\nOrphan jobs deleted: ${res.orphanJobsDeleted}` +
-          (detailLines ? `\n\nDeleted (up to 20):\n${detailLines}` : '')
+        'Orphan Jobs Deleted',
+        `Deleted ${delRes.deleted} ghost job(s).`
       );
     } catch (e) {
       console.error('Orphan job audit failed:', e);
