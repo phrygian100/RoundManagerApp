@@ -512,9 +512,10 @@ export default function ManageServicesScreen() {
 											const ownerId = await getDataOwnerId();
 											if (!ownerId) return;
 
-											// Build broad jobs query for this client (filter in memory to avoid index gaps)
+											// Build jobs query scoped to this owner + client
 											const jobsQuery = query(
 												collection(db, 'jobs'),
+												where('ownerId', '==', ownerId),
 												where('clientId', '==', clientId)
 											);
 
