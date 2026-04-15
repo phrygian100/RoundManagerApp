@@ -1,4 +1,4 @@
-import { addMonths, addWeeks, format, isBefore, parseISO, startOfWeek } from 'date-fns';
+import { addDays, addMonths, addWeeks, endOfWeek, format, isBefore, parseISO, startOfWeek } from 'date-fns';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -228,6 +228,126 @@ export type GenerateForActivePlansResult = {
   clientsProcessed: number;
   jobsCreated: number;
 };
+
+export type OrphanJobAuditResult = {
+  weeksScanned: number;
+  jobsScanned: number;
+  orphanJobsDeleted: number;
+  orphanDetails: Array<{
+    jobId: string;
+    clientId: string;
+    serviceId: string;
+    scheduledTime: string;
+    reason: 'missing' | 'archived';
+  }>;
+};
+
+/**
+ * Scan current week + next 12 weeks of jobs and delete any whose client
+ * doesn't exist or is archived (status === 'ex-client').
+ */
+export async function auditAndRemoveOrphanJobs(weeksAhead: number = 12): Promise<OrphanJobAuditResult> {
+  const ownerId = await getDataOwnerId();
+  if (!ownerId) return { weeksScanned: 0, jobsScanned: 0, orphanJobsDeleted: 0, orphanDetails: [] };
+
+  const now = new Date();
+  const currentWeekStart = startOfWeek(now, { weekStartsOn: 1 });
+  const scanEnd = endOfWeek(addWeeks(currentWeekStart, weeksAhead), { weekStartsOn: 1 });
+
+  const startStr = format(currentWeekStart, 'yyyy-MM-dd') + 'T00:00:00';
+  const endStr = format(addDays(scanEnd, 1), 'yyyy-MM-dd') + 'T00:00:00';
+
+  // Load jobs in the date range. Use ownerId query with client-side fallback.
+  let jobDocs: Array<{ id: string; data: any }> = [];
+  try {
+    const snap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId),
+      where('scheduledTime', '>=', startStr),
+      where('scheduledTime', '<', endStr)
+    ));
+    jobDocs = snap.docs.map(d => ({ id: d.id, data: d.data() as any }));
+  } catch {
+    // Composite index may not exist; fall back to ownerId-only + client-side filter.
+    const ownerSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('ownerId', '==', ownerId)
+    ));
+    const accountSnap = await getDocs(query(
+      collection(db, JOBS_COLLECTION),
+      where('accountId', '==', ownerId)
+    ));
+    const merged = new Map<string, any>();
+    ownerSnap.docs.forEach(d => merged.set(d.id, { id: d.id, data: d.data() as any }));
+    accountSnap.docs.forEach(d => merged.set(d.id, { id: d.id, data: d.data() as any }));
+    jobDocs = Array.from(merged.values()).filter(j => {
+      const t = j.data?.scheduledTime;
+      return typeof t === 'string' && t >= startStr && t < endStr;
+    });
+  }
+
+  // Only consider upcoming jobs (not completed/cancelled/etc).
+  jobDocs = jobDocs.filter(j => isUpcomingStatus(j.data?.status));
+
+  // Collect unique clientIds referenced by these jobs.
+  const clientIds = new Set<string>();
+  for (const j of jobDocs) {
+    if (j.data?.clientId) clientIds.add(j.data.clientId);
+  }
+
+  // Batch-load client docs.
+  const clientStatusMap = new Map<string, 'active' | 'archived' | 'missing'>();
+  for (const cid of clientIds) {
+    try {
+      const snap = await getDoc(doc(db, 'clients', cid));
+      if (!snap.exists()) {
+        clientStatusMap.set(cid, 'missing');
+      } else {
+        const data: any = snap.data();
+        clientStatusMap.set(cid, data?.status === 'ex-client' ? 'archived' : 'active');
+      }
+    } catch {
+      clientStatusMap.set(cid, 'missing');
+    }
+  }
+
+  // Identify orphan jobs.
+  const orphans: OrphanJobAuditResult['orphanDetails'] = [];
+  for (const j of jobDocs) {
+    const cid = j.data?.clientId;
+    if (!cid) continue;
+    const status = clientStatusMap.get(cid);
+    if (status === 'missing' || status === 'archived') {
+      orphans.push({
+        jobId: j.id,
+        clientId: cid,
+        serviceId: j.data?.serviceId || '',
+        scheduledTime: j.data?.scheduledTime || '',
+        reason: status === 'missing' ? 'missing' : 'archived',
+      });
+    }
+  }
+
+  // Delete orphan jobs.
+  if (orphans.length > 0) {
+    const batchSize = 450;
+    for (let i = 0; i < orphans.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const slice = orphans.slice(i, i + batchSize);
+      for (const o of slice) {
+        batch.delete(doc(db, JOBS_COLLECTION, o.jobId));
+      }
+      await batch.commit();
+    }
+  }
+
+  return {
+    weeksScanned: weeksAhead + 1,
+    jobsScanned: jobDocs.length,
+    orphanJobsDeleted: orphans.length,
+    orphanDetails: orphans.slice(0, 20),
+  };
+}
 
 export type MigrateLegacyPlansResult = {
   clientsScanned: number;

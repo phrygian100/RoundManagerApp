@@ -16,7 +16,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
+import { auditAndRemoveOrphanJobs, backfillRecurringSchedulesForActivePlans, deleteAllJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
@@ -296,6 +296,33 @@ export default function SettingsScreen() {
       console.error('Migrate legacy plans failed:', e);
       const msg = e instanceof Error ? e.message : String(e);
       showAlert('Migration failed', msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleOrphanJobAudit = useCallback(async () => {
+    const confirmed = await showConfirm(
+      'Audit Orphan Jobs',
+      'This will scan the current week + next 12 weeks of scheduled jobs.\n\nAny pending jobs belonging to clients that no longer exist or are archived will be deleted.\n\nProceed?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      const res = await auditAndRemoveOrphanJobs(12);
+      const detailLines = (res.orphanDetails || [])
+        .map(o => `- ${o.scheduledTime.split('T')[0]} | ${o.serviceId} | ${o.reason}`)
+        .join('\n');
+      showAlert(
+        'Orphan Job Audit Complete',
+        `Weeks scanned: ${res.weeksScanned}\nJobs scanned: ${res.jobsScanned}\nOrphan jobs deleted: ${res.orphanJobsDeleted}` +
+          (detailLines ? `\n\nDeleted (up to 20):\n${detailLines}` : '')
+      );
+    } catch (e) {
+      console.error('Orphan job audit failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert('Audit failed', msg);
     } finally {
       setLoading(false);
     }
@@ -2885,6 +2912,12 @@ export default function SettingsScreen() {
             <StyledButton
               title="Schedule Diagnostic"
               onPress={handleBackfillSchedules}
+              disabled={loading}
+            />
+
+            <StyledButton
+              title="Audit Orphan Jobs (Remove ghost jobs)"
+              onPress={handleOrphanJobAudit}
               disabled={loading}
             />
 
