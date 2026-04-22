@@ -1541,7 +1541,7 @@ async function getValidPortalSession(db, sessionId) {
   return { sessionId, clientId: data.clientId, ownerId: data.ownerId };
 }
 
-// Public client portal API (used by /app/[businessName].tsx). Keep portal UX the same while locking Firestore down.
+// Public client portal API (used by /app/[businessName]/ pages). Keep portal UX the same while locking Firestore down.
 exports.portalApi = onRequest(async (req, res) => {
   // CORS
   res.set('Access-Control-Allow-Origin', '*');

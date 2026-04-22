@@ -58,12 +58,15 @@ function AppContent() {
     // Allow business portal routes (single path segments that could be business names)
     // Must be a valid pathname and match the pattern (not starting with _ or containing /)
     // Examples: /tgmwindowcleaning, /acmecleaning - NOT /login, /(tabs), /_layout
+    const businessRouteSegment = actualPathname ? actualPathname.split('/')[1] : '';
     const isBusinessRoute = actualPathname && 
       actualPathname.length > 1 && 
-      /^\/[a-zA-Z][a-zA-Z0-9]*$/.test(actualPathname) &&
-      !unauthAllowed.includes(actualPathname) &&
-      !redirectIfLoggedIn.includes(actualPathname) &&
-      !alwaysAllowed.includes(actualPathname);
+      /^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$/.test(actualPathname) &&
+      !!businessRouteSegment &&
+      !unauthAllowed.includes('/' + businessRouteSegment) &&
+      !redirectIfLoggedIn.includes('/' + businessRouteSegment) &&
+      !alwaysAllowed.includes('/' + businessRouteSegment) &&
+      !['home', 'pricing', 'about', 'feature-tour', 'guides', 'contact', 'privacy-policy', 'terms'].includes(businessRouteSegment);
     
     console.log('🔍 Route check:', {
       pathname,
@@ -92,9 +95,11 @@ function AppContent() {
             loginRedirectTimeoutRef.current = setTimeout(() => {
               // Re-check business route status using window.location
               const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+              const currentSegment = currentPath ? currentPath.split('/')[1] : '';
               const stillNotBusinessRoute = !currentPath || 
-                !/^\/[a-zA-Z][a-zA-Z0-9]*$/.test(currentPath) ||
-                unauthAllowed.includes(currentPath);
+                !/^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$/.test(currentPath) ||
+                !currentSegment ||
+                unauthAllowed.includes('/' + currentSegment);
               
               if (!auth.currentUser && stillNotBusinessRoute) {
                 router.replace('/login');

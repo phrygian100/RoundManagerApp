@@ -2084,5 +2084,21 @@ If the diagnostic script finds clients without a status field:
   - Updated label from `Starting Date` to `First Service Date`.
   - Replaced default save `Button` with styled `Pressable` for a clearer, more consistent submit action.
 
+## April 22, 2026
+
+### Client Portal: Split into 3-page flow (landing / login / quote)
+- **Problem**: The single-page client portal (`app/[businessName].tsx`) crammed the login form and quote flow side-by-side. On mobile, the property-selection images were clipped (top/bottom cut off) because they were constrained to a 140px fixed-height card with `resizeMode="cover"`.
+- **Solution**: Restructured into three dedicated pages within a nested route folder `app/[businessName]/`:
+  1. **`index.tsx`** — Landing page with two large buttons: "Existing Customer" and "Get a Quote".
+  2. **`login.tsx`** — Dedicated login flow (RWC number → last-4-digits verification → dashboard).
+  3. **`quote.tsx`** — Dedicated quote request flow with full-width, aspect-ratio-based images (`resizeMode="contain"`) so property images display completely without clipping.
+- **New shared files**:
+  - `hooks/useBusinessPortal.ts` — Shared hook for business lookup logic, navigation helpers, and `isNarrowWeb` detection.
+  - `styles/portalStyles.ts` — Shared navigation header, footer, and common portal styles.
+  - `app/[businessName]/_layout.tsx` — Expo Router nested layout (renders `<Slot />`).
+- **Root layout update** (`app/_layout.tsx`): Updated the `isBusinessRoute` regex from `^\/[a-zA-Z][a-zA-Z0-9]*$` to `^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$` so sub-routes like `/businessname/login` and `/businessname/quote` are also recognised as business portal paths and not redirected to `/login`.
+- **Image fix detail**: Changed from `height: 140, resizeMode: 'cover'` to `aspectRatio: 16/10, resizeMode: 'contain'` for property images, giving each image its natural proportions.
+- **Deleted**: `app/[businessName].tsx` (replaced by the three new files above).
+
 ## Previous Changes
 [Previous changes would be listed here]
