@@ -22,7 +22,10 @@ export const config = {
     
     // Product and Price IDs (safe to be in code)
     productId: "prod_SjsT3QnGUMHajK",
-    premiumPriceId: "price_1RoOifF7C2Zg8asU9qRfxMSA",
+    // Premium checkout: £2.99/mo GBP recurring Price. Override with EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID if needed (e.g. test price).
+    premiumPriceId:
+      process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID ||
+      "price_1TQsyaF7C2Zg8asUXyVbFh3r",
     
     // Webhook secret (from environment)
     webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || ""

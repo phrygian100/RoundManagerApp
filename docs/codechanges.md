@@ -1,5 +1,27 @@
 # Code Changes Log
 
+## April 16, 2026
+
+### Premium subscription: £18/mo → £2.99/mo (display + config)
+
+**Files changed**:
+- `shared/constants/pricing.ts` — `UNLIMITED_PLAN.price` set to **2.99**; exported `PREMIUM_PRICE_*` labels and `PREMIUM_PRICE_PENCE` for a single source of truth.
+- `config.ts` — `premiumPriceId` reads `EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID` first, else default **`price_1TQsyaF7C2Zg8asUXyVbFh3r`** (£2.99/mo).
+- `services/stripeService.ts` — `getPricingConfig()` amount derived from shared pence constant.
+- `components/UpgradeModal.tsx` — checkout `priceId` from `config.stripe.premiumPriceId`; UI uses shared labels.
+- `app/add-client.tsx`, `app/(tabs)/settings.tsx`, `app/runsheet/[week].tsx` — limit/upgrade copy uses `PREMIUM_PRICE_ONLY_LABEL` / `PREMIUM_PRICE_PER_MONTH_LABEL`.
+- `web/src/app/layout.tsx`, `web/src/app/home/page.tsx`, `web/src/app/pricing/page.tsx` — marketing metadata and pages use shared constants.
+- `config.example.ts` — notes for Premium price id and env override.
+
+**Operations**:
+- Default Stripe Premium Price id in `config.ts` is **`price_1TQsyaF7C2Zg8asUXyVbFh3r`** (£2.99/mo GBP). Override with `EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID` for a different environment or test price.
+
+**Impact**:
+- Web and app upgrade messaging stay aligned with `shared/constants/pricing.ts`.
+- No change to free-tier limits or subscription logic beyond copy and checkout price id resolution.
+
+---
+
 ## April 15, 2026
 
 ### Rota: Full UI Redesign + Default Schedule Rules + Tightened Security

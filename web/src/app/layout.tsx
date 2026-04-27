@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
+import { PREMIUM_PRICE_PER_MONTH_LABEL } from "../../../shared/constants/pricing";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Guvnor - Cleaning Round Management Made Simple",
-  description: "Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients, upgrade for unlimited growth at £18/month.",
+  description: `Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients, upgrade for unlimited growth at ${PREMIUM_PRICE_PER_MONTH_LABEL}.`,
   keywords: "cleaning business, round management, client management, cleaning software, business management",
   icons: {
     // Cache-bust to ensure browsers refresh the favicon after deployments.

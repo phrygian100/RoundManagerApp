@@ -8,7 +8,12 @@ import {
     StyleSheet,
     View,
 } from 'react-native';
+import { config } from '../config';
 import { auth } from '../core/firebase';
+import {
+  PREMIUM_PRICE_AMOUNT_DISPLAY,
+  PREMIUM_PRICE_PER_MONTH_LABEL,
+} from '../shared/constants/pricing';
 import { ThemedText } from './ThemedText';
 import { ThemedView } from './ThemedView';
 
@@ -81,7 +86,7 @@ export default function UpgradeModal({
       });
       
       const requestBody = {
-        priceId: process.env.EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID || 'price_1RoOifF7C2Zg8asU9qRfxMSA',
+        priceId: config.stripe.premiumPriceId,
         successUrl: `${window.location.origin}/upgrade-success`,
         cancelUrl: `${window.location.origin}/upgrade-cancelled`,
       };
@@ -194,7 +199,7 @@ export default function UpgradeModal({
                 <ThemedText style={styles.planName}>Premium Plan</ThemedText>
                 <View style={styles.priceContainer}>
                   <ThemedText style={styles.currency}>£</ThemedText>
-                  <ThemedText style={styles.price}>18</ThemedText>
+                  <ThemedText style={styles.price}>{PREMIUM_PRICE_AMOUNT_DISPLAY}</ThemedText>
                   <ThemedText style={styles.period}>/month</ThemedText>
                 </View>
               </View>
@@ -245,7 +250,7 @@ export default function UpgradeModal({
                 <ActivityIndicator size="small" color="#ffffff" />
               ) : (
                 <ThemedText style={styles.upgradeButtonText}>
-                  Upgrade to Premium - £18/month
+                  Upgrade to Premium - {PREMIUM_PRICE_PER_MONTH_LABEL}
                 </ThemedText>
               )}
             </Pressable>

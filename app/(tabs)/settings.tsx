@@ -19,6 +19,10 @@ import { GoCardlessService } from '../../services/gocardlessService';
 import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteDuplicateJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanDuplicateJobs, scanOrphanJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
+import {
+  PREMIUM_PRICE_ONLY_LABEL,
+  PREMIUM_PRICE_PER_MONTH_LABEL,
+} from '../../shared/constants/pricing';
 import { getUserProfile, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
@@ -1167,7 +1171,7 @@ export default function SettingsScreen() {
                     if (!currentLimitCheck.canAdd) {
                       limitReached = true;
                       const message = currentLimitCheck.limit 
-                        ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\nOnly £18/month`
+                        ? `Reached the limit of ${currentLimitCheck.limit} clients. Skipping remaining ${validRows.length - i} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\n${PREMIUM_PRICE_ONLY_LABEL}`
                         : 'Unable to add more clients at this time.';
                     
                       showAlert('Client Limit Reached', message);
@@ -2884,7 +2888,7 @@ export default function SettingsScreen() {
           {/* Upgrade button for free tier users */}
           {subscription && subscription.tier === 'free' && (
             <StyledButton
-              title="🚀 Upgrade to Premium - £18/month"
+              title={`🚀 Upgrade to Premium - ${PREMIUM_PRICE_PER_MONTH_LABEL}`}
               onPress={() => setUpgradeModalVisible(true)}
             />
           )}

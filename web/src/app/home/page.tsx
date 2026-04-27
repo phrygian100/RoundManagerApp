@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { PREMIUM_PRICE_AMOUNT_DISPLAY } from "../../../../shared/constants/pricing";
 
 export default function HomePage() {
   return (
@@ -138,7 +139,7 @@ export default function HomePage() {
                 <span className="bg-indigo-600 text-white px-4 py-2 rounded-full text-sm font-semibold">Most Popular</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-4">Unlimited</h3>
-              <div className="text-4xl font-bold text-indigo-600 mb-4">£18<span className="text-lg text-gray-500">/month</span></div>
+              <div className="text-4xl font-bold text-indigo-600 mb-4">£{PREMIUM_PRICE_AMOUNT_DISPLAY}<span className="text-lg text-gray-500">/month</span></div>
               <ul className="space-y-3 mb-8">
                 <li className="flex items-center">
                   <svg className="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

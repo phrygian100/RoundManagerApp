@@ -18,7 +18,8 @@ export const config = {
     publishableKey: "pk_test_YOUR_PUBLISHABLE_KEY_HERE",
     secretKey: "sk_test_YOUR_SECRET_KEY_HERE", // Server-side only
     
-    // Price IDs (create these in Stripe Dashboard)
+    // Price ID for Premium (create a £2.99/mo GBP recurring Price in Stripe Dashboard)
+    // In production config.ts you can also set EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID to override without editing code.
     premiumPriceId: "price_YOUR_PREMIUM_PRICE_ID_HERE",
     
     // Webhook endpoint secret (for webhook verification)

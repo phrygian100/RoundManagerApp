@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { config } from '../config';
+import { PREMIUM_PRICE_PENCE } from '../shared/constants/pricing';
 import { setUserSubscription } from './subscriptionService';
 import { getUserProfile, updateUserProfile } from './userService';
 
@@ -315,6 +316,6 @@ export function getPricingConfig() {
   return {
     premiumPriceId: config.stripe.premiumPriceId,
     currency: 'gbp',
-    amount: 1800, // £18.00 in pence
+    amount: PREMIUM_PRICE_PENCE,
   };
 } 

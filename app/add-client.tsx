@@ -21,6 +21,7 @@ import { formatAuditDescription, logAction } from '../services/auditService';
 import { getNextAccountNumber } from '../services/clientService';
 import { createJobsForClient } from '../services/jobService';
 import { checkClientLimit } from '../services/subscriptionService';
+import { PREMIUM_PRICE_ONLY_LABEL } from '../shared/constants/pricing';
 
 function getOrdinal(n: number) {
   const s = ["th", "st", "nd", "rd"], v = n % 100;
@@ -277,7 +278,7 @@ export default function AddClientScreen() {
       if (!clientLimitCheck.canAdd) {
         console.log('🚫 Client limit reached - showing upgrade alert');
         const message = clientLimitCheck.limit 
-          ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\nOnly £18/month`
+          ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\n${PREMIUM_PRICE_ONLY_LABEL}`
           : 'Unable to add more clients at this time.';
         
         if (Platform.OS === 'web') {

@@ -1,6 +1,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import {
+  PREMIUM_PRICE_AMOUNT_DISPLAY,
+  PREMIUM_PRICE_PER_MONTH_LABEL,
+} from "../../../../shared/constants/pricing";
 
 export default function PricingPage() {
   return (
@@ -103,7 +107,7 @@ export default function PricingPage() {
               
               <div className="text-center mb-8">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">Unlimited Plan</h3>
-                <div className="text-5xl font-bold text-indigo-600 mb-2">£18</div>
+                <div className="text-5xl font-bold text-indigo-600 mb-2">£{PREMIUM_PRICE_AMOUNT_DISPLAY}</div>
                 <div className="text-gray-500">per month, unlimited clients</div>
               </div>
               
@@ -185,7 +189,7 @@ export default function PricingPage() {
                 What happens when I reach 20 clients on the free plan?
               </h3>
               <p className="text-gray-600">
-                When you reach 20 clients, you&apos;ll be prompted to upgrade to the unlimited plan for £18/month. 
+                When you reach 20 clients, you&apos;ll be prompted to upgrade to the unlimited plan for {PREMIUM_PRICE_PER_MONTH_LABEL}. 
                 You won&apos;t lose any data, and all your existing features will continue to work. You&apos;ll just unlock the ability to add unlimited clients.
               </p>
             </div>
@@ -205,7 +209,7 @@ export default function PricingPage() {
               </h3>
               <p className="text-gray-600">
                 No setup fees, no hidden costs. The free plan is completely free forever for up to 20 clients. 
-                The unlimited plan is exactly £18/month with no additional charges.
+                The unlimited plan is exactly {PREMIUM_PRICE_PER_MONTH_LABEL} with no additional charges.
               </p>
             </div>
             

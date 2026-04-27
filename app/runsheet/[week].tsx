@@ -21,6 +21,7 @@ import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { checkClientLimit } from '../../services/subscriptionService';
+import { PREMIUM_PRICE_ONLY_LABEL } from '../../shared/constants/pricing';
 import { getUserProfile } from '../../services/userService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
 import type { Client } from '../../types/client';
@@ -3365,7 +3366,7 @@ ${signOff}`;
                   const clientLimitCheck = await checkClientLimit();
                   if (!clientLimitCheck.canAdd) {
                     const message = clientLimitCheck.limit 
-                      ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\nOnly £18/month`
+                      ? `You've reached the limit of ${clientLimitCheck.limit} clients on your current plan. You currently have ${clientLimitCheck.currentCount} clients.\n\n🚀 Upgrade to Premium for:\n• Unlimited clients\n• Team member creation\n• Priority support\n\n${PREMIUM_PRICE_ONLY_LABEL}`
                       : 'Unable to add more clients at this time.';
                     
                     Alert.alert('🚫 Client Limit Reached', message);
