@@ -2993,6 +2993,11 @@ export default function SettingsScreen() {
               onPress={handleMigrateLegacyPlans}
               disabled={loading}
             />
+
+            <StyledButton
+              title="Browse Users"
+              onPress={() => router.push('/admin/users')}
+            />
           </View>
         )}
 

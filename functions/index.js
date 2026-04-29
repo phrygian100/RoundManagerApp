@@ -1894,3 +1894,136 @@ exports.portalApi = onRequest(async (req, res) => {
     res.status(500).json({ ok: false, error: 'Internal server error' });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Admin / Developer-only functions
+// ---------------------------------------------------------------------------
+
+function assertDeveloper(auth) {
+  if (!auth) {
+    throw new HttpsError('unauthenticated', 'You must be logged in.');
+  }
+  if (auth.uid !== DEVELOPER_UID) {
+    throw new HttpsError('permission-denied', 'Developer access required.');
+  }
+}
+
+exports.listAllUsers = onCall(async (request) => {
+  assertDeveloper(request.auth);
+
+  const db = admin.firestore();
+  const snap = await db.collection('users').get();
+
+  const users = snap.docs.map((doc) => {
+    const d = doc.data() || {};
+    return {
+      id: doc.id,
+      name: d.name || '',
+      email: d.email || '',
+      createdAt: d.createdAt || null,
+      numberOfClients: typeof d.numberOfClients === 'number' ? d.numberOfClients : null,
+      subscriptionTier: d.subscriptionTier || 'free',
+      subscriptionStatus: d.subscriptionStatus || 'active',
+      businessName: d.businessName || '',
+    };
+  });
+
+  return { users };
+});
+
+exports.getUserDetail = onCall(async (request) => {
+  assertDeveloper(request.auth);
+
+  const { userId } = request.data || {};
+  if (!userId || typeof userId !== 'string') {
+    throw new HttpsError('invalid-argument', 'userId is required.');
+  }
+
+  const db = admin.firestore();
+
+  const userDoc = await db.collection('users').doc(userId).get();
+  if (!userDoc.exists) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+  const userData = userDoc.data() || {};
+
+  const profile = {
+    id: userDoc.id,
+    name: userData.name || '',
+    email: userData.email || '',
+    phone: userData.contactNumber || userData.phone || '',
+    address: userData.address || '',
+    address1: userData.address1 || '',
+    town: userData.town || '',
+    postcode: userData.postcode || '',
+    businessName: userData.businessName || '',
+    createdAt: userData.createdAt || null,
+    subscriptionTier: userData.subscriptionTier || 'free',
+    subscriptionStatus: userData.subscriptionStatus || 'active',
+    numberOfClients: typeof userData.numberOfClients === 'number' ? userData.numberOfClients : null,
+  };
+
+  // Fetch clients owned by this user
+  const clientsSnap = await db
+    .collection('clients')
+    .where('ownerId', '==', userId)
+    .get();
+
+  const clients = clientsSnap.docs.map((doc) => {
+    const c = doc.data() || {};
+    return {
+      id: doc.id,
+      name: c.name || '',
+      accountNumber: c.accountNumber || '',
+      status: c.status || 'active',
+      address1: c.address1 || '',
+      town: c.town || '',
+      postcode: c.postcode || '',
+    };
+  });
+
+  // Fetch jobs owned by this user
+  const jobsSnap = await db
+    .collection('jobs')
+    .where('ownerId', '==', userId)
+    .get();
+
+  let completedCount = 0;
+  let pendingCount = 0;
+  let totalCount = jobsSnap.size;
+  const recentJobs = [];
+
+  jobsSnap.docs.forEach((doc) => {
+    const j = doc.data() || {};
+    if (j.status === 'completed') completedCount++;
+    else pendingCount++;
+
+    recentJobs.push({
+      id: doc.id,
+      clientId: j.clientId || '',
+      clientName: j.clientName || '',
+      status: j.status || '',
+      scheduledTime: j.scheduledTime || '',
+      serviceId: j.serviceId || '',
+      price: j.price || 0,
+    });
+  });
+
+  // Sort recent jobs by scheduledTime descending, take top 50
+  recentJobs.sort((a, b) => {
+    const da = a.scheduledTime ? new Date(a.scheduledTime).getTime() : 0;
+    const db2 = b.scheduledTime ? new Date(b.scheduledTime).getTime() : 0;
+    return db2 - da;
+  });
+
+  return {
+    profile,
+    clients,
+    jobSummary: {
+      total: totalCount,
+      completed: completedCount,
+      pending: pendingCount,
+    },
+    recentJobs: recentJobs.slice(0, 50),
+  };
+});

@@ -2122,5 +2122,19 @@ If the diagnostic script finds clients without a status field:
 - **Image fix detail**: Changed from `height: 140, resizeMode: 'cover'` to `aspectRatio: 16/10, resizeMode: 'contain'` for property images, giving each image its natural proportions.
 - **Deleted**: `app/[businessName].tsx` (replaced by the three new files above).
 
+## April 29, 2026
+
+### Admin User Browser (Developer-only)
+- **New feature**: Added a "Browse Users" screen accessible from the Developer section in Settings (exempt tier only).
+- **New Cloud Functions** (`functions/index.js`):
+  - `listAllUsers` — Returns all users with name, email, creation date, client count, subscription tier, and business name. Guarded by `DEVELOPER_UID` check.
+  - `getUserDetail` — Accepts a `userId` and returns their full profile, client list, and job summary (total/completed/pending counts + recent jobs). Same developer guard.
+  - Shared `assertDeveloper()` helper enforces that only the developer UID can call these functions.
+- **New service** (`services/adminService.ts`): Client-side wrapper with typed interfaces for calling the two new Cloud Functions.
+- **New screens**:
+  - `app/admin/users.tsx` — Lists all app users in sortable cards (by date joined or client count, ascending/descending). Shows name, email, business name, subscription tier badge, client count, and join date. Each row navigates to the user detail screen.
+  - `app/admin/[userId].tsx` — User detail screen with profile card (avatar, name, email, business, tier, stats), plus tabbed view: **Clients** tab (active/ex-client split with status badges) and **Runsheet** tab (job summary stats + recent jobs list with service type, date, price, and status).
+- **Settings update** (`app/(tabs)/settings.tsx`): Added "Browse Users" button to the Developer section.
+
 ## Previous Changes
 [Previous changes would be listed here]
