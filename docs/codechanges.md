@@ -1,5 +1,20 @@
 # Code Changes Log
 
+## May 13, 2026
+
+### Client microsite (`businessPortals`): create on first-time setup + backfill on Settings
+
+**Problem**: `businessPortals/{normalizedBusinessName}` was only created when `businessName` changed through `updateUserProfile` (e.g. Settings bank/business save). The first-time setup flow wrote `businessName` with a direct `updateDoc` on `users/{uid}`, so many owners had a profile business name but no portal document—public URLs showed “Business not found”.
+
+**Changes**:
+- `services/userService.ts` — Added exported `syncBusinessPortalFromUserDocument()` to upsert the portal from the current user document (and remove the old portal doc when `previousBusinessName` is supplied). `updateBusinessPortal` now preserves `createdAt` when the same `ownerId` updates an existing portal.
+- `components/FirstTimeSetupModal.tsx` — After saving setup, calls `syncBusinessPortalFromUserDocument` so new owners get a microsite immediately.
+- `app/(tabs)/settings.tsx` — On screen focus, account owners (`uid === accountId`) call `syncBusinessPortalFromUserDocument` once per visit to backfill missing portals without requiring a manual re-save.
+
+**Impact**: New owners completing first-time setup get `businessPortals` rows; existing owners missing rows get them the next time they open Settings. Slug still derives from stored `businessName` (spaces removed, lowercased)—URLs must match that normalization.
+
+---
+
 ## April 16, 2026
 
 ### Premium subscription: £18/mo → £2.99/mo (display + config)

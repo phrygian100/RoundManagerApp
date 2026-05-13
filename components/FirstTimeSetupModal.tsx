@@ -19,6 +19,7 @@ import {
 import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
 import { AvailabilityStatus } from '../services/rotaService';
+import { getUserProfile, syncBusinessPortalFromUserDocument } from '../services/userService';
 
 interface FirstTimeSetupModalProps {
   visible: boolean;
@@ -179,6 +180,9 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       const session = await getUserSession();
       if (!session) throw new Error('No session found');
 
+      const priorProfile = await getUserProfile(session.uid);
+      const previousBusinessName = priorProfile?.businessName ?? null;
+
       // Update user document with setup completion, preferences, and business info
       await updateDoc(doc(db, 'users', session.uid), {
         firstTimeSetupCompleted: true,
@@ -191,6 +195,8 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
         bankAccountNumber: bankAccountNumber.trim(),
         updatedAt: new Date().toISOString(),
       });
+
+      await syncBusinessPortalFromUserDocument(session.uid, { previousBusinessName });
 
       // Set up default rota
       await setupDefaultRota(session);

@@ -23,7 +23,7 @@ import {
   PREMIUM_PRICE_ONLY_LABEL,
   PREMIUM_PRICE_PER_MONTH_LABEL,
 } from '../../shared/constants/pricing';
-import { getUserProfile, updateUserProfile } from '../../services/userService';
+import { getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -587,7 +587,7 @@ export default function SettingsScreen() {
     })();
   }, []);
 
-  // Reload member status when screen gains focus
+  // Reload member status when screen gains focus; backfill client microsite doc if missing
   useFocusEffect(
     useCallback(() => {
       (async () => {
@@ -595,6 +595,13 @@ export default function SettingsScreen() {
         if (sess) {
           setIsOwner(sess.isOwner);
           setIsMemberOfAnotherAccount(sess.accountId !== sess.uid);
+          if (sess.uid === sess.accountId) {
+            try {
+              await syncBusinessPortalFromUserDocument(sess.uid);
+            } catch (e) {
+              console.warn('Business portal sync (settings focus):', e);
+            }
+          }
         }
       })();
     }, [])

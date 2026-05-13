@@ -60,6 +60,38 @@ export async function updateUserProfile(userId: string, data: Partial<User>) {
 }
 
 /**
+ * Reconcile `businessPortals/{normalizedName}` with `users/{userId}` after any
+ * direct `users` write that sets `businessName` without going through
+ * {@link updateUserProfile} (e.g. first-time setup modal).
+ */
+export async function syncBusinessPortalFromUserDocument(
+  userId: string,
+  options?: { previousBusinessName?: string | null }
+): Promise<void> {
+  const profile = await getUserProfile(userId);
+  const newBusinessName = (profile?.businessName || '').trim();
+  const prev = (options?.previousBusinessName ?? '').trim();
+
+  if (prev && prev !== newBusinessName) {
+    const oldNormalized = normalizeBusinessName(prev);
+    try {
+      await deleteDoc(doc(db, BUSINESS_PORTALS_COLLECTION, oldNormalized));
+    } catch {
+      // ignore missing old portal
+    }
+  }
+
+  if (newBusinessName) {
+    await updateBusinessPortal(
+      userId,
+      newBusinessName,
+      profile?.name || '',
+      profile?.email || ''
+    );
+  }
+}
+
+/**
  * Creates or updates a business portal document for client portal access
  * This enables URLs like guvnor.app/businessname to work
  */
@@ -71,15 +103,23 @@ async function updateBusinessPortal(
 ) {
   const normalizedName = normalizeBusinessName(businessName);
   const portalRef = doc(db, BUSINESS_PORTALS_COLLECTION, normalizedName);
-  
-  // Use setDoc without merge to ensure full document creation/replacement
+  const now = new Date().toISOString();
+  const existing = await getDoc(portalRef);
+  let createdAt = now;
+  if (existing.exists()) {
+    const d = existing.data() as { createdAt?: string; ownerId?: string };
+    if (d?.ownerId === ownerId && typeof d.createdAt === 'string' && d.createdAt) {
+      createdAt = d.createdAt;
+    }
+  }
+
   await setDoc(portalRef, {
     ownerId,
     businessName,
     normalizedName,
     ownerName: ownerName || '',
     email: email || '',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt,
+    updatedAt: now,
   });
 } 
