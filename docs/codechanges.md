@@ -2,6 +2,32 @@
 
 ## June 9, 2026
 
+### Round Order Manager: full-list drag-and-drop reordering (new dashboard tile)
+
+**Files changed**:
+- `app/round-order-manager.tsx` (new screen, replaces the old route's purpose) — full-list round order editor gated by `PermissionGate perm="viewClients"`. Loads all non-ex clients sorted by `roundOrderNumber`, edits happen in local state, nothing is written until **Save**.
+  - **Web (desktop + mobile browser)**: custom pointer-event drag on the `⠿` handle (container-level `pointerdown` listener + `data-dragindex` attributes). Floating overlay row follows the pointer (imperative DOM transform — no per-pixel React re-renders), blue drop-indicator line, and auto-scroll when dragging near the top/bottom edges. The handle uses `touchAction: 'none'` so touch drags don't fight page scrolling; the rest of the row scrolls normally.
+  - **Native (iOS/Android)**: `react-native-draggable-flatlist` (already a dependency, previously unused) with long-press to lift.
+  - **Long-distance moves**: search box (address / name / account number) plus tap-a-row quick actions: "Move to position N", Top, Bottom — essential with ~550 clients where dragging across hundreds of rows is impractical.
+  - **Save**: resequences the final list to a clean `1..N` and writes **only clients whose stored number differs**, in `writeBatch` chunks of 400 (Firestore's 500-op limit is a real risk at 500+ clients). Confirm dialog before saving, success alert after. Save also heals pre-existing gaps/duplicates in stored numbering (a banner explains this when no rows were moved but writes are still needed).
+  - **Safety**: "N moved (unsaved)" header counter, orange dot on rows the user repositioned, Reset (revert to last saved order), and discard confirmation when leaving with unsaved moves.
+  - **Web layout note**: the screen pins itself to the window height (`height`/`maxHeight` + `minHeight: 0` on the list container) so the FlatList scrolls internally — required for drag auto-scroll; otherwise the page itself scrolls and `scrollToOffset` is a no-op.
+- `app/round-order-position.tsx` — the **old** `round-order-manager.tsx` renamed (git mv, logic unchanged; title now "Set Round Order Position"). Still serves the single-client position flows.
+- `app/add-client.tsx`, `app/(tabs)/clients/[id]/edit-customer.tsx`, `app/ex-clients.tsx` — navigation updated `/round-order-manager` → `/round-order-position` (add / edit / restore flows keep their existing picker behaviour).
+- `app/(tabs)/index.tsx` — new "Round Order Manager" dashboard tile (`swap-vertical-outline` icon, `viewClients` permission). Note: the dashboard builds its tile list in **two** places (`baseButtons` in `buildButtonsForUser` and `buttonDefs` in the focus effect); both were updated.
+
+**Why**: Round order drifts over time and the only maintenance tools were the one-client-at-a-time position picker and adjacent swaps on the runsheet. This gives a dedicated bulk housekeeping screen reachable from the dashboard.
+
+**Verified in browser (dev server against live data)**: drag + drop on desktop width, touch-pointer drag at 390px mobile width, auto-scroll during drag, search + move-to-position, Reset, and a full normalization Save (548 clients renumbered 1-550; relative order preserved — runsheet order unaffected, confirmed after reload).
+
+---
+
+### Fix: `npm run web` crashed with "window is not defined"
+
+- `app/(tabs)/settings.tsx` line 56 — module-scope diagnostic block called `typeof window.addEventListener` directly; during expo-router static rendering (Node) `window` doesn't exist, so the whole web dev server / `expo export` died on any route importing settings. Added a `typeof window !== 'undefined'` guard. No behavioural change in browsers.
+
+---
+
 ### Rota availability indicators in Workload Forecast and Runsheet
 
 **Files changed**:

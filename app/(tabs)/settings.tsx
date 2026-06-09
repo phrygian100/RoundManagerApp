@@ -53,7 +53,7 @@ const StyledButton = ({ title, onPress, disabled = false, color }: { title: stri
 };
 
 // --- WEB DIAGNOSTIC: Global file input change logger ---
-if (Platform.OS === 'web' && typeof window.addEventListener === 'function') {
+if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('change', (e) => {
     const tgt = e.target as HTMLInputElement;
     if (tgt && tgt.type === 'file') {

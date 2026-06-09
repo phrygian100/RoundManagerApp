@@ -363,7 +363,7 @@ export default function EditCustomerScreen() {
                   <ThemedText style={styles.inputLabel}>Round Order</ThemedText>
                   <Pressable 
                     style={styles.roundOrderButton} 
-                    onPress={() => router.push({ pathname: '/round-order-manager', params: { editingClientId: id }})}
+                    onPress={() => router.push({ pathname: '/round-order-position', params: { editingClientId: id }})}
                   >
                     <Ionicons name="list-outline" size={20} color="#007AFF" />
                     <ThemedText style={styles.roundOrderButtonText}>

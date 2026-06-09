@@ -452,9 +452,9 @@ export default function AddClientScreen() {
       email,
     };
 
-    // Navigate to round order manager with the client data
+    // Navigate to the round order position picker with the client data
     router.push({
-      pathname: '/round-order-manager' as any,
+      pathname: '/round-order-position' as any,
       params: { newClientData: JSON.stringify(newClientData) }
     });
   };

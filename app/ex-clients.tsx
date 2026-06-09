@@ -87,9 +87,9 @@ export default function ExClientsScreen() {
           updatedAt: new Date().toISOString(),
         });
 
-        // After status is updated, navigate to round order manager
+        // After status is updated, navigate to the round order position picker
         router.push({
-          pathname: '/round-order-manager',
+          pathname: '/round-order-position',
           params: { newClientData: JSON.stringify({ ...client, status: 'active', roundOrderNumber: null }) }
         });
       } catch (error) {

@@ -18,6 +18,7 @@ import SettingsScreen from './settings';
 
 const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Client List': 'people-outline',
+  'Round Order Manager': 'swap-vertical-outline',
   'Rota': 'calendar-outline',
   'Workload Forecast': 'stats-chart-outline',
   'Runsheet': 'clipboard-outline',
@@ -314,6 +315,7 @@ export default function HomeScreen() {
 
     const baseButtons = [
       { label: 'Client List', path: '/clients', permKey: 'viewClients' },
+      { label: 'Round Order Manager', path: '/round-order-manager', permKey: 'viewClients' },
       { label: 'Rota', path: '/rota', permKey: null },
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
@@ -430,6 +432,7 @@ export default function HomeScreen() {
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },
+          { label: 'Round Order Manager', path: '/round-order-manager', permKey: 'viewClients' },
           { label: 'Rota', path: '/rota', permKey: null },
           { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
           { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
