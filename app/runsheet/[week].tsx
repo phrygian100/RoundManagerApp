@@ -28,6 +28,7 @@ import type { Client } from '../../types/client';
 import type { Job, Payment, User } from '../../types/models';
 import { getJobAccountDisplay } from '../../utils/jobDisplay';
 import { displayAccountNumber } from '../../utils/account';
+import { availabilityColor, summarizeDayAvailability } from '../../utils/availability';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -39,6 +40,7 @@ export default function RunsheetWeekScreen() {
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, MemberRecord>>({});
+  const [availabilityRoster, setAvailabilityRoster] = useState<MemberRecord[]>([]);
   const [rotaMap, setRotaMap] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
@@ -286,6 +288,15 @@ export default function RunsheetWeekScreen() {
         const map: Record<string, MemberRecord> = {};
         memberList.forEach((m: MemberRecord) => { map[m.uid] = m; });
         setMemberMap(map);
+
+        // Roster for the day availability indicator: active members plus the
+        // account owner (listMembers may not include the owner).
+        const roster = memberList.filter((m: MemberRecord) => m.status === 'active');
+        const accountOwnerId = await getDataOwnerId();
+        if (accountOwnerId && !roster.some((m: MemberRecord) => m.uid === accountOwnerId)) {
+          roster.unshift({ uid: accountOwnerId, status: 'active' } as MemberRecord);
+        }
+        setAvailabilityRoster(roster);
 
         // Load rota for this week
         const rota = await fetchRotaRange(weekStart, weekEnd);
@@ -2735,6 +2746,15 @@ ${signOff}`;
               const dayIsCompleted = completedDays.includes(title);
               const showDayCompleteButton = isOwner && isDayComplete(title) && !dayIsCompleted && !dayIsPast;
 
+              // Rota availability for this day (traffic-light dot + count)
+              const dayIndex = daysOfWeek.indexOf(title);
+              const dayAvailability = dayIndex >= 0 && availabilityRoster.length > 0
+                ? summarizeDayAvailability(
+                    rotaMap[format(addDays(weekStart, dayIndex), 'yyyy-MM-dd')],
+                    availabilityRoster,
+                  )
+                : null;
+
               // Debug logging
               console.log(`Section header for ${title}:`, {
                 dayIsPast,
@@ -2752,6 +2772,19 @@ ${signOff}`;
                       {(dayIsCompleted || dayIsPast) && ' 🔒'}
                     </Text>
                   </Pressable>
+                  {dayAvailability && dayAvailability.total > 0 && (
+                    <View style={styles.availabilityBadge}>
+                      <View
+                        style={[
+                          styles.availabilityDot,
+                          { backgroundColor: availabilityColor(dayAvailability.ratio) },
+                        ]}
+                      />
+                      <Text style={styles.availabilityBadgeText}>
+                        {dayAvailability.available}/{dayAvailability.total} available
+                      </Text>
+                    </View>
+                  )}
                   {showDayCompleteButton && (
                     Platform.OS === 'web'
                       ? (
@@ -3766,6 +3799,22 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sectionHeader: { fontSize: 20, fontWeight: 'bold' },
+  availabilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  availabilityDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 5,
+  },
+  availabilityBadgeText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
   clientRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

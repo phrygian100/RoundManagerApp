@@ -1,5 +1,38 @@
 # Code Changes Log
 
+## June 9, 2026
+
+### Rota availability indicators in Workload Forecast and Runsheet
+
+**Files changed**:
+- `utils/availability.ts` (new) — `summarizeDayAvailability(rotaForDay, members)` counts available active members for a day (a member is available when their rota status is `'on'` or missing; `'off'`/`'n/a'` are unavailable — same rule as runsheet capacity allocation). `availabilityColor(ratio)` returns a continuous green→amber→red HSL colour.
+- `app/workload-forecast.tsx` — each week row now shows a coloured availability pill (e.g. `86%`): available member-days ÷ (active members × 7 days), using one `fetchRotaRange` call across the 52-week window (includes default `rotaRules` patterns). Roster = active members from `listMembers()` plus the account owner if absent. Rota/member load failures degrade gracefully (no pill, forecast unaffected).
+- `app/runsheet/[week].tsx` — day section headers now show a traffic-light dot + `X/Y available` derived from the already-loaded `rotaMap` and a new `availabilityRoster` (active members + owner). Display only — `allocateJobsForDay`, completion and locking logic untouched.
+
+**Why**: Users previously had to open the Rota screen to see who is on/off. Availability is now visible at-a-glance per week in the forecast (100% green → 0% red) and per day on the runsheet.
+
+**Notes**:
+- No Firestore schema or rules changes; read-only reuse of existing `rota` + `rotaRules` data.
+- Pure React Native views — renders identically on web and mobile.
+- Pre-existing TS lint errors in `app/runsheet/[week].tsx` (lines ~405, ~817) were not introduced by this change and remain.
+
+---
+
+### Housekeeping: centralized DEVELOPER_UID, archived legacy docs, removed stray file
+
+**Changes**:
+- `shared/constants/developer.ts` (new) — single source of truth for the developer account UID (`X4TtaVGKUtQSCtPLF8wsHsVZ0oW2`).
+- `services/subscriptionService.ts`, `app/register.tsx` — removed local hardcoded `DEVELOPER_UID` copies; both now import from the shared constant. No behavioural change.
+- `functions/index.js` — keeps its own copy (Cloud Functions deploys only the `functions/` folder and cannot import outside it); added a comment requiring it stays in sync with `shared/constants/developer.ts`.
+- Archived legacy docs into `docs/archive/`: `code-changes.md`, `code-changes_Vol1_DO_NOT_WRITE_TO_THIS_ONE.md`, `cod-changes_Vol2.txt`, `project-handover-2025-01-15.md`. `docs/codechanges.md` is the only live changelog.
+- `README.md` — changelog/handover links updated to `docs/codechanges.md` and the archived handover path.
+- `.cursor/rules/documentation.mdc` — changelog rule repointed from `docs/code-changes.md` to `docs/codechanges.md` so the archived file does not get recreated.
+- Deleted stray `tatus` file from repo root (accidental output of a mistyped git command).
+
+**Impact**: If the developer account ever changes, update `shared/constants/developer.ts` and the `DEVELOPER_UID` constant in `functions/index.js` (two places instead of three+, with the sync requirement documented in both).
+
+---
+
 ## May 13, 2026
 
 ### Client microsite (`businessPortals`): create on first-time setup + backfill on Settings

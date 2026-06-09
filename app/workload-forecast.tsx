@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { addWeeks, format, parseISO, startOfWeek } from 'date-fns';
+import { addDays, addWeeks, format, parseISO, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -8,12 +8,17 @@ import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
+import { listMembers, type MemberRecord } from '../services/accountService';
 import { resetWeekToRoundOrder } from '../services/resetService';
+import { fetchRotaRange } from '../services/rotaService';
 import type { Job } from '../types/models';
+import { availabilityColor, summarizeDayAvailability } from '../utils/availability';
+
+type WeekForecast = { week: string; count: number; availability: number | null };
 
 export default function WorkloadForecastScreen() {
   const [loading, setLoading] = useState(true);
-  const [weeks, setWeeks] = useState<{ week: string; count: number }[]>([]);
+  const [weeks, setWeeks] = useState<WeekForecast[]>([]);
   const [hasPermission, setHasPermission] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
   const [resettingWeek, setResettingWeek] = useState<string | null>(null);
@@ -46,7 +51,26 @@ export default function WorkloadForecastScreen() {
       // Calculate the date range for the next 52 weeks
       const today = new Date();
       const start = startOfWeek(today, { weekStartsOn: 1 });
-      const weeksArr: { week: string; count: number }[] = [];
+      const weeksArr: WeekForecast[] = [];
+
+      // Load rota availability for the whole forecast window.
+      // Failure degrades gracefully: rows simply show no availability pill.
+      let roster: MemberRecord[] = [];
+      let rotaMap: Record<string, Record<string, any>> = {};
+      try {
+        const memberList = await listMembers();
+        roster = memberList.filter(m => m.status === 'active');
+        // listMembers may not include the account owner; count them too.
+        if (ownerId && !roster.some(m => m.uid === ownerId)) {
+          roster.unshift({ uid: ownerId, status: 'active' } as MemberRecord);
+        }
+        if (roster.length > 0) {
+          rotaMap = await fetchRotaRange(start, addDays(addWeeks(start, 52), -1));
+        }
+      } catch (err) {
+        console.warn('Workload forecast: rota availability unavailable:', err);
+        roster = [];
+      }
 
       // Group jobs by week
       for (let i = 0; i < 52; i++) {
@@ -61,7 +85,21 @@ export default function WorkloadForecastScreen() {
           return jobDate >= weekStr && jobDate < weekEnd;
         }).length;
 
-        weeksArr.push({ week: weekStr, count });
+        // Week availability = available member-days / (active members x 7 days)
+        let availability: number | null = null;
+        if (roster.length > 0) {
+          let availableSlots = 0;
+          let totalSlots = 0;
+          for (let d = 0; d < 7; d++) {
+            const dayKey = format(addDays(weekDate, d), 'yyyy-MM-dd');
+            const day = summarizeDayAvailability(rotaMap[dayKey], roster);
+            availableSlots += day.available;
+            totalSlots += day.total;
+          }
+          availability = totalSlots > 0 ? availableSlots / totalSlots : null;
+        }
+
+        weeksArr.push({ week: weekStr, count, availability });
       }
 
       setWeeks(weeksArr);
@@ -173,7 +211,7 @@ export default function WorkloadForecastScreen() {
     );
   }
 
-  const renderItem = ({ item }: { item: { week: string; count: number } }) => {
+  const renderItem = ({ item }: { item: WeekForecast }) => {
     const date = parseISO(item.week);
     const day = date.getDate();
     const month = format(date, 'LLLL');
@@ -197,6 +235,18 @@ export default function WorkloadForecastScreen() {
           onPress={() => router.push({ pathname: '/runsheet/[week]', params: { week: item.week } })}
         >
           <Text style={styles.weekLabel}>{label}</Text>
+          {item.availability !== null && (
+            <View
+              style={[
+                styles.availabilityPill,
+                { backgroundColor: availabilityColor(item.availability) },
+              ]}
+            >
+              <Text style={styles.availabilityPillText}>
+                {Math.round(item.availability * 100)}%
+              </Text>
+            </View>
+          )}
           <Text style={styles.count}>{item.count} job{item.count !== 1 ? 's' : ''}</Text>
         </Pressable>
         {showResetButton && (
@@ -289,6 +339,19 @@ const styles = StyleSheet.create({
   },
   weekLabel: { fontSize: 15, flex: 1, flexWrap: 'wrap' },
   count: { fontSize: 15, fontWeight: 'bold', marginLeft: 8, minWidth: 60, textAlign: 'right' },
+  availabilityPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    marginLeft: 8,
+    minWidth: 44,
+    alignItems: 'center',
+  },
+  availabilityPillText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
   empty: { textAlign: 'center', marginTop: 50 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   titleRow: {
