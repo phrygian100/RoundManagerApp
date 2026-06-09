@@ -33,7 +33,9 @@ setGlobalOptions({
   maxInstances: 10
 });
 
-// Default subscription tier assignment for new users
+// Developer account UID (exempt tier + admin tools).
+// Keep in sync with shared/constants/developer.ts — this codebase is deployed
+// separately to Cloud Functions and cannot import files outside functions/.
 const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
 exports.setDefaultSubscriptionTier = onDocumentCreated('users/{userId}', async (event) => {
   const snapshot = event.data;

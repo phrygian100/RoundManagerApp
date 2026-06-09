@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { auth, db } from '../core/firebase';
+import { DEVELOPER_UID } from '../shared/constants/developer';
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -82,7 +83,6 @@ export default function RegisterScreen() {
       }
 
       // Create a user document in Firestore
-      const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
       const userData: any = {
         id: user.uid,
         email: user.email,

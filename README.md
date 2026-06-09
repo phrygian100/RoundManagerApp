@@ -71,10 +71,10 @@ Configure your environment by copying `config.example.ts` to `config.ts` and add
 
 ## 📚 Documentation
 
-### 📋 **[Complete Project Handover →](docs/project-handover-2025-01-15.md)**
+### 📋 **[Complete Project Handover →](docs/archive/project-handover-2025-01-15.md)** *(archived)*
 Comprehensive project overview, architecture, and current status
 
-### 📝 **[Full Changelog →](docs/code-changes.md)**  
+### 📝 **[Full Changelog →](docs/codechanges.md)**  
 Complete development history and resolved issues
 
 ### 📖 **[Project Rules →](docs/rules.md)**
@@ -167,7 +167,7 @@ npx expo install         # Install Expo-compatible dependencies
 
 ### Emergency Contacts
 - **Critical Files**: `app/round-order-manager.tsx`, `core/session.ts`
-- **Documentation**: `docs/code-changes.md` for complete troubleshooting history
+- **Documentation**: `docs/codechanges.md` for complete troubleshooting history
 - **Monitoring**: Firebase Console, Supabase Dashboard, Vercel Dashboard
 
 ### Development Resources

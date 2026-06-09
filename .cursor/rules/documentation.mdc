@@ -5,7 +5,7 @@ alwaysApply: false
 ---
 # Project contribution rules
 
-1. After **every** code change (function, service, component, config, etc.) you must append a concise entry to `docs/code-changes.md` describing:
+1. After **every** code change (function, service, component, config, etc.) you must append a concise entry to `docs/codechanges.md` describing:
    - The date (YYYY-MM-DD)
    - What was changed (file / feature)
    - Why the change was made

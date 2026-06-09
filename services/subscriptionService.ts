@@ -2,9 +2,7 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch }
 import { db } from '../core/firebase';
 import { getDataOwnerId, getUserSession } from '../core/session';
 import { User } from '../types/models';
-
-// Developer account UID for exemption
-const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
+import { DEVELOPER_UID } from '../shared/constants/developer';
 
 export type SubscriptionTier = 'free' | 'premium' | 'exempt';
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'exempt';
