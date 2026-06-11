@@ -10,6 +10,7 @@ import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
+import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../shared/constants/developer';
 
 let DatePicker: any = null;
 if (Platform.OS === 'web') {
@@ -29,6 +30,7 @@ interface QuoteRequest {
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
   source: string;
+  businessName?: string | null;
   selectedImageUrl?: string;
   selectedFrequency?: string;
   selectedCost?: number;
@@ -92,7 +94,12 @@ export default function NewBusinessScreen() {
           id: doc.id,
           ...doc.data()
         })) as QuoteRequest[];
-        setRequests(data);
+        // Guvnor-branded consumer leads live in the developer's bucket but are
+        // managed on /guvnor-leads, not here.
+        const filtered = ownerId === DEVELOPER_UID
+          ? data.filter(r => r.businessName !== GUVNOR_LEADS_BUSINESS_NAME)
+          : data;
+        setRequests(filtered);
         setLoading(false);
       }, (error) => {
         console.error('Error loading quote requests:', error);

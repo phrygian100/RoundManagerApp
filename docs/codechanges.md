@@ -2,6 +2,24 @@
 
 ## June 11, 2026
 
+### Guvnor Leads: public consumer quote page + developer lead inbox
+
+**Concept**: Guvnor itself now captures window cleaning enquiries from consumers anywhere in the UK (ads/SEO land them on a Guvnor-branded "get a quote" page). Leads drop into a developer-only bucket; the developer cold-calls geographically suitable window cleaners (Google Maps), onboards them as Guvnor users, and hands them the customer — solving user activation by onboarding new users *with* a live customer.
+
+**Files changed**:
+- `app/window-cleaning-quote.tsx` (new, public, no auth) — consumer-facing landing + quote form (name, phone, address, town, postcode, frequency preference chips, email, notes; GDPR consent line). Submits through the **existing deployed** `portalApi` `submitQuoteRequest` action with `businessId = DEVELOPER_UID` and `businessName = 'Guvnor'` — no Cloud Function or Firestore rules changes/deploys needed (public writes stay blocked; the function validates + rate-limits server-side). Includes `expo-router/head` title/meta for SEO.
+- `shared/constants/developer.ts` — new `GUVNOR_LEADS_BUSINESS_NAME = 'Guvnor'` marker constant. A quoteRequest doc with `businessId === DEVELOPER_UID && businessName === 'Guvnor'` is a Guvnor lead; the developer's own microsite enquiries keep their TGM business name, so the two coexist in one collection.
+- `app/_layout.tsx` — `/window-cleaning-quote` added to `unauthAllowed` so unauthenticated visitors aren't bounced to `/login` (route contains hyphens, so the business-slug regex never matches it). `vercel.json` needed no change — the SPA catch-all already serves it.
+- `app/guvnor-leads.tsx` (new, developer-only) — real-time lead inbox gated by `session.uid === DEVELOPER_UID`. Each card: contact details (tappable phone → tel:), address, frequency preference, notes, a **"Find window cleaners near {postcode}"** Google Maps button (the cold-call workflow), status chips (New → Calling around → Onboarded → Dead, stored as the existing pending/contacted/converted/declined values), and delete.
+- `app/new-business.tsx` — Guvnor leads are filtered out of the developer's own New Business list (they're managed on /guvnor-leads instead).
+- `app/(tabs)/index.tsx` — "Guvnor Leads" dashboard tile (megaphone icon) shown only to the developer account, in both `baseButtons` and the focus-effect `buttonDefs`. The quoteRequests badge listener now splits counts: Guvnor leads badge on the new tile, everything else stays on New Business.
+
+**Verified in browser end-to-end**: signed out → visited `/window-cleaning-quote` (no login redirect, incl. past the 5s debounce) → submitted a test lead against the production portal API → signed back in → dashboard showed Guvnor Leads tile with badge 1 and New Business badge unchanged → lead visible on /guvnor-leads with Maps link, status change to "Calling around" updated live → confirmed the lead does NOT appear on /new-business. Test lead left in place (marked safe to delete) as a first example.
+
+**Notes / future**: at >50 users this manual concierge flow can evolve (cleaners claim leads, pay-per-lead, auto-matching). If lead volume brings spam, add a captcha or tighten the portalApi rate limit. Marketing site (`web/`) could link to the page from `/home` for SEO juice.
+
+---
+
 ### Fix: Add Payment now carries client context from the client detail screen
 
 **Files changed**:

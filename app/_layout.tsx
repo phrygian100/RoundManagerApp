@@ -45,7 +45,7 @@ function AppContent() {
     const isPasswordResetFlow = typeof window !== 'undefined' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
-    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password'];
+    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/window-cleaning-quote'];
     const redirectIfLoggedIn = ['/login', '/register'];
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 

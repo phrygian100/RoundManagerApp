@@ -14,6 +14,7 @@ import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { getClientCount } from '../../services/clientService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
+import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../../shared/constants/developer';
 import SettingsScreen from './settings';
 
 const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -26,6 +27,7 @@ const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Materials': 'construct-outline',
   'Quotes': 'chatbubble-ellipses-outline',
   'New Business': 'briefcase-outline',
+  'Guvnor Leads': 'megaphone-outline',
 };
 
 export default function HomeScreen() {
@@ -60,6 +62,7 @@ export default function HomeScreen() {
   
   // Quote requests badge count
   const [quoteRequestCount, setQuoteRequestCount] = useState(0);
+  const [guvnorLeadCount, setGuvnorLeadCount] = useState(0);
 
   // Subscription / upgrade CTA state
   const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
@@ -323,6 +326,9 @@ export default function HomeScreen() {
       { label: 'Materials', path: '/materials', permKey: 'viewMaterials' },
       { label: 'Quotes', path: '/quotes', permKey: null },
       { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
+      ...(session.uid === DEVELOPER_UID
+        ? [{ label: 'Guvnor Leads', path: '/guvnor-leads', permKey: 'isOwner' }]
+        : []),
     ];
 
     const allowed = baseButtons.filter((btn) => {
@@ -391,7 +397,13 @@ export default function HomeScreen() {
       );
 
       unsubscribe = onSnapshot(q, (snapshot) => {
-        setQuoteRequestCount(snapshot.size);
+        // Guvnor consumer leads share the developer's quoteRequests bucket but
+        // get their own tile/badge; keep them out of the New Business count.
+        const guvnorLeads = ownerId === DEVELOPER_UID
+          ? snapshot.docs.filter(d => d.data().businessName === GUVNOR_LEADS_BUSINESS_NAME).length
+          : 0;
+        setQuoteRequestCount(snapshot.size - guvnorLeads);
+        setGuvnorLeadCount(guvnorLeads);
       }, (error) => {
         console.error('Error listening to quote requests:', error);
       });
@@ -440,6 +452,9 @@ export default function HomeScreen() {
           { label: 'Materials', path: '/materials', permKey: 'viewMaterials' },
           { label: 'Quotes', path: '/quotes', permKey: null },
           { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
+          ...(session.uid === DEVELOPER_UID
+            ? [{ label: 'Guvnor Leads', path: '/guvnor-leads', permKey: 'isOwner' }]
+            : []),
         ];
 
         const allowed = buttonDefs.filter(b => {
@@ -727,6 +742,11 @@ export default function HomeScreen() {
               {btn.label === 'New Business' && quoteRequestCount > 0 && (
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{quoteRequestCount}</Text>
+                </View>
+              )}
+              {btn.label === 'Guvnor Leads' && guvnorLeadCount > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{guvnorLeadCount}</Text>
                 </View>
               )}
             </Pressable>
