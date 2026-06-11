@@ -1,7 +1,7 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
@@ -45,7 +45,7 @@ function AppContent() {
     const isPasswordResetFlow = typeof window !== 'undefined' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
-    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/window-cleaning-quote'];
+    const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/window-cleaning-quote', '/welcome'];
     const redirectIfLoggedIn = ['/login', '/register'];
     const alwaysAllowed = ['/set-password', '/forgot-password'];
 
@@ -88,7 +88,12 @@ function AppContent() {
       // Don't redirect if it's a business route OR explicitly allowed
       if (!isUnauthAllowed && !isBusinessRoute) {
         const previouslyHadUser = !!previousUserRef.current;
-        
+
+        // Fresh web visitors to the root get the public consumer landing page;
+        // deep links to app screens (expired sessions etc.) still go to login.
+        // Native apps always go to login - their audience is service providers.
+        const isRootLanding = Platform.OS === 'web' && (!actualPathname || actualPathname === '/');
+
         if (previouslyHadUser) {
           // Debounce redirect for non-business routes
           if (!loginRedirectTimeoutRef.current) {
@@ -108,7 +113,7 @@ function AppContent() {
             }, 5000);
           }
         } else {
-          router.replace('/login');
+          router.replace(isRootLanding ? '/welcome' : '/login');
         }
       }
     } else {

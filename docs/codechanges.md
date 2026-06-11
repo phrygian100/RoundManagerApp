@@ -2,6 +2,20 @@
 
 ## June 11, 2026
 
+### Consumer-first public homepage at /welcome
+
+**Why**: With the Guvnor Leads funnel live, visitors arriving at guvnor.app from search/ads are now mostly consumers wanting a window cleaner, but the root previously bounced straight to the provider sign-in screen with no path to the quote form.
+
+**Files changed**:
+- `app/welcome.tsx` (new, public) — consumer-first landing: "Need a window cleaner?" hero with a "Get my free quote" CTA → `/window-cleaning-quote`, trust pills, a 3-step "How it works", then a provider band ("Clean windows for a living?" → marketing `/home`) and a slim footer (About/Contact/Privacy/Terms). Discreet "Sign in" button in the nav for existing users. SEO title/meta via `expo-router/head`.
+- `app/_layout.tsx` — unauthenticated **web** visitors hitting the root `/` now land on `/welcome` instead of `/login`. Deep links to app screens (expired sessions) still go to `/login`, native apps are unaffected (their audience is providers), and the post-sign-out debounce path still targets `/login`. `/welcome` added to `unauthAllowed`.
+- `app/login.tsx` — small safety-net link under the hero ("Looking for a window cleaner? Get a free quote →") for consumers who land on the sign-in page from old links. Web only.
+- `vercel.json` needed no change (SPA catch-all already serves `/welcome`).
+
+**Verified in browser**: signed out → visited `/` → redirected to `/welcome` → CTA navigates to the quote form → Sign in button reaches `/login` → signed back in normally.
+
+---
+
 ### Guvnor Leads: public consumer quote page + developer lead inbox
 
 **Concept**: Guvnor itself now captures window cleaning enquiries from consumers anywhere in the UK (ads/SEO land them on a Guvnor-branded "get a quote" page). Leads drop into a developer-only bucket; the developer cold-calls geographically suitable window cleaners (Google Maps), onboards them as Guvnor users, and hands them the customer — solving user activation by onboarding new users *with* a live customer.

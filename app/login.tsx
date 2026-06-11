@@ -230,6 +230,11 @@ export default function LoginScreen() {
           <Text style={[styles.heroSubtitle, isNarrowWeb && styles.heroSubtitleMobile]}>
             Sign in to manage your cleaning rounds, clients, and payments
           </Text>
+          {Platform.OS === 'web' && (
+            <Pressable onPress={() => handleNavigation('/window-cleaning-quote')} style={styles.consumerLink}>
+              <Text style={styles.consumerLinkText}>Looking for a window cleaner? Get a free quote →</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Login Form Card */}
@@ -543,6 +548,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 22,
     paddingHorizontal: 8,
+  },
+  consumerLink: {
+    marginTop: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  consumerLinkText: {
+    color: '#10b981',
+    fontSize: 15,
+    fontWeight: '600',
   },
 
   // Login Card
