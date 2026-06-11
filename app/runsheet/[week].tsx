@@ -38,6 +38,9 @@ export default function RunsheetWeekScreen() {
   const compactHeader = Platform.OS !== 'web' || width < 480;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
+  // Job ids whose completion/undo write hasn't been acknowledged by the server yet
+  // (e.g. while offline). Cleared when Firestore confirms the write.
+  const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, MemberRecord>>({});
   const [availabilityRoster, setAvailabilityRoster] = useState<MemberRecord[]>([]);
@@ -777,8 +780,6 @@ export default function RunsheetWeekScreen() {
   }, [jobs]);
 
   const handleComplete = async (jobId: string, isCompleted: boolean, section?: any) => {
-    setLoading(true);
-    
     // Calculate completion sequence if marking as complete
     let completionSeq: number | undefined;
     if (!isCompleted) {
@@ -844,7 +845,13 @@ export default function RunsheetWeekScreen() {
       }
     }
     
-    await updateJobStatus(jobId, isCompleted ? 'pending' : 'completed', completionSeq);
+    // Optimistic update FIRST so the runsheet stays interactive on slow/absent
+    // connections - the tick appears instantly and the write syncs in the background.
+    const previousJob = jobs.find((j) => j.id === jobId);
+    const previousStatus = previousJob?.status;
+    const previousCompletionSequence = (previousJob as any)?.completionSequence;
+    const previousCompletedAt = (previousJob as any)?.completedAt;
+
     setJobs((prev) =>
       prev.map((job) =>
         job.id === jobId ? { 
@@ -855,7 +862,48 @@ export default function RunsheetWeekScreen() {
         } : job
       )
     );
-    setLoading(false);
+    setPendingSyncIds((prev) => {
+      const next = new Set(prev);
+      next.add(jobId);
+      return next;
+    });
+
+    // Fire the Firestore write without blocking the UI. With the persistent
+    // local cache the write is journaled on-device immediately and synced when
+    // connectivity returns; the promise resolves on server acknowledgement.
+    updateJobStatus(jobId, isCompleted ? 'pending' : 'completed', completionSeq, { previousStatus })
+      .then(() => {
+        setPendingSyncIds((prev) => {
+          const next = new Set(prev);
+          next.delete(jobId);
+          return next;
+        });
+      })
+      .catch((e) => {
+        // Genuine rejection (e.g. permission denied) - revert the optimistic update.
+        console.error('Failed to save job status change:', e);
+        setPendingSyncIds((prev) => {
+          const next = new Set(prev);
+          next.delete(jobId);
+          return next;
+        });
+        setJobs((prev) =>
+          prev.map((job) =>
+            job.id === jobId ? {
+              ...job,
+              status: previousStatus ?? (isCompleted ? 'completed' : 'pending'),
+              completionSequence: previousCompletionSequence,
+              completedAt: previousCompletedAt,
+            } : job
+          )
+        );
+        const msg = 'Could not save that change. Please try again.';
+        if (Platform.OS === 'web') {
+          if (typeof window !== 'undefined') window.alert(msg);
+        } else {
+          Alert.alert('Save failed', msg);
+        }
+      });
 
     // 🔍 Audit log for marking job complete
     if (!isCompleted) {
@@ -865,12 +913,14 @@ export default function RunsheetWeekScreen() {
         ? `${completedJob.client.address1}, ${completedJob.client.town}, ${completedJob.client.postcode}`
         : undefined;
 
-      await logAction(
+      // Fire-and-forget: the audit write syncs in the background (it would
+      // otherwise block the local out-of-order detection below while offline).
+      logAction(
         'job_completed',
         'job',
         jobId,
         formatAuditDescription('job_completed', jobAddress)
-      );
+      ).catch((e) => console.warn('Audit log for job completion failed (non-fatal):', e));
 
       // Record completion sequence and detect out-of-order within the current vehicle block (for today only)
       try {
@@ -2565,6 +2615,11 @@ ${signOff}`;
               <Text style={styles.completeButtonText}>Undo</Text>
             </Pressable>
           )}
+          {pendingSyncIds.has(item.id) && (
+            <View style={styles.syncPendingPill}>
+              <Text style={styles.syncPendingText}>Syncing…</Text>
+            </View>
+          )}
           {(isToday || isFutureDay || isPastDay) && !isDayCompleted && item.status !== 'completed' && item.status !== 'accounted' && item.status !== 'paid' && (
             <Pressable onPress={() => handleDeferJob(item)} style={styles.deferButton}>
               <Text style={styles.deferButtonText}>Move</Text>
@@ -4063,6 +4118,20 @@ const styles = StyleSheet.create({
   completeButtonText: {
     color: '#fff',
     fontWeight: 'bold',
+  },
+  syncPendingPill: {
+    backgroundColor: '#fef3c7',
+    borderWidth: 1,
+    borderColor: '#fcd34d',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    alignSelf: 'center',
+  },
+  syncPendingText: {
+    color: '#92400e',
+    fontSize: 11,
+    fontWeight: '600',
   },
   androidSheetOverlay: {
     flex: 1,

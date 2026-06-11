@@ -1,6 +1,11 @@
 import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { FIREBASE_CONFIG } from '../config';
 
@@ -35,7 +40,23 @@ if (!getApps().length) {
 }
 
 auth = getAuth(app);
-db = getFirestore(app);
+
+// Persist Firestore data in IndexedDB so runsheets/clients viewed while online
+// stay readable offline, and writes (e.g. marking jobs complete in the field)
+// are journaled locally and synced when connectivity returns.
+// SSR/static export has no IndexedDB, so fall back to the default in-memory cache.
+if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (e) {
+    console.warn('Persistent Firestore cache unavailable; using in-memory cache.', e);
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
+}
 storage = getStorage(app);
 
 export { app, auth, db, storage };

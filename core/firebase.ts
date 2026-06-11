@@ -1,7 +1,13 @@
 import Constants from 'expo-constants';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
+import {
+  Firestore,
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 import { FIREBASE_CONFIG } from '../config';
@@ -74,7 +80,22 @@ if (Platform.OS !== 'web') {
 } else {
   auth = getAuth(app);
 }
-db = getFirestore(app);
+// On web, persist Firestore data in IndexedDB so runsheets/clients viewed while
+// online stay readable offline, and writes (e.g. marking jobs complete in the
+// field) are journaled locally and synced when connectivity returns.
+// SSR/static export and React Native have no IndexedDB, so they keep the default cache.
+if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+    });
+  } catch (e) {
+    console.warn('Persistent Firestore cache unavailable; using in-memory cache.', e);
+    db = getFirestore(app);
+  }
+} else {
+  db = getFirestore(app);
+}
 storage = getStorage(app);
 
 export { app, auth, db, storage };

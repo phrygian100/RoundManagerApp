@@ -96,27 +96,35 @@ export async function getJobsForProvider(providerId: string): Promise<Job[]> {
   return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
 }
 
-export async function updateJobStatus(jobId: string, status: Job['status'], completionSequence?: number) {
+export async function updateJobStatus(
+  jobId: string,
+  status: Job['status'],
+  completionSequence?: number,
+  options?: { previousStatus?: Job['status'] }
+) {
   const jobRef = doc(db, JOBS_COLLECTION, jobId);
   const updateData: any = { status };
-  
-  // Read current state so we only trigger follow-up logic on true transitions.
-  let previousStatus: Job['status'] | undefined;
+
+  // Only trigger follow-up logic on true transitions into 'completed'.
+  // Callers that already know the job's previous status (e.g. the runsheet)
+  // can pass it to avoid a blocking server read on slow/absent connections.
   let shouldTriggerTopUp = false;
-  try {
-    if (status === 'completed') {
-      const snap = await getDoc(jobRef);
-      if (snap.exists()) {
-        const data: any = snap.data();
-        previousStatus = data?.status;
-        // Only trigger once when transitioning into completed
-        shouldTriggerTopUp = previousStatus !== 'completed';
+  if (status === 'completed') {
+    if (options && 'previousStatus' in options) {
+      shouldTriggerTopUp = options.previousStatus !== 'completed';
+    } else {
+      try {
+        const snap = await getDoc(jobRef);
+        if (snap.exists()) {
+          const data: any = snap.data();
+          shouldTriggerTopUp = data?.status !== 'completed';
+        }
+      } catch (e) {
+        // If we can't read the job doc (rules / transient), don't block completion.
+        // We also won't attempt top-up because we can't safely determine transition.
+        shouldTriggerTopUp = false;
       }
     }
-  } catch (e) {
-    // If we can't read the job doc (rules / transient), don't block completion.
-    // We also won't attempt top-up because we can't safely determine transition.
-    shouldTriggerTopUp = false;
   }
   
   // If marking as completed, also save the completion sequence and date
@@ -132,13 +140,11 @@ export async function updateJobStatus(jobId: string, status: Job['status'], comp
   await updateDoc(jobRef, updateData);
 
   // After marking a job completed, ensure future recurring jobs exist (24-month rolling window).
-  // This is best-effort: never block job completion if generation fails.
+  // Fire-and-forget: never block job completion on schedule generation.
   if (status === 'completed' && shouldTriggerTopUp) {
-    try {
-      await topUpRecurringJobsAfterCompletion(jobId, 24);
-    } catch (e) {
+    topUpRecurringJobsAfterCompletion(jobId, 24).catch((e) => {
       console.warn('updateJobStatus: schedule top-up failed (non-fatal)', e);
-    }
+    });
   }
 }
 

@@ -2,6 +2,21 @@
 
 ## June 11, 2026
 
+### Offline-tolerant runsheet: instant job completion + Firestore persistent cache
+
+**Why**: In the field with poor/no signal, marking a job complete replaced the whole runsheet with a spinner for up to ~2 minutes (blocking server read + awaited write + awaited recurring-job top-up), so crews couldn't reach the Nav button for the next job.
+
+**Files changed**:
+- `core/firebase.web.ts` (the module Metro actually uses on web) and `core/firebase.ts` (native/fallback twin, web-guarded) — Firestore now initialised with `persistentLocalCache` + `persistentMultipleTabManager` on web. Data viewed while online is cached in IndexedDB and readable offline; writes are journaled locally and auto-synced when connectivity returns, surviving page reloads. SSR/static export and React Native keep the default cache (no IndexedDB there). Falls back to in-memory cache with a console warning if IndexedDB init fails (e.g. private browsing).
+- `services/jobService.ts` — `updateJobStatus` gains an optional `options.previousStatus`: callers that already know the job's prior status skip the blocking `getDoc` server read. The recurring-jobs top-up after completion is now fire-and-forget (was awaited despite being documented as "never block").
+- `app/runsheet/[week].tsx` — `handleComplete` no longer sets the full-screen `loading` state. It applies the optimistic `setJobs` update FIRST, then fires the Firestore write in the background; on genuine rejection (e.g. permission denied) it reverts and alerts. New `pendingSyncIds` state drives an amber "Syncing…" pill on job cards until the server acknowledges the write (instant online; persists while offline). The completion audit log is also fire-and-forget so the local out-of-order swap detection isn't blocked offline.
+
+**Not covered (known limits, by design for this pass)**: the app shell itself still needs network to load (no service worker yet — that's the next stage if wanted); GoCardless payment creation and other Cloud Function calls remain online-only; data not viewed while online isn't in the cache.
+
+**Tested in browser** (CDP offline emulation): marked a job complete while fully offline → tick + Undo + "Syncing…" pill appeared instantly, runsheet stayed interactive; restored network → pill cleared on server ack; Undo restored the job. Verified the `firestore/[DEFAULT]/roundmanagerapp/main` IndexedDB database is created. Discovered `core/firebase.web.ts` shadows `core/firebase.ts` on web builds — both updated consistently.
+
+---
+
 ### Guvnor Leads: self-assignment + 'Guvnor' lead source attribution
 
 **Why**: The developer had no way to take a Guvnor lead for his own round (the assign modal deliberately excluded his account, and a plain reassign would be a no-op since the lead already has his `businessId`). Downstream, leads handed over by Guvnor were being credited to 'Client Portal' instead of Guvnor.
