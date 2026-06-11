@@ -2,6 +2,19 @@
 
 ## June 11, 2026
 
+### Guvnor Leads: self-assignment + 'Guvnor' lead source attribution
+
+**Why**: The developer had no way to take a Guvnor lead for his own round (the assign modal deliberately excluded his account, and a plain reassign would be a no-op since the lead already has his `businessId`). Downstream, leads handed over by Guvnor were being credited to 'Client Portal' instead of Guvnor.
+
+**Files changed**:
+- `app/guvnor-leads.tsx` — new pinned green "Assign to my own round" row at the top of the assign modal's user list. Since the lead already has `businessId === DEVELOPER_UID`, taking it for his own round clears the `businessName: 'Guvnor'` marker (set to `null`) instead of touching `businessId`; that drops it out of the guvnor-leads client-side filter and out of the developer's new-business exclusion filter, so it lands in his /new-business inbox. Also sets `status: 'pending'`, `assignedByGuvnor: true`, `assignedToName: 'Developer (own round)'`, `assignedAt`, `updatedAt`. Confirm + alert flows match the existing assign-to-user pattern (web `window.confirm`/`alert`, native `Alert.alert`). The existing assign-to-user flow is unchanged.
+- `app/new-business.tsx` — 'Guvnor' added to `sourceOptions`; the Schedule Quote form and the Add Client navigation now default `source` to `'Guvnor'` when the request has `assignedByGuvnor`, otherwise still 'Client Portal'.
+- `app/add-client.tsx` — 'Client Portal' and 'Guvnor' added to its `sourceOptions` so the `source` param prefill from new-business displays correctly in the picker ('Client Portal' was already being passed but was missing from this list). `app/quotes.tsx` has its own `sourceOptions` for manually-created quotes; left unchanged as it's not part of the portal/Guvnor handover flow.
+
+**Verified in browser end-to-end**: submitted a test lead via /window-cleaning-quote (production portalApi) → appeared in /guvnor-leads → "Assign to my own round" → disappeared from guvnor-leads, appeared in /new-business with the "Lead from Guvnor" badge → Schedule Quote modal's Lead Source picker pre-selected 'Guvnor' (option present in the list) → modal cancelled without creating a quote → test lead deleted. No real users' data touched.
+
+---
+
 ### Guvnor Leads: property details on the quote form + assign-to-user
 
 **Why**: The generic consumer quote form didn't capture anything about the property (the microsite wizard does this with per-business photos), and the developer had no way to hand a captured lead to a registered Guvnor user.

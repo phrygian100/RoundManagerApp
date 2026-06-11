@@ -51,6 +51,7 @@ const sourceOptions = [
   'Van signage/Branding',
   'Found on the curb',
   'Client Portal',
+  'Guvnor',
   'Other'
 ];
 
@@ -140,7 +141,7 @@ export default function NewBusinessScreen() {
       town: request.town,
       number: request.phone,
       date: '',
-      source: 'Client Portal',
+      source: request.assignedByGuvnor ? 'Guvnor' : 'Client Portal',
       customSource: '',
       notes: request.notes || ''
     });
@@ -255,7 +256,7 @@ export default function NewBusinessScreen() {
         postcode: request.postcode,
         mobileNumber: request.phone,
         email: request.email || '',
-        source: 'Client Portal'
+        source: request.assignedByGuvnor ? 'Guvnor' : 'Client Portal'
       }
     });
 

@@ -76,6 +76,8 @@ export default function AddClientScreen() {
     'Cold calling',
     'Van signage/Branding',
     'Found on the curb',
+    'Client Portal',
+    'Guvnor',
     'Other'
   ];
 

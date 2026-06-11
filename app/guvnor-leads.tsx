@@ -177,6 +177,43 @@ export default function GuvnorLeadsScreen() {
     }
   };
 
+  const assignLeadToSelf = async (lead: GuvnorLead) => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Take the lead for ${lead.name} for your own round? It will move to your New Business inbox.`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Take Lead', `Take the lead for ${lead.name} for your own round?`, [
+            { text: 'Cancel', onPress: () => resolve(false) },
+            { text: 'Take Lead', onPress: () => resolve(true) },
+          ]);
+        });
+    if (!confirmed) return;
+
+    setAssignBusy(true);
+    try {
+      // The lead already sits in the developer's bucket (businessId ===
+      // DEVELOPER_UID), so taking it for his own round just clears the
+      // 'Guvnor' businessName marker: it drops out of this inbox's filter
+      // and stops being excluded from his /new-business list.
+      await updateDoc(doc(db, 'quoteRequests', lead.id), {
+        businessName: null,
+        status: 'pending',
+        assignedByGuvnor: true,
+        assignedToName: 'Developer (own round)',
+        assignedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setAssigningLead(null);
+      const msg = 'Lead moved to your New Business inbox.';
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Done', msg);
+    } catch (e) {
+      console.error('Failed to take lead:', e);
+      const msg = 'Failed to take lead. Please try again.';
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+    } finally {
+      setAssignBusy(false);
+    }
+  };
+
   const handleDelete = async (lead: GuvnorLead) => {
     const confirmed = Platform.OS === 'web'
       ? window.confirm(`Delete the lead for ${lead.name}?`)
@@ -382,6 +419,18 @@ export default function GuvnorLeadsScreen() {
               </View>
             ) : (
               <ScrollView style={styles.modalList}>
+                <Pressable
+                  style={styles.selfAssignRow}
+                  disabled={assignBusy}
+                  onPress={() => assigningLead && assignLeadToSelf(assigningLead)}
+                >
+                  <Ionicons name="home" size={18} color="#065f46" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.selfAssignTitle}>Assign to my own round</Text>
+                    <Text style={styles.selfAssignMeta}>Take this lead for your own business</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#065f46" />
+                </Pressable>
                 {(users || [])
                   .filter((u) => {
                     const s = userSearch.trim().toLowerCase();
@@ -532,6 +581,20 @@ const styles = StyleSheet.create({
   },
   modalLoading: { paddingVertical: 32, alignItems: 'center' },
   modalList: { maxHeight: 360 },
+  selfAssignRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#d1fae5',
+    borderWidth: 1,
+    borderColor: '#10b981',
+    borderRadius: 10,
+    marginBottom: 8,
+  },
+  selfAssignTitle: { fontSize: 15, fontWeight: '700', color: '#065f46' },
+  selfAssignMeta: { fontSize: 12, color: '#047857', marginTop: 2 },
   userRow: {
     flexDirection: 'row',
     alignItems: 'center',
