@@ -2,6 +2,7 @@ import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { initMetaPixel } from '../utils/metaPixel';
 import { captureUtmParams } from '../utils/utmTracking';
 
 // Public landing page for guvnor.app. Unauthenticated visitors to "/" land here
@@ -14,9 +15,11 @@ export default function WelcomeScreen() {
   const { width } = useWindowDimensions();
   const isNarrow = Platform.OS === 'web' && width < 640;
 
-  // Ads may point at the homepage too - keep utm_* labels for the quote form.
+  // Ads may point at the homepage too - keep utm_* labels for the quote form
+  // and load the Meta Pixel for ad-conversion measurement.
   useEffect(() => {
     captureUtmParams();
+    initMetaPixel();
   }, []);
 
   const go = (path: string) => {

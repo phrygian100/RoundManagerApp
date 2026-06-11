@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { PORTAL_API_ORIGIN } from '../hooks/useBusinessPortal';
 import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../shared/constants/developer';
+import { initMetaPixel, trackMetaPixelEvent } from '../utils/metaPixel';
 import { captureUtmParams, getStoredUtmParams } from '../utils/utmTracking';
 
 // Public, unauthenticated lead-capture page. Prospective customers anywhere in
@@ -45,9 +46,11 @@ export default function WindowCleaningQuoteScreen() {
 
   const isNarrow = Platform.OS !== 'web' || (typeof window !== 'undefined' && window.innerWidth < 768);
 
-  // Remember ad-campaign labels (utm_* URL params) for lead attribution.
+  // Remember ad-campaign labels (utm_* URL params) for lead attribution,
+  // and load the Meta Pixel so ad clicks can be tied to real submissions.
   useEffect(() => {
     captureUtmParams();
+    initMetaPixel();
   }, []);
 
   const handleSubmit = async () => {
@@ -84,6 +87,9 @@ export default function WindowCleaningQuoteScreen() {
       });
       const data = await resp.json();
       if (!data?.ok) throw new Error(data?.error || 'Failed to submit request');
+      // Tell Meta a genuine lead completed - this is the conversion signal
+      // Leads-objective campaigns optimise against.
+      trackMetaPixelEvent('Lead');
       setDone(true);
     } catch (err) {
       console.error('Error submitting quote request:', err);

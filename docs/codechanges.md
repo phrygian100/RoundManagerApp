@@ -2,6 +2,21 @@
 
 ## June 11, 2026
 
+### Meta Pixel on the Guvnor lead-gen funnel
+
+**Why**: The developer launched his first Facebook traffic campaign (Guvnor – Leads – Traffic – June 2026) and created a Meta dataset/pixel (`Guvnor Pixel`, ID 1006997388546229). Installing the Pixel lets Meta tie ad clicks to real quote submissions, unlocks conversion reporting in Ads Manager, and enables future Leads-objective campaigns that optimise toward people who actually complete the form rather than just clicking.
+
+**Files changed**:
+- `utils/metaPixel.ts` (new) — `initMetaPixel()` injects the standard fbevents.js bootstrap (web-only, SSR-guarded, idempotent, swallow-all error handling so ad blockers can't break the page), inits pixel `1006997388546229` and fires `PageView`. `trackMetaPixelEvent(name)` fires standard events; no-op when the pixel isn't loaded.
+- `app/welcome.tsx` + `app/window-cleaning-quote.tsx` — call `initMetaPixel()` on mount alongside the existing UTM capture. The pixel is deliberately loaded ONLY on these public funnel pages, not the logged-in app — conversion signal, not user surveillance.
+- `app/window-cleaning-quote.tsx` — fires the standard `Lead` event after `submitQuoteRequest` succeeds (just before the success screen renders). That's the conversion Meta's Leads objective optimises against.
+
+**Tested in browser end-to-end**: loaded /window-cleaning-quote → confirmed `fbevents.js` loaded, pixel config fetched for ID 1006997388546229, and `PageView` hit `facebook.com/tr`. Submitted a test lead → confirmed `ev=Lead` request sent to `facebook.com/tr` and the success screen rendered. Test lead deleted from /guvnor-leads afterwards.
+
+**Notes**: Meta's Events Manager "Test events" tab can be used to watch events live once the deploy is out (events from localhost during testing may also appear). Conversions API (server-side events from `portalApi`) is a possible future upgrade for resilience against ad blockers; not needed at current scale.
+
+---
+
 ### UTM campaign tracking on the Guvnor lead-gen funnel
 
 **Why**: The developer is about to run Facebook ads (and other channels) pointing at guvnor.app. Without attribution, there's no way to tell which leads came from which ad/campaign versus organic search, so ad spend can't be evaluated.
