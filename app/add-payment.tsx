@@ -74,6 +74,13 @@ export default function AddPaymentScreen() {
           // Coming from client detail screen
           setSelectedClientId(params.clientId as string);
           
+          // Show the pre-selected client in the search box so the user can see
+          // the context carried over (they can still change it by typing)
+          const preselected = clientsData.find(client => client.id === params.clientId);
+          if (preselected) {
+            setClientSearch(getClientDisplayName(preselected));
+          }
+          
           // Pre-populate reference with account number if available
           if (params.accountNumber) {
             const acc = Array.isArray(params.accountNumber) ? params.accountNumber[0] : params.accountNumber;

@@ -1,5 +1,35 @@
 # Code Changes Log
 
+## June 11, 2026
+
+### Fix: Add Payment now carries client context from the client detail screen
+
+**Files changed**:
+- `app/(tabs)/clients/[id].tsx` — `handleMakePayment` passed `clientAddress` / `clientAccountNumber` params, but `app/add-payment.tsx` reads `address` / `accountNumber`. Param names corrected so the reference ("Account: …") and notes ("Address: …") pre-fill works.
+- `app/add-payment.tsx` — when arriving with a `clientId` (from a client detail screen), the client search box is now pre-filled with the selected client's display name. Previously the client *was* selected internally but the search box stayed empty, so it looked like no client was chosen and users re-picked it. The user can still type to change client.
+
+**Verified in browser**: from J15 Chapel Hill Caravan Site → Add Payment shows "na - J15, Chapel Hill Caravan Site" in the client box, Reference "Account: RWC674", Notes "Address: J15"; saved a £1 test payment which redirected back to the client (the `from` param) and appeared on the account.
+
+---
+
+### Fix: Manage Services no longer saves + reloads the whole screen on every keystroke
+
+**Root cause**: in `app/(tabs)/clients/[id]/manage-services.tsx`, the Frequency and Price inputs called `updatePlan()` on **every character typed** (`onChangeText`), and `updatePlan()` ended with `await loadPlans()` → `setLoading(true)` → the entire screen swapped to "Loading..." and back per keystroke (plus a Firestore `writeBatch` + jobs query per character).
+
+**Files changed**:
+- `app/(tabs)/clients/[id]/manage-services.tsx`:
+  - Frequency and Price are now draft-buffered (same pattern the Service name field already used) and **commit on blur**, only when the value is valid and actually changed. One Firestore write per edit instead of one per character.
+  - Removed the full `loadPlans()` reload at the end of `updatePlan()` — the optimistic `setPlans` update already keeps the UI in sync, so the screen no longer flashes to "Loading..." after a save. The flows that genuinely need a reload (Active toggle, Regenerate Schedule) call `loadPlans()` themselves and are unaffected.
+  - The per-plan "Next Service" date inputs (web) ignore empty values fired mid-edit instead of writing `''` to the plan.
+- **Web date-input crash guard** (same modal family the user reported): typing/clearing inside an HTML `<input type="date">` can fire `onChange` with an empty/incomplete value; `new Date('' + 'T00:00:00')` is an Invalid Date and the subsequent `format()` call throws, blowing up the screen. All such handlers now ignore empty/invalid values:
+  - `app/(tabs)/clients/[id].tsx` — one-off job date, recurring first-visit date, edit-additional-service next-visit date.
+  - `app/(tabs)/clients/[id]/manage-services.tsx` — same three modal date inputs.
+  - `app/runsheet/[week].tsx` — defer-job date and bulk-move date.
+
+**Verified in browser** (J15 Chapel Hill Caravan Site → Manage Services): typed multiple characters into Price with no loading flash and no per-keystroke saves; blur committed the change ("✓ Price saved", value persisted after a hard reload, then restored); clearing the Next Service date is ignored without crashing.
+
+---
+
 ## June 9, 2026
 
 ### Round Order Manager: full-list drag-and-drop reordering (new dashboard tile)

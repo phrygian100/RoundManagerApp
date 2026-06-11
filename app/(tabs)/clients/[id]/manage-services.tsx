@@ -26,6 +26,9 @@ export default function ManageServicesScreen() {
 	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 	const [lastSavedField, setLastSavedField] = useState<string>('');
 	const [serviceDrafts, setServiceDrafts] = useState<Record<string, string>>({});
+	// Draft buffers so typing doesn't save (and reload the screen) on every keystroke
+	const [freqDrafts, setFreqDrafts] = useState<Record<string, string>>({});
+	const [priceDrafts, setPriceDrafts] = useState<Record<string, string>>({});
 	const [autoConvertAttempted, setAutoConvertAttempted] = useState(false);
 	const [additionalServices, setAdditionalServices] = useState<AdditionalService[]>([]);
 
@@ -282,8 +285,8 @@ export default function ManageServicesScreen() {
 			setShowSaveConfirmation(true);
 			setTimeout(() => setShowSaveConfirmation(false), 2000);
 			
-			// Reload plans to ensure we have the latest data
-			await loadPlans();
+			// Note: no full loadPlans() reload here - the optimistic setPlans update above
+			// keeps the UI in sync without flashing the whole screen back to "Loading..."
 		} catch (e) {
 			console.error('Failed to update plan', e);
 			Alert.alert('Error', 'Failed to update plan.');
@@ -402,8 +405,20 @@ export default function ManageServicesScreen() {
 											<ThemedText style={styles.planLabel}>Frequency (weeks)</ThemedText>
 											<TextInput
 												style={styles.input}
-												value={String(plan.frequencyWeeks || '')}
-												onChangeText={v => updatePlan(plan.id, { frequencyWeeks: Number(v) || 0 }, 'Frequency')}
+												value={freqDrafts[plan.id] !== undefined ? freqDrafts[plan.id] : String(plan.frequencyWeeks || '')}
+												onChangeText={v => setFreqDrafts(prev => ({ ...prev, [plan.id]: v }))}
+												onBlur={() => {
+													const draft = freqDrafts[plan.id];
+													if (draft === undefined) return;
+													setFreqDrafts(prev => {
+														const cp = { ...prev };
+														delete cp[plan.id];
+														return cp;
+													});
+													const num = Number(draft);
+													if (!draft.trim() || isNaN(num) || num <= 0 || num === plan.frequencyWeeks) return;
+													updatePlan(plan.id, { frequencyWeeks: num }, 'Frequency');
+												}}
 												keyboardType="numeric"
 											/>
 										</View>
@@ -413,7 +428,7 @@ export default function ManageServicesScreen() {
 												<input
 													type="date"
 																											value={plan.startDate || ''}
-														onChange={e => updatePlan(plan.id, { startDate: e.target.value }, 'Next Service')}
+														onChange={e => { if (!e.target.value) return; updatePlan(plan.id, { startDate: e.target.value }, 'Next Service'); }}
 														style={styles.webDateInput as any}
 												/>
 											) : (
@@ -443,7 +458,7 @@ export default function ManageServicesScreen() {
 											<input
 												type="date"
 																									value={plan.scheduledDate || ''}
-													onChange={e => updatePlan(plan.id, { scheduledDate: e.target.value }, 'Next Service')}
+													onChange={e => { if (!e.target.value) return; updatePlan(plan.id, { scheduledDate: e.target.value }, 'Next Service'); }}
 													style={styles.webDateInput as any}
 											/>
 										) : (
@@ -471,8 +486,20 @@ export default function ManageServicesScreen() {
 										<ThemedText style={styles.planLabel}>Price (£)</ThemedText>
 										<TextInput
 											style={styles.input}
-											value={String(plan.price)}
-											onChangeText={v => updatePlan(plan.id, { price: Number(v) || 0 }, 'Price')}
+											value={priceDrafts[plan.id] !== undefined ? priceDrafts[plan.id] : String(plan.price)}
+											onChangeText={v => setPriceDrafts(prev => ({ ...prev, [plan.id]: v }))}
+											onBlur={() => {
+												const draft = priceDrafts[plan.id];
+												if (draft === undefined) return;
+												setPriceDrafts(prev => {
+													const cp = { ...prev };
+													delete cp[plan.id];
+													return cp;
+												});
+												const num = Number(draft);
+												if (!draft.trim() || isNaN(num) || num < 0 || num === plan.price) return;
+												updatePlan(plan.id, { price: num }, 'Price');
+											}}
 											keyboardType="numeric"
 										/>
 									</View>
@@ -794,7 +821,7 @@ export default function ManageServicesScreen() {
 							<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
 								<ThemedText style={{ marginRight: 8 }}>{format(jobDate, 'do MMMM yyyy')}</ThemedText>
 								{Platform.OS === 'web' ? (
-									<input type="date" value={format(jobDate, 'yyyy-MM-dd')} onChange={e => setJobDate(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+									<input type="date" value={format(jobDate, 'yyyy-MM-dd')} onChange={e => { if (!e.target.value) return; const d = new Date(e.target.value + 'T00:00:00'); if (isNaN(d.getTime())) return; setJobDate(d); }} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
 								) : (
 									<Pressable style={styles.dateButton} onPress={() => setShowDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
 								)}
@@ -848,7 +875,7 @@ export default function ManageServicesScreen() {
 							<View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
 								<ThemedText style={{ marginRight: 8 }}>First visit: {format(recurringNextVisit, 'do MMMM yyyy')}</ThemedText>
 							{Platform.OS === 'web' ? (
-									<input type="date" value={format(recurringNextVisit, 'yyyy-MM-dd')} onChange={e => setRecurringNextVisit(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+									<input type="date" value={format(recurringNextVisit, 'yyyy-MM-dd')} onChange={e => { if (!e.target.value) return; const d = new Date(e.target.value + 'T00:00:00'); if (isNaN(d.getTime())) return; setRecurringNextVisit(d); }} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
 								) : (
 									<Pressable style={styles.dateButton} onPress={() => setShowRecurringDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
 								)}
@@ -924,7 +951,7 @@ export default function ManageServicesScreen() {
 					<View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, marginBottom: 8 }}>
 						<ThemedText style={{ marginRight: 8 }}>Next visit: {format(editServiceNextVisit, 'do MMMM yyyy')}</ThemedText>
 						{Platform.OS === 'web' ? (
-							<input type="date" value={format(editServiceNextVisit, 'yyyy-MM-dd')} onChange={e => setEditServiceNextVisit(new Date(e.target.value + 'T00:00:00'))} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
+							<input type="date" value={format(editServiceNextVisit, 'yyyy-MM-dd')} onChange={e => { if (!e.target.value) return; const d = new Date(e.target.value + 'T00:00:00'); if (isNaN(d.getTime())) return; setEditServiceNextVisit(d); }} style={{ padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }} />
 						) : (
 							<Pressable style={styles.dateButton} onPress={() => setShowEditServiceDatePicker(true)}><ThemedText>📅</ThemedText></Pressable>
 						)}

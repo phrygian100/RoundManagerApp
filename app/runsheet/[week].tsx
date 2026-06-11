@@ -3128,7 +3128,9 @@ ${signOff}`;
                     value={deferJob.scheduledTime ? format(new Date(deferJob.scheduledTime), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
                     min={format(new Date(), 'yyyy-MM-dd')}
                     onChange={e => {
+                      if (!e.target.value) return;
                       const selectedDate = new Date(e.target.value + 'T00:00:00');
+                      if (isNaN(selectedDate.getTime())) return;
                       if (deferJob) {
                         setDeferJob({ ...deferJob, scheduledTime: format(selectedDate, 'yyyy-MM-dd') + 'T09:00:00' });
                       }
@@ -3280,7 +3282,9 @@ ${signOff}`;
                     value={format(bulkMoveDate, 'yyyy-MM-dd')}
                     min={format(new Date(), 'yyyy-MM-dd')}
                     onChange={e => {
+                      if (!e.target.value) return;
                       const nextDate = new Date(e.target.value + 'T00:00:00');
+                      if (isNaN(nextDate.getTime())) return;
                       setBulkMoveDate(nextDate);
                     }}
                     style={{

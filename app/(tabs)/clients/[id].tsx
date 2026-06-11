@@ -726,8 +726,9 @@ export default function ClientDetailScreen() {
       params: {
         clientId: id,
         clientName: client?.name,
-        clientAddress: client?.address1 || client?.address,
-        clientAccountNumber: client?.accountNumber,
+        // Param names must match what add-payment.tsx reads (address / accountNumber)
+        address: client?.address1 || client?.address,
+        accountNumber: client?.accountNumber,
         from: `/clients/${id}`
       }
     } as never);
@@ -1768,7 +1769,10 @@ export default function ClientDetailScreen() {
                       type="date"
                       value={format(jobDate, 'yyyy-MM-dd')}
                       onChange={e => {
+                        // Ignore incomplete values fired mid-edit (empty/invalid would crash format())
+                        if (!e.target.value) return;
                         const newDate = new Date(e.target.value + 'T00:00:00');
+                        if (isNaN(newDate.getTime())) return;
                         setJobDate(newDate);
                       }}
                       style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
@@ -1840,7 +1844,9 @@ export default function ClientDetailScreen() {
                       type="date"
                       value={format(recurringNextVisit, 'yyyy-MM-dd')}
                       onChange={e => {
+                        if (!e.target.value) return;
                         const newDate = new Date(e.target.value + 'T00:00:00');
+                        if (isNaN(newDate.getTime())) return;
                         setRecurringNextVisit(newDate);
                       }}
                       style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
@@ -2103,7 +2109,9 @@ export default function ClientDetailScreen() {
                   type="date"
                   value={format(editServiceNextVisit, 'yyyy-MM-dd')}
                   onChange={e => {
+                    if (!e.target.value) return;
                     const newDate = new Date(e.target.value + 'T00:00:00');
+                    if (isNaN(newDate.getTime())) return;
                     setEditServiceNextVisit(newDate);
                   }}
                   style={{ marginLeft: 10, padding: 6, borderRadius: 6, border: '1px solid #ccc', fontSize: 16 }}
