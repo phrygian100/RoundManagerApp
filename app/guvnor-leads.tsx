@@ -2,9 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { db } from '../core/firebase';
 import { getUserSession } from '../core/session';
+import { AdminUserSummary, listAllUsers } from '../services/adminService';
 import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../shared/constants/developer';
 
 // Developer-only inbox for leads captured by the public /window-cleaning-quote
@@ -21,6 +22,8 @@ interface GuvnorLead {
   postcode: string;
   email?: string | null;
   notes?: string | null;
+  propertyType?: string | null;
+  hasConservatory?: boolean | null;
   selectedFrequency?: string | null;
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
@@ -39,6 +42,13 @@ export default function GuvnorLeadsScreen() {
   const [authorized, setAuthorized] = useState<boolean | null>(null);
   const [leads, setLeads] = useState<GuvnorLead[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Assign-to-user modal state
+  const [assigningLead, setAssigningLead] = useState<GuvnorLead | null>(null);
+  const [users, setUsers] = useState<AdminUserSummary[] | null>(null);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [assignBusy, setAssignBusy] = useState(false);
 
   useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -107,6 +117,63 @@ export default function GuvnorLeadsScreen() {
       console.error('Failed to update lead status:', e);
       const msg = 'Failed to update status. Please try again.';
       Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+    }
+  };
+
+  const openAssignModal = async (lead: GuvnorLead) => {
+    setAssigningLead(lead);
+    setUserSearch('');
+    if (users === null && !usersLoading) {
+      setUsersLoading(true);
+      try {
+        const list = await listAllUsers();
+        // Exclude the developer's own account - assigning to self is a no-op
+        setUsers(list.filter((u) => u.id !== DEVELOPER_UID));
+      } catch (e) {
+        console.error('Failed to load users:', e);
+        const msg = 'Failed to load user list. Please try again.';
+        Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+        setAssigningLead(null);
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+  };
+
+  const assignLeadToUser = async (lead: GuvnorLead, user: AdminUserSummary) => {
+    const label = user.businessName || user.name || user.email;
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(`Give the lead for ${lead.name} to ${label}? It will appear in their New Business inbox.`)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Assign Lead', `Give the lead for ${lead.name} to ${label}?`, [
+            { text: 'Cancel', onPress: () => resolve(false) },
+            { text: 'Assign', onPress: () => resolve(true) },
+          ]);
+        });
+    if (!confirmed) return;
+
+    setAssignBusy(true);
+    try {
+      // Reassigning businessId hands the lead to the user: it leaves this
+      // inbox (query is keyed on the developer's UID) and shows up in their
+      // /new-business list. businessName stays 'Guvnor' to mark provenance.
+      await updateDoc(doc(db, 'quoteRequests', lead.id), {
+        businessId: user.id,
+        status: 'pending',
+        assignedByGuvnor: true,
+        assignedToName: label,
+        assignedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      setAssigningLead(null);
+      const msg = `Lead assigned to ${label}.`;
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Done', msg);
+    } catch (e) {
+      console.error('Failed to assign lead:', e);
+      const msg = 'Failed to assign lead. Please try again.';
+      Platform.OS === 'web' ? window.alert(msg) : Alert.alert('Error', msg);
+    } finally {
+      setAssignBusy(false);
     }
   };
 
@@ -207,6 +274,23 @@ export default function GuvnorLeadsScreen() {
                       {lead.address}, {lead.town}, {lead.postcode}
                     </Text>
                   </View>
+                  {lead.propertyType ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoIcon}>🏠</Text>
+                      <Text style={styles.infoValue}>
+                        {lead.propertyType}
+                        {lead.hasConservatory === true ? ' · with conservatory' : ''}
+                        {lead.hasConservatory === false ? ' · no conservatory' : ''}
+                      </Text>
+                    </View>
+                  ) : lead.hasConservatory != null ? (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoIcon}>🏠</Text>
+                      <Text style={styles.infoValue}>
+                        {lead.hasConservatory ? 'Has a conservatory' : 'No conservatory'}
+                      </Text>
+                    </View>
+                  ) : null}
                   {frequencyLabel(lead.selectedFrequency) ? (
                     <View style={styles.infoRow}>
                       <Text style={styles.infoIcon}>🔁</Text>
@@ -224,6 +308,11 @@ export default function GuvnorLeadsScreen() {
                 <Pressable style={styles.mapsButton} onPress={() => openMaps(lead)}>
                   <Ionicons name="map-outline" size={18} color="#fff" />
                   <Text style={styles.mapsButtonText}>Find window cleaners near {lead.postcode}</Text>
+                </Pressable>
+
+                <Pressable style={styles.assignButton} onPress={() => openAssignModal(lead)}>
+                  <Ionicons name="person-add-outline" size={18} color="#fff" />
+                  <Text style={styles.assignButtonText}>Assign to a Guvnor user</Text>
                 </Pressable>
 
                 <View style={styles.statusRow}>
@@ -256,6 +345,74 @@ export default function GuvnorLeadsScreen() {
           })
         )}
       </ScrollView>
+
+      {/* Assign-to-user modal */}
+      <Modal
+        visible={assigningLead !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAssigningLead(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Assign {assigningLead?.name}&apos;s lead
+              </Text>
+              <Pressable onPress={() => setAssigningLead(null)} style={styles.modalClose}>
+                <Ionicons name="close" size={22} color="#6b7280" />
+              </Pressable>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              The lead will move into the chosen user&apos;s New Business inbox.
+            </Text>
+
+            <TextInput
+              style={styles.modalSearch}
+              placeholder="Search by name, business or email"
+              placeholderTextColor="#9ca3af"
+              value={userSearch}
+              onChangeText={setUserSearch}
+              autoCapitalize="none"
+            />
+
+            {usersLoading ? (
+              <View style={styles.modalLoading}>
+                <ActivityIndicator size="small" color="#10b981" />
+              </View>
+            ) : (
+              <ScrollView style={styles.modalList}>
+                {(users || [])
+                  .filter((u) => {
+                    const s = userSearch.trim().toLowerCase();
+                    if (!s) return true;
+                    return [u.name, u.email, u.businessName].some((f) => (f || '').toLowerCase().includes(s));
+                  })
+                  .map((u) => (
+                    <Pressable
+                      key={u.id}
+                      style={styles.userRow}
+                      disabled={assignBusy}
+                      onPress={() => assigningLead && assignLeadToUser(assigningLead, u)}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.userName}>{u.businessName || u.name || u.email}</Text>
+                        <Text style={styles.userMeta}>
+                          {u.name ? `${u.name} · ` : ''}{u.email}
+                          {u.numberOfClients != null ? ` · ${u.numberOfClients} clients` : ''}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={18} color="#9ca3af" />
+                    </Pressable>
+                  ))}
+                {users && users.length === 0 && (
+                  <Text style={styles.modalEmpty}>No other registered users found.</Text>
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -332,6 +489,60 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   mapsButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+  assignButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#10b981',
+    paddingVertical: 12,
+    borderRadius: 8,
+    gap: 8,
+    marginBottom: 12,
+  },
+  assignButtonText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  modalCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 20,
+    width: '100%',
+    maxWidth: 480,
+    maxHeight: '80%' as any,
+  },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', flex: 1 },
+  modalClose: { padding: 4 },
+  modalSubtitle: { fontSize: 13, color: '#6b7280', marginTop: 4, marginBottom: 14 },
+  modalSearch: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 15,
+    color: '#111827',
+    marginBottom: 12,
+  },
+  modalLoading: { paddingVertical: 32, alignItems: 'center' },
+  modalList: { maxHeight: 360 },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  userName: { fontSize: 15, fontWeight: '600', color: '#111827' },
+  userMeta: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  modalEmpty: { textAlign: 'center', color: '#6b7280', paddingVertical: 24, fontSize: 14 },
 
   statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 },
   statusOption: {

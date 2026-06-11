@@ -27,10 +27,13 @@ interface QuoteRequest {
   postcode: string;
   email?: string;
   notes?: string;
+  propertyType?: string | null;
+  hasConservatory?: boolean | null;
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
   source: string;
   businessName?: string | null;
+  assignedByGuvnor?: boolean;
   selectedImageUrl?: string;
   selectedFrequency?: string;
   selectedCost?: number;
@@ -356,6 +359,11 @@ export default function NewBusinessScreen() {
                     <Text style={styles.cardName}>{request.name}</Text>
                     <Text style={styles.cardDate}>{formatDate(request.createdAt)}</Text>
                   </View>
+                  {request.assignedByGuvnor && (
+                    <View style={styles.guvnorBadge}>
+                      <Text style={styles.guvnorBadgeText}>Lead from Guvnor</Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Card Body - Contact & Address Info */}
@@ -382,6 +390,16 @@ export default function NewBusinessScreen() {
                       {request.town}, {request.postcode}
                     </Text>
                   </View>
+                  {(request.propertyType || request.hasConservatory != null) && (
+                    <View style={styles.infoRow}>
+                      <Text style={styles.infoIcon}>🏠</Text>
+                      <Text style={styles.infoValue}>
+                        {request.propertyType || 'Property'}
+                        {request.hasConservatory === true ? ' · with conservatory' : ''}
+                        {request.hasConservatory === false ? ' · no conservatory' : ''}
+                      </Text>
+                    </View>
+                  )}
                   {request.notes && (
                     <View style={styles.notesBox}>
                       <Text style={styles.notesLabel}>Notes:</Text>
@@ -757,6 +775,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
+  },
+  guvnorBadge: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  guvnorBadgeText: {
+    color: '#065f46',
+    fontSize: 12,
+    fontWeight: '700',
   },
   statusText: {
     color: '#fff',

@@ -2,6 +2,22 @@
 
 ## June 11, 2026
 
+### Guvnor Leads: property details on the quote form + assign-to-user
+
+**Why**: The generic consumer quote form didn't capture anything about the property (the microsite wizard does this with per-business photos), and the developer had no way to hand a captured lead to a registered Guvnor user.
+
+**Files changed**:
+- `app/window-cleaning-quote.tsx` — added a "What type of property is it?" picker (Flat / apartment, Bungalow, 2/3/4/5+ bed house) and a "Do you have a conservatory?" Yes/No choice. Both optional, tap-to-toggle, sent as `propertyType` + `hasConservatory`.
+- `functions/index.js` — `submitQuoteRequest` now accepts and sanitises `propertyType` (string, 60 chars) and `hasConservatory` (boolean), persisting them on `quoteRequests` docs. Deployed `portalApi`.
+- `app/guvnor-leads.tsx` — lead cards now show property type + conservatory. New "Assign to a Guvnor user" button opens a modal that loads all registered users via the existing developer-gated `listAllUsers` Cloud Function, with search by name/business/email. Assigning sets `businessId` to the chosen user (plus `assignedByGuvnor`, `assignedToName`, `assignedAt`, status reset to `pending`), which moves the lead out of Guvnor Leads and into that user's New Business inbox. Allowed by Firestore rules because the developer owns the doc pre-update.
+- `app/new-business.tsx` — quote request cards now display property type/conservatory and show a "Lead from Guvnor" badge on assigned leads.
+
+**Security note (verified)**: `/guvnor-leads` is developer-only on three layers: screen gate (`session.uid === DEVELOPER_UID`), developer-only dashboard tile, and Firestore rules (`quoteRequests` readable only when `auth.uid == businessId`). `listAllUsers` is server-side gated to the developer UID.
+
+**Tested in browser**: submitted a quote with "3 bed house" + conservatory + 4-weekly; lead appeared in Guvnor Leads with property details; assign modal listed real users with working search (assignment itself not exercised to avoid placing a test lead in a real user's inbox); test leads deleted.
+
+---
+
 ### Consumer-first public homepage at /welcome
 
 **Why**: With the Guvnor Leads funnel live, visitors arriving at guvnor.app from search/ads are now mostly consumers wanting a window cleaner, but the root previously bounced straight to the provider sign-in screen with no path to the quote form.

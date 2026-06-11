@@ -18,6 +18,15 @@ const FREQUENCY_OPTIONS = [
   { key: '', label: 'Not sure yet' },
 ];
 
+const PROPERTY_OPTIONS = [
+  { key: 'Flat / apartment', icon: '🏢' },
+  { key: 'Bungalow', icon: '🏠' },
+  { key: '2 bed house', icon: '🏡' },
+  { key: '3 bed house', icon: '🏡' },
+  { key: '4 bed house', icon: '🏡' },
+  { key: '5+ bed house', icon: '🏘️' },
+];
+
 export default function WindowCleaningQuoteScreen() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -27,6 +36,8 @@ export default function WindowCleaningQuoteScreen() {
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
   const [frequency, setFrequency] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [hasConservatory, setHasConservatory] = useState<boolean | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [done, setDone] = useState(false);
@@ -56,6 +67,8 @@ export default function WindowCleaningQuoteScreen() {
           postcode: postcode.trim(),
           email: email.trim() || null,
           notes: notes.trim() || null,
+          propertyType: propertyType || null,
+          hasConservatory,
           selectedImageUrl: null,
           selectedFrequency: frequency || null,
           selectedCost: null,
@@ -147,6 +160,41 @@ export default function WindowCleaningQuoteScreen() {
               <View style={styles.inputGroup}>
                 <Text style={styles.label}>Postcode <Text style={styles.required}>*</Text></Text>
                 <TextInput style={styles.input} placeholder="Postcode" placeholderTextColor="#9ca3af" value={postcode} onChangeText={(t) => { setPostcode(t.toUpperCase()); setError(''); }} autoCapitalize="characters" autoComplete="postal-code" />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>What type of property is it?</Text>
+                <View style={styles.propertyGrid}>
+                  {PROPERTY_OPTIONS.map((opt) => (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => setPropertyType(propertyType === opt.key ? '' : opt.key)}
+                      style={[styles.propertyCard, propertyType === opt.key && styles.propertyCardActive]}
+                    >
+                      <Text style={styles.propertyIcon}>{opt.icon}</Text>
+                      <Text style={[styles.propertyLabel, propertyType === opt.key && styles.propertyLabelActive]}>
+                        {opt.key}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Do you have a conservatory?</Text>
+                <View style={styles.chipRow}>
+                  {[{ v: true, label: 'Yes' }, { v: false, label: 'No' }].map((opt) => (
+                    <Pressable
+                      key={opt.label}
+                      onPress={() => setHasConservatory(hasConservatory === opt.v ? null : opt.v)}
+                      style={[styles.chip, hasConservatory === opt.v && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, hasConservatory === opt.v && styles.chipTextActive]}>
+                        {opt.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -304,6 +352,24 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   textArea: { minHeight: 72, textAlignVertical: 'top' },
+
+  propertyGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  propertyCard: {
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    flexGrow: 1,
+    flexBasis: '30%',
+    minWidth: 96,
+  },
+  propertyCardActive: { borderColor: '#10b981', backgroundColor: '#ecfdf5' },
+  propertyIcon: { fontSize: 22, marginBottom: 4 },
+  propertyLabel: { fontSize: 13, color: '#374151', fontWeight: '500', textAlign: 'center' },
+  propertyLabelActive: { color: '#065f46', fontWeight: '700' },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
