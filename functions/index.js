@@ -1841,6 +1841,7 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedFrequency,
         selectedCost,
         additionalServices,
+        utm,
       } = req.body || {};
 
       if (!businessId || typeof businessId !== 'string') {
@@ -1851,6 +1852,21 @@ exports.portalApi = onRequest(async (req, res) => {
       await enforceRateLimit(db, `portal:quote:${ipKey}:${businessId}`, 100, 60 * 60 * 1000);
 
       const clean = (v, max) => String(v || '').trim().slice(0, max);
+
+      // Marketing attribution labels (utm_* params from ad links), optional.
+      let cleanUtm = null;
+      if (utm && typeof utm === 'object' && !Array.isArray(utm)) {
+        const fields = ['source', 'medium', 'campaign', 'content', 'term'];
+        const out = {};
+        for (const f of fields) {
+          if (utm[f] && typeof utm[f] === 'string') {
+            const v = clean(utm[f], 100);
+            if (v) out[f] = v;
+          }
+        }
+        if (Object.keys(out).length > 0) cleanUtm = out;
+      }
+
       const payload = {
         businessId,
         businessName: clean(businessName, 140) || null,
@@ -1867,6 +1883,7 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedFrequency: selectedFrequency && typeof selectedFrequency === 'string' ? clean(selectedFrequency, 20) : null,
         selectedCost: selectedCost != null && !isNaN(Number(selectedCost)) ? Number(selectedCost) : null,
         additionalServices: Array.isArray(additionalServices) ? additionalServices.map(s => String(s).slice(0, 200)).slice(0, 10) : null,
+        utm: cleanUtm,
         status: 'pending',
         createdAt: new Date().toISOString(),
         source: 'client_portal',

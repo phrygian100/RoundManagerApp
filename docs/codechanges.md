@@ -2,6 +2,25 @@
 
 ## June 11, 2026
 
+### UTM campaign tracking on the Guvnor lead-gen funnel
+
+**Why**: The developer is about to run Facebook ads (and other channels) pointing at guvnor.app. Without attribution, there's no way to tell which leads came from which ad/campaign versus organic search, so ad spend can't be evaluated.
+
+**How it works**: Ad links carry standard `utm_*` query params, e.g. `guvnor.app/window-cleaning-quote?utm_source=facebook&utm_medium=cpc&utm_campaign=june-launch&utm_content=before-after-photo`. Those labels are captured on page load, stamped onto the lead at submission, and shown on the Guvnor Leads card.
+
+**Files changed**:
+- `utils/utmTracking.ts` (new) — `captureUtmParams()` reads `utm_source/medium/campaign/content/term` from the URL and stashes them in `sessionStorage` (web-only, guarded, 100-char cap per value, never throws); `getStoredUtmParams()` returns them at submit time. sessionStorage means attribution survives in-funnel navigation (homepage → quote form) but doesn't follow the visitor across days.
+- `app/_layout.tsx` — captures UTMs once on first mount, *before* the unauth `/` → `/welcome` redirect strips the query string, so ads pointed at the bare domain still attribute.
+- `app/welcome.tsx` + `app/window-cleaning-quote.tsx` — also capture on mount (covers direct links); the quote form sends `utm: getStoredUtmParams()` in the submission payload.
+- `functions/index.js` — `submitQuoteRequest` sanitises the optional `utm` object (whitelisted keys, strings only, 100-char cap) and stores it on the `quoteRequests` doc as a `utm` map (or `null`). Deployed `portalApi`.
+- `app/guvnor-leads.tsx` — lead cards show a pill with `source · campaign · content` (e.g. "📣 facebook · june-launch · before-after-photo") when UTM data exists, otherwise an "Organic / direct" note.
+
+**Not affected**: microsite quote wizards (per-business portals) are unchanged — this is only the central Guvnor funnel. Assigned leads keep their `utm` field in Firestore but recipients' New Business cards don't display it (not their concern).
+
+**Tested in browser end-to-end**: loaded `/window-cleaning-quote?utm_source=facebook&utm_medium=cpc&utm_campaign=june-launch&utm_content=before-after-photo` → sessionStorage captured all four values → submitted a test lead → card in /guvnor-leads showed the "facebook · june-launch · before-after-photo" pill → test lead deleted.
+
+---
+
 ### Offline-tolerant runsheet: instant job completion + Firestore persistent cache
 
 **Why**: In the field with poor/no signal, marking a job complete replaced the whole runsheet with a spinner for up to ~2 minutes (blocking server read + awaited write + awaited recurring-job top-up), so crews couldn't reach the Nav button for the next job.

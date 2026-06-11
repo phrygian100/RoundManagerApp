@@ -24,6 +24,7 @@ interface GuvnorLead {
   notes?: string | null;
   propertyType?: string | null;
   hasConservatory?: boolean | null;
+  utm?: { source?: string; medium?: string; campaign?: string; content?: string; term?: string } | null;
   selectedFrequency?: string | null;
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
@@ -96,6 +97,14 @@ export default function GuvnorLeadsScreen() {
     if (!f) return null;
     if (f === 'one-off') return 'One-off clean';
     return `Every ${f} weeks`;
+  };
+
+  // e.g. "facebook · june-launch · before-after-photo"
+  const utmLabel = (lead: GuvnorLead) => {
+    const u = lead.utm;
+    if (!u) return null;
+    const parts = [u.source, u.campaign, u.content].filter(Boolean);
+    return parts.length > 0 ? parts.join(' · ') : null;
   };
 
   const openMaps = (lead: GuvnorLead) => {
@@ -288,6 +297,13 @@ export default function GuvnorLeadsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName}>{lead.name}</Text>
                     <Text style={styles.cardDate}>{formatDate(lead.createdAt)}</Text>
+                    {utmLabel(lead) ? (
+                      <View style={styles.sourceTag}>
+                        <Text style={styles.sourceTagText}>📣 {utmLabel(lead)}</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.sourceOrganic}>Organic / direct</Text>
+                    )}
                   </View>
                   <View style={[styles.statusBadge, { backgroundColor: meta.bg }]}>
                     <Text style={[styles.statusBadgeText, { color: meta.color }]}>{meta.label}</Text>
@@ -515,6 +531,18 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   cardName: { fontSize: 18, fontWeight: '600', color: '#111827' },
   cardDate: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  sourceTag: {
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#c7d2fe',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  sourceTagText: { fontSize: 12, color: '#3730a3', fontWeight: '600' },
+  sourceOrganic: { fontSize: 11, color: '#9ca3af', marginTop: 6, fontStyle: 'italic' },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   statusBadgeText: { fontSize: 12, fontWeight: '700' },
 

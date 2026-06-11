@@ -1,7 +1,8 @@
 import Head from 'expo-router/head';
 import { useRouter } from 'expo-router';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { captureUtmParams } from '../utils/utmTracking';
 
 // Public landing page for guvnor.app. Unauthenticated visitors to "/" land here
 // (web only - see app/_layout.tsx). Primary audience: consumers looking for a
@@ -12,6 +13,11 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isNarrow = Platform.OS === 'web' && width < 640;
+
+  // Ads may point at the homepage too - keep utm_* labels for the quote form.
+  useEffect(() => {
+    captureUtmParams();
+  }, []);
 
   const go = (path: string) => {
     if (Platform.OS === 'web') {

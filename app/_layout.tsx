@@ -5,6 +5,7 @@ import { ActivityIndicator, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
+import { captureUtmParams } from '../utils/utmTracking';
 
 function AppContent() {
   const router = useRouter();
@@ -14,6 +15,12 @@ function AppContent() {
   const { clearQuoteData } = useQuoteToClient();
   const previousUserRef = useRef<User | null>(null);
   const loginRedirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Capture ad-campaign labels (utm_* params) on first load, before any
+  // redirect strips the query string (e.g. unauth '/' -> '/welcome').
+  useEffect(() => {
+    captureUtmParams();
+  }, []);
   
   // Set up auth listener only once
   useEffect(() => {

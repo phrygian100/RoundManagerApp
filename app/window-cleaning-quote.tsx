@@ -1,11 +1,12 @@
 import Head from 'expo-router/head';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Image, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { PORTAL_API_ORIGIN } from '../hooks/useBusinessPortal';
 import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../shared/constants/developer';
+import { captureUtmParams, getStoredUtmParams } from '../utils/utmTracking';
 
 // Public, unauthenticated lead-capture page. Prospective customers anywhere in
 // the UK request a window cleaning quote; submissions land in the developer's
@@ -44,6 +45,11 @@ export default function WindowCleaningQuoteScreen() {
 
   const isNarrow = Platform.OS !== 'web' || (typeof window !== 'undefined' && window.innerWidth < 768);
 
+  // Remember ad-campaign labels (utm_* URL params) for lead attribution.
+  useEffect(() => {
+    captureUtmParams();
+  }, []);
+
   const handleSubmit = async () => {
     if (!name.trim()) { setError('Please enter your name'); return; }
     if (!phone.trim()) { setError('Please enter your contact number'); return; }
@@ -73,6 +79,7 @@ export default function WindowCleaningQuoteScreen() {
           selectedFrequency: frequency || null,
           selectedCost: null,
           additionalServices: null,
+          utm: getStoredUtmParams(),
         }),
       });
       const data = await resp.json();
