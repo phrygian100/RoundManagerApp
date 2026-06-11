@@ -4,7 +4,7 @@ import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
@@ -52,8 +52,6 @@ export default function RunsheetWeekScreen() {
   const [completedDays, setCompletedDays] = useState<string[]>([]);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [timePickerJob, setTimePickerJob] = useState<(Job & { client: Client | null }) | null>(null);
-  const [noteModalVisible, setNoteModalVisible] = useState(false);
-  const [noteModalText, setNoteModalText] = useState<string | null>(null);
   const [deferJob, setDeferJob] = useState<Job & { client: Client | null } | null>(null);
   const [showDeferDatePicker, setShowDeferDatePicker] = useState(false);
   const [deferSelectedVehicle, setDeferSelectedVehicle] = useState<string>('auto'); // 'auto' means automatic allocation
@@ -1324,7 +1322,7 @@ export default function RunsheetWeekScreen() {
       if (Platform.OS === 'ios') {
         ActionSheetIOS.showActionSheetWithOptions(
           {
-            options: ['Message ETA', 'Navigate', 'View Details', 'Add note below', 'Delete', 'Cancel'],
+            options: ['Message ETA', 'Navigate', 'View Details', (job as any).jobNote ? 'Edit job note' : 'Add job note', 'Delete', 'Cancel'],
             destructiveButtonIndex: 4,
             cancelButtonIndex: 5,
           },
@@ -1332,7 +1330,7 @@ export default function RunsheetWeekScreen() {
             if (buttonIndex === 0) handleMessageETA(job);
             if (buttonIndex === 1) handleNavigate(job.client);
             if (buttonIndex === 2) job.quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: job.quoteId } } as any) : router.replace('/');
-            if (buttonIndex === 3) handleAddNoteBelow(job);
+            if (buttonIndex === 3) handleEditJobNote(job);
             if (buttonIndex === 4) handleDeleteQuoteJob(job);
           }
         );
@@ -1354,7 +1352,7 @@ export default function RunsheetWeekScreen() {
         deferIndex = options.length - 1;
       }
       
-      options.push('Add note below');
+      options.push((job as any).jobNote ? 'Edit job note' : 'Add job note');
       addNoteIndex = options.length - 1;
       
       options.push('Delete Job');
@@ -1373,7 +1371,7 @@ export default function RunsheetWeekScreen() {
           if (buttonIndex === 0) handleViewDetails(job.client);
           if (buttonIndex === 1) handleEditPrice(job);
           if (buttonIndex === deferIndex) handleDeferToNextWeek(job);
-          if (buttonIndex === addNoteIndex) handleAddNoteBelow(job);
+          if (buttonIndex === addNoteIndex) handleEditJobNote(job);
           if (buttonIndex === deleteIndex) handleDeleteJob(job.id);
         }
       );
@@ -1696,9 +1694,9 @@ ${signOff}`;
     setActionSheetJob(null);
   };
 
-  const handleAddNoteBelow = (job: Job & { client: Client | null }) => {
+  const handleEditJobNote = (job: Job & { client: Client | null }) => {
     setAddNoteForJob(job);
-    setAddNoteText('');
+    setAddNoteText((job as any).jobNote || '');
     setAddNoteModalVisible(true);
     setActionSheetJob(null);
   };
@@ -1763,72 +1761,38 @@ ${signOff}`;
   };
 
   const handleSaveNote = async () => {
-    if (!addNoteText.trim() || !addNoteForJob) {
-      Alert.alert('Error', 'Please enter a note.');
-      return;
-    }
+    if (!addNoteForJob) return;
+
+    const jobId = addNoteForJob.id;
+    const text = addNoteText.trim();
 
     try {
-      const ownerId = await getDataOwnerId();
-      if (!ownerId) {
-        Alert.alert('Error', 'Authentication error.');
-        return;
-      }
+      // Note lives on the job document itself, so it always travels with the
+      // job (move/defer/vehicle changes) and disappears with it. Empty text
+      // removes the note.
+      await updateDoc(doc(db, 'jobs', jobId), {
+        jobNote: text ? text : deleteField(),
+      });
 
-      // Create the note job with a special structure
-      const noteJobData = {
-        ownerId,
-        accountId: ownerId, // Explicitly set accountId for Firestore rules
-        clientId: 'NOTE_JOB', // Special clientId for note jobs
-        serviceId: 'note',
-        propertyDetails: addNoteText.trim(),
-        scheduledTime: addNoteForJob.scheduledTime, // Same date as the original job
-        status: 'pending',
-        price: 0,
-        paymentStatus: 'paid', // Note jobs don't need payment
-        noteText: addNoteText.trim(),
-        originalJobId: addNoteForJob.id, // Reference to the job it was added below
-        isNoteJob: true, // Flag to easily identify note jobs
-        createdAt: Date.now(), // Timestamp for sorting
-      };
+      setJobs(prevJobs =>
+        prevJobs.map(job =>
+          job.id === jobId
+            ? ({ ...job, jobNote: text || undefined } as any)
+            : job
+        )
+      );
 
-      // Create the note in Firestore and capture the real ID
-      const docRef = await addDoc(collection(db, 'jobs'), noteJobData);
-      const realJobId = docRef.id; // ✅ Capture real Firestore ID
-
-      // 🔍 Audit log for note addition
-      await logAction(
+      // Audit log (fire-and-forget)
+      logAction(
         'runsheet_note_added',
         'job',
-        realJobId,
-        formatAuditDescription('runsheet_note_added', addNoteText.trim())
-      );
-      
-      // Add the note job to the current jobs list immediately with real ID
-      const noteJobWithClient = {
-        ...noteJobData,
-        id: realJobId, // ✅ Use real ID instead of temporary ID
-        client: null
-      };
-      
-      // Simply insert the note right after the job the user clicked on
-      setJobs(prevJobs => {
-        const originalJobIndex = prevJobs.findIndex(job => job.id === addNoteForJob.id);
-        if (originalJobIndex !== -1) {
-          // Insert the note right after the original job
-          const newJobs = [...prevJobs];
-          newJobs.splice(originalJobIndex + 1, 0, noteJobWithClient as any);
-          return newJobs;
-        } else {
-          // Fallback: add at end if original job not found
-          return [...prevJobs, noteJobWithClient as any];
-        }
-      });
-      
+        jobId,
+        formatAuditDescription('runsheet_note_added', text || '(note removed)')
+      ).catch(() => {});
+
       setAddNoteModalVisible(false);
       setAddNoteText('');
       setAddNoteForJob(null);
-      
     } catch (error) {
       console.error('Error saving note:', error);
       Alert.alert('Error', 'Failed to save note.');
@@ -2298,6 +2262,11 @@ ${signOff}`;
               <Text>{item.address}</Text>
               <Text>{item.town}</Text>
               <Text>{item.number}</Text>
+              {(item as any).jobNote ? (
+                <View style={styles.jobNoteInline}>
+                  <Text style={styles.jobNoteInlineText}>📝 {(item as any).jobNote}</Text>
+                </View>
+              ) : null}
             </Pressable>
           </View>
           <View style={styles.controlsContainer}>
@@ -2536,6 +2505,18 @@ ${signOff}`;
               {typeof item.price === 'number' ? ` — £${item.price.toFixed(2)}` : ''}
               {(item as any).hasCustomPrice && ' ✏️'}
             </Text>
+            {/* Permanent account runsheet note - shown inline on every job from this account */}
+            {client && ((client.runsheetNotes || client.notes || '').trim() !== '') && (
+              <View style={styles.accountNoteInline}>
+                <Text style={styles.accountNoteInlineText}>{(client.runsheetNotes || client.notes || '').trim()}</Text>
+              </View>
+            )}
+            {/* One-off note attached to this specific job */}
+            {(item as any).jobNote ? (
+              <View style={styles.jobNoteInline}>
+                <Text style={styles.jobNoteInlineText}>📝 {(item as any).jobNote}</Text>
+              </View>
+            ) : null}
             {/* Display job notes if they exist and are not just address information */}
             {item.propertyDetails && item.propertyDetails.trim() !== '' && (() => {
               // Check if propertyDetails is just address information (auto-generated)
@@ -2588,19 +2569,6 @@ ${signOff}`;
             return null;
           })()}
         </View>
-        {/* Notes button */}
-        {(client?.runsheetNotes || client?.notes) && (client.runsheetNotes || client.notes || '').trim() !== '' && (
-          <Pressable
-            style={styles.notesButton}
-            onPress={() => {
-              setNoteModalText(client.runsheetNotes || client.notes || '');
-              setNoteModalVisible(true);
-            }}
-            accessibilityLabel="Show client notes"
-          >
-            <Text style={styles.notesButtonIcon}>!</Text>
-          </Pressable>
-        )}
         <View style={styles.controlsContainer}>
           <Pressable onPress={() => showPickerForJob(item, section, index)} style={styles.etaButton}>
             <Text style={styles.etaButtonText}>{item.eta || 'ETA'}</Text>
@@ -3055,7 +3023,7 @@ ${signOff}`;
                     <Button title="Navigate" onPress={() => handleNavigate(actionSheetJob.client)} />
                     <Button title="View Details" onPress={() => (actionSheetJob as any).quoteId ? router.push({ pathname: '/quotes/[id]', params: { id: (actionSheetJob as any).quoteId } } as any) : router.replace('/')} />
                     <Button title="Progress to Pending" onPress={() => handleProgressToPending(actionSheetJob)} />
-                    <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
+                    <Button title={(actionSheetJob as any).jobNote ? 'Edit job note' : 'Add job note'} onPress={() => handleEditJobNote(actionSheetJob)} />
                     <Button title="Delete" color="red" onPress={() => handleDeleteQuoteJob(actionSheetJob)} />
                   </>
                 ) : (
@@ -3065,7 +3033,7 @@ ${signOff}`;
                     {actionSheetJob.status !== 'completed' && actionSheetJob.status !== 'accounted' && actionSheetJob.status !== 'paid' && (
                       <Button title="Defer" onPress={() => handleDeferToNextWeek(actionSheetJob)} />
                     )}
-                    <Button title="Add note below" onPress={() => handleAddNoteBelow(actionSheetJob)} />
+                    <Button title={(actionSheetJob as any).jobNote ? 'Edit job note' : 'Add job note'} onPress={() => handleEditJobNote(actionSheetJob)} />
                     <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
                   </>
                 )}
@@ -3073,24 +3041,6 @@ ${signOff}`;
             </View>
           </Modal>
         )}
-        {/* Notes Modal */}
-        <Modal
-          visible={noteModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setNoteModalVisible(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.notesModalContent}>
-              <Text style={styles.notesModalTitle}>Client Notes</Text>
-              <Text style={styles.notesModalText}>{noteModalText}</Text>
-              <Pressable style={styles.notesModalClose} onPress={() => setNoteModalVisible(false)}>
-                <Text style={styles.notesModalCloseText}>Close</Text>
-              </Pressable>
-            </View>
-          </View>
-        </Modal>
-        
         {/* Add Note Modal */}
         <Modal
           visible={addNoteModalVisible}
@@ -3100,10 +3050,13 @@ ${signOff}`;
         >
           <View style={styles.modalOverlay}>
             <View style={styles.addNoteModalContent}>
-              <Text style={styles.addNoteModalTitle}>Add Note Below</Text>
+              <Text style={styles.addNoteModalTitle}>Job note</Text>
+              <Text style={styles.addNoteModalHint}>
+                Shown on this job only — it won't appear on future visits. To remove the note, clear the text and save.
+              </Text>
               <TextInput
                 style={styles.addNoteInput}
-                placeholder="Enter your note here..."
+                placeholder="e.g. Gate locked — ring the bell first"
                 value={addNoteText}
                 onChangeText={setAddNoteText}
                 multiline
@@ -3112,17 +3065,17 @@ ${signOff}`;
                 autoFocus
               />
               <View style={styles.addNoteModalButtons}>
-                <Pressable 
-                  style={[styles.addNoteModalButton, styles.addNoteModalCancelButton]} 
+                <Pressable
+                  style={[styles.addNoteModalButton, styles.addNoteModalCancelButton]}
                   onPress={() => setAddNoteModalVisible(false)}
                 >
                   <Text style={styles.addNoteModalCancelText}>Cancel</Text>
                 </Pressable>
-                <Pressable 
-                  style={[styles.addNoteModalButton, styles.addNoteModalSaveButton]} 
+                <Pressable
+                  style={[styles.addNoteModalButton, styles.addNoteModalSaveButton]}
                   onPress={handleSaveNote}
                 >
-                  <Text style={styles.addNoteModalSaveText}>Save Note</Text>
+                  <Text style={styles.addNoteModalSaveText}>Save</Text>
                 </Pressable>
               </View>
             </View>
@@ -4245,51 +4198,33 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: 'bold',
   },
-  notesButton: {
-    backgroundColor: '#ffcc00',
-    borderRadius: 12,
-    width: 24,
-    height: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 6,
-    marginTop: 8,
-    elevation: 2,
+  accountNoteInline: {
+    backgroundColor: '#fff3cd',
+    borderLeftWidth: 3,
+    borderLeftColor: '#ffc107',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
   },
-  notesButtonIcon: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 18,
-    lineHeight: 20,
+  accountNoteInlineText: {
+    fontSize: 14,
+    color: '#856404',
   },
-  notesModalContent: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 24,
-    minWidth: 250,
-    maxWidth: 320,
-    alignItems: 'center',
+  jobNoteInline: {
+    backgroundColor: '#e8f4fd',
+    borderLeftWidth: 3,
+    borderLeftColor: '#2196f3',
+    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginTop: 4,
+    alignSelf: 'flex-start',
   },
-  notesModalTitle: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    marginBottom: 12,
-  },
-  notesModalText: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  notesModalClose: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  notesModalCloseText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
-    fontSize: 16,
+  jobNoteInlineText: {
+    fontSize: 14,
+    color: '#0d47a1',
   },
   accountNumberText: {
     fontSize: 14,
@@ -4341,8 +4276,14 @@ const styles = StyleSheet.create({
   addNoteModalTitle: {
     fontWeight: 'bold',
     fontSize: 18,
-    marginBottom: 16,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  addNoteModalHint: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 12,
   },
   addNoteInput: {
     borderWidth: 1,

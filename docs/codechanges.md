@@ -2,6 +2,22 @@
 
 ## June 11, 2026
 
+### Runsheet notes rework: inline account notes + per-job notes
+
+**Why**: Two awkward note systems on the runsheet. (1) Account-level runsheet notes (`client.runsheetNotes`) were hidden behind a "!" icon that opened a modal — an extra tap to see critical info like gate codes. (2) "Add note below" created free-standing fake job documents (`clientId: 'NOTE_JOB'`, `originalJobId` reference) that could become disassociated/orphaned from their job when jobs moved days or weeks.
+
+**Files changed**:
+- `types/models.ts` — `Job` gains optional `jobNote?: string`.
+- `app/runsheet/[week].tsx`:
+  - **Account runsheet notes now display inline** on every job card from that account (amber strip below the client name). The "!" button, its modal, and related state/styles removed. Still permanent and managed from the client account screen as before.
+  - **"Add note below" replaced with "Add job note" / "Edit job note"** (label adapts) in all four action menus (iOS ActionSheet + web/Android modal, regular + quote jobs). The note is stored as a `jobNote` field ON the job document itself, so it always travels with the job through move/defer/vehicle allocation and can never be orphaned. Shown inline as a blue "📝" strip on the job card (regular and quote jobs). One-off by design: future recurring visits are new job docs without the note.
+  - Note modal: prefills the existing note when editing; saving empty text removes the note (`deleteField()`). Hint text explains both behaviours.
+  - **Legacy NOTE_JOB documents are untouched**: existing free-standing notes still render (yellow card), still sort below their original job, and can still be deleted by tapping them. They just can't be created any more, so they'll die out naturally.
+
+**Verified in browser end-to-end**: account "ex GC" runsheet notes render inline on their job cards with no "!" icon; added a job note via the action sheet → blue strip appeared instantly; survived a full page reload (Firestore-persisted); action menu label switched to "Edit job note" and prefilled; cleared text + save removed the note from card and Firestore. Test note removed afterwards.
+
+---
+
 ### Meta Pixel on the Guvnor lead-gen funnel
 
 **Why**: The developer launched his first Facebook traffic campaign (Guvnor – Leads – Traffic – June 2026) and created a Meta dataset/pixel (`Guvnor Pixel`, ID 1006997388546229). Installing the Pixel lets Meta tie ad clicks to real quote submissions, unlocks conversion reporting in Ads Manager, and enables future Leads-objective campaigns that optimise toward people who actually complete the form rather than just clicking.

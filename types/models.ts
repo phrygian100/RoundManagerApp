@@ -58,6 +58,7 @@ export type Job = {
   review?: string;
   paymentStatus: 'unpaid' | 'paid' | 'released';
   hasCustomPrice?: boolean; // Indicates if the price has been manually edited
+  jobNote?: string; // One-off note attached to this specific job (shown inline on the runsheet, travels with the job)
   vehicleId?: string; // Manual vehicle assignment (optional - if not set, uses automatic allocation)
   isDeferred?: boolean; // Indicates if job was deferred/rolled over from previous week
   // GoCardless integration
