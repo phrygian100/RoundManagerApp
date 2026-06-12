@@ -2,6 +2,17 @@
 
 ## June 12, 2026
 
+### Window quote setup: choice of frequency pairing (4 & 8 / 6 & 12 / 1 & 2 weekly)
+
+**Why**: The first-login pricing screen hardcoded the two regular columns as 4 weekly and 8 weekly. Window cleaners run different cadences; per spec the offering is a choice of one of three pairings — 4 & 8 weekly (default), 6 & 12 weekly, or 1 & 2 weekly — plus the one-off column. Window-cleaning-specific paradigm; the bin variant keeps its own 4/8 toggle from earlier today.
+
+**Files changed**:
+- `app/quote-setup.tsx` — new "How often do you visit?" pair selector card above the preset images (`WINDOW_FREQ_PAIRS`). The two price-column labels follow the selection live, and saved pricing lines get `frequencyWeeks` from the chosen pair. Internal field names renamed four/eight → first/second.
+
+**No downstream changes needed**: pricing lines already carry arbitrary `frequencyWeeks` through `getQuoteOptions` (no redeploy required); the microsite, New Business and Guvnor Leads all render "N Weekly" generically; the quote-wizard editor takes frequency as free numeric input; client service plans accept any `frequencyWeeks`. Existing wizards are untouched — this only affects what new setups write.
+
+---
+
 ### Bin cleaner quote setup: regular cleans now specify a frequency (4 or 8 weekly)
 
 **Why**: The bin quote setup asked for a "regular clean" price with no way to say how regular, and the microsite hardcoded every regular bin lead as 4-weekly. A bin cleaner running an 8-weekly round would get every lead tagged with the wrong frequency.

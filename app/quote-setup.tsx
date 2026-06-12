@@ -24,7 +24,16 @@ import { BusinessType, WINDOW_QUOTE_PRESETS } from '../shared/constants/business
 // Bin cleaning: no images (every bin looks the same) - just per-bin
 // prices, stored as users/{uid}.binPricing for the microsite's instant quote.
 
-type PresetPrices = { four: string; eight: string; oneOff: string };
+type PresetPrices = { first: string; second: string; oneOff: string };
+
+// Window cleaning rounds are quoted at two regular frequencies plus a one-off.
+// Providers pick which pairing matches how they work; 4 & 8 weekly is by far
+// the most common.
+const WINDOW_FREQ_PAIRS: [number, number][] = [
+  [4, 8],
+  [6, 12],
+  [1, 2],
+];
 
 function genId() {
   return Math.random().toString(36).slice(2, 10);
@@ -37,8 +46,9 @@ export default function QuoteSetupScreen() {
   const [uid, setUid] = useState<string | null>(null);
   const [businessType, setBusinessType] = useState<BusinessType>('window-cleaning');
 
-  // Window variant state: prices per preset key
+  // Window variant state: prices per preset key + chosen frequency pairing
   const [prices, setPrices] = useState<Record<string, PresetPrices>>({});
+  const [freqPair, setFreqPair] = useState<[number, number]>(WINDOW_FREQ_PAIRS[0]);
 
   // Bin variant state
   const [perBin, setPerBin] = useState('');
@@ -83,7 +93,7 @@ export default function QuoteSetupScreen() {
   const setPrice = (key: string, field: keyof PresetPrices, value: string) => {
     setPrices((prev) => ({
       ...prev,
-      [key]: { four: '', eight: '', oneOff: '', ...prev[key], [field]: value },
+      [key]: { first: '', second: '', oneOff: '', ...prev[key], [field]: value },
     }));
   };
 
@@ -127,7 +137,7 @@ export default function QuoteSetupScreen() {
     if (!uid) return;
     const priced = WINDOW_QUOTE_PRESETS.filter((p) => {
       const v = prices[p.key];
-      return v && (parseFloat(v.four) > 0 || parseFloat(v.eight) > 0 || parseFloat(v.oneOff) > 0);
+      return v && (parseFloat(v.first) > 0 || parseFloat(v.second) > 0 || parseFloat(v.oneOff) > 0);
     });
     if (priced.length === 0) {
       showAlert('No prices yet', 'Enter a price for at least one property type, or tap "I\'ll do this later".');
@@ -147,11 +157,11 @@ export default function QuoteSetupScreen() {
         const imageUrl = await getDownloadURL(storageRef);
 
         const pricingLines = [];
-        if (parseFloat(v.four) > 0) {
-          pricingLines.push({ id: genId(), isOneOff: false, frequencyWeeks: 4, cost: parseFloat(v.four) });
+        if (parseFloat(v.first) > 0) {
+          pricingLines.push({ id: genId(), isOneOff: false, frequencyWeeks: freqPair[0], cost: parseFloat(v.first) });
         }
-        if (parseFloat(v.eight) > 0) {
-          pricingLines.push({ id: genId(), isOneOff: false, frequencyWeeks: 8, cost: parseFloat(v.eight) });
+        if (parseFloat(v.second) > 0) {
+          pricingLines.push({ id: genId(), isOneOff: false, frequencyWeeks: freqPair[1], cost: parseFloat(v.second) });
         }
         if (parseFloat(v.oneOff) > 0) {
           pricingLines.push({ id: genId(), isOneOff: true, frequencyWeeks: null, cost: parseFloat(v.oneOff) });
@@ -266,16 +276,39 @@ export default function QuoteSetupScreen() {
             </View>
           </View>
         ) : (
-          WINDOW_QUOTE_PRESETS.map((preset, idx) => {
-            const v = prices[preset.key] || { four: '', eight: '', oneOff: '' };
+          <>
+          <View style={styles.freqPairCard}>
+            <Text style={styles.label}>How often do you visit?</Text>
+            <View style={styles.freqRow}>
+              {WINDOW_FREQ_PAIRS.map((pair) => {
+                const active = freqPair[0] === pair[0];
+                return (
+                  <Pressable
+                    key={pair[0]}
+                    onPress={() => setFreqPair(pair)}
+                    style={[styles.freqOption, active && styles.freqOptionActive]}
+                  >
+                    <Text style={[styles.freqOptionText, active && styles.freqOptionTextActive]}>
+                      {pair[0]} & {pair[1]} weekly
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.hint}>
+              Customers will be offered a regular clean at these two frequencies (plus any one-off price you set).
+            </Text>
+          </View>
+          {WINDOW_QUOTE_PRESETS.map((preset, idx) => {
+            const v = prices[preset.key] || { first: '', second: '', oneOff: '' };
             return (
               <View key={preset.key} style={styles.presetCard}>
                 <Image source={preset.source} style={styles.presetImage} resizeMode="contain" />
                 <Text style={styles.presetLabel}>Property type {idx + 1}</Text>
                 <View style={styles.priceRow}>
                   {([
-                    { field: 'four' as const, label: '4 weekly' },
-                    { field: 'eight' as const, label: '8 weekly' },
+                    { field: 'first' as const, label: `${freqPair[0]} weekly` },
+                    { field: 'second' as const, label: `${freqPair[1]} weekly` },
                     { field: 'oneOff' as const, label: 'One-off' },
                   ]).map(({ field, label }) => (
                     <View key={field} style={styles.priceCol}>
@@ -293,7 +326,8 @@ export default function QuoteSetupScreen() {
                 </View>
               </View>
             );
-          })
+          })}
+          </>
         )}
 
         <Pressable
@@ -398,7 +432,15 @@ const styles = StyleSheet.create({
   },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
 
-  freqRow: { flexDirection: 'row', gap: 10 },
+  freqPairCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 16,
+    marginBottom: 16,
+  },
+  freqRow: { flexDirection: 'row', gap: 10, marginTop: 4 },
   freqOption: {
     flex: 1,
     borderWidth: 1.5,
