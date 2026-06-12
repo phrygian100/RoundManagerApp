@@ -1,5 +1,24 @@
 # Code Changes Log
 
+## June 12, 2026
+
+### Bin cleaning vertical: landing page + quote funnel (first non-window-cleaning vertical)
+
+**Why**: Strategic expansion of Guvnor's lead-gen marketplace beyond window cleaning, one vertical at a time. Bin cleaning chosen first: bin cleaners' economics depend entirely on round density, making them the most natural fit for Guvnor's round-management tooling. Per the agreed strategy, the existing window cleaning homepage, funnel and Facebook campaign are untouched; each new vertical gets its own landing page and funnel feeding the same Guvnor Leads inbox.
+
+**Files changed**:
+- `app/welcome-bin-cleaning.tsx` (new) — consumer-facing landing page (`guvnor.app/welcome-bin-cleaning`), mirroring `/welcome`'s structure: hero ("Stinky wheelie bins?"), how-it-works steps, provider band, footer. CTAs route to `/bin-cleaning-quote`. UTM capture + Meta Pixel on mount, SEO title/description.
+- `app/bin-cleaning-quote.tsx` (new) — public quote funnel mirroring `/window-cleaning-quote`, with bin-specific questions instead of property type/conservatory: how many bins (1/2/3/4+), which bins (General waste / Recycling / Garden waste / Food caddy, multi-select), and frequency. The bin answers are summarised into the existing `propertyType` field (e.g. "2 bins — General waste, Recycling") so the rest of the lead pipeline displays them unchanged. Submits with `serviceCategory: 'bin-cleaning'`; fires Meta Pixel `Lead` on success.
+- `app/_layout.tsx` — `/bin-cleaning-quote` and `/welcome-bin-cleaning` added to `unauthAllowed` so unauthenticated visitors aren't redirected to login.
+- `functions/index.js` — `submitQuoteRequest` accepts and sanitises an optional `serviceCategory` string (40 chars), stored on the quoteRequest. Absent/null = window cleaning (the original funnel — old leads and the untouched window funnel need no migration). **Deployed to portalApi.**
+- `app/guvnor-leads.tsx` — each lead card now shows a green service tag (🗑️ Bin cleaning / 🪟 Window cleaning, defaulting to window cleaning for legacy leads). The Google Maps cold-call button is vertical-aware ("Find wheelie bin cleaning near TE1 1ST" for bin leads). Header subtitle generalised from "from guvnor.app/window-cleaning-quote" to "from the public Guvnor quote pages". `serviceCategory` survives lead assignment automatically since assignment updates the same document.
+
+**Tested in browser end-to-end**: loaded /welcome-bin-cleaning (renders, CTA routes), filled and submitted /bin-cleaning-quote (2 bins, General waste + Recycling, every 4 weeks) against the freshly deployed portalApi → lead appeared in /guvnor-leads with the Bin cleaning tag, bin summary, frequency, UTM label, and the vertical-aware Maps button. Test lead deleted afterwards.
+
+**Notes**: New-business handoff needs no changes — assigned bin leads carry the readable bin summary in `propertyType`. When ads point at this vertical, use e.g. `guvnor.app/welcome-bin-cleaning?utm_source=facebook&utm_campaign=bins-launch`.
+
+---
+
 ## June 11, 2026
 
 ### Runsheet notes rework: inline account notes + per-job notes

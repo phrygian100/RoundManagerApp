@@ -1842,6 +1842,7 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedCost,
         additionalServices,
         utm,
+        serviceCategory,
       } = req.body || {};
 
       if (!businessId || typeof businessId !== 'string') {
@@ -1884,6 +1885,8 @@ exports.portalApi = onRequest(async (req, res) => {
         selectedCost: selectedCost != null && !isNaN(Number(selectedCost)) ? Number(selectedCost) : null,
         additionalServices: Array.isArray(additionalServices) ? additionalServices.map(s => String(s).slice(0, 200)).slice(0, 10) : null,
         utm: cleanUtm,
+        // Vertical the lead came through (e.g. 'bin-cleaning'); absent/null = window cleaning (the original funnel).
+        serviceCategory: serviceCategory && typeof serviceCategory === 'string' ? clean(serviceCategory, 40) : null,
         status: 'pending',
         createdAt: new Date().toISOString(),
         source: 'client_portal',

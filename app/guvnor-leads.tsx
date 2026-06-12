@@ -8,10 +8,11 @@ import { getUserSession } from '../core/session';
 import { AdminUserSummary, listAllUsers } from '../services/adminService';
 import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../shared/constants/developer';
 
-// Developer-only inbox for leads captured by the public /window-cleaning-quote
-// page. These are consumer enquiries not yet associated with any app user;
-// the workflow is: call around local window cleaners (Google Maps link),
-// onboard one, then hand them the customer.
+// Developer-only inbox for leads captured by the public quote funnels
+// (/window-cleaning-quote, /bin-cleaning-quote, ...). These are consumer
+// enquiries not yet associated with any app user; the workflow is: call around
+// local tradespeople of the right vertical (Google Maps link), onboard one,
+// then hand them the customer.
 
 interface GuvnorLead {
   id: string;
@@ -25,6 +26,7 @@ interface GuvnorLead {
   propertyType?: string | null;
   hasConservatory?: boolean | null;
   utm?: { source?: string; medium?: string; campaign?: string; content?: string; term?: string } | null;
+  serviceCategory?: string | null;
   selectedFrequency?: string | null;
   status: 'pending' | 'contacted' | 'converted' | 'declined';
   createdAt: string;
@@ -99,6 +101,15 @@ export default function GuvnorLeadsScreen() {
     return `Every ${f} weeks`;
   };
 
+  // Which vertical the lead came through. Leads predating serviceCategory are
+  // all window cleaning (the original funnel).
+  const serviceLabel = (lead: GuvnorLead) => {
+    switch (lead.serviceCategory) {
+      case 'bin-cleaning': return { icon: '🗑️', label: 'Bin cleaning' };
+      default: return { icon: '🪟', label: 'Window cleaning' };
+    }
+  };
+
   // e.g. "facebook · june-launch · before-after-photo"
   const utmLabel = (lead: GuvnorLead) => {
     const u = lead.utm;
@@ -107,8 +118,16 @@ export default function GuvnorLeadsScreen() {
     return parts.length > 0 ? parts.join(' · ') : null;
   };
 
+  // What to search Google Maps for when calling around local pros.
+  const tradeSearchTerm = (lead: GuvnorLead) => {
+    switch (lead.serviceCategory) {
+      case 'bin-cleaning': return 'wheelie bin cleaning';
+      default: return 'window cleaners';
+    }
+  };
+
   const openMaps = (lead: GuvnorLead) => {
-    const q = encodeURIComponent(`window cleaners near ${lead.postcode}, UK`);
+    const q = encodeURIComponent(`${tradeSearchTerm(lead)} near ${lead.postcode}, UK`);
     Linking.openURL(`https://www.google.com/maps/search/${q}`);
   };
 
@@ -270,7 +289,7 @@ export default function GuvnorLeadsScreen() {
           </Pressable>
         </View>
         <Text style={styles.subtitle}>
-          Consumer enquiries from guvnor.app/window-cleaning-quote — not yet matched to a user
+          Consumer enquiries from the public Guvnor quote pages — not yet matched to a user
         </Text>
         {newCount > 0 && (
           <View style={styles.pendingBadge}>
@@ -297,6 +316,11 @@ export default function GuvnorLeadsScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardName}>{lead.name}</Text>
                     <Text style={styles.cardDate}>{formatDate(lead.createdAt)}</Text>
+                    <View style={styles.serviceTag}>
+                      <Text style={styles.serviceTagText}>
+                        {serviceLabel(lead).icon} {serviceLabel(lead).label}
+                      </Text>
+                    </View>
                     {utmLabel(lead) ? (
                       <View style={styles.sourceTag}>
                         <Text style={styles.sourceTagText}>📣 {utmLabel(lead)}</Text>
@@ -329,7 +353,7 @@ export default function GuvnorLeadsScreen() {
                   </View>
                   {lead.propertyType ? (
                     <View style={styles.infoRow}>
-                      <Text style={styles.infoIcon}>🏠</Text>
+                      <Text style={styles.infoIcon}>{lead.serviceCategory === 'bin-cleaning' ? '🗑️' : '🏠'}</Text>
                       <Text style={styles.infoValue}>
                         {lead.propertyType}
                         {lead.hasConservatory === true ? ' · with conservatory' : ''}
@@ -360,7 +384,7 @@ export default function GuvnorLeadsScreen() {
 
                 <Pressable style={styles.mapsButton} onPress={() => openMaps(lead)}>
                   <Ionicons name="map-outline" size={18} color="#fff" />
-                  <Text style={styles.mapsButtonText}>Find window cleaners near {lead.postcode}</Text>
+                  <Text style={styles.mapsButtonText}>Find {tradeSearchTerm(lead)} near {lead.postcode}</Text>
                 </Pressable>
 
                 <Pressable style={styles.assignButton} onPress={() => openAssignModal(lead)}>
@@ -531,6 +555,17 @@ const styles = StyleSheet.create({
   cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 },
   cardName: { fontSize: 18, fontWeight: '600', color: '#111827' },
   cardDate: { fontSize: 12, color: '#9ca3af', marginTop: 2 },
+  serviceTag: {
+    backgroundColor: '#ecfdf5',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    alignSelf: 'flex-start',
+    marginTop: 6,
+  },
+  serviceTagText: { fontSize: 12, color: '#065f46', fontWeight: '600' },
   sourceTag: {
     backgroundColor: '#eef2ff',
     borderWidth: 1,
