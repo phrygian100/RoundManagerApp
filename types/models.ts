@@ -22,6 +22,7 @@ export type User = {
   // Bin cleaning quote settings (bin-cleaning accounts only)
   binPricing?: {
     perBin?: number; // recurring price per bin per clean
+    frequencyWeeks?: number; // how often the regular round visits (4 or 8); missing = 4
     oneOffPerBin?: number; // optional one-off price per bin
   };
   

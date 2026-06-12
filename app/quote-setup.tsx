@@ -42,6 +42,7 @@ export default function QuoteSetupScreen() {
 
   // Bin variant state
   const [perBin, setPerBin] = useState('');
+  const [binFrequency, setBinFrequency] = useState<4 | 8>(4);
   const [oneOffPerBin, setOneOffPerBin] = useState('');
 
   const isNarrow = Platform.OS !== 'web' || (typeof window !== 'undefined' && window.innerWidth < 768);
@@ -187,7 +188,7 @@ export default function QuoteSetupScreen() {
     }
     setSaving(true);
     try {
-      const binPricing: Record<string, number> = { perBin: per };
+      const binPricing: Record<string, number> = { perBin: per, frequencyWeeks: binFrequency };
       const oneOff = parseFloat(oneOffPerBin);
       if (oneOff > 0) binPricing.oneOffPerBin = oneOff;
       await markComplete({ binPricing });
@@ -234,6 +235,23 @@ export default function QuoteSetupScreen() {
                 keyboardType="decimal-pad"
               />
               <Text style={styles.hint}>What you charge to clean one bin on a regular visit.</Text>
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>How often do you visit?</Text>
+              <View style={styles.freqRow}>
+                {([4, 8] as const).map((weeks) => (
+                  <Pressable
+                    key={weeks}
+                    onPress={() => setBinFrequency(weeks)}
+                    style={[styles.freqOption, binFrequency === weeks && styles.freqOptionActive]}
+                  >
+                    <Text style={[styles.freqOptionText, binFrequency === weeks && styles.freqOptionTextActive]}>
+                      Every {weeks} weeks
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Text style={styles.hint}>Customers will be quoted a regular clean at this frequency.</Text>
             </View>
             <View style={styles.inputGroup}>
               <Text style={styles.label}>One-off clean, price per bin (£, optional)</Text>
@@ -379,6 +397,20 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
   hint: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
+
+  freqRow: { flexDirection: 'row', gap: 10 },
+  freqOption: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#fff',
+  },
+  freqOptionActive: { borderColor: '#10b981', backgroundColor: '#ecfdf5' },
+  freqOptionText: { fontSize: 15, fontWeight: '500', color: '#374151' },
+  freqOptionTextActive: { color: '#047857', fontWeight: '700' },
 
   finishButton: {
     backgroundColor: '#10b981',

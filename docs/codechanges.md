@@ -2,6 +2,20 @@
 
 ## June 12, 2026
 
+### Bin cleaner quote setup: regular cleans now specify a frequency (4 or 8 weekly)
+
+**Why**: The bin quote setup asked for a "regular clean" price with no way to say how regular, and the microsite hardcoded every regular bin lead as 4-weekly. A bin cleaner running an 8-weekly round would get every lead tagged with the wrong frequency.
+
+**Files changed**:
+- `app/quote-setup.tsx` — bin variant gains a required "How often do you visit?" toggle (Every 4 weeks / Every 8 weeks, defaults to 4), saved as `binPricing.frequencyWeeks`.
+- `types/models.ts` — `binPricing.frequencyWeeks?: number` (missing = 4).
+- `functions/index.js` — `getQuoteOptions` returns `binPricing.frequencyWeeks`, defaulting to 4 for accounts saved before this change. **Deployed to portalApi.**
+- `app/[businessName]/quote.tsx` — the consumer's "Regular clean" option now reads "Regular clean — every N weeks" and submits the provider's actual frequency (`selectedFrequency: '4'` or `'8'`) instead of a hardcoded `'4'`. `'8'` is already a fully supported frequency downstream (window leads use it), so New Business scheduling behaves correctly.
+
+**Regression note**: existing/legacy data is unaffected — any `binPricing` without `frequencyWeeks` resolves to 4-weekly, which is exactly the previous behaviour.
+
+---
+
 ### "Wheelie bin cleaning" → "Bin cleaning" everywhere + bin cleaner guide + full sign-up tests
 
 **Why**: Terminology decision — the vertical is called "bin cleaning", not "wheelie bin cleaning", everywhere a user sees it. Also added the first trade-specific guide for bin cleaners on the marketing site, and end-to-end browser-tested the complete sign-up journey (registration → email verification via temp-mail → first login → quote setup → microsite) for both trades.

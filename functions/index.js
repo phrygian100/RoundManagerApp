@@ -1832,6 +1832,8 @@ exports.portalApi = onRequest(async (req, res) => {
           if (u.binPricing && typeof u.binPricing.perBin === 'number') {
             binPricing = {
               perBin: u.binPricing.perBin,
+              // Accounts saved before the frequency question default to 4 weekly.
+              frequencyWeeks: typeof u.binPricing.frequencyWeeks === 'number' ? u.binPricing.frequencyWeeks : 4,
               oneOffPerBin: typeof u.binPricing.oneOffPerBin === 'number' ? u.binPricing.oneOffPerBin : null,
             };
           }

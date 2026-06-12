@@ -31,7 +31,7 @@ export default function QuoteScreen() {
   const [extraOther, setExtraOther] = useState('');
 
   // Bin cleaning businesses get a count-based flow instead of property images.
-  const [binPricing, setBinPricing] = useState<{ perBin: number; oneOffPerBin?: number | null } | null>(null);
+  const [binPricing, setBinPricing] = useState<{ perBin: number; frequencyWeeks?: number | null; oneOffPerBin?: number | null } | null>(null);
   const [binCount, setBinCount] = useState<number | null>(null);
   const [binSelection, setBinSelection] = useState<{ isOneOff: boolean; cost: number } | null>(null);
 
@@ -139,7 +139,7 @@ export default function QuoteScreen() {
     try {
       await submitQuoteToBackend(
         undefined,
-        binSelection.isOneOff ? 'one-off' : '4',
+        binSelection.isOneOff ? 'one-off' : String(binPricing?.frequencyWeeks || 4),
         binSelection.cost,
         `${binCount} ${binCount === 1 ? 'bin' : 'bins'}`,
       );
@@ -432,7 +432,11 @@ export default function QuoteScreen() {
             </Text>
 
             {([
-              { isOneOff: false, label: 'Regular clean', cost: binCount * binPricing.perBin },
+              {
+                isOneOff: false,
+                label: `Regular clean — every ${binPricing.frequencyWeeks || 4} weeks`,
+                cost: binCount * binPricing.perBin,
+              },
               ...(binPricing.oneOffPerBin && binPricing.oneOffPerBin > 0
                 ? [{ isOneOff: true, label: 'One-off clean', cost: binCount * binPricing.oneOffPerBin }]
                 : []),
