@@ -146,9 +146,14 @@ export default function QuoteSetupScreen() {
 
     setSaving(true);
     try {
-      const items = [];
+      // One quoteWizards doc per priced preset: the editor and the microsite
+      // treat each doc as one property type (customerName = consumer-facing
+      // label), so a single doc holding every preset renders as one unnamed
+      // mega-card in /quote-wizard.
+      const now = new Date().toISOString();
       for (const preset of priced) {
         const v = prices[preset.key];
+        const presetIndex = WINDOW_QUOTE_PRESETS.indexOf(preset);
         const itemId = genId();
         const storagePath = `quoteWizards/${uid}/presets/${itemId}.jpg`;
         const dataUrl = await presetToDataUrl(preset.source);
@@ -167,18 +172,15 @@ export default function QuoteSetupScreen() {
           pricingLines.push({ id: genId(), isOneOff: true, frequencyWeeks: null, cost: parseFloat(v.oneOff) });
         }
 
-        items.push({ id: itemId, storagePath, imageUrl, pricingLines });
+        await addDoc(collection(db, 'quoteWizards'), {
+          ownerId: uid,
+          accountId: uid,
+          customerName: `Property type ${presetIndex + 1}`,
+          items: [{ id: itemId, storagePath, imageUrl, pricingLines }],
+          createdAt: now,
+          updatedAt: now,
+        });
       }
-
-      const now = new Date().toISOString();
-      await addDoc(collection(db, 'quoteWizards'), {
-        ownerId: uid,
-        accountId: uid,
-        customerName: '',
-        items,
-        createdAt: now,
-        updatedAt: now,
-      });
       await markComplete();
       showAlert('All set', 'Your quote wizard is live on your microsite. You can fine-tune it any time from Quote Wizard.');
       router.replace('/');

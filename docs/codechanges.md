@@ -2,6 +2,18 @@
 
 ## June 12, 2026
 
+### Quote setup now creates one wizard doc per preset (fixes broken /quote-wizard list)
+
+**Why**: The first-login window quote setup wrote a single `quoteWizards` doc containing all 8 priced presets with an empty `customerName`. The Quote Wizard list screen treats each doc as one property type (name + up to ~3 pricing badges), so the setup output rendered as one unnamed mega-card with up to 24 badges sprawling across the row (user-reported screenshot). The doc's empty name also fed through to the microsite item `label` and failed the editor's save validation.
+
+**Files changed**:
+- `app/quote-setup.tsx` — saves one `quoteWizards` doc per priced preset, named "Property type N" (matching the setup screen's captions). List view, editor and microsite labels all behave like hand-made quote examples.
+- `app/quote-wizard.tsx` — defensive polish for any oddly-shaped docs: list cards fall back to "Untitled quote" when the name is empty, and pricing badges cap at 6 with a "+N more" badge.
+
+**Note**: wizards created by quote-setup before this fix remain a single multi-item doc; they now render as "Untitled quote +N more" and can be renamed or deleted in the editor.
+
+---
+
 ### Window quote setup: choice of frequency pairing (4 & 8 / 6 & 12 / 1 & 2 weekly)
 
 **Why**: The first-login pricing screen hardcoded the two regular columns as 4 weekly and 8 weekly. Window cleaners run different cadences; per spec the offering is a choice of one of three pairings — 4 & 8 weekly (default), 6 & 12 weekly, or 1 & 2 weekly — plus the one-off column. Window-cleaning-specific paradigm; the bin variant keeps its own 4/8 toggle from earlier today.

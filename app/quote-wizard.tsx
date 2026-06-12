@@ -520,6 +520,11 @@ export default function QuoteWizardScreen() {
               const allQuoteLines: any[] = (q.items || []).flatMap(
                 (it: any) => it.pricingLines || []
               );
+              const pricedLines = allQuoteLines.filter(
+                (ln: any) => (parseFloat(ln.cost) || 0) > 0
+              );
+              const visibleLines = pricedLines.slice(0, 6);
+              const hiddenCount = pricedLines.length - visibleLines.length;
               return (
                 <Pressable
                   key={q.id}
@@ -550,12 +555,11 @@ export default function QuoteWizardScreen() {
                   )}
                   <View style={s.quoteCardBody}>
                     <ThemedText style={s.quoteCardName}>
-                      {q.customerName}
+                      {q.customerName || 'Untitled quote'}
                     </ThemedText>
                     <View style={s.quoteCardMeta}>
-                      {allQuoteLines.map((ln: any) => {
+                      {visibleLines.map((ln: any) => {
                         const v = parseFloat(ln.cost) || 0;
-                        if (!v) return null;
                         if (ln.isOneOff) {
                           return (
                             <Text key={ln.id} style={[s.metaBadge, s.metaBadgeAmber]}>
@@ -572,6 +576,9 @@ export default function QuoteWizardScreen() {
                         }
                         return null;
                       })}
+                      {hiddenCount > 0 && (
+                        <Text style={s.metaBadge}>+{hiddenCount} more</Text>
+                      )}
                     </View>
                   </View>
                   <Ionicons
