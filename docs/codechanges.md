@@ -2,6 +2,19 @@
 
 ## June 12, 2026
 
+### Marketing copy polish + fixed provider sign-up flow from marketing site
+
+**Why**: With multiple verticals now supported, the window-cleaning-specific copy on the public pages needed generalising. More importantly, every "Start Free" / "Sign In" CTA on the marketing site (`/home`, `/pricing`, `/about`, `/feature-tour`, `/contact`, `/terms`, `/privacy-policy`, the guides, and the marketing nav) linked to `/`, which since the consumer-first homepage change redirects signed-out visitors to `/welcome` ("Need a window cleaner?") — completely the wrong flow for a provider who just clicked "Start Free - No Credit Card Required".
+
+**Files changed**:
+- `app/welcome.tsx` — provider band title "Clean windows for a living?" → "Provide a local service for a living?" (the bin-cleaning landing page keeps its targeted "Clean bins for a living?").
+- `web/src/app/home/page.tsx` — hero "Manage Your Cleaning Rounds / Like a Pro" → "Manage Your Rounds / Like a Pro".
+- All `href="/"` links across `web/src` (26 instances in 14 files: home, pricing, about, contact, feature-tour, privacy-policy, terms, guides index + 5 guide pages, MarketingNav) now point to `/login`, where providers can sign in or follow "Register here" and pick their trade. `/login` is served by the Expo SPA on the same domain (vercel.json rewrite), so the links work unchanged.
+
+**Verified**: `/welcome` renders the new provider band copy in the browser; marketing link changes are a mechanical `href="/"` → `href="/login"` swap with no remaining root links (grepped).
+
+---
+
 ### Provider business types: bin cleaner accounts (registration → onboarding → microsite)
 
 **Why**: The consumer side of the bin cleaning vertical (below) generates leads, but a bin cleaner opening a Guvnor account still got a window-cleaning-flavoured app. This adds a hard window-cleaner / bin-cleaner distinction on provider accounts. **Regression rule: a missing `businessType` on a user doc means window cleaning** — every existing account behaves identically with zero migration; all bin behaviour is new, additive branches. The internal `serviceId: 'window-cleaning'` is NOT renamed anywhere; it means "the primary recurring round service" for every vertical and only its display name changes.

@@ -173,7 +173,7 @@ export default function AboutPage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              href="/"
+              href="/login"
               className="bg-white text-indigo-600 hover:bg-gray-100 px-8 py-3 rounded-lg text-lg font-semibold transition-colors inline-block"
             >
               Start Free Today
@@ -221,7 +221,7 @@ export default function AboutPage() {
                 <h4 className="font-semibold mb-4">Support</h4>
                 <ul className="space-y-2 text-gray-400">
                   <li><Link href="/contact" className="hover:text-white">Help Center</Link></li>
-                  <li><Link href="/" className="hover:text-white">Sign In</Link></li>
+                  <li><Link href="/login" className="hover:text-white">Sign In</Link></li>
                 </ul>
               </div>
               <div>

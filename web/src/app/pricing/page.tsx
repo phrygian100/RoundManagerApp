@@ -89,7 +89,7 @@ export default function PricingPage() {
               </ul>
               
               <Link 
-                href="/"
+                href="/login"
                 className="w-full bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-lg text-lg font-semibold transition-colors text-center block"
               >
                 Get Started Free
@@ -160,7 +160,7 @@ export default function PricingPage() {
               </ul>
               
               <Link 
-                href="/"
+                href="/login"
                 className="w-full bg-indigo-600 text-white hover:bg-indigo-700 px-6 py-3 rounded-lg text-lg font-semibold transition-colors text-center block"
               >
                 Start Free Trial
@@ -246,7 +246,7 @@ export default function PricingPage() {
             Join thousands of cleaning professionals who trust Guvnor to manage their rounds
           </p>
           <Link 
-            href="/"
+            href="/login"
             className="bg-white text-indigo-600 hover:bg-gray-100 px-8 py-3 rounded-lg text-lg font-semibold transition-colors inline-block"
           >
             Start Your Free Account
@@ -287,7 +287,7 @@ export default function PricingPage() {
                 <h4 className="font-semibold mb-4">Support</h4>
                 <ul className="space-y-2 text-gray-400">
                   <li><Link href="/contact" className="hover:text-white">Help Center</Link></li>
-                  <li><Link href="/" className="hover:text-white">Sign In</Link></li>
+                  <li><Link href="/login" className="hover:text-white">Sign In</Link></li>
                 </ul>
               </div>
               <div>

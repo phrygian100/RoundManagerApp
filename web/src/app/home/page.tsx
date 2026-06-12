@@ -13,7 +13,7 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
           <div className="text-center">
             <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-gray-900 mb-4 sm:mb-6">
-              Manage Your Cleaning Rounds
+              Manage Your Rounds
               <span className="text-indigo-600 block">Like a Pro</span>
             </h1>
             <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8 max-w-3xl mx-auto">
@@ -22,7 +22,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
               <Link 
-                href="/"
+                href="/login"
                 className="bg-indigo-600 text-white hover:bg-indigo-700 px-6 sm:px-8 py-3 rounded-lg text-base sm:text-lg font-semibold transition-colors"
               >
                 Start Free - No Credit Card Required
@@ -129,7 +129,7 @@ export default function HomePage() {
                   Payment tracking
                 </li>
               </ul>
-              <Link href="/" className="w-full bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold transition-colors text-center block">
+              <Link href="/login" className="w-full bg-gray-600 text-white hover:bg-gray-700 px-6 py-3 rounded-lg font-semibold transition-colors text-center block">
                 Get Started Free
               </Link>
             </div>
@@ -201,7 +201,7 @@ export default function HomePage() {
                 <h4 className="font-semibold mb-4">Support</h4>
                 <ul className="space-y-2 text-gray-400">
                   <li><Link href="/contact" className="hover:text-white">Help Center</Link></li>
-                  <li><Link href="/" className="hover:text-white">Sign In</Link></li>
+                  <li><Link href="/login" className="hover:text-white">Sign In</Link></li>
                 </ul>
               </div>
               <div>

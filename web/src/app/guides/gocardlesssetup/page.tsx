@@ -196,7 +196,7 @@ export default function GoCardlessSetupGuidePage() {
                     </Link>
                   </li>
                   <li>
-                    <Link href="/" className="hover:text-white">
+                    <Link href="/login" className="hover:text-white">
                       Sign In
                     </Link>
                   </li>

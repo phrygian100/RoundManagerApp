@@ -57,7 +57,7 @@ export function MarketingNav({ current }: { current?: MarketingNavCurrent }) {
               ))}
             </div>
             <Link
-              href="/"
+              href="/login"
               className="bg-indigo-600 text-white hover:bg-indigo-700 px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap"
             >
               Sign In
@@ -101,7 +101,7 @@ export function MarketingNav({ current }: { current?: MarketingNavCurrent }) {
                 ))}
                 <div className="my-2 border-t border-gray-100" />
                 <Link
-                  href="/"
+                  href="/login"
                   className="block px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50"
                 >
                   Sign In

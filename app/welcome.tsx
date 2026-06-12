@@ -109,7 +109,7 @@ export default function WelcomeScreen() {
       {/* Provider band */}
       <View style={styles.providerBand}>
         <View style={styles.providerContent}>
-          <Text style={styles.providerTitle}>Clean windows for a living?</Text>
+          <Text style={styles.providerTitle}>Provide a local service for a living?</Text>
           <Text style={styles.providerText}>
             Guvnor is also the simple way to run your rounds — clients, runsheets,
             payments and quotes, all in one place.
