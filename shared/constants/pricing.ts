@@ -14,7 +14,7 @@ export const PRICING_CONFIG = {
   },
   UNLIMITED_PLAN: {
     name: 'Unlimited',
-    price: 2.99,
+    price: 4.99,
     currency: 'GBP',
     clientLimit: null, // unlimited
     features: [

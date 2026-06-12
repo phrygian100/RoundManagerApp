@@ -2,6 +2,25 @@
 
 ## June 12, 2026
 
+### Premium subscription price changed to £4.99/month
+
+**Why**: Business decision — Premium moves from £2.99 to £4.99 a month.
+
+**Stripe (live, via API)**:
+- Created new recurring Price **`price_1ThYwRF7C2Zg8asU4f2W3AOF`** (£4.99/mo GBP) on product `prod_SjsT3QnGUMHajK` and set it as the product's default price.
+- Archived the old £2.99 price (`price_1TQsyaF7C2Zg8asUXyVbFh3r`) and the stale £18 price (`price_1RoOifF7C2Zg8asU9qRfxMSA`) so neither can be used for new checkouts.
+- There were **zero active subscriptions**, so no existing subscribers needed migrating.
+
+**Files changed**:
+- `shared/constants/pricing.ts` — `UNLIMITED_PLAN.price` 2.99 → **4.99**; all `PREMIUM_PRICE_*` labels (app upgrade prompts, web pricing/home/metadata) follow automatically.
+- `config.ts` — default `premiumPriceId` → the new £4.99 price id.
+- `config.example.ts` — comment updated.
+- `.env.local` (not committed) — stale `EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID` override pointed at the archived £18 price; now set to the new £4.99 price so local dev checkouts work.
+
+**Verification**: production web bundle was inspected and contains only the code-default price id (no Vercel env override for `EXPO_PUBLIC_STRIPE_PREMIUM_PRICE_ID`), so deploying this commit is sufficient for production checkouts to charge £4.99.
+
+---
+
 ### Quote Wizard auto-migrates legacy setup mega-docs into per-preset docs
 
 **Why**: Accounts that completed the first-login quote setup *before* the one-doc-per-preset fix (below) were left with a single unnamed `quoteWizards` doc holding all priced presets. That doc rendered as one "Untitled quote +N more" card and didn't match what the editor/microsite expect. Verified on production with a fresh test account that the new setup flow writes the correct per-preset docs; only pre-fix accounts carry the legacy shape.
