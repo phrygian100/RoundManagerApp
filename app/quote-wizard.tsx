@@ -87,6 +87,40 @@ export default function QuoteWizardScreen() {
 
   // ─── Load quotes ────────────────────────────────────
 
+  // Early versions of the first-login quote setup saved all priced presets
+  // into a single unnamed document. Split those into one named doc per
+  // preset so they match what the editor and microsite expect.
+  const migrateLegacySetupDocs = useCallback(
+    async (docs: QuoteWizard[]): Promise<boolean> => {
+      const legacy = docs.filter(
+        (q) =>
+          !(q.customerName || '').trim() &&
+          (q.items || []).length > 1 &&
+          (q.items || []).every((it) =>
+            (it.storagePath || '').includes('/presets/')
+          )
+      );
+      if (legacy.length === 0) return false;
+      for (const q of legacy) {
+        const now = new Date().toISOString();
+        for (let i = 0; i < q.items.length; i++) {
+          const it = q.items[i];
+          await addDoc(collection(db, 'quoteWizards'), {
+            ownerId: q.ownerId,
+            accountId: q.accountId || q.ownerId,
+            customerName: `Property type ${i + 1}`,
+            items: [it],
+            createdAt: q.createdAt || now,
+            updatedAt: now,
+          });
+        }
+        await deleteDoc(doc(db, 'quoteWizards', q.id));
+      }
+      return true;
+    },
+    []
+  );
+
   const loadQuotes = useCallback(async () => {
     try {
       setLoading(true);
@@ -97,10 +131,20 @@ export default function QuoteWizardScreen() {
         collection(db, 'quoteWizards'),
         where('ownerId', '==', id)
       );
-      const snap = await getDocs(q);
-      const data = snap.docs.map(
+      let snap = await getDocs(q);
+      let data = snap.docs.map(
         (d) => ({ id: d.id, ...d.data() } as QuoteWizard)
       );
+      try {
+        if (await migrateLegacySetupDocs(data)) {
+          snap = await getDocs(q);
+          data = snap.docs.map(
+            (d) => ({ id: d.id, ...d.data() } as QuoteWizard)
+          );
+        }
+      } catch (err) {
+        console.error('Legacy quote wizard migration failed', err);
+      }
       data.sort(
         (a, b) =>
           new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -111,7 +155,7 @@ export default function QuoteWizardScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [migrateLegacySetupDocs]);
 
   useEffect(() => {
     loadQuotes();

@@ -2,6 +2,15 @@
 
 ## June 12, 2026
 
+### Quote Wizard auto-migrates legacy setup mega-docs into per-preset docs
+
+**Why**: Accounts that completed the first-login quote setup *before* the one-doc-per-preset fix (below) were left with a single unnamed `quoteWizards` doc holding all priced presets. That doc rendered as one "Untitled quote +N more" card and didn't match what the editor/microsite expect. Verified on production with a fresh test account that the new setup flow writes the correct per-preset docs; only pre-fix accounts carry the legacy shape.
+
+**Files changed**:
+- `app/quote-wizard.tsx` — on list load, docs with an empty `customerName`, more than one item, and all item images under the setup `presets/` storage folder are split into one doc per item named "Property type N" (original doc deleted, images reused in place, `createdAt` preserved). Runs once per affected account, owner-side, under existing Firestore rules; hand-made quotes are never touched (they have names and per-quote storage paths). Verified locally against a seeded legacy doc: it split into correctly named cards on first visit.
+
+---
+
 ### Quote setup now creates one wizard doc per preset (fixes broken /quote-wizard list)
 
 **Why**: The first-login window quote setup wrote a single `quoteWizards` doc containing all 8 priced presets with an empty `customerName`. The Quote Wizard list screen treats each doc as one property type (name + up to ~3 pricing badges), so the setup output rendered as one unnamed mega-card with up to 24 badges sprawling across the row (user-reported screenshot). The doc's empty name also fed through to the microsite item `label` and failed the editor's save validation.
@@ -10,7 +19,7 @@
 - `app/quote-setup.tsx` — saves one `quoteWizards` doc per priced preset, named "Property type N" (matching the setup screen's captions). List view, editor and microsite labels all behave like hand-made quote examples.
 - `app/quote-wizard.tsx` — defensive polish for any oddly-shaped docs: list cards fall back to "Untitled quote" when the name is empty, and pricing badges cap at 6 with a "+N more" badge.
 
-**Note**: wizards created by quote-setup before this fix remain a single multi-item doc; they now render as "Untitled quote +N more" and can be renamed or deleted in the editor.
+**Note**: wizards created by quote-setup before this fix remained a single multi-item doc; the auto-migration entry above now splits these on the owner's next visit to Quote Wizard.
 
 ---
 
