@@ -21,6 +21,7 @@ import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { checkClientLimit } from '../../services/subscriptionService';
+import { getBusinessTypeConfig } from '../../shared/constants/businessTypes';
 import { PREMIUM_PRICE_ONLY_LABEL } from '../../shared/constants/pricing';
 import { getUserProfile } from '../../services/userService';
 import { listVehicles, VehicleRecord } from '../../services/vehicleService';
@@ -1412,10 +1413,12 @@ export default function RunsheetWeekScreen() {
     setActionSheetJob(null);
   };
 
-  // Helper function to convert service IDs to user-friendly display text
+  // Helper function to convert service IDs to user-friendly display text.
+  // The internal 'window-cleaning' serviceId means "the primary round service"
+  // for every vertical; its display name comes from the account's businessType.
   const getServiceTypeDisplay = (serviceId: string): string => {
     const serviceMap: Record<string, string> = {
-      'window-cleaning': 'Window cleaning',
+      'window-cleaning': getBusinessTypeConfig((userProfile as any)?.businessType).primaryServiceDisplay,
       'Gutter cleaning': 'Gutter cleaning',
       'Conservatory roof': 'Conservatory roof cleaning',
       'Soffit and fascias': 'Soffit and fascias cleaning',
@@ -2041,7 +2044,7 @@ ${signOff}`;
             const totalAmount = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
             const firstJob = jobs[0];
             const serviceDate = format(new Date(), 'ddMMyyyy');
-            const description = `Window cleaning ${serviceDate}`;
+            const description = `${getBusinessTypeConfig((userProfile as any)?.businessType).primaryServiceDisplay} ${serviceDate}`;
 
             const payload = {
               amount: totalAmount,
@@ -2379,8 +2382,9 @@ ${signOff}`;
     // Allow completing any job for today within this vehicle (quotes are handled separately)
     const showCompleteButton = isCurrentWeek && isToday && !isCompleted && !isDayCompleted;
     const showUndoButton = isCurrentWeek && isCompleted && isToday && !isDayCompleted;
-    // Define predefined service types
-    const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'Other'];
+    // Define predefined service types (union across verticals so one-off jobs
+    // are detected correctly whichever trade the account is)
+    const predefinedOneOffServices = ['Gutter cleaning', 'Conservatory roof', 'Soffit and fascias', 'One-off window cleaning', 'One-off bin clean', 'Extra bin', 'Other'];
     const predefinedAdditionalServices: string[] = []; // Add any predefined additional services here if needed
     
     const isOneOffJob = predefinedOneOffServices.includes(item.serviceId);
@@ -3490,7 +3494,7 @@ ${signOff}`;
                   <View key={idx} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#b0c4de', borderRadius: 10, padding: 12, backgroundColor: '#f8faff' }}>
                     <Text style={{ fontWeight: 'bold', marginBottom: 6 }}>Line {idx + 1}</Text>
                     <Text style={{ marginBottom: 2 }}>Service Type</Text>
-                    <TextInput placeholder="e.g. Window Cleaning" value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
+                    <TextInput placeholder={`e.g. ${getBusinessTypeConfig((userProfile as any)?.businessType).primaryServiceDisplay}`} value={line.serviceType} onChangeText={v => setQuoteLines(lines => lines.map((l, i) => i === idx ? { ...l, serviceType: v } : l))} style={{ borderWidth: 1, borderColor: '#ccc', marginBottom: 8, padding: 6, borderRadius: 6 }} />
                     <Text style={{ marginBottom: 2 }}>Frequency</Text>
                     <RNPicker
                       selectedValue={line.frequency}

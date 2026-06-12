@@ -14,9 +14,16 @@ export type User = {
   
   // Business and bank information (for owner accounts)
   businessName?: string; // Required for owners
+  businessType?: 'window-cleaning' | 'bin-cleaning'; // Vertical; missing = window cleaning (legacy accounts)
   bankSortCode?: string;
   bankAccountNumber?: string;
   businessWebsite?: string; // Optional business website URL
+
+  // Bin cleaning quote settings (bin-cleaning accounts only)
+  binPricing?: {
+    perBin?: number; // recurring price per bin per clean
+    oneOffPerBin?: number; // optional one-off price per bin
+  };
   
   // Subscription fields
   subscriptionTier?: 'free' | 'premium' | 'exempt';
@@ -33,6 +40,7 @@ export type User = {
   // Onboarding helpers
   firstTimeSetupCompleted?: boolean;
   importTipShown?: boolean; // "Import your data" one-time prompt
+  quoteSetupComplete?: boolean; // First-login quote pricing questionnaire done/skipped
 };
 
 export type Service = {

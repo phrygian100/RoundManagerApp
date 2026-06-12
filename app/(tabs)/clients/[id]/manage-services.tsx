@@ -9,6 +9,8 @@ import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId, waitForAuthReady } from '../../../../core/session';
+import { getAccountBusinessTypeConfig } from '../../../../services/userService';
+import { BusinessTypeConfig, getBusinessTypeConfig } from '../../../../shared/constants/businessTypes';
 import type { AdditionalService, Client } from '../../../../types/client';
 import type { ServicePlan } from '../../../../types/servicePlan';
 
@@ -61,6 +63,18 @@ export default function ManageServicesScreen() {
 	const [showEditServiceDatePicker, setShowEditServiceDatePicker] = useState(false);
 
 	const [showDatePickerKey, setShowDatePickerKey] = useState<string | null>(null);
+
+	// Vertical-specific service option lists (window cleaning for legacy accounts)
+	const [btConfig, setBtConfig] = useState<BusinessTypeConfig>(getBusinessTypeConfig(null));
+	useEffect(() => {
+		getAccountBusinessTypeConfig().then((cfg) => {
+			setBtConfig(cfg);
+			// Defaults assume the window list; align them with the account's vertical
+			setJobType(cfg.additionalServices[0]);
+			setRecurringServiceType(cfg.recurringServices[0]);
+			setEditServiceType(cfg.recurringServices[0]);
+		}).catch(() => {});
+	}, []);
 
 	const loadPlans = useMemo(() => async () => {
 		if (!clientId) return;
@@ -725,7 +739,7 @@ export default function ManageServicesScreen() {
 						{additionalServices.filter(s => s.isActive).map(s => (
 							<Pressable key={s.id} onPress={() => {
 								setSelectedService(s);
-								const predefinedTypes = ['Gutter cleaning', 'Solar panel cleaning', 'Conservatory roof', 'Soffit and fascias', 'Pressure washing'];
+								const predefinedTypes = btConfig.recurringServices.filter(t => t !== 'Other');
 								if (predefinedTypes.includes(s.serviceType)) {
 									setEditServiceType(s.serviceType);
 									setEditCustomServiceType('');
@@ -830,11 +844,9 @@ export default function ManageServicesScreen() {
 								<DateTimePicker value={jobDate} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowDatePicker(false); if (d) setJobDate(d); }} />
 							)}
 							<Picker selectedValue={jobType} onValueChange={setJobType} style={styles.picker}>
-								<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
-								<Picker.Item label="Conservatory roof" value="Conservatory roof" />
-								<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
-								<Picker.Item label="One-off window cleaning" value="One-off window cleaning" />
-								<Picker.Item label="Other" value="Other" />
+								{btConfig.additionalServices.map((s) => (
+									<Picker.Item key={s} label={s} value={s} />
+								))}
 							</Picker>
 							{jobType === 'Other' && (
 								<TextInput style={styles.input} placeholder="Enter custom job type" value={customJobType} onChangeText={setCustomJobType} />
@@ -884,12 +896,9 @@ export default function ManageServicesScreen() {
 								<DateTimePicker value={recurringNextVisit} mode="date" display={Platform.OS === 'ios' ? 'spinner' : 'default'} onChange={(_, d) => { setShowRecurringDatePicker(false); if (d) setRecurringNextVisit(d); }} />
 							)}
 							<Picker selectedValue={recurringServiceType} onValueChange={setRecurringServiceType} style={styles.picker}>
-								<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
-								<Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
-								<Picker.Item label="Conservatory roof" value="Conservatory roof" />
-								<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
-								<Picker.Item label="Pressure washing" value="Pressure washing" />
-								<Picker.Item label="Other" value="Other" />
+								{btConfig.recurringServices.map((s) => (
+									<Picker.Item key={s} label={s} value={s} />
+								))}
 							</Picker>
 							{recurringServiceType === 'Other' && (
 								<TextInput style={styles.input} placeholder="Enter custom service type" value={customRecurringServiceType} onChangeText={setCustomRecurringServiceType} />
@@ -933,12 +942,9 @@ export default function ManageServicesScreen() {
 				<View style={{ width: '90%', maxWidth: 800, backgroundColor: '#fff', borderRadius: 12, padding: 16 }}>
 					<ThemedText style={{ fontSize: 18, fontWeight: '700', marginBottom: 12 }}>Edit Additional Service</ThemedText>
 					<Picker selectedValue={editServiceType} onValueChange={setEditServiceType} style={styles.picker}>
-						<Picker.Item label="Gutter cleaning" value="Gutter cleaning" />
-						<Picker.Item label="Solar panel cleaning" value="Solar panel cleaning" />
-						<Picker.Item label="Conservatory roof" value="Conservatory roof" />
-						<Picker.Item label="Soffit and fascias" value="Soffit and fascias" />
-						<Picker.Item label="Pressure washing" value="Pressure washing" />
-						<Picker.Item label="Other" value="Other" />
+						{btConfig.recurringServices.map((s) => (
+							<Picker.Item key={s} label={s} value={s} />
+						))}
 					</Picker>
 					{editServiceType === 'Other' && (
 						<TextInput style={styles.input} placeholder="Enter custom service type" value={editCustomServiceType} onChangeText={setEditCustomServiceType} />

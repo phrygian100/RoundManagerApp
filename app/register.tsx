@@ -16,6 +16,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { auth, db } from '../core/firebase';
+import { BUSINESS_TYPE_CONFIGS, BusinessType } from '../shared/constants/businessTypes';
 import { DEVELOPER_UID } from '../shared/constants/developer';
 
 export default function RegisterScreen() {
@@ -30,6 +31,7 @@ export default function RegisterScreen() {
   const [address1, setAddress1] = useState('');
   const [town, setTown] = useState('');
   const [postcode, setPostcode] = useState('');
+  const [businessType, setBusinessType] = useState<BusinessType | ''>('');
   const [loading, setLoading] = useState(false);
 
   const showAlert = (title: string, msg: string) => {
@@ -59,6 +61,11 @@ export default function RegisterScreen() {
       !normalizedPostcode
     ) {
       showAlert('Error', 'Please fill out all fields.');
+      return;
+    }
+
+    if (!businessType) {
+      showAlert('Error', 'Please select what kind of business you run.');
       return;
     }
 
@@ -94,6 +101,7 @@ export default function RegisterScreen() {
         postcode: normalizedPostcode,
         // Create combined address for backward compatibility
         address: [trimmedAddress1, trimmedTown, normalizedPostcode].filter(Boolean).join(', '),
+        businessType,
         // Default subscription fields (also set by backend, but ensures immediate availability)
         subscriptionTier: user.uid === DEVELOPER_UID ? 'exempt' : 'free',
         subscriptionStatus: user.uid === DEVELOPER_UID ? 'exempt' : 'active',
@@ -268,6 +276,25 @@ export default function RegisterScreen() {
                 placeholderTextColor="#9ca3af"
                 editable={!loading}
               />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>What kind of business do you run?</Text>
+              <View style={styles.tradeRow}>
+                {Object.values(BUSINESS_TYPE_CONFIGS).map((cfg) => (
+                  <Pressable
+                    key={cfg.key}
+                    onPress={() => setBusinessType(cfg.key)}
+                    disabled={loading}
+                    style={[styles.tradeCard, businessType === cfg.key && styles.tradeCardActive]}
+                  >
+                    <Text style={styles.tradeIcon}>{cfg.key === 'bin-cleaning' ? '🗑️' : '🪟'}</Text>
+                    <Text style={[styles.tradeLabel, businessType === cfg.key && styles.tradeLabelActive]}>
+                      {cfg.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
             </View>
 
             <View style={styles.inputGroup}>
@@ -499,6 +526,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
     color: '#111827',
+  },
+
+  tradeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  tradeCard: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minWidth: 130,
+    borderWidth: 1.5,
+    borderColor: '#d1d5db',
+    borderRadius: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+  },
+  tradeCardActive: {
+    borderColor: '#4f46e5',
+    backgroundColor: '#eef2ff',
+  },
+  tradeIcon: {
+    fontSize: 24,
+    marginBottom: 6,
+  },
+  tradeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  tradeLabelActive: {
+    color: '#4338ca',
+    fontWeight: '700',
   },
 
   submitButton: {

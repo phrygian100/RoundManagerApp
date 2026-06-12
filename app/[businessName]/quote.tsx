@@ -6,7 +6,7 @@ import {
 import { useBusinessPortal, PORTAL_API_ORIGIN } from '../../hooks/useBusinessPortal';
 import { portalStyles } from '../../styles/portalStyles';
 
-type QuoteStep = 'form' | 'pickImage' | 'pickService' | 'extras' | 'review' | 'done';
+type QuoteStep = 'form' | 'pickImage' | 'pickService' | 'extras' | 'review' | 'pickBins' | 'binConfirm' | 'done';
 
 export default function QuoteScreen() {
   const { businessUser, loading, businessName, isNarrowWeb, handleNavigation, router } = useBusinessPortal();
@@ -29,6 +29,11 @@ export default function QuoteScreen() {
   const [extraConservatory, setExtraConservatory] = useState(false);
   const [extraSolarPanels, setExtraSolarPanels] = useState(false);
   const [extraOther, setExtraOther] = useState('');
+
+  // Bin cleaning businesses get a count-based flow instead of property images.
+  const [binPricing, setBinPricing] = useState<{ perBin: number; oneOffPerBin?: number | null } | null>(null);
+  const [binCount, setBinCount] = useState<number | null>(null);
+  const [binSelection, setBinSelection] = useState<{ isOneOff: boolean; cost: number } | null>(null);
 
   const handleBackToLanding = () => {
     if (Platform.OS === 'web') {
@@ -55,7 +60,14 @@ export default function QuoteScreen() {
         body: JSON.stringify({ businessId: businessUser.id }),
       });
       const data = await resp.json();
-      if (data?.ok && data.items?.length > 0) {
+      if (data?.ok && data.businessType === 'bin-cleaning') {
+        if (data.binPricing?.perBin > 0) {
+          setBinPricing(data.binPricing);
+          setQuoteStep('pickBins');
+        } else {
+          await submitQuoteToBackend();
+        }
+      } else if (data?.ok && data.items?.length > 0) {
         setQuoteOptions(data.items);
         setQuoteStep('pickImage');
       } else {
@@ -69,7 +81,7 @@ export default function QuoteScreen() {
     }
   };
 
-  const submitQuoteToBackend = async (imageUrl?: string, frequency?: string, cost?: number) => {
+  const submitQuoteToBackend = async (imageUrl?: string, frequency?: string, cost?: number, propertyType?: string) => {
     if (!businessUser) return;
     try {
       const extras: string[] = [];
@@ -91,6 +103,7 @@ export default function QuoteScreen() {
           postcode: quotePostcode.trim(),
           email: quoteEmail.trim() || null,
           notes: quoteNotes.trim() || null,
+          propertyType: propertyType || null,
           selectedImageUrl: imageUrl || null,
           selectedFrequency: frequency || null,
           selectedCost: cost ?? null,
@@ -120,11 +133,29 @@ export default function QuoteScreen() {
     }
   };
 
+  const handleConfirmBinQuote = async () => {
+    if (!binCount || !binSelection) return;
+    setQuoteSubmitting(true);
+    try {
+      await submitQuoteToBackend(
+        undefined,
+        binSelection.isOneOff ? 'one-off' : '4',
+        binSelection.cost,
+        `${binCount} ${binCount === 1 ? 'bin' : 'bins'}`,
+      );
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
   const resetQuoteFlow = () => {
     setQuoteStep('form');
     setQuoteOptions([]);
     setSelectedImage(null);
     setSelectedLine(null);
+    setBinPricing(null);
+    setBinCount(null);
+    setBinSelection(null);
     setExtraGutters(false);
     setExtraConservatory(false);
     setExtraSolarPanels(false);
@@ -360,6 +391,79 @@ export default function QuoteScreen() {
               style={[styles.continueButton, quoteSubmitting && styles.buttonDisabled]}
               onPress={handleConfirmQuote}
               disabled={quoteSubmitting}
+            >
+              {quoteSubmitting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.continueButtonText}>Confirm & Submit</Text>
+              )}
+            </Pressable>
+          </View>
+
+        /* STEP: pickBins (bin cleaning businesses) */
+        ) : quoteStep === 'pickBins' && binPricing ? (
+          <View style={styles.stepContainer}>
+            <Pressable onPress={() => setQuoteStep('form')} style={styles.backLink}>
+              <Text style={styles.backLinkText}>← Back</Text>
+            </Pressable>
+            <Text style={styles.stepTitle}>How many bins need cleaning?</Text>
+            <Text style={styles.stepSubtitle}>Wheelie bins of any colour — general waste, recycling or garden</Text>
+            {[1, 2, 3, 4].map((n) => (
+              <Pressable
+                key={n}
+                onPress={() => { setBinCount(n); setBinSelection(null); setQuoteStep('binConfirm'); }}
+                style={({ pressed }) => [styles.serviceOption, pressed && styles.serviceOptionPressed]}
+              >
+                <Text style={styles.serviceOptionLabel}>🗑️ {n} {n === 1 ? 'bin' : 'bins'}{n === 4 ? ' or more' : ''}</Text>
+                <Text style={styles.serviceOptionPrice}>£{(n * binPricing.perBin).toFixed(2)}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+        /* STEP: binConfirm */
+        ) : quoteStep === 'binConfirm' && binPricing && binCount ? (
+          <View style={styles.stepContainer}>
+            <Pressable onPress={() => setQuoteStep('pickBins')} style={styles.backLink}>
+              <Text style={styles.backLinkText}>← Back</Text>
+            </Pressable>
+            <Text style={styles.stepTitle}>Choose your service</Text>
+            <Text style={styles.stepSubtitle}>
+              {binCount} {binCount === 1 ? 'bin' : 'bins'}{binCount === 4 ? ' or more' : ''} — select the option that suits you best
+            </Text>
+
+            {([
+              { isOneOff: false, label: 'Regular clean', cost: binCount * binPricing.perBin },
+              ...(binPricing.oneOffPerBin && binPricing.oneOffPerBin > 0
+                ? [{ isOneOff: true, label: 'One-off clean', cost: binCount * binPricing.oneOffPerBin }]
+                : []),
+            ]).map((opt) => {
+              const active = binSelection?.isOneOff === opt.isOneOff;
+              return (
+                <Pressable
+                  key={opt.label}
+                  onPress={() => setBinSelection({ isOneOff: opt.isOneOff, cost: opt.cost })}
+                  style={[styles.serviceOption, active && styles.serviceOptionPressed]}
+                >
+                  <Text style={styles.serviceOptionLabel}>{opt.label}</Text>
+                  <Text style={styles.serviceOptionPrice}>£{opt.cost.toFixed(2)}</Text>
+                </Pressable>
+              );
+            })}
+
+            <Text style={styles.disclaimerText}>
+              This is a provisional quote. Final pricing may vary — your bin cleaner will confirm.
+            </Text>
+
+            {quoteError ? (
+              <View style={styles.errorContainer}>
+                <Text style={styles.errorText}>{quoteError}</Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              style={[styles.continueButton, (!binSelection || quoteSubmitting) && styles.buttonDisabled]}
+              onPress={handleConfirmBinQuote}
+              disabled={!binSelection || quoteSubmitting}
             >
               {quoteSubmitting ? (
                 <ActivityIndicator color="#fff" size="small" />

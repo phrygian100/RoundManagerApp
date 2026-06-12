@@ -10,6 +10,7 @@ import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { getUserProfile } from '../services/userService';
+import { BusinessTypeConfig, getBusinessTypeConfig } from '../shared/constants/businessTypes';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
@@ -1357,7 +1358,7 @@ const InvoiceBack = ({ config, itemConfig }: { config: MaterialsConfig; itemConf
 };
 
 // Flyer Components
-const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfig: FlyerItemConfig }) => {
+const FlyerFront = ({ config, itemConfig, sectionTitle = 'Window Cleaning Services' }: { config: MaterialsConfig; itemConfig: FlyerItemConfig; sectionTitle?: string }) => {
   // Parse services text into array of bullet points
   const services = itemConfig.servicesText
     .split('\n')
@@ -1386,7 +1387,7 @@ const FlyerFront = ({ config, itemConfig }: { config: MaterialsConfig; itemConfi
 
       {/* Main Content */}
       <View style={flyerStyles.mainContent}>
-        <Text style={flyerStyles.sectionTitle}>Window Cleaning Services</Text>
+        <Text style={flyerStyles.sectionTitle}>{sectionTitle}</Text>
         
         {itemConfig.showServices && services.map((service, index) => (
           <View key={index} style={flyerStyles.bulletRow}>
@@ -1759,6 +1760,7 @@ export default function MaterialsScreen() {
   const [invoiceItemConfig, setInvoiceItemConfig] = useState<InvoiceItemConfig>(defaultInvoiceItemConfig);
   const [flyerItemConfig, setFlyerItemConfig] = useState<FlyerItemConfig>(defaultFlyerItemConfig);
   const [canvassingItemConfig, setCanvassingItemConfig] = useState<CanvassingFlyerItemConfig>(defaultCanvassingFlyerItemConfig);
+  const [btConfig, setBtConfig] = useState<BusinessTypeConfig>(getBusinessTypeConfig(null));
 
   const openItemConfig = (type: ItemConfigType) => {
     setCurrentItemType(type);
@@ -1789,7 +1791,18 @@ export default function MaterialsScreen() {
           // Use business name from profile settings
           materialsConfig = { ...materialsConfig, businessName: ownerProfile.businessName };
         }
-        
+
+        // Vertical-specific defaults (item configs are session-only, so we
+        // seed them from the account's business type; window cleaning values
+        // are identical to the original hardcoded defaults)
+        const btCfg = getBusinessTypeConfig((ownerProfile as any)?.businessType);
+        setBtConfig(btCfg);
+        if (btCfg.key !== 'window-cleaning') {
+          setInvoiceItemConfig(prev => ({ ...prev, workCompletedServices: btCfg.flyerServicesDefault }));
+          setFlyerItemConfig(prev => ({ ...prev, servicesText: btCfg.flyerBenefitsDefault, additionalServicesText: btCfg.flyerAdditionalDefault }));
+          setCanvassingItemConfig(prev => ({ ...prev, servicesText: btCfg.flyerBenefitsDefault, additionalServicesText: btCfg.flyerAdditionalDefault }));
+        }
+
         setConfig(materialsConfig);
       } catch (error) {
         console.error('Error loading materials config:', error);
@@ -2141,7 +2154,7 @@ export default function MaterialsScreen() {
               <View style={styles.invoiceWrapper}>
                 <Text style={styles.invoiceLabel}>Front</Text>
                 <View ref={flyerFrontRef}>
-                  <FlyerFront config={config} itemConfig={flyerItemConfig} />
+                  <FlyerFront config={config} itemConfig={flyerItemConfig} sectionTitle={btConfig.flyerSectionTitle} />
                 </View>
               </View>
               <View style={styles.invoiceWrapper}>

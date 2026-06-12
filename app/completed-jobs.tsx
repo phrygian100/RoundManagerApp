@@ -8,6 +8,8 @@ import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getDataOwnerId, waitForAuthReady } from '../core/session';
 import { deleteJob } from '../services/jobService';
+import { getAccountBusinessTypeConfig } from '../services/userService';
+import { BusinessTypeConfig, getBusinessTypeConfig } from '../shared/constants/businessTypes';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import { getJobAccountDisplay } from '../utils/jobDisplay';
@@ -25,6 +27,11 @@ export default function CompletedJobsScreen() {
   const [completedJobs, setCompletedJobs] = useState<(Job & { client: Client | null })[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<(Job & { client: Client | null })[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [btConfig, setBtConfig] = useState<BusinessTypeConfig>(getBusinessTypeConfig(null));
+
+  useEffect(() => {
+    getAccountBusinessTypeConfig().then(setBtConfig).catch(() => {});
+  }, []);
   const router = useRouter();
 
   useEffect(() => {
@@ -181,14 +188,15 @@ export default function CompletedJobsScreen() {
 
     let jobTag = '';
     if (item.serviceId === 'window-cleaning') {
+      // Primary round service: tag wording follows the account's vertical
       if (client?.frequency === '4') {
-        jobTag = '4 Weekly Window Clean';
+        jobTag = `4 Weekly ${btConfig.jobTagNoun}`;
       } else if (client?.frequency === '8') {
-        jobTag = '8 Weekly Window Clean';
+        jobTag = `8 Weekly ${btConfig.jobTagNoun}`;
       } else if (client?.frequency === 'one-off') {
-        jobTag = 'One-off Window Clean';
+        jobTag = `One-off ${btConfig.jobTagNoun}`;
       } else {
-        jobTag = 'Window Cleaning';
+        jobTag = btConfig.primaryServiceDisplay;
       }
     } else if (item.serviceId) {
       switch (item.serviceId) {

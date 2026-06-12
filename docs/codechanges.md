@@ -2,6 +2,26 @@
 
 ## June 12, 2026
 
+### Provider business types: bin cleaner accounts (registration → onboarding → microsite)
+
+**Why**: The consumer side of the bin cleaning vertical (below) generates leads, but a bin cleaner opening a Guvnor account still got a window-cleaning-flavoured app. This adds a hard window-cleaner / bin-cleaner distinction on provider accounts. **Regression rule: a missing `businessType` on a user doc means window cleaning** — every existing account behaves identically with zero migration; all bin behaviour is new, additive branches. The internal `serviceId: 'window-cleaning'` is NOT renamed anywhere; it means "the primary recurring round service" for every vertical and only its display name changes.
+
+**Files changed**:
+- `shared/constants/businessTypes.ts` (new) — single source of truth per vertical: display labels (primary service name, job-tag noun), one-off and recurring additional-service picker lists, flyer defaults/section title, Maps search term. `getBusinessTypeConfig()` resolves any stored value (including undefined/legacy) to a config, defaulting to window cleaning. Also exports `WINDOW_QUOTE_PRESETS` — the developer's 8 quote-wizard house images, scraped from Firebase Storage, resized to 800px JPEG (~100KB each) and committed under `assets/images/quote-presets/`.
+- `types/models.ts` — `User` gains `businessType`, `binPricing { perBin, oneOffPerBin? }`, `quoteSetupComplete`.
+- `app/register.tsx` — required "What kind of business do you run?" selector (two cards: 🪟 Window cleaning / 🗑️ Wheelie bin cleaning); `businessType` written into the user doc at registration.
+- `app/(tabs)/settings.tsx` — business type shown/editable in the Bank & Business Info modal; clears the cached config on save.
+- `services/userService.ts` — `getAccountBusinessTypeConfig()`: resolves the config from the **owner's** user doc (members inherit the account's vertical), cached per owner.
+- `app/quote-setup.tsx` (new) — first-login pricing questionnaire, owner-only, skippable ("I'll do this later"). **Window variant**: steps through the 8 preset house images with 4-weekly/8-weekly/one-off price inputs; on save, priced presets are uploaded into the user's own storage (`quoteWizards/{uid}/presets/`) and saved as a standard `quoteWizards` doc — their microsite quote wizard works from day one and stays fully editable in /quote-wizard. **Bin variant**: no images, just price-per-bin (+ optional one-off per bin), saved to `users/{uid}.binPricing`.
+- `app/(tabs)/index.tsx` — dashboard gate (both load paths): owner + `businessType` set + first-time setup done + `quoteSetupComplete !== true` → redirect to /quote-setup. Runs *after* the existing first-time setup modal so members entering invite codes are never caught. Legacy accounts (no businessType) are never prompted.
+- `functions/index.js` — `getQuoteOptions` additionally returns the business's `businessType` and `binPricing` (one extra user-doc read). **Deployed to portalApi.**
+- `app/[businessName]/quote.tsx` — bin-cleaning businesses get a count-based flow after the contact form: "How many bins?" (1–4+, instant per-clean price from `binPricing`) → Regular/One-off service choice → submit. Bin count lands in the lead's `propertyType` ("2 bins"); frequency `4` or `one-off`. Window businesses' image flow is untouched (verified: dev account still returns its 8 image items).
+- In-app copy keyed off the config: `app/runsheet/[week].tsx` (ETA-message service name, GoCardless payment description, quote-line placeholder; one-off detection list now a cross-vertical union), `app/completed-jobs.tsx` (job tags, e.g. "4 Weekly Bin Clean"), `app/(tabs)/clients/[id]/manage-services.tsx` (one-off + recurring service pickers and defaults), `app/materials.tsx` (flyer section title + bin-flavoured defaults for invoice/flyer/canvassing text), `app/login.tsx` (consumer link generalised to "Looking for a local service?").
+
+**Tested in browser end-to-end (throwaway account, since deleted)**: registered a bin-cleaning account → first-time setup → automatically routed to /quote-setup (bin variant) → saved £5/bin + £8 one-off → dashboard. Its microsite (/testbinsrus/quote) served the bin flow: 1–4+ bins with instant prices (2 bins = £10.00), Regular/One-off choice (£10/£16), submit → lead appeared in its New Business with "2 bins" and "4 Weekly at £10.00". Window regression spot-checked: deployed getQuoteOptions returns the dev account's 8 image items with null businessType, and the dev dashboard loads with no quote-setup redirect. All test data cleaned up (auth user, user doc, portal, vehicle/member/rota docs, test lead).
+
+---
+
 ### Bin cleaning vertical: landing page + quote funnel (first non-window-cleaning vertical)
 
 **Why**: Strategic expansion of Guvnor's lead-gen marketplace beyond window cleaning, one vertical at a time. Bin cleaning chosen first: bin cleaners' economics depend entirely on round density, making them the most natural fit for Guvnor's round-management tooling. Per the agreed strategy, the existing window cleaning homepage, funnel and Facebook campaign are untouched; each new vertical gets its own landing page and funnel feeding the same Guvnor Leads inbox.

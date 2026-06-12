@@ -1,9 +1,43 @@
 import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../core/firebase';
+import { getDataOwnerId } from '../core/session';
+import { BusinessTypeConfig, getBusinessTypeConfig } from '../shared/constants/businessTypes';
 import type { User } from '../types/models';
 
 const USERS_COLLECTION = 'users';
 const BUSINESS_PORTALS_COLLECTION = 'businessPortals';
+
+// The vertical of the account (owner's user doc) the current session works in.
+// Cached per owner since display code calls this on every screen mount.
+let cachedBusinessTypeOwner: string | null = null;
+let cachedBusinessTypeConfig: BusinessTypeConfig | null = null;
+
+/**
+ * Resolve the business-type display config for the current account.
+ * Missing/legacy accounts resolve to window cleaning (see businessTypes.ts).
+ */
+export async function getAccountBusinessTypeConfig(): Promise<BusinessTypeConfig> {
+  try {
+    const ownerId = await getDataOwnerId();
+    if (!ownerId) return getBusinessTypeConfig(null);
+    if (cachedBusinessTypeOwner === ownerId && cachedBusinessTypeConfig) {
+      return cachedBusinessTypeConfig;
+    }
+    const profile = await getUserProfile(ownerId);
+    const config = getBusinessTypeConfig((profile as any)?.businessType);
+    cachedBusinessTypeOwner = ownerId;
+    cachedBusinessTypeConfig = config;
+    return config;
+  } catch {
+    return getBusinessTypeConfig(null);
+  }
+}
+
+/** Invalidate the cached business type (call after the user changes it in settings). */
+export function clearAccountBusinessTypeCache() {
+  cachedBusinessTypeOwner = null;
+  cachedBusinessTypeConfig = null;
+}
 
 /**
  * Normalizes a business name for use as a URL/document ID

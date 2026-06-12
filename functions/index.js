@@ -1820,7 +1820,27 @@ exports.portalApi = onRequest(async (req, res) => {
         }
       });
 
-      res.status(200).json({ ok: true, items });
+      // Vertical + per-bin pricing so the portal can render the right quote
+      // flow. Missing businessType = window cleaning (legacy accounts).
+      let businessType = null;
+      let binPricing = null;
+      try {
+        const userSnap = await db.collection('users').doc(businessId).get();
+        if (userSnap.exists) {
+          const u = userSnap.data();
+          businessType = typeof u.businessType === 'string' ? u.businessType : null;
+          if (u.binPricing && typeof u.binPricing.perBin === 'number') {
+            binPricing = {
+              perBin: u.binPricing.perBin,
+              oneOffPerBin: typeof u.binPricing.oneOffPerBin === 'number' ? u.binPricing.oneOffPerBin : null,
+            };
+          }
+        }
+      } catch (e) {
+        console.warn('getQuoteOptions: failed to read business user doc', e);
+      }
+
+      res.status(200).json({ ok: true, items, businessType, binPricing });
       return;
     }
 

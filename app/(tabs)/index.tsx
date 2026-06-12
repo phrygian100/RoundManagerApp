@@ -316,6 +316,25 @@ export default function HomeScreen() {
     setSessionIsOwner(isOwner);
     console.log('🏠 HomeScreen: session =', { isOwner, perms, accountId: session.accountId });
 
+    // Same first-login quote setup gate as the focus effect (this path runs
+    // right after the first-time setup modal completes).
+    if (isOwner) {
+      try {
+        const gateDoc = await getDoc(doc(db, 'users', session.uid));
+        const gateData = gateDoc.exists() ? gateDoc.data() : null;
+        if (
+          gateData?.businessType &&
+          !gateData?.quoteSetupComplete &&
+          gateData?.firstTimeSetupCompleted
+        ) {
+          router.replace('/quote-setup');
+          return;
+        }
+      } catch (e) {
+        console.warn('Quote setup gate check failed:', e);
+      }
+    }
+
     const baseButtons = [
       { label: 'Client List', path: '/clients', permKey: 'viewClients' },
       { label: 'Round Order Manager', path: '/round-order-manager', permKey: 'viewClients' },
@@ -441,6 +460,28 @@ export default function HomeScreen() {
         const isOwner = session.isOwner;
         const perms = session.perms;
         setSessionIsOwner(isOwner);
+
+        // First-login quote setup: new owner accounts (those that picked a
+        // businessType at registration) price their services right after the
+        // first-time setup modal (which must run first - it handles invite
+        // codes for members, who should never see quote setup). Legacy
+        // accounts have no businessType, so they're never routed here.
+        if (isOwner) {
+          try {
+            const gateDoc = await getDoc(doc(db, 'users', session.uid));
+            const gateData = gateDoc.exists() ? gateDoc.data() : null;
+            if (
+              gateData?.businessType &&
+              !gateData?.quoteSetupComplete &&
+              gateData?.firstTimeSetupCompleted
+            ) {
+              router.replace('/quote-setup');
+              return;
+            }
+          } catch (e) {
+            console.warn('Quote setup gate check failed:', e);
+          }
+        }
 
         const buttonDefs = [
           { label: 'Client List', path: '/clients', permKey: 'viewClients' },

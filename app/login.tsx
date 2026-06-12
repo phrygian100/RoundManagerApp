@@ -232,7 +232,7 @@ export default function LoginScreen() {
           </Text>
           {Platform.OS === 'web' && (
             <Pressable onPress={() => handleNavigation('/window-cleaning-quote')} style={styles.consumerLink}>
-              <Text style={styles.consumerLinkText}>Looking for a window cleaner? Get a free quote →</Text>
+              <Text style={styles.consumerLinkText}>Looking for a local service? Get a free quote →</Text>
             </Pressable>
           )}
         </View>

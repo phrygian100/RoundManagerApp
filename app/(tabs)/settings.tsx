@@ -23,7 +23,7 @@ import {
   PREMIUM_PRICE_ONLY_LABEL,
   PREMIUM_PRICE_PER_MONTH_LABEL,
 } from '../../shared/constants/pricing';
-import { getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
+import { clearAccountBusinessTypeCache, getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -117,7 +117,8 @@ export default function SettingsScreen() {
     businessName: '',
     bankSortCode: '',
     bankAccountNumber: '',
-    businessWebsite: ''
+    businessWebsite: '',
+    businessType: '' as '' | 'window-cleaning' | 'bin-cleaning',
   });
   const [savingBankInfo, setSavingBankInfo] = useState(false);
 
@@ -425,6 +426,7 @@ export default function SettingsScreen() {
             bankSortCode: userProfile.bankSortCode || '',
             bankAccountNumber: userProfile.bankAccountNumber || '',
             businessWebsite: userProfile.businessWebsite || '',
+            businessType: (userProfile as any).businessType || 'window-cleaning',
           });
         }
       }
@@ -453,7 +455,9 @@ export default function SettingsScreen() {
         bankSortCode: bankInfoForm.bankSortCode.trim(),
         bankAccountNumber: bankInfoForm.bankAccountNumber.trim(),
         businessWebsite: bankInfoForm.businessWebsite.trim(),
+        ...(bankInfoForm.businessType ? { businessType: bankInfoForm.businessType } : {}),
       });
+      clearAccountBusinessTypeCache();
 
       Alert.alert('Success', 'Bank and business information updated successfully.');
       setBankInfoModalVisible(false);
@@ -3297,6 +3301,35 @@ export default function SettingsScreen() {
               value={bankInfoForm.businessWebsite}
               onChangeText={(text) => setBankInfoForm(prev => ({ ...prev, businessWebsite: text }))}
             />
+
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {([
+                { key: 'window-cleaning' as const, label: '🪟 Window cleaning' },
+                { key: 'bin-cleaning' as const, label: '🗑️ Bin cleaning' },
+              ]).map((opt) => (
+                <TouchableOpacity
+                  key={opt.key}
+                  onPress={() => setBankInfoForm(prev => ({ ...prev, businessType: opt.key }))}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1.5,
+                    borderColor: bankInfoForm.businessType === opt.key ? '#4f46e5' : '#d1d5db',
+                    backgroundColor: bankInfoForm.businessType === opt.key ? '#eef2ff' : '#fff',
+                    borderRadius: 8,
+                    paddingVertical: 10,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: bankInfoForm.businessType === opt.key ? '700' : '500',
+                    color: bankInfoForm.businessType === opt.key ? '#4338ca' : '#374151',
+                  }}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             
             <TextInput
               style={styles.modalInput}
