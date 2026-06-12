@@ -34,10 +34,10 @@ export default function WelcomeBinCleaningScreen() {
     <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
       {Platform.OS === 'web' && (
         <Head>
-          <title>Guvnor — Find a Local Wheelie Bin Cleaning Service</title>
+          <title>Guvnor — Find a Local Bin Cleaning Service</title>
           <meta
             name="description"
-            content="Get a free, no-obligation wheelie bin cleaning quote anywhere in the UK. Guvnor connects you with trusted local bin cleaning services."
+            content="Get a free, no-obligation bin cleaning quote anywhere in the UK. Guvnor connects you with trusted local bin cleaning services."
           />
         </Head>
       )}
@@ -60,7 +60,7 @@ export default function WelcomeBinCleaningScreen() {
       <View style={styles.main}>
         <View style={styles.hero}>
           <Text style={[styles.heroTitle, isNarrow && styles.heroTitleMobile]}>
-            Stinky wheelie bins?
+            Stinky bins?
           </Text>
           <Text style={[styles.heroSubtitle, isNarrow && styles.heroSubtitleMobile]}>
             Get a free, no-obligation quote from a trusted local bin cleaning

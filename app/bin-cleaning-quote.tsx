@@ -110,10 +110,10 @@ export default function BinCleaningQuoteScreen() {
     <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
       {Platform.OS === 'web' && (
         <Head>
-          <title>Get a Wheelie Bin Cleaning Quote | Guvnor</title>
+          <title>Get a Bin Cleaning Quote | Guvnor</title>
           <meta
             name="description"
-            content="Request a free, no-obligation wheelie bin cleaning quote anywhere in the UK. Guvnor matches you with a trusted local bin cleaning service."
+            content="Request a free, no-obligation bin cleaning quote anywhere in the UK. Guvnor matches you with a trusted local bin cleaning service."
           />
         </Head>
       )}
@@ -146,7 +146,7 @@ export default function BinCleaningQuoteScreen() {
               </Text>
               <Text style={styles.heroSubtitle}>
                 Tell us where you are and we&apos;ll match you with a trusted local
-                wheelie bin cleaning service. Free, no-obligation quotes — anywhere in the UK.
+                bin cleaning service. Free, no-obligation quotes — anywhere in the UK.
               </Text>
               <View style={styles.trustRow}>
                 {['Free quote', 'Local professionals', 'UK-wide'].map((t) => (

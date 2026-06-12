@@ -2,6 +2,30 @@
 
 ## June 12, 2026
 
+### "Wheelie bin cleaning" → "Bin cleaning" everywhere + bin cleaner guide + full sign-up tests
+
+**Why**: Terminology decision — the vertical is called "bin cleaning", not "wheelie bin cleaning", everywhere a user sees it. Also added the first trade-specific guide for bin cleaners on the marketing site, and end-to-end browser-tested the complete sign-up journey (registration → email verification via temp-mail → first login → quote setup → microsite) for both trades.
+
+**Terminology (all user-facing "wheelie" copy removed)**:
+- `shared/constants/businessTypes.ts` — registration/settings card label "Wheelie bin cleaning" → "Bin cleaning"; flyer services default first line; Maps search term `wheelie bin cleaning` → `bin cleaning`.
+- `app/[businessName]/quote.tsx` — bin-count step subtitle "Wheelie bins of any colour…" → "Bins of any colour…".
+- `app/welcome-bin-cleaning.tsx` — page title/meta description, hero "Stinky wheelie bins?" → "Stinky bins?".
+- `app/bin-cleaning-quote.tsx` — page title/meta description and hero subtitle.
+- `app/guvnor-leads.tsx` — Google Maps search term for bin-cleaning leads.
+
+**New guide**:
+- `web/src/app/guides/bincleaning/page.tsx` (new) — "Bin Cleaners: Getting Started on Guvnor": register as a bin cleaner, set per-bin prices, share the quote page, density-first customer acquisition ("win the street, not the house"), running the round. Same layout/footer as the existing guides.
+- `web/src/app/guides/page.tsx` — guide card added to the index.
+
+**Sign-up tests (browser, temp-mail.org addresses, against localhost + production Firebase)**:
+- Window cleaner: registered with trade selector, received "Verify your email for Guvnor" from noreply@guvnor.app, verified, logged in, completed first-time setup wizard, was auto-routed to /quote-setup, priced all 8 preset houses, saved — `getQuoteOptions` then returned all 8 image items with correct pricing lines, and the microsite rendered.
+- Bin cleaner: same journey; quote setup correctly showed the image-free per-bin questionnaire (£4.50/£7 saved to `binPricing`), and the consumer microsite quote flow showed "How many bins need cleaning?" with live prices (1 bin £4.50 → 4+ bins £18.00) and the new de-wheelied subtitle.
+- All test data deleted afterwards (auth users, user/portal/quoteWizards docs, accounts/{uid} subtrees via firebase CLI, storage preset uploads); dev browser session backed up/restored.
+
+**Observation for future polish**: the email verification landing page is the default Firebase-hosted template on roundmanagerapp.firebaseapp.com (unbranded, "CONTINUE" button) — could be themed or pointed at a custom action handler later.
+
+---
+
 ### Marketing copy polish + fixed provider sign-up flow from marketing site
 
 **Why**: With multiple verticals now supported, the window-cleaning-specific copy on the public pages needed generalising. More importantly, every "Start Free" / "Sign In" CTA on the marketing site (`/home`, `/pricing`, `/about`, `/feature-tour`, `/contact`, `/terms`, `/privacy-policy`, the guides, and the marketing nav) linked to `/`, which since the consumer-first homepage change redirects signed-out visitors to `/welcome` ("Need a window cleaner?") — completely the wrong flow for a provider who just clicked "Start Free - No Credit Card Required".

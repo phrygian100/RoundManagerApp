@@ -21,7 +21,7 @@ import { BusinessType, WINDOW_QUOTE_PRESETS } from '../shared/constants/business
 // microsite quote wizard works from day one and stays fully editable in
 // /quote-wizard afterwards.
 //
-// Bin cleaning: no images (every wheelie bin looks the same) - just per-bin
+// Bin cleaning: no images (every bin looks the same) - just per-bin
 // prices, stored as users/{uid}.binPricing for the microsite's instant quote.
 
 type PresetPrices = { four: string; eight: string; oneOff: string };

@@ -121,7 +121,7 @@ export default function GuvnorLeadsScreen() {
   // What to search Google Maps for when calling around local pros.
   const tradeSearchTerm = (lead: GuvnorLead) => {
     switch (lead.serviceCategory) {
-      case 'bin-cleaning': return 'wheelie bin cleaning';
+      case 'bin-cleaning': return 'bin cleaning';
       default: return 'window cleaners';
     }
   };

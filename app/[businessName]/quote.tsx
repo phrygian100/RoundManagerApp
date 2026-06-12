@@ -407,7 +407,7 @@ export default function QuoteScreen() {
               <Text style={styles.backLinkText}>← Back</Text>
             </Pressable>
             <Text style={styles.stepTitle}>How many bins need cleaning?</Text>
-            <Text style={styles.stepSubtitle}>Wheelie bins of any colour — general waste, recycling or garden</Text>
+            <Text style={styles.stepSubtitle}>Bins of any colour — general waste, recycling or garden</Text>
             {[1, 2, 3, 4].map((n) => (
               <Pressable
                 key={n}

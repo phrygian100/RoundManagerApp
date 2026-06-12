@@ -51,16 +51,16 @@ const WINDOW_CLEANING: BusinessTypeConfig = {
 
 const BIN_CLEANING: BusinessTypeConfig = {
   key: 'bin-cleaning',
-  label: 'Wheelie bin cleaning',
+  label: 'Bin cleaning',
   primaryServiceDisplay: 'Bin cleaning',
   jobTagNoun: 'Bin Clean',
   additionalServices: ['One-off bin clean', 'Extra bin', 'Other'],
   recurringServices: ['Extra bin', 'Garden waste bin', 'Food caddy', 'Other'],
-  flyerServicesDefault: 'Wheelie bin cleaning\nGeneral waste bins\nRecycling bins\nGarden waste bins\nFood caddies',
+  flyerServicesDefault: 'Bin cleaning\nGeneral waste bins\nRecycling bins\nGarden waste bins\nFood caddies',
   flyerSectionTitle: 'Bin Cleaning Services',
   flyerBenefitsDefault: 'Regular cleans straight after collection day\nWashed, deodorised and sanitised every visit\nSimple payment system\nETA text message a day before any visit',
   flyerAdditionalDefault: 'Garden Waste Bins\nFood Caddies\nCommercial Bins\nOne-off Cleans',
-  mapsSearchTerm: 'wheelie bin cleaning',
+  mapsSearchTerm: 'bin cleaning',
 };
 
 export const BUSINESS_TYPE_CONFIGS: Record<BusinessType, BusinessTypeConfig> = {
