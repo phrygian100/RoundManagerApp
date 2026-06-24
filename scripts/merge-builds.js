@@ -66,6 +66,15 @@ try {
   console.log('✅ Marketing site successfully merged!');
   console.log(`📂 Marketing files available at: ${marketingDistDir}`);
   console.log(`📂 Main app files available at: ${distDir}`);
+
+  // Developer outreach CSV (served at /data/uk-window-cleaners.csv)
+  const outreachCsvSrc = path.join(__dirname, '..', 'data', 'uk-window-cleaners.csv');
+  const outreachCsvDest = path.join(distDir, 'data', 'uk-window-cleaners.csv');
+  if (fs.existsSync(outreachCsvSrc)) {
+    ensureDirectoryExists(path.dirname(outreachCsvDest));
+    fs.copyFileSync(outreachCsvSrc, outreachCsvDest);
+    console.log('📇 Copied window-cleaner outreach CSV to dist/data/');
+  }
 } catch (error) {
   console.error('❌ Error merging builds:', error.message);
   process.exit(1);

@@ -1,0 +1,101 @@
+rank,town,county_or_area,nation,approx_population
+1,London,Greater London,England,8900000
+2,Birmingham,West Midlands,England,1140000
+3,Leeds,West Yorkshire,England,790000
+4,Glasgow,Glasgow City,Scotland,635000
+5,Sheffield,South Yorkshire,England,580000
+6,Manchester,Greater Manchester,England,550000
+7,Bradford,West Yorkshire,England,540000
+8,Edinburgh,City of Edinburgh,Scotland,525000
+9,Liverpool,Merseyside,England,500000
+10,Bristol,Bristol,England,470000
+11,Coventry,West Midlands,England,370000
+12,Leicester,Leicestershire,England,370000
+13,Cardiff,Cardiff,Wales,365000
+14,Belfast,Antrim and Down,Northern Ireland,345000
+15,Nottingham,Nottinghamshire,England,330000
+16,Newcastle upon Tyne,Tyne and Wear,England,300000
+17,Brighton and Hove,East Sussex,England,290000
+18,Sunderland,Tyne and Wear,England,280000
+19,Plymouth,Devon,England,265000
+20,Stoke-on-Trent,Staffordshire,England,260000
+21,Wolverhampton,West Midlands,England,260000
+22,Derby,Derbyshire,England,260000
+23,Kingston upon Hull,East Riding of Yorkshire,England,260000
+24,Southampton,Hampshire,England,255000
+25,Salford,Greater Manchester,England,250000
+26,Swansea,Swansea,Wales,245000
+27,Milton Keynes,Buckinghamshire,England,230000
+28,Reading,Berkshire,England,230000
+29,Northampton,Northamptonshire,England,225000
+30,Norwich,Norfolk,England,215000
+31,Luton,Bedfordshire,England,215000
+32,Peterborough,Cambridgeshire,England,215000
+33,Portsmouth,Hampshire,England,215000
+34,York,North Yorkshire,England,210000
+35,Aberdeen,Aberdeen City,Scotland,200000
+36,Bolton,Greater Manchester,England,200000
+37,Bournemouth,Dorset,England,200000
+38,Swindon,Wiltshire,England,185000
+39,Southend-on-Sea,Essex,England,180000
+40,Walsall,West Midlands,England,175000
+41,Huddersfield,West Yorkshire,England,165000
+42,Slough,Berkshire,England,165000
+43,Warrington,Cheshire,England,165000
+44,Oxford,Oxfordshire,England,162000
+45,Newport,Newport,Wales,160000
+46,Poole,Dorset,England,150000
+47,Preston,Lancashire,England,150000
+48,Dundee,Dundee City,Scotland,148000
+49,Birkenhead,Merseyside,England,145000
+50,Ipswich,Suffolk,England,145000
+51,Telford,Shropshire,England,145000
+52,Cambridge,Cambridgeshire,England,145000
+53,Middlesbrough,North Yorkshire,England,140000
+54,Blackpool,Lancashire,England,140000
+55,Stockport,Greater Manchester,England,140000
+56,Gloucester,Gloucestershire,England,130000
+57,Exeter,Devon,England,130000
+58,Colchester,Essex,England,130000
+59,High Wycombe,Buckinghamshire,England,125000
+60,Solihull,West Midlands,England,125000
+61,Gateshead,Tyne and Wear,England,120000
+62,Chelmsford,Essex,England,120000
+63,Blackburn,Lancashire,England,120000
+64,Cheltenham,Gloucestershire,England,117000
+65,Basingstoke,Hampshire,England,113000
+66,Maidstone,Kent,England,113000
+67,Rochdale,Greater Manchester,England,110000
+68,Rotherham,South Yorkshire,England,110000
+69,Crawley,West Sussex,England,110000
+70,Worthing,West Sussex,England,110000
+71,Doncaster,South Yorkshire,England,110000
+72,Mansfield,Nottinghamshire,England,110000
+73,Wakefield,West Yorkshire,England,110000
+74,Carlisle,Cumbria,England,108000
+75,Sutton Coldfield,West Midlands,England,105000
+76,Gillingham,Kent,England,105000
+77,St Helens,Merseyside,England,105000
+78,Bedford,Bedfordshire,England,105000
+79,Chesterfield,Derbyshire,England,105000
+80,Eastbourne,East Sussex,England,102000
+81,Watford,Hertfordshire,England,102000
+82,Wigan,Greater Manchester,England,100000
+83,Woking,Surrey,England,100000
+84,Lincoln,Lincolnshire,England,100000
+85,Worcester,Worcestershire,England,100000
+86,Basildon,Essex,England,100000
+87,Oldham,Greater Manchester,England,100000
+88,Hemel Hempstead,Hertfordshire,England,95000
+89,Bath,Somerset,England,95000
+90,Nuneaton,Warwickshire,England,92000
+91,Halifax,West Yorkshire,England,91000
+92,Hartlepool,County Durham,England,90000
+93,Darlington,County Durham,England,90000
+94,Hastings,East Sussex,England,90000
+95,Stevenage,Hertfordshire,England,88000
+96,Stockton-on-Tees,County Durham,England,85000
+97,Wrexham,Wrexham,Wales,80000
+98,Scunthorpe,Lincolnshire,England,80000
+99,Paisley,Renfrewshire,Scotland,77000
+100,Burnley,Lancashire,England,75000

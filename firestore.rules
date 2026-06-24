@@ -6,6 +6,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Keep in sync with shared/constants/developer.ts DEVELOPER_UID
+    function isDeveloper() {
+      return isSignedIn() && request.auth.uid == 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
+    }
+
     function isOwner(resource) {
       return resource.data.ownerId == request.auth.uid;
     }
@@ -191,6 +196,11 @@ service cloud.firestore {
         ('ownerId' in resource.data && isOwner(resource)) ||
         ('accountId' in resource.data && resource.data.accountId == request.auth.uid)
       );
+    }
+
+    // Developer-only: window cleaner WhatsApp outreach touch tracking
+    match /developerWindowCleanerOutreach/{phoneKey} {
+      allow read, write: if isDeveloper();
     }
 
     // Audit logs - owners and members can read, authenticated users can create

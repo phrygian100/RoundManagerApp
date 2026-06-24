@@ -42,6 +42,16 @@ function copyAssets(src, dest) {
 try {
   copyAssets(webPublicDir, mainPublicDir);
   console.log('✅ Marketing assets copied successfully!');
+
+  const outreachCsv = path.join(__dirname, '..', 'data', 'uk-window-cleaners.csv');
+  const outreachDestDir = path.join(mainPublicDir, 'data');
+  if (fs.existsSync(outreachCsv)) {
+    if (!fs.existsSync(outreachDestDir)) {
+      fs.mkdirSync(outreachDestDir, { recursive: true });
+    }
+    fs.copyFileSync(outreachCsv, path.join(outreachDestDir, 'uk-window-cleaners.csv'));
+    console.log('✅ Copied uk-window-cleaners.csv to public/data/');
+  }
 } catch (error) {
   console.error('❌ Error copying assets:', error.message);
   process.exit(1);

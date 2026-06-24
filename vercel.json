@@ -59,7 +59,7 @@
       "destination": "/index.html"
     },
     {
-      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|.*\\.svg|.*\\.png|home|pricing|about|feature-tour|guides|contact|privacy-policy|terms|set-password|forgot-password|login|register).*)",
+      "source": "/((?!api|_next|_marketing|favicon.ico|Logo|data|.*\\.svg|.*\\.png|.*\\.csv|home|pricing|about|feature-tour|guides|contact|privacy-policy|terms|set-password|forgot-password|login|register).*)",
       "destination": "/index.html"
     }
   ],

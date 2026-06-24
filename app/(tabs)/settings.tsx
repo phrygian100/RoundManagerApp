@@ -3009,6 +3009,11 @@ export default function SettingsScreen() {
               title="Browse Users"
               onPress={() => router.push('/admin/users')}
             />
+
+            <StyledButton
+              title="Window Cleaner Outreach"
+              onPress={() => router.push('/window-cleaner-outreach')}
+            />
           </View>
         )}
 

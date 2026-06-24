@@ -1,5 +1,26 @@
 # Code Changes Log
 
+## June 24, 2026
+
+### UK window-cleaner lead list scraped from Google Maps
+
+**Why**: Building a comprehensive list of established UK window cleaners for outreach/marketing. Two-step task: first a list of the top 100 UK towns, then a scrape of window cleaners in each.
+
+**Files added**:
+- `data/top-100-uk-towns.csv` — top 100 UK towns (rank, town, county/area, nation, approx population).
+- `data/uk-window-cleaners.csv` — scraped window cleaners across all 100 towns. Columns: `town,business_name,phone,address,website`. **9,652 rows** captured (duplicates expected across nearby towns — to be de-duped by the user).
+- `data/sink.js` — tiny local Node HTTP server (port 8099) used during the scrape to append browser-extracted CSV rows straight to disk (avoids base64/clipboard transcription). Not part of the app runtime; can be deleted once the list is finalised.
+
+**Method**: Browser automation against Google Maps search (`window cleaners in <town>`). For each town the results feed was auto-scrolled to load all listings, then name/phone/partial-address/website were extracted per card and POSTed to the local sink. London (town 1) was captured earlier with full addresses incl. postcodes; towns 2–100 use the faster, more reliable list-view (name, phone, website, town + partial street). A few towns (Wigan, Nuneaton, Paisley) initially returned truncated feeds and were re-run with county-qualified queries; Paisley genuinely returns a sparse listing.
+
+**De-duplication (June 24)**: Removed **2,700** duplicate rows from `data/uk-window-cleaners.csv` (9,651 → **6,951** unique businesses). Match priority: normalised UK phone number, then website hostname, then business name + address. Exact duplicate lines (336) removed first. One-off script: `data/dedupe-window-cleaners.js`.
+
+**Mobile-only filter (June 24)**: Kept only rows with a UK mobile (`07…` or `+44 7…`). **6,951 → 4,600** rows — removed 218 blank phones and 2,133 landlines/other numbers. Script: `data/filter-mobile-only.js`.
+
+**Developer outreach dashboard (June 24)**: Settings → Developer → **Window Cleaner Outreach** (`/window-cleaner-outreach`, `DEVELOPER_UID` only). Loads `data/uk-window-cleaners.csv`, lists leads with **To contact / Contacted / All** filters, opens `wa.me` with a personalised Guvnor intro message, and records **sent date/time** in Firestore (`developerWindowCleanerOutreach`). Contacted rows are highlighted green; **Reset** clears a touch. CSV copied to `public/data/` for dev and `dist/data/` on production build; `vercel.json` updated to serve `.csv` statically. **Deploy `firestore.rules`** before first use.
+
+---
+
 ## June 12, 2026
 
 ### Premium subscription price changed to £4.99/month

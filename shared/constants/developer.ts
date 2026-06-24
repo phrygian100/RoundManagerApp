@@ -4,6 +4,9 @@
 // update BOTH this constant and DEVELOPER_UID in functions/index.js.
 export const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
 
+/** Firestore collection for developer-only window-cleaner WhatsApp outreach tracking. */
+export const WINDOW_CLEANER_OUTREACH_COLLECTION = 'developerWindowCleanerOutreach';
+
 // Marker stored in quoteRequests.businessName for leads captured by the public
 // Guvnor-branded quote page (/window-cleaning-quote). These leads belong to no
 // app user yet: they land in the developer's quoteRequests bucket and are shown

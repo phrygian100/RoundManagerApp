@@ -45,7 +45,9 @@ app-example
 docs/importToGuvnor*.csv
 docs/import*.csv
 exports/
-data/
+/data/*
+!/data/uk-window-cleaners.csv
+!/data/top-100-uk-towns.csv
 
 # Sensitive files
 *.env
