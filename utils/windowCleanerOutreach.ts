@@ -1,5 +1,4 @@
 import Papa from 'papaparse';
-import type { User } from '../types/models';
 
 export type WindowCleanerLead = {
   id: string;
@@ -29,27 +28,16 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
 }
 
-function greetingName(businessName: string): string {
-  const match = businessName.match(/^([A-Za-z]+)(?:'s|'s|\s)/);
-  return match ? match[1] : '';
-}
+export const OUTREACH_MESSAGE = `Hi, I have a quote opportunity that fits your local area to hand over for free.
+I work with www.guvnor.app which is a management solution similar to Squee.gee or Cleaner Planner but it also advertises nationally and hands opportunities to users for free.
+If you want more work for free, make a free account at www.guvnor.app/home and let me know once you've done that and I'll look you up on guvnor and hand the lead over to you.
+If you have any questions, don't hesitate to ask.
 
-export function buildOutreachMessage(
-  lead: Pick<WindowCleanerLead, 'business_name' | 'town'>,
-  profile: Pick<User, 'name' | 'businessName' | 'businessWebsite'>
-): string {
-  const senderFirst = (profile.name || 'Travis').trim().split(/\s+/)[0];
-  const name = greetingName(lead.business_name);
-  const hello = name ? `Hi ${name}` : 'Hi';
-  const lines = [
-    `${hello}, I'm ${senderFirst} from Guvnor — we help window cleaners in ${lead.town} manage rounds, quotes and payments.`,
-    `I spotted ${lead.business_name} on Google Maps. Would you be open to a quick look at how it works?`,
-    'No pressure if not for you.',
-  ];
-  if (profile.businessWebsite?.trim()) {
-    lines.push(profile.businessWebsite.trim());
-  }
-  return lines.join('\n\n');
+Many thanks,
+Travis`;
+
+export function buildOutreachMessage(): string {
+  return OUTREACH_MESSAGE;
 }
 
 export function parseWindowCleanerCsv(csvText: string): WindowCleanerLead[] {

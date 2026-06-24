@@ -20,9 +20,7 @@ import {
   subscribeOutreachTouches,
   type OutreachTouch,
 } from '../services/windowCleanerOutreachService';
-import { getUserProfile } from '../services/userService';
 import { DEVELOPER_UID } from '../shared/constants/developer';
-import type { User } from '../types/models';
 import {
   buildOutreachMessage,
   buildWhatsAppUrl,
@@ -40,7 +38,6 @@ export default function WindowCleanerOutreachScreen() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [leads, setLeads] = useState<WindowCleanerLead[]>([]);
   const [touches, setTouches] = useState<Record<string, OutreachTouch>>({});
-  const [profile, setProfile] = useState<User | null>(null);
   const [filter, setFilter] = useState<FilterMode>('pending');
   const [search, setSearch] = useState('');
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -58,9 +55,6 @@ export default function WindowCleanerOutreachScreen() {
       setAuthorized(true);
 
       try {
-        const userProfile = await getUserProfile(session.uid);
-        setProfile(userProfile);
-
         const csvUrl =
           Platform.OS === 'web'
             ? OUTREACH_CSV_PATH
@@ -124,10 +118,9 @@ export default function WindowCleanerOutreachScreen() {
   };
 
   const handleWhatsApp = async (lead: WindowCleanerLead) => {
-    if (!profile) return;
     setMarkingId(lead.id);
     try {
-      const message = buildOutreachMessage(lead, profile);
+      const message = buildOutreachMessage();
       const url = buildWhatsAppUrl(lead.phone, message);
       await markOutreachSent(lead);
       await Linking.openURL(url);
