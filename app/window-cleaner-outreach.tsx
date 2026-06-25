@@ -22,10 +22,16 @@ import {
 } from '../services/windowCleanerOutreachService';
 import { DEVELOPER_UID } from '../shared/constants/developer';
 import {
+  applyOutreachTemplate,
   buildOutreachMessage,
   buildWhatsAppUrl,
+  clearOutreachTemplate,
+  DEFAULT_OUTREACH_TEMPLATE,
+  loadOutreachTemplate,
   OUTREACH_CSV_PATH,
+  OUTREACH_PLACEHOLDER_HINT,
   parseWindowCleanerCsv,
+  saveOutreachTemplate,
   type WindowCleanerLead,
 } from '../utils/windowCleanerOutreach';
 
@@ -41,6 +47,9 @@ export default function WindowCleanerOutreachScreen() {
   const [filter, setFilter] = useState<FilterMode>('pending');
   const [search, setSearch] = useState('');
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [messageTemplate, setMessageTemplate] = useState(DEFAULT_OUTREACH_TEMPLATE);
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [messageExpanded, setMessageExpanded] = useState(true);
 
   useEffect(() => {
     let unsubscribeTouches: (() => void) | undefined;
@@ -55,6 +64,10 @@ export default function WindowCleanerOutreachScreen() {
       setAuthorized(true);
 
       try {
+        const savedTemplate = await loadOutreachTemplate();
+        setMessageTemplate(savedTemplate);
+        setTemplateLoaded(true);
+
         const csvUrl =
           Platform.OS === 'web'
             ? OUTREACH_CSV_PATH
@@ -83,6 +96,14 @@ export default function WindowCleanerOutreachScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!templateLoaded) return;
+    const timer = setTimeout(() => {
+      saveOutreachTemplate(messageTemplate);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [messageTemplate, templateLoaded]);
+
   const filteredLeads = useMemo(() => {
     const query = search.trim().toLowerCase();
     return leads.filter((lead) => {
@@ -104,6 +125,11 @@ export default function WindowCleanerOutreachScreen() {
     };
   }, [leads.length, touches]);
 
+  const previewLead = filteredLeads[0];
+  const messagePreview = previewLead
+    ? applyOutreachTemplate(messageTemplate, previewLead)
+    : null;
+
   const formatSentAt = (iso: string) => {
     try {
       return new Date(iso).toLocaleString('en-GB', {
@@ -120,7 +146,7 @@ export default function WindowCleanerOutreachScreen() {
   const handleWhatsApp = async (lead: WindowCleanerLead) => {
     setMarkingId(lead.id);
     try {
-      const message = buildOutreachMessage();
+      const message = buildOutreachMessage(messageTemplate, lead);
       const url = buildWhatsAppUrl(lead.phone, message);
       await markOutreachSent(lead);
       await Linking.openURL(url);
@@ -152,6 +178,25 @@ export default function WindowCleanerOutreachScreen() {
     }
 
     Alert.alert('Reset contact', `Mark ${lead.business_name} as not contacted?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Reset', style: 'destructive', onPress: run },
+    ]);
+  };
+
+  const handleResetTemplate = () => {
+    const run = () => {
+      setMessageTemplate(DEFAULT_OUTREACH_TEMPLATE);
+      clearOutreachTemplate();
+    };
+
+    if (Platform.OS === 'web') {
+      if (window.confirm('Reset the message template to the default?')) {
+        run();
+      }
+      return;
+    }
+
+    Alert.alert('Reset message', 'Reset the message template to the default?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Reset', style: 'destructive', onPress: run },
     ]);
@@ -192,6 +237,49 @@ export default function WindowCleanerOutreachScreen() {
           <Text style={styles.statDivider}>·</Text>
           <Text style={styles.statText}>{stats.total} total</Text>
         </View>
+      </View>
+
+      <View style={styles.messageSection}>
+        <Pressable
+          style={styles.messageSectionHeader}
+          onPress={() => setMessageExpanded((v) => !v)}
+        >
+          <Text style={styles.messageSectionTitle}>WhatsApp message</Text>
+          <Ionicons
+            name={messageExpanded ? 'chevron-up' : 'chevron-down'}
+            size={20}
+            color="#6b7280"
+          />
+        </Pressable>
+        {messageExpanded ? (
+          <>
+            <Text style={styles.messageHint}>
+              Placeholders: {OUTREACH_PLACEHOLDER_HINT} — filled in per lead when you tap WhatsApp.
+            </Text>
+            <TextInput
+              style={styles.messageInput}
+              value={messageTemplate}
+              onChangeText={setMessageTemplate}
+              multiline
+              textAlignVertical="top"
+              autoCapitalize="sentences"
+              autoCorrect
+            />
+            <View style={styles.messageActions}>
+              <Pressable style={styles.resetTemplateButton} onPress={handleResetTemplate}>
+                <Text style={styles.resetTemplateButtonText}>Reset to default</Text>
+              </Pressable>
+            </View>
+            {messagePreview && previewLead ? (
+              <View style={styles.previewBox}>
+                <Text style={styles.previewLabel}>
+                  Preview for next lead ({previewLead.business_name})
+                </Text>
+                <Text style={styles.previewText}>{messagePreview}</Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
       </View>
 
       <View style={styles.toolbar}>
@@ -352,6 +440,78 @@ const styles = StyleSheet.create({
   statDivider: {
     marginHorizontal: 8,
     color: '#9ca3af',
+  },
+  messageSection: {
+    backgroundColor: '#fff',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  messageSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  messageSectionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  messageHint: {
+    fontSize: 12,
+    color: '#6b7280',
+    lineHeight: 17,
+    marginBottom: 8,
+  },
+  messageInput: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#111827',
+    minHeight: 160,
+    lineHeight: 22,
+  },
+  messageActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  resetTemplateButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+  },
+  resetTemplateButtonText: {
+    fontSize: 13,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  previewBox: {
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    backgroundColor: '#f0fdf4',
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  previewLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#047857',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+  },
+  previewText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 19,
   },
   toolbar: {
     backgroundColor: '#fff',

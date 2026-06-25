@@ -17,7 +17,7 @@
 
 **Mobile-only filter (June 24)**: Kept only rows with a UK mobile (`07…` or `+44 7…`). **6,951 → 4,600** rows — removed 218 blank phones and 2,133 landlines/other numbers. Script: `data/filter-mobile-only.js`.
 
-**Developer outreach dashboard (June 24)**: Settings → Developer → **Window Cleaner Outreach** (`/window-cleaner-outreach`, `DEVELOPER_UID` only). Loads `data/uk-window-cleaners.csv`, lists leads with **To contact / Contacted / All** filters, opens `wa.me` with a fixed Guvnor lead-handover intro message, and records **sent date/time** in Firestore (`developerWindowCleanerOutreach`). Contacted rows are highlighted green; **Reset** clears a touch. CSV copied to `public/data/` for dev and `dist/data/` on production build; `vercel.json` updated to serve `.csv` statically. **Deploy `firestore.rules`** before first use.
+**Developer outreach dashboard (June 24)**: Settings → Developer → **Window Cleaner Outreach** (`/window-cleaner-outreach`, `DEVELOPER_UID` only). Loads `data/uk-window-cleaners.csv`, lists leads with **To contact / Contacted / All** filters, opens `wa.me` with an editable message template (saved locally via AsyncStorage), and records **sent date/time** in Firestore (`developerWindowCleanerOutreach`). Template placeholders: `*Town*`, `*Company name*`. Contacted rows are highlighted green; **Reset** clears a touch. CSV copied to `public/data/` for dev and `dist/data/` on production build; `vercel.json` updated to serve `.csv` statically. **Deploy `firestore.rules`** before first use.
 
 ---
 

@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Papa from 'papaparse';
 
 export type WindowCleanerLead = {
@@ -28,16 +29,64 @@ export function buildWhatsAppUrl(phone: string, message: string): string {
   return `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
 }
 
-export const OUTREACH_MESSAGE = `Hi, I have a quote opportunity that fits your local area to hand over for free.
-I work with www.guvnor.app which is a management solution similar to Squee.gee or Cleaner Planner but it also advertises nationally and hands opportunities to users for free.
+export const OUTREACH_TEMPLATE_STORAGE_KEY = 'windowCleanerOutreachTemplate';
+
+export const DEFAULT_OUTREACH_TEMPLATE = `Hi, I have a quote opportunity that fits your local area to hand over for free.
+I work with www.guvnor.app which is a management solution similar to Squeegee or Cleaner Planner but it also advertises nationally and hands opportunities to users for free.
 If you want more work for free, make a free account at www.guvnor.app/home and let me know once you've done that and I'll look you up on guvnor and hand the lead over to you.
 If you have any questions, don't hesitate to ask.
 
 Many thanks,
 Travis`;
 
-export function buildOutreachMessage(): string {
-  return OUTREACH_MESSAGE;
+/** @deprecated use DEFAULT_OUTREACH_TEMPLATE */
+export const OUTREACH_MESSAGE = DEFAULT_OUTREACH_TEMPLATE;
+
+export const OUTREACH_PLACEHOLDER_HINT = '*Town*, *Company name*';
+
+/** Replace *Town* and *Company name* with values from the lead row. */
+export function applyOutreachTemplate(
+  template: string,
+  lead: Pick<WindowCleanerLead, 'town' | 'business_name'>
+): string {
+  return template
+    .split('*Town*')
+    .join(lead.town || '')
+    .split('*Company name*')
+    .join(lead.business_name || '');
+}
+
+export function buildOutreachMessage(
+  template: string,
+  lead: Pick<WindowCleanerLead, 'town' | 'business_name'>
+): string {
+  return applyOutreachTemplate(template, lead);
+}
+
+export async function loadOutreachTemplate(): Promise<string> {
+  try {
+    const saved = await AsyncStorage.getItem(OUTREACH_TEMPLATE_STORAGE_KEY);
+    if (saved != null && saved.trim()) return saved;
+  } catch (e) {
+    console.warn('Failed to load outreach template:', e);
+  }
+  return DEFAULT_OUTREACH_TEMPLATE;
+}
+
+export async function saveOutreachTemplate(template: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(OUTREACH_TEMPLATE_STORAGE_KEY, template);
+  } catch (e) {
+    console.warn('Failed to save outreach template:', e);
+  }
+}
+
+export async function clearOutreachTemplate(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(OUTREACH_TEMPLATE_STORAGE_KEY);
+  } catch (e) {
+    console.warn('Failed to clear outreach template:', e);
+  }
 }
 
 export function parseWindowCleanerCsv(csvText: string): WindowCleanerLead[] {
