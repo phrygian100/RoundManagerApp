@@ -23,8 +23,16 @@
       "destination": "/_marketing/guides/index.html"
     },
     {
-      "source": "/guides/:path*",
-      "destination": "/_marketing/guides/:path*/index.html"
+      "source": "/guides/",
+      "destination": "/_marketing/guides/index.html"
+    },
+    {
+      "source": "/guides/:path+/",
+      "destination": "/_marketing/guides/:path+/index.html"
+    },
+    {
+      "source": "/guides/:path+",
+      "destination": "/_marketing/guides/:path+/index.html"
     },
     {
       "source": "/contact/:path*",

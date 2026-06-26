@@ -2,6 +2,16 @@
 
 ## June 26, 2026
 
+### Fix: guide pages 404 on trailing-slash URLs (Vercel rewrites)
+
+**Symptom**: `guvnor.app/guides` loaded, but opening any individual guide returned a Vercel `404 NOT_FOUND`. Verified that `/guides/<slug>` (no trailing slash) returned 200 while `/guides/<slug>/` (trailing slash) returned 404 — and this affected the original guides too, not just the new ones.
+
+**Cause**: the marketing site is exported with `trailingSlash: true` (`web/next.config.ts`), so internal guide links and canonical URLs resolve to `/guides/<slug>/`. The `vercel.json` rewrite used a single parametrized rule `"/guides/:path*" → "/_marketing/guides/:path*/index.html"`. With the trailing slash present, that destination didn't resolve to the exported `index.html`, so Vercel fell through to a 404 (the catch-all SPA rewrite explicitly excludes `guides`). The bug was latent for all guides and only surfaced now because we started clicking through from the index.
+
+**Fix** (`vercel.json`): replaced the two guides rewrites with four explicit rules that handle both forms — `"/guides"` and `"/guides/"` → the index, and `"/guides/:path+/"` and `"/guides/:path+"` → `"/_marketing/guides/:path+/index.html"` (the trailing-slash variant listed first so it wins). Other marketing routes were unaffected because their rewrite destinations are fixed files, not parametrized, so a trailing slash on the source doesn't corrupt the destination.
+
+**Notes**: `firebase.json` was left as-is — `guvnor.app` is served by Vercel (the 404 page was Vercel's), and Firebase hosting uses a different SPA-catch-all model. Requires a Vercel redeploy to take effect.
+
 ### Marketing site: 11 new functionality guides (guides section expansion)
 
 **Why**: The primary goal for the marketing site was to expand the `/guides` library with granular, SEO-friendly how-to articles covering app functionality. The first batch (10 guides) was committed in `5f85faa`; this adds 11 more so the guides section comprehensively documents the app. All content was written against the actual app screens (researched first) so it doesn't describe features that don't work.
