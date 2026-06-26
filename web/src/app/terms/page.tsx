@@ -1,12 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Terms of Service - Guvnor",
-  description: "Read Guvnor&apos;s Terms of Service for cleaning business management software. Understand your rights and responsibilities when using our platform.",
+  description:
+    "Read Guvnor's Terms of Service for cleaning business management software. Understand your rights and responsibilities when using our platform.",
   keywords: "terms of service, terms and conditions, user agreement, cleaning business software, service terms",
-};
+  path: "/terms/",
+});
 
 export default function TermsOfServicePage() {
   return (

@@ -1,10 +1,26 @@
 import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
+import { guideMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { articleSchema } from "@/lib/jsonld";
+
+export const metadata = guideMetadata({
+  slug: "memberaccounts",
+  title: "Collaborating with your team",
+  description:
+    "Invite team members to your Guvnor account, send the email invite code, and set each person's roles and permissions.",
+});
 
 export default function MemberAccountsGuidePage() {
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd
+        data={articleSchema({
+          slug: "memberaccounts",
+          title: "Collaborating with your team",
+        })}
+      />
       <MarketingNav />
 
       <div className="py-16">

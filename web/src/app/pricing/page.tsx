@@ -5,6 +5,13 @@ import {
   PREMIUM_PRICE_AMOUNT_DISPLAY,
   PREMIUM_PRICE_PER_MONTH_LABEL,
 } from "../../../../shared/constants/pricing";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Pricing - Guvnor",
+  description: `Simple, transparent pricing for cleaning businesses. Free for up to 20 clients, then ${PREMIUM_PRICE_PER_MONTH_LABEL} for unlimited clients and team collaboration. No setup fees, cancel anytime.`,
+  path: "/pricing/",
+});
 
 export default function PricingPage() {
   return (

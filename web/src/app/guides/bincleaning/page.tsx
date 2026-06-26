@@ -1,10 +1,26 @@
 import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
+import { guideMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { articleSchema } from "@/lib/jsonld";
+
+export const metadata = guideMetadata({
+  slug: "bincleaning",
+  title: "Setting up a bin cleaning business",
+  description:
+    "Set up a bin cleaning business on Guvnor: register your trade, set per-bin prices, share your quote page and run your round street by street.",
+});
 
 export default function BinCleaningGuidePage() {
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd
+        data={articleSchema({
+          slug: "bincleaning",
+          title: "Setting up a bin cleaning business",
+        })}
+      />
       <MarketingNav />
 
       <div className="py-16">

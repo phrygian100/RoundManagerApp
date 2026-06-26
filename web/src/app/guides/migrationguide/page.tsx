@@ -1,10 +1,26 @@
 import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
+import { guideMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { articleSchema } from "@/lib/jsonld";
+
+export const metadata = guideMetadata({
+  slug: "migrationguide",
+  title: "Established window cleaners: set-up guide",
+  description:
+    "Switching to Guvnor with an existing round? Import your clients, balances and completed jobs from CSV so your books carry straight over.",
+});
 
 export default function MigrationGuidePage() {
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd
+        data={articleSchema({
+          slug: "migrationguide",
+          title: "Established window cleaners: set-up guide",
+        })}
+      />
       <MarketingNav />
 
       <div className="py-16">

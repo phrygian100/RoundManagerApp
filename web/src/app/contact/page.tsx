@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Contact - Guvnor",
+  description:
+    "Get in touch with the Guvnor team. Questions about features, pricing or getting set up — we're happy to help.",
+  path: "/contact/",
+});
 
 export default function ContactPage() {
   return (

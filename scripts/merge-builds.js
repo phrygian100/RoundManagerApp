@@ -50,6 +50,17 @@ try {
     'guides/memberaccounts',
     'guides/accountsguide',
     'guides/gocardlesssetup',
+    'guides/bincleaning',
+    'guides/runsheet',
+    'guides/roundordermanager',
+    'guides/workloadforecast',
+    'guides/etamessages',
+    'guides/quotes',
+    'guides/chasingpayments',
+    'guides/quotepage',
+    'guides/clients',
+    'guides/rota',
+    'guides/subscription',
   ];
   
   for (const route of routes) {
@@ -63,6 +74,29 @@ try {
     }
   }
   
+  // Publish per-guide Open Graph images to a rewrite-safe root path.
+  // next/og generates each guide's share image at build time as an
+  // extension-less file: _marketing/guides/<slug>/opengraph-image. The hosting
+  // rewrites send /guides/* into /_marketing/.../index.html, so that route URL
+  // is not reachable by social scrapers. We copy each image to /og/<slug>.png
+  // (served straight from dist root via the ".png" rewrite exclusion), which is
+  // the path the guide metadata + Article JSON-LD reference.
+  const guidesDir = path.join(marketingDistDir, 'guides');
+  const ogDir = path.join(distDir, 'og');
+  if (fs.existsSync(guidesDir)) {
+    ensureDirectoryExists(ogDir);
+    let ogCount = 0;
+    for (const entry of fs.readdirSync(guidesDir, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      const ogFile = path.join(guidesDir, entry.name, 'opengraph-image');
+      if (fs.existsSync(ogFile)) {
+        fs.copyFileSync(ogFile, path.join(ogDir, `${entry.name}.png`));
+        ogCount++;
+      }
+    }
+    console.log(`🖼️  Published ${ogCount} per-guide OG image(s) to /og/`);
+  }
+
   console.log('✅ Marketing site successfully merged!');
   console.log(`📂 Marketing files available at: ${marketingDistDir}`);
   console.log(`📂 Main app files available at: ${distDir}`);

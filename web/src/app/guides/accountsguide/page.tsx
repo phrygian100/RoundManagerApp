@@ -1,10 +1,26 @@
 import Image from "next/image";
 import Link from "next/link";
+import { guideMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { articleSchema } from "@/lib/jsonld";
+
+export const metadata = guideMetadata({
+  slug: "accountsguide",
+  title: "Updating accounts & recording payments",
+  description:
+    "Keep client accounts up to date in Guvnor: add bulk payments matched on account number, and record individual payments against a client.",
+});
 import { MarketingNav } from "@/components/MarketingNav";
 
 export default function AccountsGuidePage() {
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd
+        data={articleSchema({
+          slug: "accountsguide",
+          title: "Updating accounts & recording payments",
+        })}
+      />
       <MarketingNav />
 
       <div className="py-16">

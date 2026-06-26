@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "About - Guvnor",
+  description:
+    "The story behind Guvnor — software built by and for window and bin cleaners to make running a round simple.",
+  path: "/about/",
+});
 
 export default function AboutPage() {
   return (

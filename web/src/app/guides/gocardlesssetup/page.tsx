@@ -1,10 +1,26 @@
 import { MarketingNav } from "@/components/MarketingNav";
 import Image from "next/image";
 import Link from "next/link";
+import { guideMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { articleSchema } from "@/lib/jsonld";
+
+export const metadata = guideMetadata({
+  slug: "gocardlesssetup",
+  title: "Setting up GoCardless Direct Debit",
+  description:
+    "Connect GoCardless to Guvnor to collect window cleaning payments by Direct Debit: link your API token and set up customers for automatic collection.",
+});
 
 export default function GoCardlessSetupGuidePage() {
   return (
     <div className="min-h-screen bg-white">
+      <JsonLd
+        data={articleSchema({
+          slug: "gocardlesssetup",
+          title: "Setting up GoCardless Direct Debit",
+        })}
+      />
       <MarketingNav />
 
       <div className="py-16">

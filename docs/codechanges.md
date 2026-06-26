@@ -1,5 +1,82 @@
 # Code Changes Log
 
+## June 25, 2026
+
+### Marketing site: JSON-LD structured data + per-guide Open Graph images
+
+**Why**: Follow-up to the SEO foundations. Two additions: (1) schema.org structured data so Google understands the brand, the app and each guide as a proper Article (eligible for richer results); (2) a unique social-share image per guide instead of the single default card, so links shared to social/messaging look tailored.
+
+**Files added**:
+- `web/src/lib/jsonld.ts` — builders: `organizationSchema()`, `softwareApplicationSchema()` (includes Free £0 + Premium offers, price pulled from `shared/constants/pricing.ts`), and `articleSchema({ slug, title, description? })`.
+- `web/src/components/JsonLd.tsx` — renders a schema object (or array) as a `<script type="application/ld+json">` tag.
+- `web/src/lib/ogImage.tsx` — shared `renderGuideOgImage(title)` using `ImageResponse` from `next/og` (bundled with Next, no extra deps), plus `ogSize`/`ogContentType`. Dark indigo→navy gradient card with the Guvnor wordmark, the guide title and "A Guvnor guide · guvnor.app".
+- `web/src/app/guides/<slug>/opengraph-image.tsx` × 16 — tiny per-guide files that re-export the size/contentType and call `renderGuideOgImage(<title>)`. `export const dynamic = "force-static"` so they generate as static PNGs under `output: export`.
+
+**Files changed**:
+- `web/src/app/home/page.tsx` — renders `Organization` + `SoftwareApplication` JSON-LD (the `/` route re-exports this page, so the homepage gets it too).
+- `web/src/components/GuideLayout.tsx` — added an optional `jsonLd` prop; the 10 new guides pass `articleSchema(...)` through it.
+- The 6 original guides — render `<JsonLd data={articleSchema(...)} />` directly (they don't use `GuideLayout`).
+- `web/src/lib/seo.ts` — `pageMetadata` gained an `image` option (defaults to the site card; pass `null` to omit). `guideMetadata` now points `og:image`/`twitter:image` at the per-guide path `/og/<slug>.png`.
+- `web/src/lib/jsonld.ts` `articleSchema` image also points at `/og/<slug>.png`.
+- `scripts/merge-builds.js` — after copying `web/out` → `dist/_marketing`, it now copies each generated `guides/<slug>/opengraph-image` to `dist/og/<slug>.png`, and the route-verification list was extended to include all current guides.
+
+**Notes / why the OG images are served from `/og/<slug>.png`**:
+- The hosting rewrites (`vercel.json` + `firebase.json`) map `/guides/:path*` into `/_marketing/guides/:path*/index.html`, so the default extension-less `next/og` route URL (`/guides/<slug>/opengraph-image`) is **not reachable** by social scrapers in production. Instead we generate the PNG at build time, then publish it to a root-level `/og/<slug>.png` path. That path is excluded from the SPA rewrite (the `.png` exclusion in `vercel.json`; Firebase serves existing static files before rewrites), and lands at dist root via `copy-assets`/expo export conventions — the same mechanism the default `/og-image.png` relies on.
+- Because the guide metadata sets `openGraph.images` explicitly, Next uses that URL and suppresses the file-convention tag (verified: each guide HTML has a single `og:image` = `https://guvnor.app/og/<slug>.png`).
+- Using `next/og` (real fonts) rather than AI-generated art guarantees correct, crisp text on every card — verified by rendering the Workload Forecast card.
+- Verified with `npm run build`: lint + types pass, all 16 `opengraph-image` PNGs generate (~210–235 KB each), JSON-LD (Organization/SoftwareApplication on home, Article on every guide) is present in the exported HTML, and the merge copy loop produces all 16 `/og/*.png` files.
+- `SoftwareApplication` intentionally omits `aggregateRating` (no genuine ratings to cite) to stay within Google's structured-data policies.
+
+### Marketing site: SEO foundations (per-page metadata, sitemap, robots, OG image)
+
+**Why**: Every marketing page (including the new guides) was inheriting the single global title/description from `web/src/app/layout.tsx`, so Google saw duplicate titles and descriptions across the whole site. There was also no `sitemap.xml`, no `robots.txt`, no `metadataBase` (so Open Graph/canonical URLs were not absolute) and no default social-share image. This adds the standard SEO foundations for the static-exported (`output: 'export'`) Next.js site.
+
+**Files added**:
+- `web/src/lib/seo.ts` — `SITE_URL`, `OG_IMAGE`, and two helpers: `pageMetadata({ title, description, path, keywords })` and `guideMetadata({ slug, title, description })`. Each returns a Next `Metadata` object with a unique title/description, a canonical URL (`alternates.canonical`), Open Graph tags and a Twitter `summary_large_image` card. Paths include trailing slashes to match `trailingSlash: true`.
+- `web/src/app/sitemap.ts` — generates `/sitemap.xml` listing all indexable routes with absolute URLs. Excludes the `/home` duplicate of `/`, plus the `forgot-password`/`set-password` utility pages. Uses `export const dynamic = "force-static"` (required under `output: export`).
+- `web/src/app/robots.ts` — generates `/robots.txt` (allow all, disallow the two utility pages, points to the sitemap and sets `host`). Also `force-static`.
+- `web/public/og-image.png` — default 1200x630 branded social-share card backing the OG/Twitter image hook.
+
+**Files changed**:
+- `web/src/app/layout.tsx` — added `metadataBase: new URL("https://guvnor.app")` (so relative canonical/OG URLs resolve to absolute), plus a default `openGraph.images` and a `twitter` `summary_large_image` card pointing at `/og-image.png`.
+- Added unique per-page metadata via the helpers to: `home`, `feature-tour`, `pricing`, `about`, `contact`, the `guides` index, and all 16 guide pages (6 original + 10 new). `terms` and `privacy-policy` were switched onto `pageMetadata` so they also get canonical + OG tags (their existing titles/descriptions/keywords preserved).
+- `web/src/app/page.tsx` (the `/` route) now re-exports `metadata` from `home/page` as well as the default, so the homepage carries real metadata; both `/` and `/home/` canonicalise to `https://guvnor.app/` to avoid duplicate-content.
+
+**Notes / accuracy decisions**:
+- Next.js shallow-merges metadata: a page-level `openGraph` *replaces* the root layout's, so the default share image is re-declared inside `pageMetadata`/`guideMetadata` rather than relying on inheritance (verified the absolute `og:image` now renders on guide/pricing/home pages).
+- `forgot-password` is a client component so it cannot export `metadata`; it keeps inheriting the root defaults and is excluded from the sitemap (utility page only).
+- Verified with `npm run build`: lint + types pass and the export emits `out/sitemap.xml`, `out/robots.txt`, `out/og-image.png`, with canonical + OG/Twitter tags present on sampled pages.
+- JSON-LD / structured data (Organization, SoftwareApplication, Article/FAQ schema) was intentionally **not** added in this pass — noted as a possible follow-up.
+
+### Marketing site: 10 new functionality guides under /guides
+
+**Why**: The existing guides only covered getting-set-up topics (migration, finding customers, bin cleaning, member accounts, accounts, GoCardless). Core day-to-day functionality had no coverage. Added granular how-to guides for the main app features and reorganised the guides index. Content was grounded in the actual app screens (runsheet, round-order-manager, workload-forecast, rota, quotes, quote-wizard, new-business, add-client, chase-payment, subscriptionService) to keep it accurate.
+
+**Files added**:
+- `web/src/components/GuideLayout.tsx` — shared chrome for the new guides (MarketingNav + content container + Back to Guides / Ask a question CTAs + footer) plus small typographic helpers (`GuideH2`, `GuideP`, `GuideTerm`, `GuideList`, `GuideSteps`, `GuideCallout`). Keeps each new guide page focused on content and avoids re-duplicating the footer markup.
+- `web/src/app/guides/runsheet/page.tsx` — Using the Runsheet (auto-built schedule, working a day, ETA/Navigate/notes, completing jobs, rollover, reset day, phone vs desktop).
+- `web/src/app/guides/roundordermanager/page.tsx` — Setting your round order (drag/drop, move-to-position, search, save renumbering, gaps/duplicates normalisation).
+- `web/src/app/guides/workloadforecast/page.tsx` — Workload Forecast & smart planning (52-week job counts, rota-driven availability badges, reset future weeks, runsheet history).
+- `web/src/app/guides/etamessages/page.tsx` — Sending ETA & courtesy messages (set ETA, Message ETA SMS templates for service vs quote jobs, account summary text, mobile-only).
+- `web/src/app/guides/quotes/page.tsx` — Creating & managing quotes (Scheduled → Pending → Won/Lost pipeline, quote visit on runsheet, lines, convert to client).
+- `web/src/app/guides/chasingpayments/page.tsx` — Chasing late payments (balance calc, account summary text, downloadable Chase Payment statement PDF, GoCardless cross-link).
+- `web/src/app/guides/quotepage/page.tsx` — Your quote page & New Business leads (public guvnor.app/business page, Quote Wizard presets, New Business inbox, Schedule Quote / Add Client, Guvnor leads).
+- `web/src/app/guides/clients/page.tsx` — Adding & managing a client (form fields, auto job scheduling on save, free-plan limit, managing afterwards).
+- `web/src/app/guides/rota/page.tsx` — Using the team Rota (ON/OFF/— grid, owner vs member edit rights, default schedules, feeds Workload Forecast).
+- `web/src/app/guides/subscription/page.tsx` — Free vs Premium (20-client free limit, Premium unlimited + team, upgrade paths, members inherit owner plan; links to /pricing for the current price rather than hard-coding it).
+
+**Files changed**:
+- `web/src/app/guides/page.tsx` — rebuilt the index to group guides into sections (Getting started / Running your round day to day / Winning new work / Money & accounts / Your account & team) using a small local `GuideCard`/`GuideSection` map. Existing 6 guides preserved; 10 new ones added.
+
+**Notes / accuracy decisions**:
+- New guides use the shared `GuideLayout`; the original 6 guide pages were left untouched (still inline their own nav/footer) to avoid regressions — they can be migrated later.
+- The chasing-payments guide deliberately does **not** claim email sending from the Chase Payment screen, because `handleSendEmail` there is currently a no-op TODO; the working channels (account-summary SMS from the runsheet + downloadable PDF statement) are documented instead.
+- "Quote Wizard" (image/price presets for the public quote page) is described separately from the "Quotes" pipeline screen, since they are different features.
+- Premium price not hard-coded in copy (links to `/pricing`) to avoid drift; current price is £4.99/month per `shared/constants/pricing.ts`.
+- `npx next lint` passes for the new files (no unescaped-entity issues).
+
+---
+
 ## June 24, 2026
 
 ### UK window-cleaner lead list scraped from Google Maps

@@ -1,12 +1,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { pageMetadata } from "@/lib/seo";
 
-export const metadata = {
+export const metadata = pageMetadata({
   title: "Privacy Policy - Guvnor",
-  description: "Learn how Guvnor collects, uses, and protects your personal information. Transparent privacy practices for cleaning business management.",
+  description:
+    "Learn how Guvnor collects, uses, and protects your personal information. Transparent privacy practices for cleaning business management.",
   keywords: "privacy policy, data protection, GDPR, personal information, cleaning business software",
-};
+  path: "/privacy-policy/",
+});
 
 export default function PrivacyPolicyPage() {
   return (

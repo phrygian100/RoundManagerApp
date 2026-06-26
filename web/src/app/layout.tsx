@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://guvnor.app"),
   title: "Guvnor - Cleaning Round Management Made Simple",
   description: `Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients, upgrade for unlimited growth at ${PREMIUM_PRICE_PER_MONTH_LABEL}.`,
   keywords: "cleaning business, round management, client management, cleaning software, business management",
@@ -30,6 +31,20 @@ export const metadata: Metadata = {
     url: "https://guvnor.app",
     siteName: "Guvnor",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Guvnor - Cleaning Round Management Made Simple",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Guvnor - Cleaning Round Management Made Simple",
+    description: "Manage your cleaning rounds, clients, and payments effortlessly. Start free with up to 20 clients.",
+    images: ["/og-image.png"],
   },
 };
 

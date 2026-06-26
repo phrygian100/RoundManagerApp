@@ -1,6 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "Features - Guvnor",
+  description:
+    "Explore Guvnor's features for window and bin cleaners: smart runsheets, round order management, automated ETA messaging, GoCardless payments, quoting and team tools.",
+  path: "/feature-tour/",
+});
 
 export default function FeatureTourPage() {
   return (

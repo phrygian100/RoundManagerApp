@@ -2,10 +2,22 @@ import Image from "next/image";
 import Link from "next/link";
 import { MarketingNav } from "@/components/MarketingNav";
 import { PREMIUM_PRICE_AMOUNT_DISPLAY } from "../../../../shared/constants/pricing";
+import { pageMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { organizationSchema, softwareApplicationSchema } from "@/lib/jsonld";
+
+export const metadata = pageMetadata({
+  title: "Guvnor - Cleaning Round Management Made Simple",
+  description:
+    "The all-in-one app for window and bin cleaners. Manage your round, runsheets, quotes and payments in one place. Start free with up to 20 clients.",
+  // Canonicalise the /home route (and the "/" re-export) to the site root.
+  path: "/",
+});
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <JsonLd data={[organizationSchema(), softwareApplicationSchema()]} />
       <MarketingNav current="home" />
 
       {/* Hero Section */}
