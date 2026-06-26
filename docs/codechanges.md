@@ -1,5 +1,39 @@
 # Code Changes Log
 
+## June 26, 2026
+
+### Marketing site: 11 new functionality guides (guides section expansion)
+
+**Why**: The primary goal for the marketing site was to expand the `/guides` library with granular, SEO-friendly how-to articles covering app functionality. The first batch (10 guides) was committed in `5f85faa`; this adds 11 more so the guides section comprehensively documents the app. All content was written against the actual app screens (researched first) so it doesn't describe features that don't work.
+
+**Guides added** (each is `web/src/app/guides/<slug>/page.tsx` + a matching `opengraph-image.tsx`):
+- `gettingstarted` — Getting started: your first day on Guvnor (register, verify email, first-time setup modal, optional pricing).
+- `importing` — Importing your clients & data (paste-grid import of clients & completed jobs; bulk payments cross-ref; desktop-first).
+- `manageservices` — Adding extra services to a client (one-off + recurring extras via the client's Ad-hoc Job action; editing/pausing/regenerating in Manage Services).
+- `completedjobs` — Completed jobs & runsheet history (Accounts → Completed Jobs for taking payments; Workload Forecast → Runsheet History).
+- `exclients` — Archiving & restoring clients (Archive Client keeps history; restore prompts for round order).
+- `payments` — Recording & taking payments (balance formula, single Add Payment, Bulk Payments matching by account number, Unknown Payments, GoCardless vs recording).
+- `settings` — Settings & your business profile (gear-drawer location; Profile/Bank & Business/GoCardless/Quote Wizard; Subscription; Import/Export; Team; Data Management; Sign Out).
+- `billing` — Upgrading & managing your billing (web-only Stripe checkout/portal; team members inherit owner plan; client-limit behaviour).
+- `auditlog` — The Activity Log (reached from the Rota header; what is/isn't logged; search/date/filter tools).
+- `quotewizard` — The Quote Wizard: instant online pricing (image/price presets feeding the public quote page; distinct from Quotes pipeline and the national marketing forms; leads land in New Business).
+- `materials` — Materials: flyers, invoices & branding (branding/bank config; flyer/canvassing/invoice outputs; QR to quote page; web-only upload/download).
+
+**Files changed**:
+- `web/src/app/guides/page.tsx` — added the 11 new guides into the existing section arrays (Getting started, Running your round, Winning new work, Money & accounts, Your account & team). The index now lists 27 guides.
+- `web/src/app/sitemap.ts` — added all 11 new `/guides/<slug>/` routes.
+- `scripts/merge-builds.js` — extended the route-verification list with the 11 new guides (the per-guide OG copy loop already auto-discovers them).
+
+**Accuracy decisions (researched, deliberately scoped to avoid documenting non-working paths)**:
+- Recurring extra services are documented via the client detail **Ad-hoc Job → Additional Recurring Work** flow (which confirms "jobs have been scheduled"), not the Manage Services "Add Service" path (which writes the legacy array without scheduling jobs). Frequency/date edits direct the user to **Regenerate Schedule**.
+- Settings guide explicitly notes password change is via the sign-in **Forgot your password?** link and that email/notifications are not editable in-app (no such screens exist).
+- Billing guide states upgrade and Manage Billing are web-only (the phone app redirects to web); avoids referencing the unverified `/upgrade-success` return pages.
+- Audit Log guide lists only actions actually logged (client/quote/job/GoCardless-payment) and notes it isn't a full record — rota/team/payment-edit categories aren't currently logged.
+- Quote Wizard guide separates the three "quote" concepts (Quote Wizard microsite pricing vs the internal Quotes pipeline vs the national Guvnor marketing lead forms) and notes bin pricing is set during initial quote setup.
+- Materials guide flags web-only logo/photo upload and PNG download, mobile = preview only, and that per-item options are session-only.
+
+**Verification**: `npm run build:marketing` passes (lint + types), all 11 new pages and their `opengraph-image` PNGs generate, and `sitemap.xml`/`robots.txt` still emit. Research carried out by four read-only explore subagents across onboarding/settings/audit, payments/billing, client management, and quote-wizard/materials.
+
 ## June 25, 2026
 
 ### Marketing site: JSON-LD structured data + per-guide Open Graph images

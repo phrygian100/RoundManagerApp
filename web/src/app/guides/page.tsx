@@ -13,7 +13,9 @@ export const metadata = pageMetadata({
 type Guide = { href: string; title: string };
 
 const gettingStarted: Guide[] = [
+  { href: "/guides/gettingstarted", title: "Getting started: your first day on Guvnor" },
   { href: "/guides/migrationguide", title: "Established Window Cleaners set up guide" },
+  { href: "/guides/importing", title: "Importing your clients & data" },
   { href: "/guides/findingcustomers", title: "How to Find Your 1st Customer" },
   { href: "/guides/bincleaning", title: "Bin Cleaners: Getting Started on Guvnor" },
 ];
@@ -24,23 +26,32 @@ const dayToDay: Guide[] = [
   { href: "/guides/workloadforecast", title: "Workload Forecast & smart planning" },
   { href: "/guides/etamessages", title: "Sending ETA & courtesy messages" },
   { href: "/guides/clients", title: "Adding & managing a client" },
+  { href: "/guides/manageservices", title: "Adding extra services to a client" },
+  { href: "/guides/completedjobs", title: "Completed jobs & runsheet history" },
+  { href: "/guides/exclients", title: "Archiving & restoring clients" },
   { href: "/guides/rota", title: "Using the team Rota" },
 ];
 
 const winningWork: Guide[] = [
   { href: "/guides/quotes", title: "Creating & managing quotes" },
   { href: "/guides/quotepage", title: "Your quote page & New Business leads" },
+  { href: "/guides/quotewizard", title: "The Quote Wizard: instant online pricing" },
+  { href: "/guides/materials", title: "Materials: flyers, invoices & branding" },
 ];
 
 const moneyAndAccounts: Guide[] = [
   { href: "/guides/accountsguide", title: "Updating Accounts" },
+  { href: "/guides/payments", title: "Recording & taking payments" },
   { href: "/guides/chasingpayments", title: "Chasing late payments" },
   { href: "/guides/gocardlesssetup", title: "Setting up GoCardless" },
 ];
 
 const accountAndTeam: Guide[] = [
+  { href: "/guides/settings", title: "Settings & your business profile" },
   { href: "/guides/memberaccounts", title: "Collaborating with others on Guvnor" },
   { href: "/guides/subscription", title: "Free vs Premium" },
+  { href: "/guides/billing", title: "Upgrading & managing your billing" },
+  { href: "/guides/auditlog", title: "The Activity Log" },
 ];
 
 function GuideCard({ guide }: { guide: Guide }) {
