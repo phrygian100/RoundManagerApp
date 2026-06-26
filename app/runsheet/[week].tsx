@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../../components/GuideHelpButton';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
@@ -2697,7 +2698,8 @@ ${signOff}`;
             {weekTitle}
           </Text>
           <View style={styles.headerButtons}>
-            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 
+            <GuideHelpButton slug="runsheet" color="#1976d2" />
+            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
               <Text style={styles.homeButtonText}>🏠</Text>
             </Pressable>
             <Pressable

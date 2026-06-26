@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -301,9 +302,12 @@ export default function WorkloadForecastScreen() {
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Workload Forecast</Text>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Text style={styles.homeButtonText}>🏠</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <GuideHelpButton slug="workloadforecast" color="#1976d2" />
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <Text style={styles.homeButtonText}>🏠</Text>
+          </Pressable>
+        </View>
       </View>
       <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
       <FlatList

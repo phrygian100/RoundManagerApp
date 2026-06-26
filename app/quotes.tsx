@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 import { format } from 'date-fns';
@@ -438,7 +439,8 @@ export default function QuotesScreen() {
       {/* Header Bar */}
       <View style={{ width: '100%', maxWidth: 700, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#e0e0e0', marginBottom: 16, boxShadow: '0 2px 8px #0001' }}>
         <Text style={{ fontWeight: 'bold', fontSize: 28, letterSpacing: 0.5 }}>Quotes</Text>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+          <GuideHelpButton slug="quotes" color="#1976d2" />
           <TouchableOpacity onPress={() => router.push('/')} style={{ padding: 8, borderRadius: 6, backgroundColor: '#eaf2ff', marginRight: 8 }}>
             <Ionicons name="home-outline" size={22} color="#1976d2" />
           </TouchableOpacity>

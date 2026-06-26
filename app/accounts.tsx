@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { addMonths, addYears, differenceInMonths, endOfDay, endOfMonth, endOfWeek, endOfYear, format, parseISO, startOfDay, startOfMonth, startOfWeek, startOfYear, subDays, subMonths, subWeeks, subYears } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
@@ -822,6 +823,7 @@ ${signOff}`;
         <View style={styles.headerBar}>
           <ThemedText style={styles.headerTitle}>Accounts</ThemedText>
           <View style={styles.headerButtons}>
+            <GuideHelpButton slug="payments" color="#1976d2" />
             <Pressable
               style={styles.bulkPaymentsButton}
               onPress={() => {

@@ -12,6 +12,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -570,6 +571,7 @@ function RoundOrderManagerContent() {
             {movedCount > 0 ? `  ·  ${movedCount} moved (unsaved)` : ''}
           </ThemedText>
         </View>
+        <GuideHelpButton slug="roundordermanager" color="#007AFF" style={{ marginLeft: 8 }} />
         {movedCount > 0 && (
           <Pressable style={styles.resetButton} onPress={handleReset}>
             <ThemedText style={styles.resetButtonText}>Reset</ThemedText>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -512,6 +513,7 @@ export default function ImportClientsScreen() {
             <ThemedText style={styles.backButtonText}>Back</ThemedText>
           </Pressable>
           <ThemedText style={styles.title}>Import Clients</ThemedText>
+          <GuideHelpButton slug="importing" color="#1976d2" style={{ marginLeft: 8 }} />
         </View>
         {headerRight}
       </View>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import * as ImagePicker from 'expo-image-picker';
 import { useRouter } from 'expo-router';
 import {
@@ -537,6 +538,7 @@ export default function QuoteWizardScreen() {
             <Ionicons name="arrow-back" size={22} color="#fff" />
           </TouchableOpacity>
           <ThemedText style={s.headerTitle}>Quote Wizard</ThemedText>
+          <GuideHelpButton slug="quotewizard" color="#fff" style={{ marginRight: 8 }} />
           <TouchableOpacity onPress={openNew} style={s.addBtn}>
             <Ionicons name="add" size={22} color="#fff" />
             <Text style={s.addBtnText}>New</Text>

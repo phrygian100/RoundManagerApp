@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -628,6 +629,7 @@ const formatClientAddress = (c: ClientSummary): string => {
             <ThemedText style={styles.backButtonText}>Back</ThemedText>
           </Pressable>
           <ThemedText style={styles.title}>Add Bulk Payments</ThemedText>
+          <GuideHelpButton slug="payments" color="#1976d2" style={{ marginLeft: 8 }} />
         </View>
         <View style={styles.headerRight}>
           <ThemedText style={styles.rowCount}>{filledRowCount} row(s) with data</ThemedText>

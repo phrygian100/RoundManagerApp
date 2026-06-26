@@ -2,6 +2,33 @@
 
 ## June 26, 2026
 
+### Guide discoverability: in-app help icons + wiki-style guides hub
+
+**Why**: Two discovery problems. (1) Users in the app had no contextual route to the relevant guide while using a complex tool. (2) With 27 guides, the `/guides` index had become a long wall of equal-weight cards.
+
+**In-app help icons** (`app/` — runs on web + mobile):
+- New shared component `components/GuideHelpButton.tsx` — a `help-circle-outline` Pressable that opens `https://guvnor.app/guides/<slug>`. Cross-platform: on web it opens a new tab (`window.open(..., '_blank')`) so the app stays open; on native it hands off via `Linking.openURL` (matching the existing home-screen Guides button). Props: `slug`, `color`, `size`, `style`, `accessibilityLabel`.
+- Added to the header of nine non-obvious / fiddly screens, mapped to the most relevant guide:
+  - Runsheet (`app/runsheet/[week].tsx`) → `runsheet`
+  - Round Order Manager (`app/round-order-manager.tsx`) → `roundordermanager`
+  - Workload Forecast (`app/workload-forecast.tsx`) → `workloadforecast`
+  - Quote Wizard (`app/quote-wizard.tsx`) → `quotewizard`
+  - Quotes (`app/quotes.tsx`) → `quotes`
+  - Materials (`app/materials.tsx`) → `materials`
+  - Accounts (`app/accounts.tsx`) → `payments`
+  - Manage Services (`app/(tabs)/clients/[id]/manage-services.tsx`) → `manageservices`
+  - Import Clients + Import Completed Jobs (`app/import-clients.tsx`, `app/import-completed-jobs.tsx`) → `importing`; Add Bulk Payments (`app/bulk-payments.tsx`) → `payments` (the payments guide has the dedicated bulk-payments section).
+- Deliberately skipped simple screens (e.g. the basic client list) and the Rota, per the agreed scope.
+
+**Wiki-style guides hub** (`web/`):
+- New client component `web/src/components/GuidesBrowser.tsx` — a sticky category sidebar (jump links), a search box that filters by title/description as you type, and a one-line description under every guide. All 27 guides render in the server HTML (search only hides them client-side), so links stay crawlable for SEO.
+- `web/src/app/guides/page.tsx` slimmed down to metadata + nav + `<GuidesBrowser />` + footer; the old inline arrays / `GuideCard` / `GuideSection` were removed and the container widened to `max-w-6xl` for the sidebar layout.
+
+**Notes / non-regressions**:
+- `Linking.openURL` and the web `window.open` guard (`Platform.OS === 'web'`) keep the help button working on both platforms without breaking native builds.
+- Pre-existing TypeScript errors in `app/runsheet/[week].tsx` (lines ~408 and ~818) are unrelated to these edits (header/import only) and don't block the Metro/Expo build.
+- Verified: `web` lint clean, `npm run build:marketing` passes and still emits all 27 guides + OG images; app screens lint clean aside from the two pre-existing runsheet errors.
+
 ### Fix: guide pages 404 on trailing-slash URLs (Vercel rewrites)
 
 **Symptom**: `guvnor.app/guides` loaded, but opening any individual guide returned a Vercel `404 NOT_FOUND`. Verified that `/guides/<slug>` (no trailing slash) returned 200 while `/guides/<slug>/` (trailing slash) returned 404 — and this affected the original guides too, not just the new ones.

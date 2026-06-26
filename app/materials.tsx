@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -2035,7 +2036,7 @@ export default function MaterialsScreen() {
             <Ionicons name="home" size={24} color="#007AFF" />
           </Pressable>
           <Text style={styles.title}>Materials</Text>
-          <View style={{ width: 40 }} />
+          <GuideHelpButton slug="materials" color="#007AFF" style={{ width: 40, alignItems: 'flex-end' }} />
         </View>
 
         {/* Configuration Modal */}

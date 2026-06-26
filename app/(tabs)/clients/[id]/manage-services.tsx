@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../../../../components/GuideHelpButton';
 import { ThemedText } from '../../../../components/ThemedText';
 import { ThemedView } from '../../../../components/ThemedView';
 import { db } from '../../../../core/firebase';
@@ -316,9 +317,12 @@ export default function ManageServicesScreen() {
 			)}
 			<View style={styles.headerBar}>
 				<ThemedText style={styles.headerTitle}>Manage Services</ThemedText>
-				<Pressable style={styles.homeButton} onPress={() => router.back()}>
-					<ThemedText style={styles.homeButtonText}>Back</ThemedText>
-				</Pressable>
+				<View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+					<GuideHelpButton slug="manageservices" color="#1976d2" />
+					<Pressable style={styles.homeButton} onPress={() => router.back()}>
+						<ThemedText style={styles.homeButtonText}>Back</ThemedText>
+					</Pressable>
+				</View>
 			</View>
 			<ScrollView contentContainerStyle={styles.scroll}>
 				{/* Existing plans */}
