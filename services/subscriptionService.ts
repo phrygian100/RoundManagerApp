@@ -1,8 +1,20 @@
-import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch, type DocumentReference } from 'firebase/firestore';
 import { db } from '../core/firebase';
-import { getDataOwnerId, getUserSession } from '../core/session';
+import { getDataOwnerId, getUserSession, waitForAuthReady } from '../core/session';
 import { User } from '../types/models';
 import { DEVELOPER_UID } from '../shared/constants/developer';
+
+/**
+ * Read a document with a single retry. Right after a hard refresh (notably Safari/iOS)
+ * the first Firestore read can transiently fail before auth/network are fully warm.
+ */
+async function getDocWithRetry(ref: DocumentReference) {
+  try {
+    return await getDoc(ref);
+  } catch (_) {
+    return await getDoc(ref);
+  }
+}
 
 export type SubscriptionTier = 'free' | 'premium' | 'exempt';
 export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'exempt';
@@ -14,6 +26,9 @@ export interface EffectiveSubscription {
   canCreateMembers: boolean;
   isExempt: boolean;
   renewalDate?: string | null; // ISO date string for next renewal
+  // false only when we failed to resolve the real subscription and returned a safe
+  // fallback. UI should NOT show "Free plan" messaging based on an unresolved result.
+  resolved?: boolean;
 }
 
 /**
@@ -22,6 +37,10 @@ export interface EffectiveSubscription {
  */
 export async function getEffectiveSubscription(): Promise<EffectiveSubscription> {
   try {
+    // Ensure Auth has hydrated before resolving identity, so a member isn't briefly
+    // treated as a solo (Free) owner on a hard refresh.
+    await waitForAuthReady();
+
     const session = await getUserSession();
     if (!session) {
       throw new Error('No user session found');
@@ -31,7 +50,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
 
     if (session.isOwner) {
       // User is account owner, use their own subscription
-      const userDoc = await getDoc(doc(db, 'users', session.uid));
+      const userDoc = await getDocWithRetry(doc(db, 'users', session.uid));
       if (!userDoc.exists()) {
         throw new Error('User document not found');
       }
@@ -42,7 +61,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       if (!ownerId) {
         throw new Error('Account owner not found');
       }
-      const ownerDoc = await getDoc(doc(db, 'users', ownerId));
+      const ownerDoc = await getDocWithRetry(doc(db, 'users', ownerId));
       if (!ownerDoc.exists()) {
         throw new Error('Account owner document not found');
       }
@@ -62,6 +81,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
         canCreateMembers: true,
         isExempt: true,
         renewalDate: null,
+        resolved: true,
       };
     }
 
@@ -77,10 +97,12 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       canCreateMembers: tier === 'premium' || tier === 'exempt',
       isExempt: false,
       renewalDate,
+      resolved: true,
     };
   } catch (error) {
     console.error('Error getting effective subscription:', error);
-    // Fallback to free tier
+    // Fallback to free tier for limit-checking safety, but flag it as UNRESOLVED so the
+    // UI doesn't present "Free plan" messaging off the back of a transient failure.
     return {
       tier: 'free',
       status: 'active',
@@ -88,6 +110,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       canCreateMembers: false,
       isExempt: false,
       renewalDate: null,
+      resolved: false,
     };
   }
 }

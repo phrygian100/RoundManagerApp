@@ -1,5 +1,43 @@
 # Code Changes Log
 
+## July 7, 2026
+
+### Fix: severe runsheet (and general) load slowdown from repeated forced token refreshes
+
+**Symptom**: Since the June 30 session/subscription changes, loading run sheets in the browser on mobile became excruciatingly slow.
+
+**Root cause**: The June 30 fix made `getUserSession()` (`core/session.ts`) force a token refresh (`getIdTokenResult(true)`) whenever the ID token's custom claims (`accountId`/`isOwner`) looked unset. `getIdTokenResult(true)` is a full network round trip to Firebase Auth. For accounts whose custom claims were never set server-side, the refreshed token *still* has no claims, so the condition never clears and **every** `getUserSession()` call paid that round trip. The runsheet screen (`app/runsheet/[week].tsx`) calls `getUserSession()` ~8–12 times per load (directly, plus via `getDataOwnerId()` inside `getJobsForWeek`, `listMembers`, `fetchRotaRange`, completed-days fetch, client-balances fetch), largely sequentially — so on a mobile connection the load path accumulated many seconds of pure token-refresh latency.
+
+**Fix** (`core/session.ts` only):
+- Added module-level guards `claimsRefreshAttemptedForUid` / `claimsRefreshInFlight` so the forced refresh runs **at most once per signed-in user per app session**. Concurrent callers share the same in-flight refresh promise instead of each firing their own network request.
+- The guard is marked in a `finally`, so even a failed refresh isn't retried (the outer `catch` already falls back to the Firestore-derived session, same as before).
+- The guard is keyed by uid, so signing out and in as a different user still gets its own single refresh.
+
+**Non-regression notes**:
+- The June 30 Safari/iOS banner fix is preserved: the *first* `getUserSession()` call after a hard refresh still performs the forced refresh when claims are missing, so a team member is still resolved against the owner account. Only the wasteful repeats are eliminated.
+- Users whose tokens already carry claims (the steady state) were never taking this branch and are unaffected.
+- No changes to `services/subscriptionService.ts` or `app/(tabs)/index.tsx` from the June 30 change; their behaviour is unchanged.
+
+## June 30, 2026
+
+### Fix: intermittent "Free plan" banner flash for team members on hard refresh (Safari/iOS)
+
+**Symptom**: A member of the (exempt) developer account reported that refreshing the browser on Safari/iOS sometimes showed the Free-plan upgrade notification on the home screen; refreshing again "looked normal".
+
+**Root cause**: A member inherits the account owner's tier via `getEffectiveSubscription()`. On a hard refresh, two race conditions could make it briefly resolve to `free`:
+1. **Identity mis-resolution** — `getUserSession()` reads custom claims from the in-memory ID token (`getIdTokenResult()`). Safari/iOS often restores the cached auth session before the claims (`accountId`/`isOwner`) are attached, so the member fell into the "owner of their own account" branch and read their *own* (free) user doc.
+2. **Swallowed read error** — if reading the owner's user doc transiently failed, `getEffectiveSubscription`'s `catch` returned a confident `tier: 'free'`, which drove the banner.
+
+**Fix** (defense-in-depth, no behaviour change in the steady state):
+- `core/session.ts` — `getUserSession()` now awaits `waitForAuthReady()` before resolving, and if the token claims look unset (`accountId` and `isOwner` both undefined) it forces a single `getIdTokenResult(true)` refresh so a member is correctly resolved against the owner account instead of themselves. Steady-state users (claims already present) are unaffected — no extra token refresh.
+- `services/subscriptionService.ts` — `getEffectiveSubscription()` awaits `waitForAuthReady()`, reads user/owner docs via a new `getDocWithRetry()` (one retry on transient failure), and the error fallback is now flagged `resolved: false`. Added optional `resolved?: boolean` to `EffectiveSubscription` (successful resolutions set `resolved: true`). The fallback still returns `free` for limit-checking safety, so existing callers (`checkClientLimit`, `checkMemberCreationPermission`, settings, import) are unchanged.
+- `app/(tabs)/index.tsx` — the upgrade banner now renders only when `subscription?.tier === 'free' && subscription.resolved !== false`, so a transient/unresolved lookup never flashes "Free plan".
+
+**Non-regression notes**:
+- `resolved` is optional; any code path that doesn't set it (none, after this change) is treated as resolved (`!== false`), so no other consumer behaviour changes.
+- The forced token refresh only fires when claims are entirely absent (the race window), not on every call.
+- Pre-existing, unrelated TypeScript warnings remain untouched: `subscriptionService.ts` `subscriptionRenewalDate` on `User`, and `index.tsx` `minHeight: '100vh'`.
+
 ## June 26, 2026
 
 ### Guide discoverability: in-app help icons + wiki-style guides hub

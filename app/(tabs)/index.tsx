@@ -705,8 +705,10 @@ export default function HomeScreen() {
           </View>
         </Pressable>
 
-        {/* Upgrade banner for Free plan */}
-        {subscription?.tier === 'free' && (
+        {/* Upgrade banner for Free plan — only when the subscription actually resolved,
+            so a transient lookup failure (e.g. a member on a hard Safari/iOS refresh)
+            doesn't flash "Free plan" before the next refresh. */}
+        {subscription?.tier === 'free' && subscription.resolved !== false && (
           <View style={[styles.upgradeBanner, { maxWidth: gridMaxWidth }]}>
             <View style={styles.upgradeBannerHeader}>
               <View style={styles.upgradeBadge}>

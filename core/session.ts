@@ -1,5 +1,5 @@
 import { doc, getDoc } from 'firebase/firestore';
-import { onAuthStateChanged, type User } from 'firebase/auth';
+import { onAuthStateChanged, type IdTokenResult, type User } from 'firebase/auth';
 import { auth, db } from './firebase';
 
 export type UserSession = {
@@ -42,6 +42,14 @@ export async function waitForAuthReady(timeoutMs: number = 5000): Promise<User |
   });
 }
 
+// Guard so the "claims look unset" forced token refresh in getUserSession() runs at most
+// once per signed-in user per app session. getIdTokenResult(true) is a network round trip;
+// for accounts whose custom claims were never set server-side the refreshed token *still*
+// has no claims, so without this guard every getUserSession() call would pay that round
+// trip forever — which made screens that call it repeatedly (e.g. the runsheet) crawl.
+let claimsRefreshAttemptedForUid: string | null = null;
+let claimsRefreshInFlight: Promise<IdTokenResult> | null = null;
+
 type UserData = {
   accountId?: string;
   perms?: Record<string, boolean>;
@@ -57,7 +65,9 @@ type MemberData = {
  * If the user is not authenticated it resolves to null.
  */
 export async function getUserSession(): Promise<UserSession | null> {
-  const user = auth.currentUser;
+  // Don't bail before Auth has hydrated. On a hard refresh (notably Safari/iOS) the
+  // restored user may not be on `auth.currentUser` synchronously yet.
+  const user = auth.currentUser ?? (await waitForAuthReady());
   if (!user) return null;
 
   // Prefer Auth token claims (set via refreshClaims Cloud Function) to avoid brittle Firestore lookups.
@@ -65,8 +75,29 @@ export async function getUserSession(): Promise<UserSession | null> {
   let claimsAccountId: string | null = null;
   let claimsIsOwner: boolean | null = null;
   try {
-    const tokenResult = await user.getIdTokenResult();
-    const claims: any = tokenResult?.claims || {};
+    let tokenResult = await user.getIdTokenResult();
+    let claims: any = tokenResult?.claims || {};
+    // Safari/iOS (and others) can restore a cached auth session on a hard refresh before the
+    // custom claims are attached to the in-memory token. If the claims look unset, force a single
+    // token refresh so a team member isn't briefly mis-resolved as the owner of their own (Free)
+    // account — which is what flashes the Free-plan banner before a second refresh "fixes" it.
+    // At most ONE forced refresh per user per app session (shared by concurrent callers);
+    // accounts that genuinely have no claims fall back to the Firestore-derived session below.
+    if (
+      claims.accountId === undefined &&
+      claims.isOwner === undefined &&
+      claimsRefreshAttemptedForUid !== user.uid
+    ) {
+      if (!claimsRefreshInFlight) {
+        const uid = user.uid;
+        claimsRefreshInFlight = user.getIdTokenResult(true).finally(() => {
+          claimsRefreshAttemptedForUid = uid;
+          claimsRefreshInFlight = null;
+        });
+      }
+      tokenResult = await claimsRefreshInFlight;
+      claims = tokenResult?.claims || {};
+    }
     if (typeof claims.accountId === 'string' && claims.accountId) {
       claimsAccountId = claims.accountId;
     }
