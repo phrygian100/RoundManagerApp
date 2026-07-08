@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { collection, doc, getDocs, query, where, writeBatch } from 'firebase/firestore';
+import { collection, doc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -12,7 +12,9 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
+import ClientMapView from '../components/ClientMapView';
 import { GuideHelpButton } from '../components/GuideHelpButton';
+import LocationPickerModal from '../components/LocationPickerModal';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -175,6 +177,10 @@ function RoundOrderManagerContent() {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  // List = drag-to-reorder; Map = pins for visually verifying client locations
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  // Client whose pin is being edited from the map (via popup "Edit location")
+  const [editingPinClient, setEditingPinClient] = useState<Client | null>(null);
   // Clients the user explicitly repositioned this session (dragged or moved via input)
   const [userMovedIds, setUserMovedIds] = useState<Set<string>>(new Set());
   // Web drag state: dragIndex = row being dragged, dropIndex = insertion gap (0..N)
@@ -268,6 +274,38 @@ function RoundOrderManagerContent() {
   const toggleExpand = useCallback((id: string) => {
     setExpandedId(prev => (prev === id ? null : id));
   }, []);
+
+  // ---------- Map view: pin verification & correction ----------
+
+  const pinnedCount = useMemo(
+    () => clients.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number').length,
+    [clients]
+  );
+
+  const handleEditPin = useCallback((clientId: string) => {
+    const client = clientsRef.current.find(c => c.id === clientId);
+    if (client) setEditingPinClient(client);
+  }, []);
+
+  const handleConfirmPin = async (loc: { latitude: number; longitude: number }) => {
+    const client = editingPinClient;
+    if (!client) return;
+    try {
+      await updateDoc(doc(db, 'clients', client.id), {
+        latitude: loc.latitude,
+        longitude: loc.longitude,
+        geoSource: 'manual',
+        geoUpdatedAt: new Date().toISOString(),
+      });
+      setClients(prev => prev.map(c => c.id === client.id
+        ? { ...c, latitude: loc.latitude, longitude: loc.longitude, geoSource: 'manual' as const }
+        : c));
+      setEditingPinClient(null);
+    } catch (err) {
+      console.error('RoundOrderManager: failed to save pin', err);
+      showAlert('Error', 'Failed to save the new location. Please try again.');
+    }
+  };
 
   // ---------- Web drag & drop (pointer events on the container DOM node) ----------
 
@@ -579,7 +617,7 @@ function RoundOrderManagerContent() {
         )}
       </View>
 
-      {needsNormalization && (
+      {needsNormalization && viewMode === 'list' && (
         <View style={styles.noticeBanner}>
           <ThemedText style={styles.noticeText}>
             The stored numbering has gaps or duplicates. Tap Save to renumber all clients into a clean sequence.
@@ -587,7 +625,45 @@ function RoundOrderManagerContent() {
         </View>
       )}
 
+      {/* List | Map toggle */}
+      <View style={styles.viewToggle}>
+        <Pressable
+          style={[styles.viewToggleButton, viewMode === 'list' && styles.viewToggleButtonActive]}
+          onPress={() => setViewMode('list')}
+        >
+          <ThemedText style={[styles.viewToggleText, viewMode === 'list' && styles.viewToggleTextActive]}>
+            List
+          </ThemedText>
+        </Pressable>
+        <Pressable
+          style={[styles.viewToggleButton, viewMode === 'map' && styles.viewToggleButtonActive]}
+          onPress={() => setViewMode('map')}
+        >
+          <ThemedText style={[styles.viewToggleText, viewMode === 'map' && styles.viewToggleTextActive]}>
+            Map
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      {viewMode === 'map' && (
+        <>
+          <View style={styles.mapBanner}>
+            <ThemedText style={styles.mapBannerText}>
+              {pinnedCount} of {totalCount} pinned
+              {totalCount - pinnedCount > 0
+                ? `  ·  ${totalCount - pinnedCount} need a location (set via Edit Customer)`
+                : ''}
+            </ThemedText>
+          </View>
+          <View style={styles.listContainer}>
+            <ClientMapView clients={clients} onEditLocation={handleEditPin} />
+          </View>
+        </>
+      )}
+
       {/* Search */}
+      {viewMode === 'list' && (
+        <>
       <TextInput
         style={styles.searchInput}
         value={searchQuery}
@@ -653,6 +729,18 @@ function RoundOrderManagerContent() {
           </View>
         )}
       </View>
+        </>
+      )}
+
+      {/* Pin correction picker (opened from map popups) */}
+      <LocationPickerModal
+        visible={editingPinClient !== null}
+        initialLatitude={editingPinClient?.latitude ?? null}
+        initialLongitude={editingPinClient?.longitude ?? null}
+        addressLabel={editingPinClient ? clientAddress(editingPinClient) : undefined}
+        onConfirm={handleConfirmPin}
+        onCancel={() => setEditingPinClient(null)}
+      />
 
       {/* Sticky footer */}
       <View style={styles.footer}>
@@ -748,6 +836,43 @@ const styles = StyleSheet.create({
     color: '#e65100',
     fontSize: 14,
     fontWeight: '600',
+  },
+  viewToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#f2f2f2',
+    borderRadius: 10,
+    padding: 3,
+    marginBottom: 8,
+  },
+  viewToggleButton: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  viewToggleButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  viewToggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666',
+  },
+  viewToggleTextActive: {
+    color: '#fff',
+  },
+  mapBanner: {
+    backgroundColor: '#eef3fb',
+    borderWidth: 1,
+    borderColor: '#c5d4ee',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  mapBannerText: {
+    fontSize: 13,
+    color: '#2c5aa0',
   },
   searchInput: {
     height: 44,

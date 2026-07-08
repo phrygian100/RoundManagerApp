@@ -1,5 +1,22 @@
 # Code Changes Log
 
+## July 8, 2026 (2)
+
+### Round Order Manager: map view for verifying/correcting client pins (phase 2)
+
+**Why**: After the bulk geocode (460/555 auto-pinned), the auto guesses need visual verification — a wrongly-placed pin is obvious on a map but invisible in a list.
+
+**New component** (`components/ClientMapView.tsx`): read-only Leaflet map (same CDN/iframe/WebView pattern as `LocationPickerModal`, no new dependencies) rendering every pinned client as a colour-coded circle marker: green = `manual` (human-confirmed), amber = `postcode` guess, blue = `address` guess, with an on-map legend. Marker popups show name, address, cost (quote), visit interval and round position, plus an "Edit location" button that posts `{type:'edit', id}` to the host (popup text is HTML-escaped). The HTML is built once per mount; subsequent pin changes are pushed into the live map via an injected `__applyPins` call so the viewport/zoom is preserved after an edit (verified: marker moves, zoom untouched). Map fits bounds to all pins on load.
+
+**Round Order Manager** (`app/round-order-manager.tsx`):
+- New **List | Map** segmented toggle under the header. List mode is completely unchanged (search, drag-reorder, save/footer all as before — reordering logic untouched).
+- Map mode shows a banner ("X of Y pinned · Z need a location (set via Edit Customer)") and the map in place of the list.
+- "Edit location" in a popup opens the existing `LocationPickerModal` centred on the current pin; confirming writes `latitude`/`longitude`/`geoSource: 'manual'`/`geoUpdatedAt` via `updateDoc`, updates local state, and the marker moves + turns green live.
+
+**Verified in browser**: pins render colour-coded with legend; popup content + escaping correct (tested with `O'Brien & Sons <test>`); edit button posts the correct tagged message; `__applyPins` updates markers without viewport reset. `tsc --noEmit` reports nothing for the touched files; lints clean.
+
+**Non-regression notes**: map mode is purely additive — no changes to reorder/save logic; the round-order save baseline (`originalNumberById`) is unaffected by pin edits (different field, separate write path).
+
 ## July 8, 2026
 
 ### Client geolocation: map pins on every account (phase 1 of round-order repair)
