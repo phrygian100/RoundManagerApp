@@ -508,6 +508,13 @@ export default function EditCustomerScreen() {
           setLocationPickerVisible(false);
         }}
         onCancel={() => setLocationPickerVisible(false)}
+        onReguess={async () => {
+          // Uses the CURRENT form fields, so refining a shorthand address (e.g.
+          // "St Andrews" -> "St Andrew Street, Heckington") and re-guessing works
+          // without closing the modal or saving first.
+          const hit = await geocodeBestGuess(address1, town, postcode);
+          return hit ? { latitude: hit.latitude, longitude: hit.longitude } : null;
+        }}
       />
     </Modal>
   );

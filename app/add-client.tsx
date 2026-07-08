@@ -722,6 +722,10 @@ export default function AddClientScreen() {
           setLocationPickerVisible(false);
         }}
         onCancel={() => setLocationPickerVisible(false)}
+        onReguess={async () => {
+          const hit = await geocodeBestGuess(address1, town, postcode);
+          return hit ? { latitude: hit.latitude, longitude: hit.longitude } : null;
+        }}
       />
 
       {/* Web Date Picker Overlay - outside ScrollView for proper positioning */}

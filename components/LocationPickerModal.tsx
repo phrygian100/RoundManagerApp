@@ -19,6 +19,12 @@ type Props = {
   addressLabel?: string;
   onConfirm: (location: PickedLocation) => void;
   onCancel: () => void;
+  /**
+   * Optional: re-attempt the automated location guess (e.g. after the user has refined
+   * the address fields behind this modal). Return null when nothing was found.
+   * When provided, a "Re-guess" button appears between Cancel and Confirm.
+   */
+  onReguess?: () => Promise<PickedLocation | null>;
 };
 
 const MESSAGE_TAG = 'guvnor-location-picker';
@@ -89,6 +95,14 @@ function buildMapHtml(lat: number | null, lng: number | null): string {
   ${hasPin ? `placeMarker(L.latLng(${lat}, ${lng}));` : ''}
 
   map.on('click', function (e) { placeMarker(e.latlng); });
+
+  // Called by the host after a re-guess: move the pin and jump the view there.
+  window.__setPin = function (lat, lng) {
+    var latlng = L.latLng(lat, lng);
+    placeMarker(latlng);
+    map.setView(latlng, ${PIN_ZOOM});
+  };
+
   send({ type: 'ready' });
 </script>
 </body>
@@ -102,11 +116,14 @@ export default function LocationPickerModal({
   addressLabel,
   onConfirm,
   onCancel,
+  onReguess,
 }: Props) {
   const initialLat = typeof initialLatitude === 'number' ? initialLatitude : null;
   const initialLng = typeof initialLongitude === 'number' ? initialLongitude : null;
 
   const [pin, setPin] = useState<PickedLocation | null>(null);
+  const [reguessing, setReguessing] = useState(false);
+  const [reguessMessage, setReguessMessage] = useState<string | null>(null);
 
   // Reset the working pin whenever the modal is (re)opened with new inputs.
   useEffect(() => {
@@ -114,6 +131,8 @@ export default function LocationPickerModal({
       setPin(initialLat !== null && initialLng !== null
         ? { latitude: initialLat, longitude: initialLng }
         : null);
+      setReguessing(false);
+      setReguessMessage(null);
     }
   }, [visible, initialLat, initialLng]);
 
@@ -145,6 +164,42 @@ export default function LocationPickerModal({
   }, [visible, handleMessageData]);
 
   const iframeRef = useRef<any>(null);
+  const webViewRef = useRef<any>(null);
+
+  // Move the pin inside the live map (used by re-guess) without rebuilding the HTML.
+  const applyPinToMap = (loc: PickedLocation) => {
+    setPin(loc);
+    if (Platform.OS === 'web') {
+      try {
+        iframeRef.current?.contentWindow?.__setPin?.(loc.latitude, loc.longitude);
+      } catch (e) {
+        console.warn('LocationPickerModal: failed to move pin in iframe', e);
+      }
+    } else {
+      webViewRef.current?.injectJavaScript?.(
+        `window.__setPin && window.__setPin(${loc.latitude}, ${loc.longitude}); true;`
+      );
+    }
+  };
+
+  const handleReguess = async () => {
+    if (!onReguess || reguessing) return;
+    setReguessing(true);
+    setReguessMessage(null);
+    try {
+      const hit = await onReguess();
+      if (hit) {
+        applyPinToMap(hit);
+      } else {
+        setReguessMessage('No match found — refine the address and try again, or place the pin by hand.');
+      }
+    } catch (e) {
+      console.warn('LocationPickerModal: re-guess failed', e);
+      setReguessMessage('Lookup failed — please try again.');
+    } finally {
+      setReguessing(false);
+    }
+  };
 
   if (!visible) return null;
 
@@ -169,6 +224,7 @@ export default function LocationPickerModal({
               })
             ) : (
               <WebView
+                ref={webViewRef}
                 originWhitelist={['*']}
                 source={{ html }}
                 onMessage={(event: any) => handleMessageData(event?.nativeEvent?.data)}
@@ -181,14 +237,27 @@ export default function LocationPickerModal({
 
           <View style={styles.footer}>
             <ThemedText style={styles.coordsText}>
-              {pin
-                ? `📍 ${pin.latitude.toFixed(6)}, ${pin.longitude.toFixed(6)}`
-                : 'No pin placed yet'}
+              {reguessMessage
+                ? reguessMessage
+                : pin
+                  ? `📍 ${pin.latitude.toFixed(6)}, ${pin.longitude.toFixed(6)}`
+                  : 'No pin placed yet'}
             </ThemedText>
             <View style={styles.buttonsRow}>
               <Pressable style={styles.cancelButton} onPress={onCancel}>
                 <ThemedText style={styles.cancelButtonText}>Cancel</ThemedText>
               </Pressable>
+              {!!onReguess && (
+                <Pressable
+                  style={[styles.reguessButton, reguessing && styles.confirmButtonDisabled]}
+                  disabled={reguessing}
+                  onPress={handleReguess}
+                >
+                  <ThemedText style={styles.reguessButtonText}>
+                    {reguessing ? 'Guessing…' : 'Re-guess'}
+                  </ThemedText>
+                </Pressable>
+              )}
               <Pressable
                 style={[styles.confirmButton, !pin && styles.confirmButtonDisabled]}
                 disabled={!pin}
@@ -277,6 +346,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#666',
+  },
+  reguessButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    backgroundColor: '#eef3fb',
+    alignItems: 'center',
+  },
+  reguessButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
   },
   confirmButton: {
     flex: 2,

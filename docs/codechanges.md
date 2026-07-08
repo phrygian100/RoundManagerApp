@@ -1,5 +1,18 @@
 # Code Changes Log
 
+## July 8, 2026 (4)
+
+### Location picker: "Re-guess" button for refined addresses
+
+**Why**: Most of the 95 un-geocoded accounts failed because the stored address is shorthand (e.g. just "St Andrews"). The natural cleanup flow is: fix the address in Edit Customer → re-run the guess — previously impossible without closing the modal and saving first.
+
+**Changes**:
+- `components/LocationPickerModal.tsx` — new optional `onReguess?: () => Promise<PickedLocation | null>` prop. When provided, a "Re-guess" button renders between Cancel and Confirm. It calls the host's geocode, and on a hit moves the pin + recentres the live map via a new injected `__setPin(lat, lng)` (iframe `contentWindow` call on web, `injectJavaScript` on native — no HTML rebuild, viewport preserved). Shows "Guessing…" while in flight; on no match/failure shows guidance in the footer text instead of the coordinates. State resets on each modal open.
+- `app/(tabs)/clients/[id]/edit-customer.tsx` — passes `onReguess` wired to `geocodeBestGuess(address1, town, postcode)` using the **current form state**, so an address edited in the fields behind the modal is what gets guessed.
+- `app/add-client.tsx` — same prop for consistency (refine a typo'd address without reopening the picker).
+
+**Non-regression notes**: prop is optional — the round-order-manager map's picker (no address fields to refine) doesn't pass it and is unchanged. Existing confirm/cancel behaviour untouched.
+
 ## July 8, 2026 (3)
 
 ### Fix: Round Order Manager map collapsing to a tiny strip (desktop + mobile)
