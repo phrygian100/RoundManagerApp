@@ -1,5 +1,18 @@
 # Code Changes Log
 
+## July 8, 2026 (5)
+
+### Round Order Manager map: expandable list of accounts still needing a location
+
+**Why**: The map banner said "94 need a location" but gave no way to find *which* accounts those are.
+
+**Changes** (`app/round-order-manager.tsx`):
+- The map-mode banner is now pressable when there are unpinned clients; a ▸/▾ chevron indicates the expand state.
+- Expanding reveals a bordered panel (scrollable, max 260px) listing every active client without coordinates, sorted alphabetically by address, each row showing address + name.
+- Tapping a row opens the client's account page — **new tab on web** (`window.open('/clients/<id>', '_blank')`, so the map/list stays put during a cleanup session) and normal `router.push` navigation on native, where new tabs don't exist. Hint line above the list explains the flow (open account → Edit Details → Location Pin).
+
+**Notes**: the already-open Round Order Manager doesn't live-refresh pins set in another tab — its client list loads on mount — so the count updates on next visit/refresh. Purely additive; list mode and the reordering logic untouched.
+
 ## July 8, 2026 (4)
 
 ### Location picker: "Re-guess" button for refined addresses

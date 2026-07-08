@@ -7,6 +7,7 @@ import {
   FlatList,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   TextInput,
   useWindowDimensions,
@@ -181,6 +182,8 @@ function RoundOrderManagerContent() {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   // Client whose pin is being edited from the map (via popup "Edit location")
   const [editingPinClient, setEditingPinClient] = useState<Client | null>(null);
+  // Expanded state of the "N need a location" banner (reveals the list of unpinned accounts)
+  const [unpinnedExpanded, setUnpinnedExpanded] = useState(false);
   // Clients the user explicitly repositioned this session (dragged or moved via input)
   const [userMovedIds, setUserMovedIds] = useState<Set<string>>(new Set());
   // Web drag state: dragIndex = row being dragged, dropIndex = insertion gap (0..N)
@@ -281,6 +284,23 @@ function RoundOrderManagerContent() {
     () => clients.filter(c => typeof c.latitude === 'number' && typeof c.longitude === 'number').length,
     [clients]
   );
+
+  const unpinnedClients = useMemo(
+    () => clients
+      .filter(c => !(typeof c.latitude === 'number' && typeof c.longitude === 'number'))
+      .sort((a, b) => clientAddress(a).localeCompare(clientAddress(b))),
+    [clients]
+  );
+
+  // Open the client's account page: new tab on desktop web so the map stays put;
+  // normal navigation on native where tabs don't exist.
+  const openClientAccount = useCallback((clientId: string) => {
+    if (Platform.OS === 'web') {
+      window.open(`/clients/${clientId}`, '_blank');
+    } else {
+      router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientId } } as never);
+    }
+  }, [router]);
 
   // The map must have an explicit pixel height: percentage/flex heights don't resolve
   // reliably into an embedded iframe/WebView (iframes collapse to their 150px default).
@@ -655,14 +675,50 @@ function RoundOrderManagerContent() {
 
       {viewMode === 'map' && (
         <>
-          <View style={styles.mapBanner}>
+          <Pressable
+            style={styles.mapBanner}
+            disabled={unpinnedClients.length === 0}
+            onPress={() => setUnpinnedExpanded(prev => !prev)}
+          >
             <ThemedText style={styles.mapBannerText}>
               {pinnedCount} of {totalCount} pinned
-              {totalCount - pinnedCount > 0
-                ? `  ·  ${totalCount - pinnedCount} need a location (set via Edit Customer)`
+              {unpinnedClients.length > 0
+                ? `  ·  ${unpinnedClients.length} need a location ${unpinnedExpanded ? '▾' : '▸'}`
                 : ''}
             </ThemedText>
-          </View>
+          </Pressable>
+
+          {unpinnedExpanded && unpinnedClients.length > 0 && (
+            <View style={styles.unpinnedPanel}>
+              <ThemedText style={styles.unpinnedHint}>
+                {Platform.OS === 'web'
+                  ? 'Tap an account to open it in a new tab, then set the pin via Edit Details.'
+                  : 'Tap an account to open it, then set the pin via Edit Details.'}
+              </ThemedText>
+              <ScrollView style={styles.unpinnedList} nestedScrollEnabled>
+                {unpinnedClients.map(c => (
+                  <Pressable
+                    key={c.id}
+                    style={styles.unpinnedRow}
+                    onPress={() => openClientAccount(c.id)}
+                  >
+                    <View style={styles.rowBody}>
+                      <ThemedText style={styles.addressText} numberOfLines={1}>
+                        {clientAddress(c)}
+                      </ThemedText>
+                      {!!c.name && (
+                        <ThemedText style={styles.nameText} numberOfLines={1}>{c.name}</ThemedText>
+                      )}
+                    </View>
+                    <ThemedText style={styles.unpinnedOpenHint}>
+                      {Platform.OS === 'web' ? '↗' : '›'}
+                    </ThemedText>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           <View style={[styles.mapContainer, { height: mapHeight }]}>
             <ClientMapView clients={clients} onEditLocation={handleEditPin} />
           </View>
@@ -890,6 +946,39 @@ const styles = StyleSheet.create({
   mapBannerText: {
     fontSize: 13,
     color: '#2c5aa0',
+  },
+  unpinnedPanel: {
+    borderWidth: 1,
+    borderColor: '#c5d4ee',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  unpinnedHint: {
+    fontSize: 12,
+    color: '#666',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f7f9fc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5ecf6',
+  },
+  unpinnedList: {
+    maxHeight: 260,
+  },
+  unpinnedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  unpinnedOpenHint: {
+    fontSize: 15,
+    color: '#007AFF',
+    paddingLeft: 8,
   },
   searchInput: {
     height: 44,
