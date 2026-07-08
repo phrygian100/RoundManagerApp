@@ -1,5 +1,19 @@
 # Code Changes Log
 
+## July 8, 2026 (3)
+
+### Fix: Round Order Manager map collapsing to a tiny strip (desktop + mobile)
+
+**Symptom**: In map mode the map rendered as a small strip (~150px on desktop/portrait, a sliver on landscape phones) with dead space below — screenshots from desktop and mobile confirmed.
+
+**Cause**: the map's height came from a `flex: 1` chain ending in an embedded `iframe`/WebView. Percentage/flex heights don't resolve reliably into an iframe, which then falls back to the HTML default of 150px.
+
+**Fix**:
+- `app/round-order-manager.tsx` — map container now gets an **explicit pixel height**: `max(320, windowHeight − 210)` (via the already-used `useWindowDimensions`). The web window-height pinning (`height/maxHeight/overflow`) now applies in **list mode only** — the list needs it for internal scrolling/drag, while map mode on small landscape screens is better letting the page scroll. Footer (Save/Discard) is hidden in map mode: pin edits save immediately so there's nothing to save, and the map gets the reclaimed space.
+- `components/ClientMapView.tsx` — web container uses `height: '100%'` (of the now-explicit parent) and the iframe gets `display: block` + 100% height so it always fills.
+
+**Non-regression notes**: list mode is untouched (pinning condition simply includes `viewMode === 'list'`, which is the initial state; footer renders exactly as before in list mode). Native WebView path unchanged apart from inheriting the explicit-height parent.
+
 ## July 8, 2026 (2)
 
 ### Round Order Manager: map view for verifying/correcting client pins (phase 2)

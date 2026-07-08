@@ -282,6 +282,11 @@ function RoundOrderManagerContent() {
     [clients]
   );
 
+  // The map must have an explicit pixel height: percentage/flex heights don't resolve
+  // reliably into an embedded iframe/WebView (iframes collapse to their 150px default).
+  // ~210px covers header + toggle + banner + paddings; floor keeps landscape phones usable.
+  const mapHeight = Math.max(320, windowHeight - 210);
+
   const handleEditPin = useCallback((clientId: string) => {
     const client = clientsRef.current.find(c => c.id === clientId);
     if (client) setEditingPinClient(client);
@@ -595,7 +600,10 @@ function RoundOrderManagerContent() {
       // On web the page itself scrolls unless the screen is height-constrained;
       // pin to the window height so the list scrolls internally (required for drag auto-scroll).
       // maxHeight + overflow guard against flexbox min-height:auto flooring the container.
-      Platform.OS === 'web' && ({ height: windowHeight, maxHeight: windowHeight, overflow: 'hidden' } as any),
+      // Map mode is NOT pinned: the map has an explicit height and small screens
+      // (landscape phones) are better served by letting the page scroll.
+      Platform.OS === 'web' && viewMode === 'list' &&
+        ({ height: windowHeight, maxHeight: windowHeight, overflow: 'hidden' } as any),
     ]}>
       {/* Header */}
       <View style={styles.headerRow}>
@@ -655,7 +663,7 @@ function RoundOrderManagerContent() {
                 : ''}
             </ThemedText>
           </View>
-          <View style={styles.listContainer}>
+          <View style={[styles.mapContainer, { height: mapHeight }]}>
             <ClientMapView clients={clients} onEditLocation={handleEditPin} />
           </View>
         </>
@@ -742,7 +750,9 @@ function RoundOrderManagerContent() {
         onCancel={() => setEditingPinClient(null)}
       />
 
-      {/* Sticky footer */}
+      {/* Sticky footer — list mode only. Pin edits save immediately, so map mode has
+          nothing to Save/Discard, and hiding the footer gives the map the space instead. */}
+      {viewMode === 'list' && (
       <View style={styles.footer}>
         <Pressable
           style={[styles.discardButton, saving && styles.buttonDisabled]}
@@ -769,6 +779,7 @@ function RoundOrderManagerContent() {
           </ThemedText>
         </Pressable>
       </View>
+      )}
     </ThemedView>
   );
 }
@@ -860,6 +871,12 @@ const styles = StyleSheet.create({
   },
   viewToggleTextActive: {
     color: '#fff',
+  },
+  mapContainer: {
+    borderRadius: 10,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#eee',
   },
   mapBanner: {
     backgroundColor: '#eef3fb',

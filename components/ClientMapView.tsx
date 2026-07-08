@@ -244,7 +244,9 @@ export default function ClientMapView({ clients, onEditLocation }: Props) {
         React.createElement('iframe', {
           ref: iframeRef,
           srcDoc: initialHtmlRef.current,
-          style: { border: 'none', width: '100%', height: '100%' },
+          // display:block + explicit 100% height: iframes default to 150px tall when
+          // percentage heights fail to resolve, which wrecks the layout.
+          style: { border: 'none', width: '100%', height: '100%', display: 'block' },
           title: 'Client map',
         })
       ) : (
@@ -266,6 +268,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#eaeaea',
+    // Web: fill the parent's explicit height directly rather than relying on flex
+    // resolution through the RN-web wrapper (the iframe needs a definite ancestor height).
+    ...(Platform.OS === 'web' ? ({ height: '100%' } as any) : {}),
   },
   webview: {
     flex: 1,
