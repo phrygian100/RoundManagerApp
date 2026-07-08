@@ -13,6 +13,7 @@ import { addVehicle, deleteVehicle, listVehicles, VehicleRecord } from '../../se
 const PERM_KEYS = [
   { key: 'viewClients', label: 'Clients' },
   { key: 'viewRunsheet', label: 'Runsheets' },
+  { key: 'viewRoundOrder', label: 'Round Order' },
   { key: 'viewPayments', label: 'Accounts' },
   { key: 'viewMaterials', label: 'Materials' },
   { key: 'viewNewBusiness', label: 'New Business' },

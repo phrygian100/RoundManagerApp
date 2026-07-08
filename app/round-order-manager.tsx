@@ -842,7 +842,7 @@ function RoundOrderManagerContent() {
 
 export default function RoundOrderManagerScreen() {
   return (
-    <PermissionGate perm="viewClients" fallback={
+    <PermissionGate perm="viewRoundOrder" fallback={
       <ThemedView style={[styles.container, styles.center]}>
         <ThemedText>You do not have permission to manage the round order.</ThemedText>
       </ThemedView>

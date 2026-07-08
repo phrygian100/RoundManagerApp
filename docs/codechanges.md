@@ -1,5 +1,23 @@
 # Code Changes Log
 
+## July 8, 2026 (6)
+
+### Team permissions: dedicated "Round Order" toggle for the Round Order Manager
+
+**Why**: The /team screen had toggles for Clients, Runsheets, Accounts, Materials and New Business, but the Round Order Manager silently piggybacked on the **Clients** permission — owners had no way to grant/deny it independently.
+
+**Changes**:
+- `app/(tabs)/team.tsx` — added `viewRoundOrder` ("Round Order") to `PERM_KEYS`, so it renders as a toggle badge per member like the existing perms. No other logic needed — `handleToggle`/`updateMemberPerms` already write arbitrary keys to the member's `perms` map.
+- `app/round-order-manager.tsx` — screen's `PermissionGate` now checks `viewRoundOrder` instead of `viewClients`.
+- `app/(tabs)/index.tsx` — both home-screen button lists now gate the "Round Order Manager" button on `viewRoundOrder`.
+
+**Behaviour notes**:
+- Owners are unaffected (`PermissionGate` always allows owners).
+- **Existing members lose access until the owner switches the new toggle on** — no member doc has `viewRoundOrder` yet, and a missing key reads as false (same convention as Materials/New Business). This is the intended "explicitly toggleable" behaviour.
+- New invites default to it being off (the cloud function's invite defaults were not changed — that's a separate Firebase deploy; the missing-key-is-false convention covers it).
+- The single toggle gates the whole screen, which is inherently view+edit (reorder + save live in the same screen).
+- `/round-order-position` (the position picker used by Add Client / client details) is intentionally untouched — it belongs to the client-editing flow under `viewClients`.
+
 ## July 8, 2026 (5)
 
 ### Round Order Manager map: expandable list of accounts still needing a location
