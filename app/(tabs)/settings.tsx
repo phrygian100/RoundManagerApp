@@ -15,6 +15,7 @@ import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
+import { bulkGeocodeClients } from '../../services/geocodingService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteDuplicateJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanDuplicateJobs, scanOrphanJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
@@ -24,6 +25,7 @@ import {
   PREMIUM_PRICE_PER_MONTH_LABEL,
 } from '../../shared/constants/pricing';
 import { clearAccountBusinessTypeCache, getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
+import { DEVELOPER_UID } from '../../shared/constants/developer';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -92,6 +94,8 @@ export default function SettingsScreen() {
   const [loading, setLoading] = useState(false);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
+  const [sessionUid, setSessionUid] = useState<string | null>(null);
+  const [geocodeProgress, setGeocodeProgress] = useState<string | null>(null);
 
   // Subscription state
   const [subscription, setSubscription] = useState<EffectiveSubscription | null>(null);
@@ -310,6 +314,54 @@ export default function SettingsScreen() {
       const msg = e instanceof Error ? e.message : String(e);
       showAlert('Migration failed', msg);
     } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleGeocodeAllClients = useCallback(async () => {
+    const confirmed = await showConfirm(
+      'Geocode All Clients',
+      'This will drop a best-guess map pin on every active client that doesn\'t have one yet (postcode lookup first, then address search).\n\nExisting pins — including manually placed ones — are never changed.\n\nClients without a postcode are looked up one per second, so this can take a few minutes. Keep this screen open until it finishes.\n\nProceed?'
+    );
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      setGeocodeProgress('Starting...');
+      const res = await bulkGeocodeClients((p) => {
+        if (p.phase === 'postcodes') {
+          setGeocodeProgress(`Looking up postcodes... (${p.pinned} pinned)`);
+        } else if (p.phase === 'addresses') {
+          setGeocodeProgress(`Searching addresses: ${p.processed}/${p.total} (${p.pinned} pinned)`);
+        } else {
+          setGeocodeProgress('Saving results...');
+        }
+      });
+
+      const unresolvedPreview = res.unresolvedClients
+        .slice(0, 15)
+        .map(c => `• ${c.name} — ${c.address}`)
+        .join('\n');
+      const moreCount = res.unresolvedClients.length - 15;
+
+      showAlert(
+        'Geocoding Complete',
+        `Active clients: ${res.totalClients}\n` +
+        `Already pinned (untouched): ${res.alreadyPinned}\n` +
+        `Pinned via postcode: ${res.pinnedByPostcode}\n` +
+        `Pinned via address search: ${res.pinnedByAddress}\n` +
+        `Still need a manual pin: ${res.unresolved}` +
+        (res.unresolved > 0
+          ? `\n\nNeeds manual placement (use Edit Customer → Location Pin):\n${unresolvedPreview}` +
+            (moreCount > 0 ? `\n...and ${moreCount} more` : '')
+          : '')
+      );
+    } catch (e) {
+      console.error('Bulk geocode failed:', e);
+      const msg = e instanceof Error ? e.message : String(e);
+      showAlert('Geocoding failed', msg);
+    } finally {
+      setGeocodeProgress(null);
       setLoading(false);
     }
   }, []);
@@ -579,6 +631,7 @@ export default function SettingsScreen() {
       const sess = await getUserSession();
       if (sess) {
         setIsOwner(sess.isOwner);
+        setSessionUid(sess.uid);
         // Check if user is a member of another account (their accountId is different from their uid)
         setIsMemberOfAnotherAccount(sess.accountId !== sess.uid);
       } else {
@@ -3004,6 +3057,19 @@ export default function SettingsScreen() {
               onPress={handleMigrateLegacyPlans}
               disabled={loading}
             />
+
+            {sessionUid === DEVELOPER_UID && (
+              <>
+                <StyledButton
+                  title={geocodeProgress ? `Geocoding... (${geocodeProgress})` : 'Geocode All Clients (drop map pins)'}
+                  onPress={handleGeocodeAllClients}
+                  disabled={loading}
+                />
+                {geocodeProgress && (
+                  <ThemedText style={styles.sectionDescription}>{geocodeProgress}</ThemedText>
+                )}
+              </>
+            )}
 
             <StyledButton
               title="Browse Users"

@@ -12,6 +12,7 @@ if (Platform.OS === 'web') {
   DatePicker = require('react-datepicker').default;
   require('react-datepicker/dist/react-datepicker.css');
 }
+import LocationPickerModal, { PickedLocation } from '../components/LocationPickerModal';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
@@ -19,6 +20,7 @@ import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
 import { getNextAccountNumber } from '../services/clientService';
+import { geocodeBestGuess } from '../services/geocodingService';
 import { createJobsForClient } from '../services/jobService';
 import { checkClientLimit } from '../services/subscriptionService';
 import { PREMIUM_PRICE_ONLY_LABEL } from '../shared/constants/pricing';
@@ -63,6 +65,11 @@ export default function AddClientScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [webDate, setWebDate] = useState<Date>(new Date());
   const [startingBalance, setStartingBalance] = useState('0');
+  // Geolocation pin (manual placement via map; best-guessed silently on save otherwise)
+  const [clientLocation, setClientLocation] = useState<PickedLocation | null>(null);
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+  const [predictedLocation, setPredictedLocation] = useState<PickedLocation | null>(null);
+  const [predictingLocation, setPredictingLocation] = useState(false);
   const lastAppliedParamsSignatureRef = useRef<string>('');
   const { quoteData, clearQuoteData } = useQuoteToClient();
 
@@ -380,9 +387,33 @@ export default function AddClientScreen() {
         startingBalance: startingBalanceValue,
         ownerId,
         accountId: ownerId, // Explicitly set accountId for Firestore rules (getDataOwnerId returns accountId)
+        ...(clientLocation
+          ? {
+              latitude: clientLocation.latitude,
+              longitude: clientLocation.longitude,
+              geoSource: 'manual',
+              geoUpdatedAt: new Date().toISOString(),
+            }
+          : {}),
       });
 
       console.log('Client created with ID:', clientRef.id);
+
+      // No manual pin placed: best-guess one in the background so new accounts still get
+      // a location. Fire-and-forget — must never block or fail the save.
+      if (!clientLocation) {
+        geocodeBestGuess(address1, town, postcode)
+          .then(hit => {
+            if (!hit) return;
+            return updateDoc(doc(db, 'clients', clientRef.id), {
+              latitude: hit.latitude,
+              longitude: hit.longitude,
+              geoSource: hit.source,
+              geoUpdatedAt: new Date().toISOString(),
+            });
+          })
+          .catch(e => console.warn('Background geocode for new client failed:', e));
+      }
 
       // Log the client creation action
       const clientAddress = `${address1}, ${town}, ${postcode}`;
@@ -434,6 +465,27 @@ export default function AddClientScreen() {
       console.error('Error saving client:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleOpenLocationPicker = async () => {
+    if (predictingLocation) return;
+    // Reuse an already-set pin; otherwise predict one from whatever address is entered.
+    if (clientLocation) {
+      setPredictedLocation(clientLocation);
+      setLocationPickerVisible(true);
+      return;
+    }
+    setPredictingLocation(true);
+    try {
+      const hit = await geocodeBestGuess(address1, town, postcode);
+      setPredictedLocation(hit ? { latitude: hit.latitude, longitude: hit.longitude } : null);
+    } catch (e) {
+      console.warn('Location prediction failed:', e);
+      setPredictedLocation(null);
+    } finally {
+      setPredictingLocation(false);
+      setLocationPickerVisible(true);
     }
   };
 
@@ -493,6 +545,21 @@ export default function AddClientScreen() {
           style={styles.input}
           placeholder="AB12 3CD"
         />
+
+        <ThemedText style={styles.label}>Location</ThemedText>
+        <Pressable
+          style={[styles.locationButton, clientLocation && styles.locationButtonSet]}
+          onPress={handleOpenLocationPicker}
+          disabled={predictingLocation}
+        >
+          <ThemedText style={[styles.locationButtonText, clientLocation && styles.locationButtonTextSet]}>
+            {predictingLocation
+              ? 'Finding location...'
+              : clientLocation
+                ? '📍 Location pinned ✓ (tap to adjust)'
+                : '📍 Set location on map'}
+          </ThemedText>
+        </Pressable>
 
         <ThemedText style={styles.label}>Name</ThemedText>
         <TextInput
@@ -645,6 +712,18 @@ export default function AddClientScreen() {
         </Pressable>
       </ScrollView>
 
+      <LocationPickerModal
+        visible={locationPickerVisible}
+        initialLatitude={predictedLocation?.latitude ?? null}
+        initialLongitude={predictedLocation?.longitude ?? null}
+        addressLabel={[address1, town, postcode].filter(Boolean).join(', ')}
+        onConfirm={(loc) => {
+          setClientLocation(loc);
+          setLocationPickerVisible(false);
+        }}
+        onCancel={() => setLocationPickerVisible(false)}
+      />
+
       {/* Web Date Picker Overlay - outside ScrollView for proper positioning */}
       {showDatePicker && Platform.OS === 'web' && DatePicker && (
         <View style={styles.webDatePickerOverlay}>
@@ -717,6 +796,27 @@ const styles = StyleSheet.create({
   roundOrderButtonText: {
     color: '#007AFF',
     fontWeight: 'bold',
+  },
+  locationButton: {
+    height: 50,
+    borderColor: '#007AFF',
+    borderWidth: 2,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  locationButtonSet: {
+    borderColor: '#34C759',
+    backgroundColor: '#f2fff5',
+  },
+  locationButtonText: {
+    color: '#007AFF',
+    fontWeight: 'bold',
+  },
+  locationButtonTextSet: {
+    color: '#2c9e4b',
   },
   titleRow: {
     flexDirection: 'row',

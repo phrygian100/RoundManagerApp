@@ -27,6 +27,13 @@ export type Client = {
   // GoCardless integration
   gocardlessEnabled?: boolean; // defaults to false
   gocardlessCustomerId?: string; // required when enabled
+  // Geolocation (map pin)
+  latitude?: number;
+  longitude?: number;
+  // How the pin was established. 'manual' pins are set by a person and must never be
+  // overwritten by automated geocoding. 'postcode'/'address' are automated best guesses.
+  geoSource?: 'postcode' | 'address' | 'manual';
+  geoUpdatedAt?: string; // ISO date string
   // Notes
   runsheetNotes?: string; // Notes that appear when clicking ! icon in runsheet
   accountNotes?: AccountNote[]; // Running list of notes with timestamp and author

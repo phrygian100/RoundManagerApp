@@ -4,10 +4,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import LocationPickerModal, { PickedLocation } from '../../../../components/LocationPickerModal';
 import { ThemedText } from '../../../../components/ThemedText';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
 import { formatAuditDescription, logAction } from '../../../../services/auditService';
+import { geocodeBestGuess } from '../../../../services/geocodingService';
 import { createJobsForClient } from '../../../../services/jobService';
 
 export default function EditCustomerScreen() {
@@ -24,6 +26,14 @@ export default function EditCustomerScreen() {
   const [roundOrderNumber, setRoundOrderNumber] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [email, setEmail] = useState('');
+
+  // Geolocation pin
+  const [clientLocation, setClientLocation] = useState<PickedLocation | null>(null);
+  const [geoSource, setGeoSource] = useState<string | null>(null);
+  const [locationTouched, setLocationTouched] = useState(false);
+  const [locationPickerVisible, setLocationPickerVisible] = useState(false);
+  const [predictedLocation, setPredictedLocation] = useState<PickedLocation | null>(null);
+  const [predictingLocation, setPredictingLocation] = useState(false);
 
   // Legacy routine state (hidden in UI, kept for backward compatibility if needed)
   const [frequency, setFrequency] = useState('');
@@ -86,6 +96,10 @@ export default function EditCustomerScreen() {
           setRoundOrderNumber(data.roundOrderNumber ? String(data.roundOrderNumber) : '');
           setMobileNumber(data.mobileNumber || '');
           setEmail(data.email || '');
+          if (typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+            setClientLocation({ latitude: data.latitude, longitude: data.longitude });
+            setGeoSource(data.geoSource || null);
+          }
           
           // Legacy service routine (not shown in UI)
           const freq = data.frequency?.toString() || '';
@@ -124,6 +138,26 @@ export default function EditCustomerScreen() {
     } catch (error) {
       console.error('Error regenerating jobs:', error);
       throw error;
+    }
+  };
+
+  const handleOpenLocationPicker = async () => {
+    if (predictingLocation) return;
+    if (clientLocation) {
+      setPredictedLocation(clientLocation);
+      setLocationPickerVisible(true);
+      return;
+    }
+    setPredictingLocation(true);
+    try {
+      const hit = await geocodeBestGuess(address1, town, postcode);
+      setPredictedLocation(hit ? { latitude: hit.latitude, longitude: hit.longitude } : null);
+    } catch (e) {
+      console.warn('Location prediction failed:', e);
+      setPredictedLocation(null);
+    } finally {
+      setPredictingLocation(false);
+      setLocationPickerVisible(true);
     }
   };
 
@@ -167,6 +201,15 @@ export default function EditCustomerScreen() {
           mobileNumber,
           email,
         };
+
+        // Only write location fields when the pin was actually (re)placed in this session,
+        // so an untouched automated pin keeps its original geoSource.
+        if (locationTouched && clientLocation) {
+          updateData.latitude = clientLocation.latitude;
+          updateData.longitude = clientLocation.longitude;
+          updateData.geoSource = 'manual';
+          updateData.geoUpdatedAt = new Date().toISOString();
+        }
 
         // Do not update legacy routine unless both are present
         if (frequency.trim() && nextVisit.trim()) {
@@ -328,6 +371,29 @@ export default function EditCustomerScreen() {
                   </View>
                 </View>
 
+                <View style={styles.inputGroup}>
+                  <ThemedText style={styles.inputLabel}>Location Pin</ThemedText>
+                  <Pressable
+                    style={styles.roundOrderButton}
+                    onPress={handleOpenLocationPicker}
+                    disabled={predictingLocation}
+                  >
+                    <Ionicons
+                      name={clientLocation ? 'location' : 'location-outline'}
+                      size={20}
+                      color={clientLocation ? '#34C759' : '#007AFF'}
+                    />
+                    <ThemedText style={styles.roundOrderButtonText}>
+                      {predictingLocation
+                        ? 'Finding location...'
+                        : clientLocation
+                          ? `Pinned${geoSource === 'manual' ? ' (confirmed)' : geoSource ? ' (auto guess)' : ''} — tap to adjust`
+                          : 'Set location on map'}
+                    </ThemedText>
+                    <Ionicons name="chevron-forward" size={20} color="#007AFF" />
+                  </Pressable>
+                </View>
+
                 {address && (
                   <View style={styles.inputGroup}>
                     <ThemedText style={styles.inputLabel}>Legacy Address</ThemedText>
@@ -430,6 +496,19 @@ export default function EditCustomerScreen() {
           </View>
         </View>
       </View>
+
+      <LocationPickerModal
+        visible={locationPickerVisible}
+        initialLatitude={predictedLocation?.latitude ?? null}
+        initialLongitude={predictedLocation?.longitude ?? null}
+        addressLabel={displayAddress}
+        onConfirm={(loc) => {
+          setClientLocation(loc);
+          setLocationTouched(true);
+          setLocationPickerVisible(false);
+        }}
+        onCancel={() => setLocationPickerVisible(false)}
+      />
     </Modal>
   );
 }

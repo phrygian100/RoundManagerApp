@@ -1,5 +1,34 @@
 # Code Changes Log
 
+## July 8, 2026
+
+### Client geolocation: map pins on every account (phase 1 of round-order repair)
+
+**Why**: The round order data (~500 clients) is corrupt and rural addresses ("The Poplar Farm, North Dyke") are too opaque to reorder from text alone. Phase 1 establishes a latitude/longitude pin per client — automated best-guess first, human correction after — so the round order can later be rebuilt geographically.
+
+**Schema** (`types/client.ts`): added optional `latitude`, `longitude`, `geoSource` (`'postcode' | 'address' | 'manual'`), `geoUpdatedAt` to `Client`. `manual` pins are human-placed and are never overwritten by automated geocoding.
+
+**New service** (`services/geocodingService.ts`):
+- `geocodePostcode` / `geocodePostcodesBulk` — postcodes.io (free, no key; bulk endpoint 100/request).
+- `geocodeAddress` — Nominatim (OpenStreetMap) free-form search restricted to GB; handles "street number, street, town" when postcode is missing. Rural property names often won't resolve — by design they stay unpinned for manual placement.
+- `geocodeBestGuess` — postcode first, then address.
+- `bulkGeocodeClients(onProgress)` — pins every *active* client without coordinates (skips ex-clients and anyone already pinned, so manual pins and prior runs are preserved). Postcode batch first, then per-address lookups throttled to ~1/sec (Nominatim policy), then Firestore `writeBatch` in chunks of 400. Returns totals + a list of unresolved clients needing manual pins.
+
+**New component** (`components/LocationPickerModal.tsx`): cross-platform draggable-pin map (Leaflet 1.9.4 + OpenStreetMap tiles, CDN). One HTML implementation hosted in an `iframe` (`srcDoc`) on web and `react-native-webview` on native — no new npm dependencies, no API keys. Opens at the predicted pin (zoom 16) or over the UK (zoom 6) when there's no guess; tap places / drag adjusts; pin coordinates stream to the host via `postMessage` (tagged messages, filtered by the host). Confirm/Cancel footer is native RN.
+
+**Add Client** (`app/add-client.tsx`): new "Location" button under the postcode field. Tapping geocodes whatever address is typed so far and opens the picker at the predicted spot; a confirmed pin saves with `geoSource: 'manual'`. If the user never opens the map, a best-guess geocode runs fire-and-forget *after* the client is created (never blocks or fails the save) with `geoSource: 'postcode' | 'address'`.
+
+**Edit Customer** (`app/(tabs)/clients/[id]/edit-customer.tsx`): "Location Pin" row in Basic Information showing pin status ("confirmed" vs "auto guess"). Same picker; location fields are only written when the pin was actually (re)placed this session, so an untouched automated pin keeps its original `geoSource`.
+
+**Settings → Developer** (`app/(tabs)/settings.tsx`): "Geocode All Clients (drop map pins)" button, additionally gated to `session.uid === DEVELOPER_UID` (over and above the section's exempt-tier gate). Confirm dialog → progress text (postcode phase / address phase / saving) → summary alert including up to 15 unresolved clients that need manual pins via Edit Customer.
+
+**Verified**: Leaflet map HTML smoke-tested in browser (renders, pin drops on tap, `postMessage` payloads match what the component parses); postcodes.io and Nominatim live-tested (SW1A 1AA → 51.501, -0.142; "Angel Lane, Penrith" resolves; a made-up house number correctly returns no result). `tsc --noEmit` shows no errors in any touched file (all reported errors are pre-existing in unrelated files).
+
+**Non-regression notes**:
+- All schema fields optional; no existing reads/writes of `clients` docs are affected.
+- No new npm dependencies; native builds unaffected (`react-native-webview` was already shipped).
+- Round-order tooling untouched — reordering by geography is a later phase once pin coverage is good.
+
 ## July 7, 2026
 
 ### Fix: severe runsheet (and general) load slowdown from repeated forced token refreshes
