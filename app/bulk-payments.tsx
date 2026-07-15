@@ -53,12 +53,52 @@ const createEmptyRow = (): PaymentRow => ({
 
 const INITIAL_ROWS = Platform.OS === 'web' ? 15 : 5;
 
-// Check if type value is valid
-const isValidType = (value: string): boolean => {
-  if (!value) return false;
-  const validValues = ['cash', 'card', 'bank_transfer', 'cheque', 'direct_debit', 'other'];
-  return validValues.includes(value.toLowerCase().trim());
+// Convert a pasted/typed value into canonical type if possible; otherwise null
+const canonicalizeType = (value: string): string | null => {
+  if (!value) return null;
+  // Normalise: lowercase, strip quotes, treat _ - . / as spaces, collapse whitespace
+  const lower = value
+    .toLowerCase()
+    .replace(/["'`]/g, '')
+    .replace(/[_\-./\\]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!lower) return null;
+
+  if (lower === 'cash') return 'cash';
+  if (lower === 'card' || lower === 'debit card' || lower === 'credit card' || lower === 'card payment') return 'card';
+  if (
+    lower === 'bank transfer' ||
+    lower === 'banktransfer' ||
+    lower === 'bank' ||
+    lower === 'bacs' ||
+    lower === 'transfer' ||
+    lower === 'tfr' ||
+    lower === 'fpi' ||
+    lower === 'fp' ||
+    lower === 'faster payment' ||
+    lower === 'faster payments' ||
+    lower === 'bgc' ||
+    lower === 'bank giro credit' ||
+    lower === 'giro' ||
+    lower === 'bank credit' ||
+    lower === 'online banking'
+  ) return 'bank_transfer';
+  if (lower === 'cheque' || lower === 'check' || lower === 'chq') return 'cheque';
+  if (lower === 'dd' || lower === 'ddr' || lower === 'direct debit') return 'direct_debit';
+  if (lower === 'other') return 'other';
+
+  // Forgiving fallbacks for noisy bank-export descriptions
+  if (lower.includes('faster payment')) return 'bank_transfer';
+  if (lower.includes('bank transfer') || lower.includes('transfer')) return 'bank_transfer';
+  if (lower.includes('direct debit')) return 'direct_debit';
+  if (lower.includes('cheque')) return 'cheque';
+
+  return null;
 };
+
+// Check if type value is valid (anything we can canonicalize counts as valid)
+const isValidType = (value: string): boolean => canonicalizeType(value) !== null;
 
 // Parse DD/MM/YYYY to YYYY-MM-DD (Payment expects ISO string)
 const parseDateToISO = (dateStr: string): string | null => {
@@ -74,19 +114,6 @@ const parseAmount = (value: string): number | null => {
   const num = parseFloat(sanitized);
   if (isNaN(num) || !isFinite(num) || num <= 0) return null;
   return num;
-};
-
-// Convert a pasted/typed value into canonical type if possible; otherwise null
-const canonicalizeType = (value: string): string | null => {
-  const lower = value.toLowerCase().trim();
-  if (lower === 'cash') return 'cash';
-  if (lower === 'card') return 'card';
-  if (lower === 'bank_transfer') return 'bank_transfer';
-  if (lower === 'bacs' || lower === 'bank' || lower === 'bank transfer') return 'bank_transfer';
-  if (lower === 'cheque' || lower === 'check') return 'cheque';
-  if (lower === 'dd' || lower === 'direct debit' || lower === 'direct_debit') return 'direct_debit';
-  if (lower === 'other') return 'other';
-  return null;
 };
 
 export default function BulkPaymentsScreen() {
@@ -869,7 +896,7 @@ const formatClientAddress = (c: ClientSummary): string => {
                     ) : (
                       // Valid or empty - show normal dropdown
                       <select
-                        value={row.type}
+                        value={row.type ? (canonicalizeType(row.type) ?? row.type) : ''}
                         onChange={(e) => updateCell(rowIndex, 'type', e.target.value)}
                         onFocus={() => setFocusedCell({ rowIndex, field: 'type' })}
                         style={{

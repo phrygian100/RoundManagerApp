@@ -1,5 +1,18 @@
 # Code Changes Log
 
+## July 15, 2026
+
+### Bulk Payments: recognise pasted payment types (stop the "click every Type dropdown" chore)
+
+**Why**: Users paste bank CSV exports into Add Bulk Payments and the account/date/amount columns reconcile, but the Type column was frequently rejected — even when it already said "Bank Transfer" — forcing a manual dropdown selection on every row. The old matcher only accepted a handful of exact strings, so common real-world variants (quoted CSV values like `"Bank Transfer"`, double spaces, hyphens/underscores, and bank codes such as FPI, TFR, BGC) all failed.
+
+**Changes** (`app/bulk-payments.tsx`):
+- Rewrote `canonicalizeType` to normalise input first (lowercase, strip quotes, treat `_ - . / \` as spaces, collapse whitespace) and to recognise common bank-export spellings: Faster Payment / FPI / FP, TFR / Transfer, BGC / Bank Giro Credit / Giro, Bank Credit, Online Banking → `bank_transfer`; CHQ → `cheque`; DDR → `direct_debit`; Debit/Credit Card → `card`. Also added substring fallbacks for noisy descriptions (e.g. anything containing "faster payment" or "transfer").
+- `isValidType` now simply delegates to `canonicalizeType`, so paste-time canonicalisation, row validation, and submit-time validation can never disagree (a previous bug class — see the Dec 2025 `bank_transfer` fix).
+- The web Type dropdown now renders the canonicalised value, so a recognisable raw value can never display as "Select..." while validating as OK.
+
+**Notes**: both helpers are only used in `bulk-payments.tsx`; mobile Picker rows already store canonical values, so no behaviour change on native.
+
 ## July 8, 2026 (6)
 
 ### Team permissions: dedicated "Round Order" toggle for the Round Order Manager
