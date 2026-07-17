@@ -1,5 +1,19 @@
 # Code Changes Log
 
+## July 17, 2026
+
+### Fix: slow app loading from unbounded jobs downloads on the dashboard
+
+**Symptom**: The app was taking ~10s+ to reach the dashboard even on a strong, stable connection. Measured on production: HTML + JS ready in 0.4s, dashboard rendered ~10-11s — nearly all the wait was the post-login data phase.
+
+**Root cause**: The home dashboard's `fetchJobStats` (`app/(tabs)/index.tsx`) queried the `jobs` collection with only `where('ownerId','==',ownerId)` — no date filter — then filtered for "today" in JS. Mature accounts have tens of thousands of job docs (52 weeks generated ahead per client + completed history kept forever; the affected account had ~20,800 cached in the browser's Firestore IndexedDB cache), so every dashboard visit downloaded the entire collection just to render "N/M jobs completed". Worse, the fetch ran **twice** per load: the auth-listener path (`buildButtonsForUser`) and the `useFocusEffect` path each independently ran the same session/weather/job-stats/subscription work. Since the June 11 offline-cache change, all those docs are also written to/reconciled against IndexedDB on every load, so the cost grows with the data — which is why the app got slower "lately" with no code change to blame.
+
+**Changes**:
+- `app/(tabs)/index.tsx` — `fetchJobStats` now uses a server-side string range on `scheduledTime` (`>= today`, `< tomorrow`; ISO-string dates make prefix ranges valid) so only today's jobs are downloaded (~tens of docs instead of ~20k). Uses the existing `(ownerId, scheduledTime)` composite index in `firestore.indexes.json` — no new index needed. Also de-duplicated the mount path: the focus effect now delegates to the same in-flight-guarded `buildButtonsForUser` as the auth listener (previously it inlined an identical copy of the whole build: session, quote-setup gate, buttons, weather, job stats, subscription), so dashboard data is fetched once per mount, not twice. Button/permission behaviour is unchanged — both paths already built identical button lists.
+- `app/workload-forecast.tsx` — `fetchJobs` now bounds its query to the visible 52-week window (`scheduledTime >= start of current week`, `< start + 52 weeks`) instead of fetching every job ever, so the ever-growing completed-job history no longer slows this screen.
+
+**Not covered (known remaining, by design for this pass)**: `accounts.tsx` / `clients.tsx` still fetch all completed jobs + all payments for balance calculations (needs a running-balance/aggregation design, not a quick filter); the single 5.2 MB web JS bundle (1.3 MB compressed, served with `max-age=0`) still costs a couple of seconds of parse/execute on mobile.
+
 ## July 15, 2026
 
 ### Bulk Payments: recognise pasted payment types (stop the "click every Type dropdown" chore)

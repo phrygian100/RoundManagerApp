@@ -44,15 +44,25 @@ export default function WorkloadForecastScreen() {
     setLoading(true);
     try {
       const ownerId = await getUserSession().then(session => session?.accountId);
-      const jobsRef = collection(db, 'jobs');
-      const jobsQuery = query(jobsRef, where('ownerId', '==', ownerId));
-      const jobsSnapshot = await getDocs(jobsQuery);
-      const allJobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));
 
       // Calculate the date range for the next 52 weeks
       const today = new Date();
       const start = startOfWeek(today, { weekStartsOn: 1 });
       const weeksArr: WeekForecast[] = [];
+
+      // Only fetch jobs inside the forecast window (scheduledTime is an ISO string,
+      // so string-range filters work). Fetching the whole collection meant also
+      // downloading the ever-growing completed-job history, slowing this screen
+      // more each week.
+      const jobsRef = collection(db, 'jobs');
+      const jobsQuery = query(
+        jobsRef,
+        where('ownerId', '==', ownerId),
+        where('scheduledTime', '>=', format(start, 'yyyy-MM-dd')),
+        where('scheduledTime', '<', format(addWeeks(start, 52), 'yyyy-MM-dd'))
+      );
+      const jobsSnapshot = await getDocs(jobsQuery);
+      const allJobs = jobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Job));
 
       // Load rota availability for the whole forecast window.
       // Failure degrades gracefully: rows simply show no availability pill.

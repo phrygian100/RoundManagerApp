@@ -1,5 +1,5 @@
 import { useFocusEffect } from '@react-navigation/native';
-import { format, startOfWeek } from 'date-fns';
+import { addDays, format, startOfWeek } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -225,21 +225,24 @@ export default function HomeScreen() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = format(today, 'yyyy-MM-dd');
+      const tomorrowStr = format(addDays(today, 1), 'yyyy-MM-dd');
 
+      // scheduledTime is an ISO string ("yyyy-MM-ddTHH:mm:ss"), so a string range
+      // on the date prefix selects exactly today's jobs server-side. Fetching the
+      // whole jobs collection here (tens of thousands of docs on mature accounts)
+      // was the main cause of slow dashboard loads.
       const jobsQuery = query(
         collection(db, 'jobs'),
-        where('ownerId', '==', ownerId)
+        where('ownerId', '==', ownerId),
+        where('scheduledTime', '>=', todayStr),
+        where('scheduledTime', '<', tomorrowStr)
       );
-      
+
       const querySnapshot = await getDocs(jobsQuery);
-      
+
       const todayJobs = querySnapshot.docs
         .map(doc => doc.data())
-        .filter(job => {
-          if (!job.scheduledTime) return false;
-          const jobDate = job.scheduledTime.split('T')[0];
-          return jobDate === todayStr;
-        });
+        .filter(job => !!job.scheduledTime);
 
       const completedJobs = todayJobs.filter(job => job.status === 'completed');
       
@@ -299,7 +302,22 @@ export default function HomeScreen() {
     }
   };
 
+  // On initial mount both the auth listener and the focus effect fire; without this
+  // guard the dashboard data (session, weather, job stats, subscription) was fetched
+  // twice on every load.
+  const buildInFlightRef = useRef(false);
+
   const buildButtonsForUser = async (firebaseUser: User) => {
+    if (buildInFlightRef.current) return;
+    buildInFlightRef.current = true;
+    try {
+      await doBuildButtonsForUser(firebaseUser);
+    } finally {
+      buildInFlightRef.current = false;
+    }
+  };
+
+  const doBuildButtonsForUser = async (firebaseUser: User) => {
     console.log('🏠 HomeScreen: building buttons');
     setEmail(firebaseUser.email || null);
 
@@ -435,7 +453,9 @@ export default function HomeScreen() {
     };
   }, []);
 
-  // Rebuild buttons whenever screen gains focus (permissions may have changed)
+  // Rebuild buttons whenever screen gains focus (permissions may have changed).
+  // Delegates to the same guarded build as the auth listener, so the dashboard
+  // data isn't fetched twice on initial mount.
   useFocusEffect(
     useCallback(() => {
       setLoading(true);
@@ -446,86 +466,7 @@ export default function HomeScreen() {
           setLoading(false);
           return;
         }
-
-        setEmail(firebaseUser.email || null);
-
-        // Use getUserSession for proper permissions
-        const session = await getUserSession();
-        if (!session) {
-          console.error('No session found for user');
-          setLoading(false);
-          return;
-        }
-
-        const isOwner = session.isOwner;
-        const perms = session.perms;
-        setSessionIsOwner(isOwner);
-
-        // First-login quote setup: new owner accounts (those that picked a
-        // businessType at registration) price their services right after the
-        // first-time setup modal (which must run first - it handles invite
-        // codes for members, who should never see quote setup). Legacy
-        // accounts have no businessType, so they're never routed here.
-        if (isOwner) {
-          try {
-            const gateDoc = await getDoc(doc(db, 'users', session.uid));
-            const gateData = gateDoc.exists() ? gateDoc.data() : null;
-            if (
-              gateData?.businessType &&
-              !gateData?.quoteSetupComplete &&
-              gateData?.firstTimeSetupCompleted
-            ) {
-              router.replace('/quote-setup');
-              return;
-            }
-          } catch (e) {
-            console.warn('Quote setup gate check failed:', e);
-          }
-        }
-
-        const buttonDefs = [
-          { label: 'Client List', path: '/clients', permKey: 'viewClients' },
-          { label: 'Round Order Manager', path: '/round-order-manager', permKey: 'viewRoundOrder' },
-          { label: 'Rota', path: '/rota', permKey: null },
-          { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
-          { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
-          { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
-          { label: 'Materials', path: '/materials', permKey: 'viewMaterials' },
-          { label: 'Quotes', path: '/quotes', permKey: null },
-          { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
-          ...(session.uid === DEVELOPER_UID
-            ? [{ label: 'Guvnor Leads', path: '/guvnor-leads', permKey: 'isOwner' }]
-            : []),
-        ];
-
-        const allowed = buttonDefs.filter(b => {
-          if (!b.permKey) return true;
-          if (b.permKey === 'isOwner') return isOwner;
-          return isOwner || !!perms[b.permKey];
-        });
-        setButtons(
-          allowed.map(b => ({ label: b.label, onPress: () => handleNavigation(b.path as any) }))
-        );
-        
-        // Fetch dashboard data when screen gains focus
-        fetchWeather();
-        fetchJobStats();
-
-        // Load subscription + client count for upgrade banner
-        try {
-          const sub = await getEffectiveSubscription();
-          setSubscription(sub);
-          if (sub.tier === 'free') {
-            const count = await getClientCount();
-            setClientCount(count);
-          } else {
-            setClientCount(null);
-          }
-        } catch (e) {
-          console.warn('Failed to load subscription on home:', e);
-        }
-        
-        setLoading(false);
+        await buildButtonsForUser(firebaseUser);
       })();
     }, [router])
   );
