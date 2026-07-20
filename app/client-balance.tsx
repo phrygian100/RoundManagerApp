@@ -48,6 +48,8 @@ const ClientBalanceScreen = () => {
       );
       const completedJobsSnapshot = await getDocs(completedJobsQuery);
       const completedJobs = completedJobsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Job[];
+      // Sort newest first
+      completedJobs.sort((a, b) => new Date(b.scheduledTime || 0).getTime() - new Date(a.scheduledTime || 0).getTime());
       const completedTotal = completedJobs.reduce((sum, job) => sum + job.price, 0);
       setTotalCompleted(completedTotal);
 
@@ -55,6 +57,8 @@ const ClientBalanceScreen = () => {
       const paymentsQuery = query(collection(db, 'payments'), where('ownerId', '==', ownerId), where('clientId', '==', clientId));
       const paymentsSnapshot = await getDocs(paymentsQuery);
       const payments = paymentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Payment[];
+      // Sort newest first
+      payments.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
       const paidTotal = payments.reduce((sum, payment) => sum + payment.amount, 0);
       setTotalPaid(paidTotal);
 

@@ -1,5 +1,18 @@
 # Code Changes Log
 
+## July 20, 2026
+
+### Fix: client balance screen lists payments and completed jobs in random order
+
+**Symptom**: On the client account/balance screen (`/client-balance`), the "Payment History" and "Completed Jobs" lists appeared in an arbitrary order (e.g. Jun 2025, Jul 2026, Dec 2025, Aug 2024...). They should be newest first.
+
+**Root cause**: `app/client-balance.tsx` fetched jobs and payments from Firestore with `where` filters only and rendered them in whatever order the server returned the documents - no `orderBy` and no client-side sort. (The client detail screen `app/(tabs)/clients/[id].tsx` already sorted its combined history, which is why the problem only showed on this screen.)
+
+**Changes** (`app/client-balance.tsx`):
+- Payments are now sorted newest-first by `date` after fetching.
+- Completed jobs are now sorted newest-first by `scheduledTime` after fetching.
+- Sorting is done client-side (no query change), so no new Firestore composite index is required and no other screen is affected.
+
 ## July 17, 2026
 
 ### Fix: slow app loading from unbounded jobs downloads on the dashboard
