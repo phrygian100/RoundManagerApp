@@ -1,5 +1,39 @@
 # Code Changes Log
 
+## July 21, 2026
+
+### New: Agent Admin API ("Governor") - HTTP API for external AI agents
+
+**Why**: Allow an AI agent running in a shell (and potentially, later, users' own agents) to administer account data - look up clients and balances, record payments, complete/reschedule/create jobs, and send payment-chase emails - without going through the app UI.
+
+**New files**:
+- `functions/agentApi.js` - the whole API, exported as a builder so `index.js` can inject `admin`, the v2 https helpers, `Resend` and the `RESEND_KEY` secret (avoids duplicate `defineSecret` calls and circular requires).
+- `scripts/create-agent-key.cjs` - mints/revokes keys from the shell (signs in with email/password, calls the callable). CommonJS so it runs under plain `node` regardless of ESM detection.
+- `docs/agent-api.md` - integration brief written to be pasted to the consuming AI agent: base URL, auth, full action catalog with examples, error table, behavioural guardrails.
+
+**How it works**:
+- Per-account API keys (`gvnr_` + 48 hex): minted via new `createAgentApiKey` callable (account owners only, max 5 active), revoked via `revokeAgentApiKey` (specific key or all). Only SHA-256 hashes are stored, in new `agentApiKeys` collection (covered by the default-deny Firestore rule; only the Admin SDK touches it).
+- New `agentApi` onRequest function, routed `POST .../agentApi/<action>` (plus `/api/agent/**` hosting rewrite added to `firebase.json`, live after next hosting deploy). Bearer-key auth resolves `accountId`; every query is scoped to it - jobs/payments by `ownerId`, clients merged `ownerId`+`accountId`, matching app behaviour.
+- Read actions: `getAccountSummary`, `searchClients`, `getClient`, `listJobs`, `listPayments`, `getRunsheet`. Balance formula mirrors `app/client-balance.tsx` (paid - completed + startingBalance). `listJobs`/`listPayments` require clientId or a date range so an account with ~20k jobs can't be accidentally full-scanned (see July 17 perf fix).
+- Write actions (all appended to new `agentAuditLog` collection with key id, params and outcome): `createPayment`, `updateJobStatus` (completed/pending only), `rescheduleJob` (preserves `originalScheduledTime` convention from the runsheet defer flow), `createJob`. Doc shapes mirror `services/paymentService.ts` / `services/jobService.ts` field-for-field. No delete or bulk endpoints by design.
+- Comms: `sendChaseEmail` sends a Resend payment reminder (from noreply@guvnor.app, reply-to owner, includes bank details from the owner's user doc if present); refuses if the client has no email or owes nothing. Net-new functionality - the in-app chase-payment email button was an unimplemented TODO, so nothing existing was displaced.
+- Rate limiting reuses the portalApi Firestore scheme: 1000/hr per IP + 600/hr per key.
+
+**Known caveat**: completing a job via the API does not run the app-side recurring-schedule top-up (`topUpRecurringJobsAfterCompletion`); documented in `docs/agent-api.md`. Low risk since schedules are generated ~24 months ahead and the app has backfill tools.
+
+**Deployed**: `agentApi`, `createAgentApiKey`, `revokeAgentApiKey` (us-central1). Verified 401 on missing/invalid key and 404 with action list on unknown actions. No existing functions were redeployed.
+
+### New: in-app API key management (Settings -> AI Assistant)
+
+**Why**: The Agent API may be offered to users, so key management needs to live in the app rather than a repo script.
+
+**Changes**:
+- `functions/agentApi.js` - added `listAgentApiKeys` callable (owner-only; returns key metadata - label, created, last used, revoked - never hashes or plaintext). Exported via `functions/index.js`. Deployed to us-central1.
+- `services/agentApiKeyService.ts` (new) - thin client wrappers for the three callables.
+- `components/AgentApiKeysModal.tsx` (new) - self-contained modal following the `GoCardlessApiTokenModal` pattern: plain-English explanation of what keys are and the security implications, generate-key form (optional label), one-time display of the new key with copy button (navigator.clipboard on web; select-and-copy fallback on mobile since expo-clipboard isn't installed and adding a native module would require a new build), active key list with revoke, revoked key history.
+- `app/(tabs)/settings.tsx` - new owner-only "AI Assistant" section between Team and Developer with a "Manage API Keys" button opening the modal.
+- `docs/agent-api.md` - key management section now points to Settings -> AI Assistant first, script second.
+
 ## July 20, 2026
 
 ### Fix: client balance screen lists payments and completed jobs in random order

@@ -37,6 +37,16 @@ setGlobalOptions({
 // Keep in sync with shared/constants/developer.ts — this codebase is deployed
 // separately to Cloud Functions and cannot import files outside functions/.
 const DEVELOPER_UID = 'X4TtaVGKUtQSCtPLF8wsHsVZ0oW2';
+
+// Agent Admin API ("Governor") — HTTP API + key management for external AI agents.
+// Implementation lives in ./agentApi.js; deps are injected to share the
+// RESEND_KEY secret definition and admin instance.
+const buildAgentApi = require('./agentApi');
+const agentApiExports = buildAgentApi({ admin, onRequest, onCall, HttpsError, Resend, RESEND_KEY });
+exports.agentApi = agentApiExports.agentApi;
+exports.createAgentApiKey = agentApiExports.createAgentApiKey;
+exports.listAgentApiKeys = agentApiExports.listAgentApiKeys;
+exports.revokeAgentApiKey = agentApiExports.revokeAgentApiKey;
 exports.setDefaultSubscriptionTier = onDocumentCreated('users/{userId}', async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;

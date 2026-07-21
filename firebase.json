@@ -29,6 +29,10 @@
         "function": "portalApi"
       },
       {
+        "source": "/api/agent/**",
+        "function": "agentApi"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

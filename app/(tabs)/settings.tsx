@@ -7,6 +7,7 @@ import Papa from 'papaparse';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as XLSX from 'xlsx';
+import AgentApiKeysModal from '../../components/AgentApiKeysModal';
 import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -125,6 +126,9 @@ export default function SettingsScreen() {
     businessType: '' as '' | 'window-cleaning' | 'bin-cleaning',
   });
   const [savingBankInfo, setSavingBankInfo] = useState(false);
+
+  // Agent (AI assistant) API keys modal state
+  const [agentApiKeysModalVisible, setAgentApiKeysModalVisible] = useState(false);
 
   // GoCardless API Token modal state
   const [gocardlessApiTokenModalVisible, setGocardlessApiTokenModalVisible] = useState(false);
@@ -3029,6 +3033,22 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* AI Assistant Access - owners only */}
+        {isOwner && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>AI Assistant</ThemedText>
+            <ThemedText style={styles.sectionDescription}>
+              Connect an AI assistant or automation tool to your account. Generate an API key it can use
+              to look up clients and balances, record payments, manage jobs and send payment reminders on
+              your behalf.
+            </ThemedText>
+            <StyledButton
+              title="Manage API Keys"
+              onPress={() => setAgentApiKeysModalVisible(true)}
+            />
+          </View>
+        )}
+
         {/* Developer Section - Exempt tier only */}
         {isOwner && subscription && subscription.tier === 'exempt' && (
           <View style={styles.section}>
@@ -3438,6 +3458,12 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* AI Assistant API Keys Modal */}
+      <AgentApiKeysModal
+        visible={agentApiKeysModalVisible}
+        onClose={() => setAgentApiKeysModalVisible(false)}
+      />
 
       {/* GoCardless API Token Modal */}
       <GoCardlessApiTokenModal
