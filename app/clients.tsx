@@ -15,6 +15,7 @@ import { useColorScheme } from '../hooks/useColorScheme';
 import type { Client as BaseClient } from '../types/client';
 import type { Job, Payment } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
  type Client = BaseClient & { startingBalance?: number };
  type SortOption = 'address' | 'nextVisit' | 'roundOrder' | 'none' | 'balance' | 'accountNumber' | 'weeklyInterval';
@@ -318,7 +319,7 @@ export default function ClientsScreen() {
   };
 
   const handleClientPress = (clientId: string) => {
-    router.push({ pathname: '/(tabs)/clients/[id]', params: { id: clientId } } as never);
+    pushOrNewTab({ pathname: '/(tabs)/clients/[id]', params: { id: clientId } } as never);
   };
 
   const renderClient = ({ item }: { item: Client }) => {
@@ -462,7 +463,7 @@ export default function ClientsScreen() {
               </View>
               <ThemedText style={[styles.sortText, { color: theme.text }]}>{getSortLabel()}</ThemedText>
             </Pressable>
-            <Pressable style={[styles.sortButton, { backgroundColor: theme.inputBackground, borderColor: theme.cardBorder }]} onPress={() => router.push('/ex-clients')}>
+            <Pressable style={[styles.sortButton, { backgroundColor: theme.inputBackground, borderColor: theme.cardBorder }]} onPress={() => pushOrNewTab('/ex-clients')}>
               <ThemedText style={[styles.sortText, { color: theme.text }]}>Ex-Clients</ThemedText>
             </Pressable>
           </View>
@@ -481,7 +482,7 @@ export default function ClientsScreen() {
             />
           </View>
         </ThemedView>
-        <Pressable style={styles.button} onPress={() => router.push('/add-client')}>
+        <Pressable style={styles.button} onPress={() => pushOrNewTab('/add-client')}>
           <ThemedText style={styles.buttonText}>Add Client</ThemedText>
         </Pressable>
         <FlatList

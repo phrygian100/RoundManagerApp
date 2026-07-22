@@ -27,6 +27,7 @@ import {
 } from '../../shared/constants/pricing';
 import { clearAccountBusinessTypeCache, getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
 import { DEVELOPER_UID } from '../../shared/constants/developer';
+import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
 
 // Helper function to format mobile numbers for UK
 const formatMobileNumber = (input: string): string => {
@@ -2903,7 +2904,7 @@ export default function SettingsScreen() {
           )}
           <StyledButton
             title="Quote Wizard"
-            onPress={() => router.push('/quote-wizard')}
+            onPress={() => { pushOrNewTab('/quote-wizard'); }}
           />
         </View>
 
@@ -3005,19 +3006,19 @@ export default function SettingsScreen() {
           
           <StyledButton
             title="Import Clients"
-            onPress={() => router.push('/import-clients')}
+            onPress={() => { pushOrNewTab('/import-clients'); }}
             disabled={loading}
           />
           
           <StyledButton
             title="Add Bulk Payments"
-            onPress={() => router.push('/bulk-payments')}
+            onPress={() => { pushOrNewTab('/bulk-payments'); }}
             disabled={loading}
           />
           
           <StyledButton
             title="Import Completed Jobs"
-            onPress={() => router.push('/import-completed-jobs')}
+            onPress={() => { pushOrNewTab('/import-completed-jobs'); }}
             disabled={loading}
           />
         </View>
@@ -3028,7 +3029,7 @@ export default function SettingsScreen() {
           {isOwner && (
             <StyledButton
               title="Team Members"
-              onPress={() => router.push('/team')}
+              onPress={() => { pushOrNewTab('/team'); }}
             />
           )}
         </View>
@@ -3093,12 +3094,12 @@ export default function SettingsScreen() {
 
             <StyledButton
               title="Browse Users"
-              onPress={() => router.push('/admin/users')}
+              onPress={() => { pushOrNewTab('/admin/users'); }}
             />
 
             <StyledButton
               title="Window Cleaner Outreach"
-              onPress={() => router.push('/window-cleaner-outreach')}
+              onPress={() => { pushOrNewTab('/window-cleaner-outreach'); }}
             />
           </View>
         )}

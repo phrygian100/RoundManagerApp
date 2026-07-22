@@ -1,5 +1,27 @@
 # Code Changes Log
 
+## July 22, 2026
+
+### New: Ctrl/Cmd+click opens navigation in a new browser tab (web only)
+
+**Why**: When working in the app on desktop Chrome it's convenient to Ctrl+click a client, runsheet week, dashboard tile etc. and have it open in a new tab like a normal website link.
+
+**How it works**:
+- `utils/ctrlClickNavigation.ts` (new) - React Native Web hardcodes `ctrlKey: false` in its normalised press events, so the press event itself can't be inspected. Instead a capture-phase `pointerdown` listener records whether Ctrl/Cmd was held on the most recent pointer press (with a 1-second staleness window so the flag can't leak into later programmatic navigations, and a reset on window blur). `pushOrNewTab(href)` is a drop-in replacement for `router.push`: with the modifier held it resolves the href via expo-router's `Link.resolveHref`, strips route-group segments like `(tabs)` from the URL, and calls `window.open(url, '_blank')`; otherwise it does a normal `router.push`. On native it always degrades to `router.push` (the listener is never attached), so mobile behaviour is unchanged.
+
+**Call sites switched to `pushOrNewTab`** (direct click/press navigations only; programmatic pushes after saves/redirect flows deliberately untouched):
+- `app/(tabs)/index.tsx` - dashboard tiles and the current-week runsheet shortcut (a new-tab open also skips the `navigationInProgress` lock so the current tab isn't blocked).
+- `app/clients.tsx` - client rows, Ex-Clients and Add Client buttons.
+- `app/(tabs)/clients/[id].tsx` - Edit Details, Manage Services and Balance quick actions (both wide and narrow layouts).
+- `app/runsheet/[week].tsx` - View Details (client) and the workload-forecast calendar button.
+- `app/runsheet-history.tsx` / `app/workload-forecast.tsx` - week rows and the Runsheet History button.
+- `app/accounts.tsx` - Completed Jobs / Payments / Unknown Payments summary cards and the large-screen Add Bulk Payments button.
+- `app/completed-jobs.tsx`, `app/client-balance.tsx`, `app/payments-list.tsx` - rows/buttons leading to add-payment.
+- `app/(tabs)/settings.tsx` - Quote Wizard, Import Clients, Bulk Payments, Import Completed Jobs, Team Members, Browse Users, Window Cleaner Outreach buttons.
+- `app/admin/users.tsx` - user cards; `app/rota.tsx` - history and audit-log header buttons; `app/quotes.tsx` - home button.
+
+**Regression check**: `npx tsc --noEmit` diffed against a pre-change baseline - no new errors. `app/round-order-manager.tsx`'s existing always-new-tab map behaviour left as-is.
+
 ## July 21, 2026
 
 ### New: Agent Admin API ("Governor") - HTTP API for external AI agents

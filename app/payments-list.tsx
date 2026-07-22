@@ -10,6 +10,7 @@ import { updateJobStatus } from '../services/jobService';
 import { deletePayment, getAllPayments } from '../services/paymentService';
 import type { Client } from '../types/client';
 import type { Payment } from '../types/models';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 // Mobile browser detection for better touch targets
 const isMobileBrowser = () => {
@@ -286,7 +287,7 @@ export default function PaymentsListScreen() {
       <View style={styles.titleRow}>
         <ThemedText type="title" style={styles.title}>Payments</ThemedText>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Pressable style={styles.addButton} onPress={() => router.push({ pathname: '/add-payment', params: { from: '/payments-list' } })}>
+          <Pressable style={styles.addButton} onPress={() => pushOrNewTab({ pathname: '/add-payment', params: { from: '/payments-list' } })}>
             <ThemedText style={styles.addButtonText}>+ Add Payment</ThemedText>
           </Pressable>
           <Pressable style={styles.homeButton} onPress={() => router.replace('/')}> 

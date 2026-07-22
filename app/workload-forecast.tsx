@@ -14,6 +14,7 @@ import { resetWeekToRoundOrder } from '../services/resetService';
 import { fetchRotaRange } from '../services/rotaService';
 import type { Job } from '../types/models';
 import { availabilityColor, summarizeDayAvailability } from '../utils/availability';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 type WeekForecast = { week: string; count: number; availability: number | null };
 
@@ -243,7 +244,7 @@ export default function WorkloadForecastScreen() {
       <View style={[styles.weekRow, isCurrentWeek && styles.currentWeekRow]}>
         <Pressable
           style={styles.weekRowContent}
-          onPress={() => router.push({ pathname: '/runsheet/[week]', params: { week: item.week } })}
+          onPress={() => pushOrNewTab({ pathname: '/runsheet/[week]', params: { week: item.week } })}
         >
           <Text style={styles.weekLabel}>{label}</Text>
           {item.availability !== null && (
@@ -319,7 +320,7 @@ export default function WorkloadForecastScreen() {
           </Pressable>
         </View>
       </View>
-      <Button title="Runsheet History" onPress={() => router.push('/runsheet-history')} />
+      <Button title="Runsheet History" onPress={() => pushOrNewTab('/runsheet-history')} />
       <FlatList
         data={weeks}
         keyExtractor={(item) => item.week}

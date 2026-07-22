@@ -10,6 +10,7 @@ import { getDataOwnerId } from '../core/session';
 import { updateJobStatus } from '../services/jobService';
 import { deletePayment } from '../services/paymentService';
 import type { Job, Payment } from '../types/models';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 type SectionData = {
   title: string;
@@ -119,7 +120,7 @@ const ClientBalanceScreen = () => {
           <Pressable
             onPress={() => {
               if (isCompleted) {
-                router.push({
+                pushOrNewTab({
                   pathname: '/add-payment',
                   params: {
                     jobId: item.id,

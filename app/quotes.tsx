@@ -12,6 +12,7 @@ import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 type QuoteLine = {
   serviceType: string;
@@ -441,7 +442,7 @@ export default function QuotesScreen() {
         <Text style={{ fontWeight: 'bold', fontSize: 28, letterSpacing: 0.5 }}>Quotes</Text>
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <GuideHelpButton slug="quotes" color="#1976d2" />
-          <TouchableOpacity onPress={() => router.push('/')} style={{ padding: 8, borderRadius: 6, backgroundColor: '#eaf2ff', marginRight: 8 }}>
+          <TouchableOpacity onPress={() => pushOrNewTab('/')} style={{ padding: 8, borderRadius: 6, backgroundColor: '#eaf2ff', marginRight: 8 }}>
             <Ionicons name="home-outline" size={22} color="#1976d2" />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setModalVisible(true)} style={{ padding: 8, borderRadius: 6, backgroundColor: '#1976d2' }}>

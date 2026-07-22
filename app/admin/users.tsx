@@ -14,6 +14,7 @@ import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { useThemeColor } from '../../hooks/useThemeColor';
 import { AdminUserSummary, listAllUsers } from '../../services/adminService';
+import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
 
 type SortField = 'createdAt' | 'numberOfClients';
 type SortDir = 'asc' | 'desc';
@@ -98,7 +99,7 @@ export default function AdminUsersScreen() {
   const renderUser = ({ item }: { item: AdminUserSummary }) => (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: cardBg, borderColor: cardBorder }]}
-      onPress={() => router.push(`/admin/${item.id}`)}
+      onPress={() => pushOrNewTab(`/admin/${item.id}` as any)}
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>

@@ -13,6 +13,7 @@ import { BusinessTypeConfig, getBusinessTypeConfig } from '../shared/constants/b
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import { getJobAccountDisplay } from '../utils/jobDisplay';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 // Mobile browser detection for better touch targets
 const isMobileBrowser = () => {
@@ -245,7 +246,7 @@ export default function CompletedJobsScreen() {
         ? `${client.address1}, ${client.town}, ${client.postcode}`
         : client.address || '';
 
-      router.push({
+      pushOrNewTab({
         pathname: '/add-payment',
         params: {
           jobId: item.id,

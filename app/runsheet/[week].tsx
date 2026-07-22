@@ -31,6 +31,7 @@ import type { Job, Payment, User } from '../../types/models';
 import { getJobAccountDisplay } from '../../utils/jobDisplay';
 import { displayAccountNumber } from '../../utils/account';
 import { availabilityColor, summarizeDayAvailability } from '../../utils/availability';
+import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -1410,7 +1411,7 @@ export default function RunsheetWeekScreen() {
 
   const handleViewDetails = (client: Client | null) => {
     if (!client) return;
-    router.push({ pathname: '/(tabs)/clients/[id]', params: { id: client.id } });
+    pushOrNewTab({ pathname: '/(tabs)/clients/[id]', params: { id: client.id } });
     setActionSheetJob(null);
   };
 
@@ -2689,7 +2690,7 @@ ${signOff}`;
         <View style={[styles.titleRow, compactHeader && styles.titleRowCompact]}>
           <Pressable
             style={[styles.calendarButton, compactHeader && styles.calendarButtonCompact]}
-            onPress={() => router.push('/workload-forecast')}
+            onPress={() => pushOrNewTab('/workload-forecast')}
             accessibilityLabel="Go to workload forecast"
           >
             <Ionicons name="calendar-outline" size={compactHeader ? 20 : 22} color="#007AFF" />

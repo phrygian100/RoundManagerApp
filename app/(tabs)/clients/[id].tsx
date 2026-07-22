@@ -23,6 +23,7 @@ import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
 import type { ServicePlan } from '../../../types/servicePlan';
 import { displayAccountNumber } from '../../../utils/account';
+import { pushOrNewTab } from '../../../utils/ctrlClickNavigation';
 
 type ServiceHistoryItem = (Job & { type: 'job' }) | (Payment & { type: 'payment' });
 
@@ -714,7 +715,7 @@ export default function ClientDetailScreen() {
 
 
   const handleEditDetails = () => {
-    router.push({
+    pushOrNewTab({
       pathname: '/(tabs)/clients/[id]/edit-customer',
       params: { id }
     } as never);
@@ -1257,7 +1258,7 @@ export default function ClientDetailScreen() {
                     <Ionicons name="create-outline" size={20} color="#1976d2" />
                     <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
                   </Pressable>
-                  <Pressable style={styles.actionButton} onPress={() => router.push({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
+                  <Pressable style={styles.actionButton} onPress={() => pushOrNewTab({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
                     <Ionicons name="construct-outline" size={20} color="#1976d2" />
                     <ThemedText style={styles.actionButtonText}>Manage Services</ThemedText>
                   </Pressable>
@@ -1272,7 +1273,7 @@ export default function ClientDetailScreen() {
                   {balance !== null && (
                     <Pressable 
                       style={[styles.actionButton, balance < 0 ? styles.negativeBalanceAction : styles.positiveBalanceAction]} 
-                      onPress={() => router.push({
+                      onPress={() => pushOrNewTab({
                         pathname: '/client-balance',
                         params: { clientId: id, clientName: client.name }
                       } as never)}
@@ -1516,7 +1517,7 @@ export default function ClientDetailScreen() {
                   <Ionicons name="create-outline" size={20} color="#1976d2" />
                   <ThemedText style={styles.actionButtonText}>Edit Details</ThemedText>
                 </Pressable>
-                <Pressable style={styles.actionButton} onPress={() => router.push({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
+                <Pressable style={styles.actionButton} onPress={() => pushOrNewTab({ pathname: '/(tabs)/clients/[id]/manage-services', params: { id } } as never)}>
                   <Ionicons name="construct-outline" size={20} color="#1976d2" />
                   <ThemedText style={styles.actionButtonText}>Manage Services</ThemedText>
                 </Pressable>
@@ -1531,7 +1532,7 @@ export default function ClientDetailScreen() {
                 {balance !== null && (
                   <Pressable 
                     style={[styles.actionButton, balance < 0 ? styles.negativeBalanceAction : styles.positiveBalanceAction]} 
-                    onPress={() => router.push({
+                    onPress={() => pushOrNewTab({
                       pathname: '/client-balance',
                       params: { clientId: id, clientName: client.name }
                     } as never)}

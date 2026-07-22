@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getJobsForWeek } from '../services/jobService';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 export default function RunsheetHistoryScreen() {
   const router = useRouter();
@@ -43,7 +44,7 @@ export default function RunsheetHistoryScreen() {
     return (
       <Pressable
         style={styles.weekRow}
-        onPress={() => router.push({ pathname: '/runsheet/[week]', params: { week: item.week } })}
+        onPress={() => pushOrNewTab({ pathname: '/runsheet/[week]', params: { week: item.week } })}
       >
         <Text style={styles.weekLabel}>{label}</Text>
         <Text style={styles.count}>{item.count} job{item.count !== 1 ? 's' : ''}</Text>

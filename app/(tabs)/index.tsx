@@ -15,6 +15,7 @@ import { getDataOwnerId, getUserSession } from '../../core/session';
 import { getClientCount } from '../../services/clientService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import { DEVELOPER_UID, GUVNOR_LEADS_BUSINESS_NAME } from '../../shared/constants/developer';
+import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
 import SettingsScreen from './settings';
 
 const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
@@ -260,17 +261,18 @@ export default function HomeScreen() {
 
   const handleNavigation = (path: string) => {
     if (navigationInProgress) return;
+    // Ctrl/Cmd+click on web opens in a new tab and shouldn't block this tab.
+    if (pushOrNewTab(path as any)) return;
     setNavigationInProgress(true);
-    router.push(path as any);
     // Reset navigation flag after a short delay
     setTimeout(() => setNavigationInProgress(false), 1000);
   };
 
   const handleGoToCurrentWeekRunsheet = () => {
     if (navigationInProgress) return;
-    setNavigationInProgress(true);
     const weekParam = format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'yyyy-MM-dd');
-    router.push({ pathname: '/runsheet/[week]', params: { week: weekParam } });
+    if (pushOrNewTab({ pathname: '/runsheet/[week]', params: { week: weekParam } })) return;
+    setNavigationInProgress(true);
     setTimeout(() => setNavigationInProgress(false), 1000);
   };
 

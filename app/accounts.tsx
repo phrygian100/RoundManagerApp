@@ -14,6 +14,7 @@ import { getUserProfile } from '../services/userService';
 import type { Client } from '../types/client';
 import type { Job, Payment, User } from '../types/models';
 import { displayAccountNumber } from '../utils/account';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 type ClientWithBalance = Client & { balance: number; startingBalance?: number };
 
@@ -828,7 +829,7 @@ ${signOff}`;
               style={styles.bulkPaymentsButton}
               onPress={() => {
                 if (isLargeScreen) {
-                  router.push('/bulk-payments');
+                  pushOrNewTab('/bulk-payments');
                   return;
                 }
                 setShowBulkPaymentsModal(true);
@@ -858,21 +859,21 @@ ${signOff}`;
                     title="Completed Jobs"
                     value={`£${completedJobsTotal.toFixed(2)}`}
                     subtitle={`${completedJobsCount} jobs completed`}
-                    onPress={() => router.push('/completed-jobs')}
+                    onPress={() => pushOrNewTab('/completed-jobs')}
                     icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
                   />
                   <SummaryCard
                     title="All Payments"
                     value={`£${paymentsTotal.toFixed(2)}`}
                     subtitle={`${paymentsCount} payments received`}
-                    onPress={() => router.push('/payments-list')}
+                    onPress={() => pushOrNewTab('/payments-list')}
                     icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
                   />
                   <SummaryCard
                     title="Unknown Payments"
                     value="View Details"
                     subtitle="Payments with unmatched accounts"
-                    onPress={() => router.push('/unknown-payments')}
+                    onPress={() => pushOrNewTab('/unknown-payments')}
                     icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
                   />
                 </View>
@@ -946,21 +947,21 @@ ${signOff}`;
                   title="Completed Jobs"
                   value={`£${completedJobsTotal.toFixed(2)}`}
                   subtitle={`${completedJobsCount} jobs completed`}
-                  onPress={() => router.push('/completed-jobs')}
+                  onPress={() => pushOrNewTab('/completed-jobs')}
                   icon={<Ionicons name="checkmark-circle-outline" size={20} color="#43a047" />}
                 />
                 <SummaryCard
                   title="All Payments"
                   value={`£${paymentsTotal.toFixed(2)}`}
                   subtitle={`${paymentsCount} payments received`}
-                  onPress={() => router.push('/payments-list')}
+                  onPress={() => pushOrNewTab('/payments-list')}
                   icon={<Ionicons name="card-outline" size={20} color="#1976d2" />}
                 />
                 <SummaryCard
                   title="Unknown Payments"
                   value="View Details"
                   subtitle="Payments with unmatched accounts"
-                  onPress={() => router.push('/unknown-payments')}
+                  onPress={() => pushOrNewTab('/unknown-payments')}
                   icon={<Ionicons name="help-circle-outline" size={20} color="#ff9800" />}
                 />
               </View>

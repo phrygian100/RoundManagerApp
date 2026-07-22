@@ -20,6 +20,7 @@ import { Colors } from '../constants/Colors';
 import { getUserSession } from '../core/session';
 import { useColorScheme } from '../hooks/useColorScheme';
 import { listMembers, MemberRecord } from '../services/accountService';
+import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 import {
   AvailabilityStatus,
   cleanupOldRota,
@@ -207,10 +208,10 @@ export default function RotaScreen() {
           <ThemedText type="subtitle" style={styles.headerTitle}>Team Rota</ThemedText>
         </View>
         <View style={styles.headerRight}>
-          <Pressable onPress={() => router.push('/rota-history' as any)} style={styles.headerBtn}>
+          <Pressable onPress={() => pushOrNewTab('/rota-history' as any)} style={styles.headerBtn}>
             <Ionicons name="time-outline" size={22} color={theme.tint} />
           </Pressable>
-          <Pressable onPress={() => router.push('/audit-log' as any)} style={styles.headerBtn}>
+          <Pressable onPress={() => pushOrNewTab('/audit-log' as any)} style={styles.headerBtn}>
             <Ionicons name="document-text-outline" size={22} color={theme.tint} />
           </Pressable>
         </View>
