@@ -2,6 +2,15 @@
 
 ## July 22, 2026
 
+### Agent API: raise read rate limit (separate read/write buckets)
+
+**Why**: An agent reconciling GoCardless direct-debit payments against Guvnor payments was hitting the shared 600/hr per-key limit purely from read calls.
+
+**Changes** (`functions/agentApi.js`, deployed):
+- Per-key limiting split into two buckets: reads now allow 6,000/hr (`agent:key:read:<keyId>`), writes stay at 600/hr (`agent:key:<keyId>`, unchanged bucket name so existing counters carry over).
+- Per-IP limit raised 1,000/hr -> 10,000/hr so it isn't the binding constraint for read-heavy work.
+- `docs/agent-api.md` updated with the new limits and a note to prefer date-range `listPayments`/`listJobs` calls (500 rows per call) over per-client loops for bulk reconciliation.
+
 ### New: Ctrl/Cmd+click opens navigation in a new browser tab (web only)
 
 **Why**: When working in the app on desktop Chrome it's convenient to Ctrl+click a client, runsheet week, dashboard tile etc. and have it open in a new tab like a normal website link.

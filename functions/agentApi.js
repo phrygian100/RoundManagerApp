@@ -820,7 +820,7 @@ module.exports = function buildAgentApi(deps) {
 
     let auth = null;
     try {
-      await enforceRateLimit(db, `agent:ip:${ipKey}`, 1000, 60 * 60 * 1000); // 1000/hr per IP
+      await enforceRateLimit(db, `agent:ip:${ipKey}`, 10000, 60 * 60 * 1000); // 10000/hr per IP
 
       if (!handler) {
         const known = Object.keys(READ_ACTIONS).concat(Object.keys(WRITE_ACTIONS)).join(', ');
@@ -829,7 +829,13 @@ module.exports = function buildAgentApi(deps) {
       }
 
       auth = await authenticateKey(db, req);
-      await enforceRateLimit(db, `agent:key:${auth.keyId}`, 600, 60 * 60 * 1000); // 600/hr per key
+      // Reads and writes have separate buckets: bulk read workloads (e.g. payment
+      // reconciliation against GoCardless) shouldn't be throttled like writes.
+      if (isWrite) {
+        await enforceRateLimit(db, `agent:key:${auth.keyId}`, 600, 60 * 60 * 1000); // 600 writes/hr per key
+      } else {
+        await enforceRateLimit(db, `agent:key:read:${auth.keyId}`, 6000, 60 * 60 * 1000); // 6000 reads/hr per key
+      }
 
       const body = req.body || {};
       const result = await handler(db, auth.accountId, body);

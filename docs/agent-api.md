@@ -13,7 +13,8 @@ Guvnor is a round-management app (clients, scheduled cleaning jobs, payments, ba
 - **Protocol:** every call is `POST <base-url>/<action>` with a JSON body (send `{}` if there are no parameters) and header `Content-Type: application/json`.
 - **Auth:** header `Authorization: Bearer <key>` on every request. Keys start with `gvnr_`.
 - **Responses:** always JSON. Success responses include `"ok": true`. Errors are `{ "ok": false, "error": "<message>" }` with an appropriate HTTP status (401 bad/revoked key, 404 unknown action or entity not found, 400 bad input, 429 rate limited, 500 server error).
-- **Rate limits:** 600 requests/hour per key. If you receive HTTP 429, stop and wait.
+- **Rate limits:** 6,000 read requests/hour and 600 write requests/hour per key (separate buckets). If you receive HTTP 429, stop and wait.
+- **Minimise calls on bulk work:** for reconciliation-style tasks, prefer one `listPayments`/`listJobs` call with a date range (returns up to 500 rows) over per-client calls in a loop.
 
 PowerShell example:
 
