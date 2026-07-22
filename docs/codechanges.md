@@ -2,6 +2,16 @@
 
 ## July 22, 2026
 
+### Agent API: new listClients action + GoCardless payment backfill (data fix)
+
+**Why**: GoCardless direct-debit payments stopped being auto-generated in Guvnor for a period (root cause fixed separately); the collected charges existed in GoCardless but had no matching Guvnor payment, understating client balances.
+
+**Code change** (`functions/agentApi.js`, deployed): new read action `listClients` (active by default, `includeArchived` option) returning client summaries plus `gocardlessEnabled`/`gocardlessCustomerId`/`dateAdded`, so external tools can match GC customers to clients. Documented in `docs/agent-api.md`.
+
+**Data fix** (via the Agent API, one-off script `scripts/_reconcile_gc.cjs`): parsed the GoCardless export (`docs/fromGocardless.xlsx`, 4,405 collected charges 2021-2026), matched each charge to Guvnor payments by client + exact amount + charge date within 10 days (one-to-one consumption to avoid double-matching), and backfilled the gaps **restricted to the breakage window 2025-07-01..2026-01-31** - Guvnor's payment history only begins Aug 2024 (app went live ~Jul 2025 with 543 of 633 clients added that month), so older GC charges predate the app and must not be created. Three GC customers with no `gocardlessCustomerId` link were mapped manually by exact name+address (RWC255, RWC70, RWC365). **308 payments totalling £5,164 created**, method `direct_debit`, reference = GoCardless payment ID (PM...), notes marking them as backfilled. Verification re-run: 0 missing in window. Full audit in `agentAuditLog` and `scripts/_reconcile_out/created.json`.
+
+**Not backfilled (deliberate)**: 1,732 pre-window charges (£29,385, pre-app history), 979 charges from 3 GC customers never linked to a client (Jason Rose, Alice Watson, Emma Rae - no confident match), and 5 flagged edge cases where a different-amount payment sat within 10 days (left for manual review only if balances look off: sarah x2, Allyson partridge, Mike Spinks, Cathy gatbutt).
+
 ### Agent API: raise read rate limit (separate read/write buckets)
 
 **Why**: An agent reconciling GoCardless direct-debit payments against Guvnor payments was hitting the shared 600/hr per-key limit purely from read calls.

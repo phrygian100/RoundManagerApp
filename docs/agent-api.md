@@ -71,6 +71,10 @@ Response shape:
 }
 ```
 
+### `listClients` — body `{ "includeArchived"?: true }`
+
+Returns every client (active only by default) with core fields plus `gocardlessEnabled`, `gocardlessCustomerId` and `dateAdded`, sorted by name. Useful for bulk matching against external systems (e.g. GoCardless customer IDs).
+
 ### `searchClients` — body `{ "query": "text" }`
 
 Case-insensitive substring match over name, address, town, postcode and account number. Returns up to 25 matches with core fields (`id`, `name`, `accountNumber`, `address1`, `town`, `postcode`, `email`, `mobileNumber`, `status`, `quote`).

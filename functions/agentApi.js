@@ -367,6 +367,19 @@ module.exports = function buildAgentApi(deps) {
     };
   }
 
+  async function actionListClients(db, accountId, body) {
+    const includeArchived = !!(body && body.includeArchived);
+    const clients = await loadClientsForAccount(db, accountId);
+    const filtered = includeArchived ? clients : clients.filter((c) => (c.status || '') !== 'ex-client');
+    const list = filtered.map((c) => Object.assign(clientSummary(c), {
+      gocardlessEnabled: !!c.gocardlessEnabled,
+      gocardlessCustomerId: c.gocardlessCustomerId || null,
+      dateAdded: c.dateAdded || null,
+    }));
+    list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return { ok: true, count: list.length, clients: list };
+  }
+
   async function actionSearchClients(db, accountId, body) {
     const q = String((body && body.query) || '').trim().toLowerCase();
     if (!q) throw badRequest('query is required (name, address, town, postcode or account number).');
@@ -746,6 +759,7 @@ module.exports = function buildAgentApi(deps) {
 
   const READ_ACTIONS = {
     getAccountSummary: actionGetAccountSummary,
+    listClients: actionListClients,
     searchClients: actionSearchClients,
     getClient: actionGetClient,
     listJobs: actionListJobs,
