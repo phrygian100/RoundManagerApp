@@ -17,8 +17,8 @@ import { getDataOwnerId, getUserSession, waitForAuthReady } from '../../../core/
 import { useColorScheme } from '../../../hooks/useColorScheme';
 import { formatAuditDescription, getClientAddress, logAction } from '../../../services/auditService';
 import { updateClientGoCardlessSettings } from '../../../services/clientService';
-import { createJobsForAdditionalServices, isTodayMarkedComplete } from '../../../services/jobService';
-import { updatePayment } from '../../../services/paymentService';
+import { createJobsForAdditionalServices, isTodayMarkedComplete, updateJobStatus } from '../../../services/jobService';
+import { deletePayment, updatePayment } from '../../../services/paymentService';
 import type { AdditionalService, Client } from '../../../types/client';
 import type { Job, Payment } from '../../../types/models';
 import type { ServicePlan } from '../../../types/servicePlan';
@@ -368,6 +368,70 @@ export default function ClientDetailScreen() {
     }
   };
 
+  const confirmDeleteDialog = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) onConfirm();
+    } else {
+      Alert.alert(title, message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+      ]);
+    }
+  };
+
+  const notifyError = (message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+    } else {
+      Alert.alert('Error', message);
+    }
+  };
+
+  const handleDeleteHistoryJob = (job: Job & { type: 'job' }) => {
+    const dateLabel = job.scheduledTime ? format(parseISO(job.scheduledTime), 'do MMMM yyyy') : 'unknown date';
+    confirmDeleteDialog(
+      'Delete Job',
+      `Permanently delete this ${job.serviceId || 'job'} from ${dateLabel}? It will also be removed from runsheet history.`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'jobs', job.id));
+          await logAction('job_deleted', 'job', job.id, formatAuditDescription('job_deleted', client?.name), client?.name);
+          fetchServiceHistory();
+        } catch (error) {
+          console.error('Error deleting job:', error);
+          notifyError('Failed to delete job. Please try again.');
+        }
+      }
+    );
+  };
+
+  const handleDeleteHistoryPayment = (payment: Payment & { type: 'payment' }) => {
+    const dateLabel = payment.date ? format(parseISO(payment.date), 'do MMMM yyyy') : 'unknown date';
+    confirmDeleteDialog(
+      'Delete Payment',
+      `Permanently delete this £${payment.amount.toFixed(2)} payment from ${dateLabel}?`,
+      async () => {
+        try {
+          await deletePayment(payment.id);
+          if (payment.jobId) {
+            // Revert the linked job so it shows as unpaid again, unless it was already deleted.
+            try {
+              await updateJobStatus(payment.jobId, 'completed');
+            } catch (jobError: any) {
+              const isMissing = jobError?.code === 'not-found' || jobError?.message?.includes('No document to update');
+              if (!isMissing) throw jobError;
+            }
+          }
+          await logAction('payment_deleted', 'payment', payment.id, formatAuditDescription('payment_deleted', client?.name), client?.name);
+          fetchServiceHistory();
+        } catch (error) {
+          console.error('Error deleting payment:', error);
+          notifyError('Failed to delete payment. Please try again.');
+        }
+      }
+    );
+  };
+
   const renderHistoryItem = useCallback(({ item }: { item: ServiceHistoryItem | { type: 'startingBalance'; amount: number } }) => {
     if (item.type === 'startingBalance') {
       return (
@@ -378,15 +442,27 @@ export default function ClientDetailScreen() {
         </View>
       );
     } else if (item.type === 'job') {
+      const job = item as Job & { type: 'job' };
       return (
         <View style={[styles.historyItem, styles.jobItem, { backgroundColor: theme.jobItemBackground, borderColor: theme.jobItemBorder }]}>
-          <ThemedText style={styles.historyItemText}>
-            <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO((item as any).scheduledTime), 'do MMMM yyyy')}
-          </ThemedText>
-          <ThemedText style={styles.historyItemText}>
-            <ThemedText>Status:</ThemedText>{' '}<ThemedText style={{ fontWeight: 'bold' }}>{(item as any).status}</ThemedText>
-          </ThemedText>
-          <ThemedText style={styles.historyItemText}>Price: £{(item as any).price.toFixed(2)}</ThemedText>
+          <View style={styles.paymentHeaderRow}>
+            <View style={{ flex: 1 }}>
+              <ThemedText style={styles.historyItemText}>
+                <ThemedText style={{ fontWeight: 'bold' }}>Job:</ThemedText>{' '}{format(parseISO(job.scheduledTime), 'do MMMM yyyy')}
+              </ThemedText>
+              <ThemedText style={styles.historyItemText}>
+                <ThemedText>Status:</ThemedText>{' '}<ThemedText style={{ fontWeight: 'bold' }}>{job.status}</ThemedText>
+              </ThemedText>
+              <ThemedText style={styles.historyItemText}>Price: £{job.price.toFixed(2)}</ThemedText>
+            </View>
+            <Pressable
+              style={styles.deleteHistoryButton}
+              onPress={() => handleDeleteHistoryJob(job)}
+            >
+              <Ionicons name="trash-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+              <ThemedText style={styles.movePaymentButtonText}>Delete</ThemedText>
+            </Pressable>
+          </View>
         </View>
       );
     } else if (item.type === 'payment') {
@@ -409,19 +485,28 @@ export default function ClientDetailScreen() {
                 <ThemedText style={styles.historyItemText}>Notes:{' '}<ThemedText style={{ fontWeight: 'bold' }}>{payment.notes}</ThemedText></ThemedText>
               )}
             </View>
-            <Pressable
-              style={styles.movePaymentButton}
-              onPress={() => handleMovePaymentPress(payment)}
-            >
-              <Ionicons name="swap-horizontal" size={16} color="#fff" style={{ marginRight: 6 }} />
-              <ThemedText style={styles.movePaymentButtonText}>Move</ThemedText>
-            </Pressable>
+            <View style={styles.paymentActionsColumn}>
+              <Pressable
+                style={styles.movePaymentButton}
+                onPress={() => handleMovePaymentPress(payment)}
+              >
+                <Ionicons name="swap-horizontal" size={16} color="#fff" style={{ marginRight: 6 }} />
+                <ThemedText style={styles.movePaymentButtonText}>Move</ThemedText>
+              </Pressable>
+              <Pressable
+                style={styles.deleteHistoryButton}
+                onPress={() => handleDeleteHistoryPayment(payment)}
+              >
+                <Ionicons name="trash-outline" size={16} color="#fff" style={{ marginRight: 6 }} />
+                <ThemedText style={styles.movePaymentButtonText}>Delete</ThemedText>
+              </Pressable>
+            </View>
           </View>
         </View>
       );
     }
     return null;
-  }, [handleMovePaymentPress, theme]);
+  }, [handleMovePaymentPress, handleDeleteHistoryJob, handleDeleteHistoryPayment, theme]);
 
   // Optionally open Add Service modal when navigated from Manage Services,
   // then immediately clear the trigger param so it doesn't persist
@@ -2446,6 +2531,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 12,
+  },
+  deleteHistoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#d32f2f',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
+  paymentActionsColumn: {
+    gap: 6,
+    alignItems: 'flex-start',
   },
   historyItemText: {
     fontSize: 14,

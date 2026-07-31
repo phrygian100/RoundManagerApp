@@ -1,5 +1,17 @@
 # Code Changes Log
 
+## July 31, 2026
+
+### New: delete payments and services from a client's account history
+
+**Why**: Duplicated/skipped jobs and their auto-generated payments could leave a client's account in deficit with no way to remove the bad records from the UI.
+
+**Changes**:
+- `app/(tabs)/clients/[id].tsx` - Service History items now have a red Delete button on both job and payment rows (payments keep their existing Move button, now stacked with Delete). Deleting a job removes the job document, which also removes it from runsheet history / historical runsheets since those screens render straight from the `jobs` collection. Deleting a payment also reverts a linked job (`payment.jobId`) back to `completed` status, tolerating the case where the job was already deleted. Both actions confirm first (native `Alert` on mobile, `window.confirm` on web), write an audit log entry (`job_deleted` / `payment_deleted` with the client name), and refresh the history + balance.
+- `app/client-balance.tsx` - the existing ❌ delete buttons were silently broken on web because `Alert.alert` with buttons is a no-op in react-native-web; confirmations now use `window.confirm` on web (unchanged native behaviour), and deletions are audit-logged the same way.
+
+**Regression notes**: no schema or service changes - reuses existing `deletePayment` / `updateJobStatus` services and the same delete semantics `client-balance.tsx` already had. Runsheets, accounts summaries and balances all derive from the `jobs`/`payments` collections so they stay consistent automatically.
+
 ## July 22, 2026
 
 ### Agent API: new listClients action + GoCardless payment backfill (data fix)

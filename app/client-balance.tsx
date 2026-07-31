@@ -2,11 +2,12 @@ import { format, parseISO } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Button, Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, Platform, Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
+import { formatAuditDescription, logAction } from '../services/auditService';
 import { updateJobStatus } from '../services/jobService';
 import { deletePayment } from '../services/paymentService';
 import type { Job, Payment } from '../types/models';
@@ -83,32 +84,45 @@ const ClientBalanceScreen = () => {
     fetchData();
   }, [fetchData]);
 
+  // Alert.alert with buttons is a no-op on react-native-web, so confirmations
+  // must go through window.confirm in the browser.
+  const confirmDeleteDialog = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+      if (window.confirm(message)) onConfirm();
+    } else {
+      Alert.alert(title, message, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: onConfirm },
+      ]);
+    }
+  };
+
+  const notifyError = (message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(message);
+    } else {
+      Alert.alert('Error', message);
+    }
+  };
+
   const renderItem = ({ item }: { item: Job | Payment }) => {
     if ('serviceId' in item) { // This is a Job
       const isCompleted = item.status === 'completed';
       
       const handleDeleteJob = () => {
-        Alert.alert(
+        confirmDeleteDialog(
           'Delete Job',
-          'Are you sure you want to permanently delete this completed job?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: async () => {
-                try {
-                  // Delete the job from Firestore
-                  await deleteDoc(doc(db, 'jobs', item.id));
-                  fetchData(); 
-                  Alert.alert('Success', 'Job deleted.');
-                } catch (error) {
-                  console.error('Error deleting job:', error);
-                  Alert.alert('Error', 'Could not delete job.');
-                }
-              },
-            },
-          ]
+          'Are you sure you want to permanently delete this completed job? It will also be removed from runsheet history.',
+          async () => {
+            try {
+              await deleteDoc(doc(db, 'jobs', item.id));
+              await logAction('job_deleted', 'job', item.id, formatAuditDescription('job_deleted', clientName), clientName);
+              fetchData();
+            } catch (error) {
+              console.error('Error deleting job:', error);
+              notifyError('Could not delete job.');
+            }
+          }
         );
       };
 
@@ -141,40 +155,29 @@ const ClientBalanceScreen = () => {
       );
     } else { // This is a Payment
       const handleDelete = () => {
-        Alert.alert(
+        confirmDeleteDialog(
           'Delete Payment',
           'Are you sure you want to permanently delete this payment? If linked to a job, the job status will be reverted.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Delete',
-              style: 'destructive',
-              onPress: async () => {
+          async () => {
+            try {
+              await deletePayment(item.id);
+              if (item.jobId) {
                 try {
-                  await deletePayment(item.id);
-                  if (item.jobId) {
-                    try {
-                      await updateJobStatus(item.jobId, 'completed');
-                    } catch (jobError: any) {
-                      if (
-                        jobError.code === 'not-found' ||
-                        jobError.message?.includes('No document to update')
-                      ) {
-                        // Job already deleted, ignore
-                      } else {
-                        throw jobError;
-                      }
-                    }
-                  }
-                  fetchData(); 
-                  Alert.alert('Success', 'Payment deleted.');
-                } catch (error) {
-                  console.error('Error deleting payment:', error);
-                  Alert.alert('Error', 'Could not delete payment.');
+                  await updateJobStatus(item.jobId, 'completed');
+                } catch (jobError: any) {
+                  const isMissing =
+                    jobError.code === 'not-found' ||
+                    jobError.message?.includes('No document to update');
+                  if (!isMissing) throw jobError;
                 }
-              },
-            },
-          ]
+              }
+              await logAction('payment_deleted', 'payment', item.id, formatAuditDescription('payment_deleted', clientName), clientName);
+              fetchData();
+            } catch (error) {
+              console.error('Error deleting payment:', error);
+              notifyError('Could not delete payment.');
+            }
+          }
         );
       };
 
