@@ -2,6 +2,16 @@
 
 ## August 3, 2026
 
+### New: "Remove rollover tag" option in the runsheet job action sheet
+
+**Why**: Jobs moved to another week and back (or deferred by mistake) keep their `isDeferred` flag, so they present with the red ROLLOVER accent and get rollover sort priority with no way to clear it from the UI.
+
+**Changes** (`app/runsheet/[week].tsx`):
+- New `handleClearRollover` sets `isDeferred: false` on the job in Firestore, writes an audit log entry, and updates local state so the accent disappears immediately.
+- The option appears in both the iOS native action sheet and the web/Android modal, but only for jobs currently carrying the rollover flag.
+
+**Regression notes**: only touches the `isDeferred` flag - `originalScheduledTime`, ETA, vehicle assignment and job status are untouched. Clearing the flag also removes the job's rollover sort priority, which is the expected behaviour (it returns to normal round order). Other accents (one-off, additional service) derive from the job's type, not a stored flag, so they are intentionally not clearable.
+
 ### New: Reset ETA button in the runsheet time picker
 
 **Why**: Once a job's ETA was set on the runsheet there was no way to clear it for that single job - the only workaround was resetting the whole day to round order.

@@ -1182,6 +1182,35 @@ export default function RunsheetWeekScreen() {
     }
   };
 
+  const handleClearRollover = async (job: Job & { client: Client | null }) => {
+    try {
+      const jobRef = doc(db, 'jobs', job.id);
+      await updateDoc(jobRef, { isDeferred: false });
+
+      await logAction(
+        'edit' as any,
+        'job' as any,
+        job.id,
+        'Rollover tag removed from job',
+        job.client?.name
+      );
+
+      // Update local state so the accent disappears immediately
+      setJobs(prevJobs =>
+        prevJobs.map(j => (j.id === job.id ? { ...j, isDeferred: false } : j))
+      );
+
+      setActionSheetJob(null);
+    } catch (error) {
+      console.error('Error removing rollover tag:', error);
+      if (Platform.OS === 'web') {
+        window.alert('Failed to remove rollover tag. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to remove rollover tag. Please try again.');
+      }
+    }
+  };
+
   const handleDeferDateChange = async (event: any, selectedDate?: Date) => {
     setShowDeferDatePicker(false);
     if (event.type === 'dismissed' || !selectedDate || !deferJob) {
@@ -1364,6 +1393,7 @@ export default function RunsheetWeekScreen() {
       // Build options dynamically based on job status
       const options = ['View details?', 'Edit Price'];
       let deferIndex = -1;
+      let clearRolloverIndex = -1;
       let addNoteIndex = -1;
       let deleteIndex = -1;
       
@@ -1371,6 +1401,12 @@ export default function RunsheetWeekScreen() {
       if (job.status !== 'completed' && job.status !== 'accounted' && job.status !== 'paid') {
         options.push('Defer');
         deferIndex = options.length - 1;
+      }
+      
+      // Allow removing the rollover accent if the job carries one
+      if (job.isDeferred === true) {
+        options.push('Remove rollover tag');
+        clearRolloverIndex = options.length - 1;
       }
       
       options.push((job as any).jobNote ? 'Edit job note' : 'Add job note');
@@ -1392,6 +1428,7 @@ export default function RunsheetWeekScreen() {
           if (buttonIndex === 0) handleViewDetails(job.client);
           if (buttonIndex === 1) handleEditPrice(job);
           if (buttonIndex === deferIndex) handleDeferToNextWeek(job);
+          if (buttonIndex === clearRolloverIndex) handleClearRollover(job);
           if (buttonIndex === addNoteIndex) handleEditJobNote(job);
           if (buttonIndex === deleteIndex) handleDeleteJob(job.id);
         }
@@ -3058,6 +3095,9 @@ ${signOff}`;
                     <Button title="Edit Price" onPress={() => handleEditPrice(actionSheetJob)} />
                     {actionSheetJob.status !== 'completed' && actionSheetJob.status !== 'accounted' && actionSheetJob.status !== 'paid' && (
                       <Button title="Defer" onPress={() => handleDeferToNextWeek(actionSheetJob)} />
+                    )}
+                    {actionSheetJob.isDeferred === true && (
+                      <Button title="Remove rollover tag" onPress={() => handleClearRollover(actionSheetJob)} />
                     )}
                     <Button title={(actionSheetJob as any).jobNote ? 'Edit job note' : 'Add job note'} onPress={() => handleEditJobNote(actionSheetJob)} />
                     <Button title="Delete Job" color="red" onPress={() => handleDeleteJob(actionSheetJob.id)} />
