@@ -1,5 +1,17 @@
 # Code Changes Log
 
+## August 3, 2026
+
+### New: Reset ETA button in the runsheet time picker
+
+**Why**: Once a job's ETA was set on the runsheet there was no way to clear it for that single job - the only workaround was resetting the whole day to round order.
+
+**Changes**:
+- `components/TimePickerModal.tsx` - new optional `onReset` prop; when the job already has an ETA (`initialTime` set) an orange "Reset ETA" button is shown above the Cancel/Confirm row. Works identically on web and mobile since it's a plain Pressable.
+- `app/runsheet/[week].tsx` - new `handleResetEta` sets `eta: null` on the job in Firestore (same convention the day-reset already uses) and clears it in local state, so the job drops back to its round-order position immediately.
+
+**Regression notes**: `TimePickerModal` is only used by the runsheet; the new prop is optional so nothing else is affected. ETA sorting already handles jobs without an ETA (falls back to round order / rollover priority).
+
 ## July 31, 2026
 
 ### New: delete payments and services from a client's account history

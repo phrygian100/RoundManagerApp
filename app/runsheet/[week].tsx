@@ -503,6 +503,24 @@ export default function RunsheetWeekScreen() {
     setShowTimePicker(false);
   };
 
+  const handleResetEta = async () => {
+    if (!timePickerJob) return;
+
+    // Clear the ETA in Firestore so the job reverts to round order position
+    const jobRef = doc(db, 'jobs', timePickerJob.id);
+    await updateDoc(jobRef, { eta: null });
+
+    // Update local state
+    setJobs(prevJobs =>
+      prevJobs.map(job =>
+        job.id === timePickerJob.id ? { ...job, eta: undefined } : job
+      )
+    );
+
+    setTimePickerJob(null);
+    setShowTimePicker(false);
+  };
+
   const showPickerForJob = (job: Job & { client: Client | null }, section?: any, jobIndex?: number) => {
     setTimePickerJob(job);
     
@@ -3007,6 +3025,7 @@ ${signOff}`;
               setTimePickerJob(null);
             }}
             onConfirm={handleSetEta}
+            onReset={handleResetEta}
             initialTime={timePickerJob.eta}
             previousJobEta={(timePickerJob as any).previousJobEta}
           />

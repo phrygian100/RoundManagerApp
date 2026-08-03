@@ -24,6 +24,7 @@ interface TimePickerModalProps {
   visible: boolean;
   onClose: () => void;
   onConfirm: (time: string) => void;
+  onReset?: () => void;
   initialTime?: string;
   previousJobEta?: string;
 }
@@ -32,6 +33,7 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
   visible, 
   onClose, 
   onConfirm, 
+  onReset,
   initialTime,
   previousJobEta 
 }) => {
@@ -102,6 +104,12 @@ const TimePickerModal: React.FC<TimePickerModalProps> = ({
               contentContainerStyle={styles.listContentContainer}
               style={styles.timeList}
             />
+          )}
+
+          {initialTime && onReset && (
+            <Pressable onPress={onReset} style={[styles.button, styles.resetButton]}>
+              <Text style={styles.buttonText}>Reset ETA</Text>
+            </Pressable>
           )}
 
           <View style={styles.buttonContainer}>
@@ -182,6 +190,12 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     backgroundColor: '#f44336',
+  },
+  resetButton: {
+    backgroundColor: '#FF9800',
+    marginTop: 12,
+    width: '100%',
+    flex: undefined,
   },
   confirmButton: {
     backgroundColor: '#4CAF50',
