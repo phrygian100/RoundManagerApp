@@ -329,6 +329,7 @@ export default function AddPaymentScreen() {
                 <Picker.Item label="Card" value="card" />
                 <Picker.Item label="Bank Transfer" value="bank_transfer" />
                 <Picker.Item label="Cheque" value="cheque" />
+                <Picker.Item label="Discretion" value="discretion" />
                 <Picker.Item label="Other" value="other" />
               </Picker>
             </View>

@@ -1,5 +1,15 @@
 # Code Changes Log
 
+## August 5, 2026
+
+### New: "Discretion" payment method on the Add Payment screen
+
+**Changes**:
+- `types/models.ts` - `Payment['method']` union extended with `'discretion'`.
+- `app/add-payment.tsx` - new "Discretion" option in the Payment Method picker (between Cheque and Other).
+
+**Regression notes**: payment method labels elsewhere (payments list, client history, settings export) are rendered generically via `method.replace('_', ' ')`, so the new value displays correctly with no further changes. Deliberately not added to the bulk-payments importer, the unknown-payment modal, or the Agent API's allowed methods - those are separate entry flows and can be extended on request.
+
 ## August 3, 2026
 
 ### New: "Remove rollover tag" option in the runsheet job action sheet
