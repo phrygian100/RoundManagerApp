@@ -2,6 +2,18 @@
 
 ## August 5, 2026
 
+### Data fix: full client geolocation audit via the Agent API
+
+**Why**: The round order manager map had 477 of 563 active clients without a postcode and 82 without any pin at all, making geographic round ordering unreliable.
+
+**What was done** (data-only, no app code changes; scripts kept in `scripts/`):
+- `scripts/geo_verify_clients.py` - fetch/geocode/plan/apply/report pipeline. Cross-references each client's address against Nominatim (OpenStreetMap) and postcodes.io, then writes verified results back through the Agent API `updateClientLocation` action. Filled 321 missing postcodes (only where the address-geocode and the postcode centroid agreed within tolerance) and upgraded 5 pins from postcode-centroid to house-level. Manual pins (`geoSource: 'manual'`) were never touched.
+- `scripts/geo_pass2.py` / `scripts/geo_pass3.py` - street-level and fuzzy (Photon) passes for the 82 clients OSM couldn't resolve at house level, with strict village/bounding-box validation. Pinned 44 more.
+- `scripts/geo_pass4.py` - web-diligence pass for the last 38: postcodes confirmed via Land Registry/StreetList/Companies House listings, validated against postcodes.io parish data, then applied. Includes corrective re-pins for two earlier fuzzy matches (RWC568 Bellflower Road, RWC392 Parks Farm).
+- Working data in `scripts/_geo/` (clients snapshot, evidence, plans, applied logs).
+
+**Result**: every active client except a handful of genuinely unresolvable addresses (e.g. "x statics at Sleaford") now has a pin and postcode. Approximate (village-level) pins are listed in the audit report for owner review.
+
 ### Agent API: client geolocation read + `updateClientLocation` write action
 
 **Why**: To let an external agent audit and fix every client's map pin (round order manager map view), including clients with missing postcodes, so the round order can be organised geographically.
