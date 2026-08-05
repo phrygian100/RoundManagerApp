@@ -2,6 +2,17 @@
 
 ## August 5, 2026
 
+### Agent API: client geolocation read + `updateClientLocation` write action
+
+**Why**: To let an external agent audit and fix every client's map pin (round order manager map view), including clients with missing postcodes, so the round order can be organised geographically.
+
+**Changes** (`functions/agentApi.js`, deployed):
+- `listClients` now also returns `latitude`, `longitude`, `geoSource` and `geoUpdatedAt` per client.
+- New write action `updateClientLocation` `{ clientId, latitude, longitude, source?, postcode?, force? }`: sets the pin fields exactly as the round-order-manager map's manual confirmation does. UK-bounds validation on coordinates; optional postcode correction (validated/normalised); pins with `geoSource: 'manual'` are protected from overwrite unless `force: true`. Audited like all writes.
+- `docs/agent-api.md` updated.
+
+**Regression notes**: read shape change is additive; the new write touches only `latitude`/`longitude`/`geoSource`/`geoUpdatedAt`/`postcode` fields that the app already reads, using the same conventions as `app/round-order-manager.tsx` and `services/geocodingService.ts`.
+
 ### New: "Discretion" payment method on the Add Payment screen
 
 **Changes**:

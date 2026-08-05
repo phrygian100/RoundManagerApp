@@ -24,6 +24,9 @@ const MAX_ACTIVE_KEYS_PER_ACCOUNT = 5;
 const MAX_LIST_RESULTS = 500;
 
 const VALID_PAYMENT_METHODS = ['cash', 'card', 'bank_transfer', 'cheque', 'other', 'auto_balance', 'direct_debit'];
+// Pin provenance values understood by the app (types/client.ts geoSource).
+const VALID_GEO_SOURCES = ['postcode', 'address', 'manual'];
+const UK_POSTCODE_REGEX = /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/;
 // Job statuses the agent may set: complete a job, or revert it to pending.
 const AGENT_SETTABLE_JOB_STATUSES = ['completed', 'pending'];
 
@@ -375,6 +378,10 @@ module.exports = function buildAgentApi(deps) {
       gocardlessEnabled: !!c.gocardlessEnabled,
       gocardlessCustomerId: c.gocardlessCustomerId || null,
       dateAdded: c.dateAdded || null,
+      latitude: typeof c.latitude === 'number' ? c.latitude : null,
+      longitude: typeof c.longitude === 'number' ? c.longitude : null,
+      geoSource: c.geoSource || null,
+      geoUpdatedAt: c.geoUpdatedAt || null,
     }));
     list.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     return { ok: true, count: list.length, clients: list };
@@ -681,6 +688,71 @@ module.exports = function buildAgentApi(deps) {
     return { ok: true, jobId: ref.id, clientName: client.name || '', scheduledTime: jobData.scheduledTime, price };
   }
 
+  /**
+   * Set a client's map pin (and optionally correct their postcode).
+   * Mirrors the round-order-manager map's manual pin confirmation
+   * (app/round-order-manager.tsx handleConfirmPin): latitude/longitude/
+   * geoSource/geoUpdatedAt. Pins with geoSource 'manual' were placed by a
+   * person in the app and are only overwritten when force:true is passed.
+   */
+  async function actionUpdateClientLocation(db, accountId, body) {
+    const client = await getOwnedClient(db, accountId, body && body.clientId);
+
+    const latitude = Number(body.latitude);
+    const longitude = Number(body.longitude);
+    // Sanity bounds: UK including Northern Ireland and outlying isles.
+    if (!Number.isFinite(latitude) || latitude < 49 || latitude > 61.5) {
+      throw badRequest('latitude must be a number within the UK (49 to 61.5).');
+    }
+    if (!Number.isFinite(longitude) || longitude < -8.7 || longitude > 2.1) {
+      throw badRequest('longitude must be a number within the UK (-8.7 to 2.1).');
+    }
+
+    const source = body.source === undefined ? 'address' : String(body.source);
+    if (VALID_GEO_SOURCES.indexOf(source) === -1) {
+      throw badRequest(`source must be one of: ${VALID_GEO_SOURCES.join(', ')}.`);
+    }
+
+    if (client.geoSource === 'manual' && body.force !== true) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This client\'s pin was placed manually in the app and is protected. Pass force:true to overwrite it.'
+      );
+    }
+
+    const updateData = {
+      latitude,
+      longitude,
+      geoSource: source,
+      geoUpdatedAt: new Date().toISOString(),
+    };
+
+    let postcodeUpdated = false;
+    if (body.postcode !== undefined && body.postcode !== null && String(body.postcode).trim() !== '') {
+      const compact = String(body.postcode).trim().toUpperCase().replace(/\s+/g, '');
+      const formatted = compact.slice(0, -3) + ' ' + compact.slice(-3);
+      if (!UK_POSTCODE_REGEX.test(formatted)) {
+        throw badRequest('postcode must be a valid UK postcode.');
+      }
+      updateData.postcode = formatted;
+      postcodeUpdated = true;
+    }
+
+    await db.collection('clients').doc(client.id).update(updateData);
+
+    return {
+      ok: true,
+      clientId: client.id,
+      clientName: client.name || '',
+      latitude,
+      longitude,
+      geoSource: source,
+      previousGeoSource: client.geoSource || null,
+      postcodeUpdated,
+      newPostcode: postcodeUpdated ? updateData.postcode : null,
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Comms action
   // ---------------------------------------------------------------------------
@@ -772,6 +844,7 @@ module.exports = function buildAgentApi(deps) {
     updateJobStatus: actionUpdateJobStatus,
     rescheduleJob: actionRescheduleJob,
     createJob: actionCreateJob,
+    updateClientLocation: actionUpdateClientLocation,
     sendChaseEmail: actionSendChaseEmail,
   };
 

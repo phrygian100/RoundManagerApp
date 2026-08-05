@@ -73,7 +73,7 @@ Response shape:
 
 ### `listClients` — body `{ "includeArchived"?: true }`
 
-Returns every client (active only by default) with core fields plus `gocardlessEnabled`, `gocardlessCustomerId` and `dateAdded`, sorted by name. Useful for bulk matching against external systems (e.g. GoCardless customer IDs).
+Returns every client (active only by default) with core fields plus `gocardlessEnabled`, `gocardlessCustomerId`, `dateAdded`, and map-pin fields `latitude`, `longitude`, `geoSource` (`postcode` | `address` | `manual` | null) and `geoUpdatedAt`, sorted by name. Useful for bulk matching against external systems and for auditing client geolocation.
 
 ### `searchClients` — body `{ "query": "text" }`
 
@@ -130,6 +130,14 @@ Moves a non-completed job to the new date (visits are at 09:00). Returns previou
 ```
 
 `serviceId` defaults to `window-cleaning`; `price` defaults to the client's standard quote. Creates a one-off pending job. Returns `{ ok, jobId, scheduledTime, price }`.
+
+### `updateClientLocation`
+
+```json
+{ "clientId": "<id>", "latitude": 52.99, "longitude": -0.41, "source": "manual", "postcode": "<optional correction>", "force": false }
+```
+
+Sets the client's map pin (used by the round order manager's map view). `latitude`/`longitude` must be within UK bounds. `source` is the pin provenance: `postcode` (postcode centroid), `address` (address-level geocode) or `manual` (human-verified precise location — treated as confirmed and never overwritten by the app's bulk geocoder); defaults to `address`. Optional `postcode` also corrects the client's stored postcode (validated + normalised, e.g. `NG34 7AB`). Pins whose current `geoSource` is `manual` are protected: overwriting them fails unless `force: true`. Returns `{ ok, clientId, clientName, latitude, longitude, geoSource, previousGeoSource, postcodeUpdated, newPostcode }`.
 
 ---
 
