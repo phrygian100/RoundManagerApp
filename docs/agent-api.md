@@ -139,6 +139,14 @@ Moves a non-completed job to the new date (visits are at 09:00). Returns previou
 
 Sets the client's map pin (used by the round order manager's map view). `latitude`/`longitude` must be within UK bounds. `source` is the pin provenance: `postcode` (postcode centroid), `address` (address-level geocode) or `manual` (human-verified precise location — treated as confirmed and never overwritten by the app's bulk geocoder); defaults to `address`. Optional `postcode` also corrects the client's stored postcode (validated + normalised, e.g. `NG34 7AB`). Pins whose current `geoSource` is `manual` are protected: overwriting them fails unless `force: true`. Returns `{ ok, clientId, clientName, latitude, longitude, geoSource, previousGeoSource, postcodeUpdated, newPostcode }`.
 
+### `setRoundOrder`
+
+```json
+{ "order": ["<clientId>", "<clientId>", "..."] }
+```
+
+Replaces the round order for **all active clients** in one call. `order` must be the complete ordered list of active client ids — position in the array becomes `roundOrderNumber` (1-based), the same convention the app's round order manager uses when saving. The request is rejected (400) if any id is duplicated, unknown, or belongs to an ex-client, or if any active client is missing — the error lists the offending ids. Writes are applied in Firestore batches of 400. Ex-clients are left untouched (the app ignores their round order everywhere). Counts as a single write for rate limiting. The audit log stores `{ count, sha256 }` of the order rather than the raw id list; the same `orderSha256` is returned for correlation. Returns `{ ok, clientsOrdered, batches, orderSha256 }`.
+
 ---
 
 ## Comms action (audited)

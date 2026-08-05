@@ -2,7 +2,18 @@
 
 ## August 5, 2026
 
-### Round order map: numbered markers replace geoSource colour dots
+### Agent API: `setRoundOrder` bulk action + full geographic round reorder
+
+**Why**: With every active client pinned, the round order could finally be reorganised geographically. Doing that client-by-client through the API would be hundreds of writes; the round is one logical change.
+
+**Changes**:
+- `functions/agentApi.js` (deployed) - new write action `setRoundOrder { order: [clientId, ...] }`: takes the complete ordered list of active client ids and writes `roundOrderNumber = index + 1` in Firestore batches of 400 (same 1-based consecutive convention as the app's round order manager save). Rejects duplicates, unknown/inactive ids, or missing active clients, listing the offenders. Ex-clients are untouched. Audit log stores `{ count, sha256 }` of the order instead of the raw id list (new `auditParams` sanitiser); the hash is also returned for correlation.
+- `docs/agent-api.md` - action documented.
+- `scripts/optimize_round_order.py` - local route optimiser (no external routing APIs): haversine distances, nearest-neighbour construction from the pin nearest Heckington, then alternating 2-opt/Or-opt passes to convergence. Backs up the previous order to `scripts/_geo/round_order_backup_<date>.json` before applying.
+
+**Result**: all 562 active clients renumbered. Route walked in round order shrank from 1103.6 km to 239.3 km (78% shorter); median hop between consecutive clients is now 95 m. Starts at RWC101 (Royal Oak Court, Heckington), sweeps Heckington → Great Hale → Swineshead/Bicker/Donington → Kirton → Boston/Wyberton → Old Leake → Sutterton/Gosberton → Helpringham/Swaton → Folkingham/Osbournby → Greylees → Sleaford/Holdingham → Ruskington → Anwick → South Kyme → Chapel Hill/Tattershall → Billinghay.
+
+**Regression notes**: `roundOrderNumber` lives only on `clients` docs - the runsheet, capacity service and round order manager all join client data live, so nothing holds a stale copy. The app's own drag-reorder save (`app/round-order-manager.tsx`) uses the identical numbering convention and keeps working unchanged. Verified post-apply: numbering is consecutive 1-562 and the next week's runsheet returns jobs in the new geographic order.
 
 **Why**: With every client now pinned, the useful signal on the round order manager map is the visit order, not pin provenance. Reading the round order number directly off the map makes it easy to sanity-check the route when zoomed in.
 

@@ -753,6 +753,66 @@ module.exports = function buildAgentApi(deps) {
     };
   }
 
+  /**
+   * Replace the round order for ALL active clients in one call.
+   * body.order = the full ordered array of active client ids; position in the
+   * array becomes roundOrderNumber (1-based), matching the app's own
+   * round-order-manager save convention. The list must cover every active
+   * client exactly once (ex-clients are excluded app-side wherever round
+   * order is used, so their stale numbers are left untouched).
+   */
+  async function actionSetRoundOrder(db, accountId, body) {
+    const order = body && body.order;
+    if (!Array.isArray(order) || order.length === 0) {
+      throw badRequest('order must be a non-empty array of client ids covering every active client.');
+    }
+    if (!order.every((id) => typeof id === 'string' && id.length > 0)) {
+      throw badRequest('order must contain only non-empty client id strings.');
+    }
+
+    const seen = new Set();
+    const duplicates = [];
+    order.forEach((id) => {
+      if (seen.has(id)) duplicates.push(id);
+      seen.add(id);
+    });
+    if (duplicates.length > 0) {
+      throw badRequest(`order contains ${duplicates.length} duplicate id(s): ${duplicates.slice(0, 10).join(', ')}${duplicates.length > 10 ? ', …' : ''}`);
+    }
+
+    const clients = await loadClientsForAccount(db, accountId);
+    const active = clients.filter((c) => (c.status || '') !== 'ex-client');
+    const activeIds = new Set(active.map((c) => c.id));
+
+    const missing = active.filter((c) => !seen.has(c.id)).map((c) => c.id);
+    const extra = order.filter((id) => !activeIds.has(id));
+    if (missing.length > 0 || extra.length > 0) {
+      const fmt = (ids) => `${ids.slice(0, 10).join(', ')}${ids.length > 10 ? ', …' : ''}`;
+      throw badRequest(
+        `order must cover every active client exactly once. ` +
+        `Missing ${missing.length} active client(s)${missing.length ? `: ${fmt(missing)}` : ''}. ` +
+        `Unknown or inactive ${extra.length} id(s)${extra.length ? `: ${fmt(extra)}` : ''}.`
+      );
+    }
+
+    // Firestore batches cap at 500 ops; chunk conservatively.
+    const CHUNK = 400;
+    for (let i = 0; i < order.length; i += CHUNK) {
+      const batch = db.batch();
+      order.slice(i, i + CHUNK).forEach((id, j) => {
+        batch.update(db.collection('clients').doc(id), { roundOrderNumber: i + j + 1 });
+      });
+      await batch.commit();
+    }
+
+    return {
+      ok: true,
+      clientsOrdered: order.length,
+      batches: Math.ceil(order.length / CHUNK),
+      orderSha256: sha256Hex(order.join(',')),
+    };
+  }
+
   // ---------------------------------------------------------------------------
   // Comms action
   // ---------------------------------------------------------------------------
@@ -845,8 +905,23 @@ module.exports = function buildAgentApi(deps) {
     rescheduleJob: actionRescheduleJob,
     createJob: actionCreateJob,
     updateClientLocation: actionUpdateClientLocation,
+    setRoundOrder: actionSetRoundOrder,
     sendChaseEmail: actionSendChaseEmail,
   };
+
+  /**
+   * Keep audit log entries readable: setRoundOrder bodies carry hundreds of
+   * ids, so log a count + hash instead of the raw array (the same hash is
+   * returned to the caller for correlation).
+   */
+  function auditParams(action, body) {
+    if (action === 'setRoundOrder' && body && Array.isArray(body.order)) {
+      return Object.assign({}, body, {
+        order: { count: body.order.length, sha256: sha256Hex(body.order.join(',')) },
+      });
+    }
+    return body;
+  }
 
   async function authenticateKey(db, req) {
     const header = req.headers['authorization'] || '';
@@ -932,7 +1007,7 @@ module.exports = function buildAgentApi(deps) {
           accountId: auth.accountId,
           keyId: auth.keyId,
           action,
-          params: body,
+          params: auditParams(action, body),
           outcome: 'success',
           detail: result,
           ipHash: ipKey,
@@ -950,7 +1025,7 @@ module.exports = function buildAgentApi(deps) {
           accountId: auth.accountId,
           keyId: auth.keyId,
           action,
-          params: req.body || {},
+          params: auditParams(action, req.body || {}),
           outcome: 'error',
           detail: { error: message },
           ipHash: ipKey,
