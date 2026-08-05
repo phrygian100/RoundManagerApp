@@ -10,14 +10,6 @@ if (Platform.OS !== 'web') {
 
 const MESSAGE_TAG = 'guvnor-client-map';
 
-// Pin colours by provenance: human-confirmed vs automated guesses.
-const PIN_COLORS: Record<string, string> = {
-  manual: '#2e7d32', // green — human confirmed
-  postcode: '#ef6c00', // amber — postcode centroid guess
-  address: '#1565c0', // blue — address search guess
-  unknown: '#616161',
-};
-
 type MapPin = {
   id: string;
   lat: number;
@@ -27,7 +19,8 @@ type MapPin = {
   cost: string;
   interval: string;
   position: string;
-  source: string;
+  /** Round order position rendered on the marker itself (null = not ordered yet). */
+  order: number | null;
 };
 
 const clientDisplayAddress = (c: Client): string => {
@@ -54,7 +47,7 @@ const toPin = (c: Client): MapPin => ({
   cost: typeof c.quote === 'number' ? `£${c.quote}` : '',
   interval: formatInterval(c.frequency),
   position: typeof c.roundOrderNumber === 'number' ? `#${c.roundOrderNumber}` : '',
-  source: c.geoSource || 'unknown',
+  order: typeof c.roundOrderNumber === 'number' ? c.roundOrderNumber : null,
 });
 
 const hasPin = (c: Client) => typeof c.latitude === 'number' && typeof c.longitude === 'number';
@@ -81,25 +74,21 @@ function buildClientMapHtml(pins: MapPin[]): string {
     background: #007AFF; color: #fff; border: none; border-radius: 6px;
     padding: 7px 10px; font-size: 13px; font-weight: 600; cursor: pointer;
   }
-  .legend {
-    position: absolute; bottom: 14px; left: 10px; z-index: 1000;
-    background: rgba(255,255,255,0.92); border-radius: 8px; padding: 8px 12px;
-    font-family: sans-serif; font-size: 12px; color: #333;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  /* Numbered round-order badge markers */
+  .order-badge {
+    display: flex; align-items: center; justify-content: center;
+    box-sizing: border-box; width: 100%; height: 100%;
+    background: #1565c0; color: #fff;
+    border: 2px solid #fff; border-radius: 999px;
+    font-family: sans-serif; font-weight: 700; font-size: 12px; line-height: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.45);
   }
-  .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 5px; margin-right: 6px; }
+  .order-badge.unordered { background: #757575; font-size: 14px; }
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div class="legend">
-  <div><span class="dot" style="background:${PIN_COLORS.manual}"></span>Confirmed</div>
-  <div><span class="dot" style="background:${PIN_COLORS.postcode}"></span>Postcode guess</div>
-  <div><span class="dot" style="background:${PIN_COLORS.address}"></span>Address guess</div>
-</div>
 <script>
-  var COLORS = ${embedJson(PIN_COLORS)};
-
   var send = function (payload) {
     var msg = JSON.stringify(Object.assign({ tag: '${MESSAGE_TAG}' }, payload));
     if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
@@ -123,7 +112,24 @@ function buildClientMapHtml(pins: MapPin[]): string {
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(map);
 
-  var markers = {}; // client id -> circleMarker
+  var markers = {}; // client id -> marker
+
+  // Fixed-pixel badge showing the client's round order position. Width grows
+  // with digit count so 3-4 digit numbers stay legible; markers keep their
+  // screen size at every zoom (small map = overlapping badges, zoomed in =
+  // readable visit order).
+  var orderIcon = function (order) {
+    var label = order === null || order === undefined ? '·' : String(order);
+    var w = Math.max(26, 12 + label.length * 8);
+    var cls = 'order-badge' + (order === null || order === undefined ? ' unordered' : '');
+    return L.divIcon({
+      className: '', // suppress Leaflet's default divIcon box styling
+      html: '<div class="' + cls + '">' + escapeHtml(label) + '</div>',
+      iconSize: [w, 26],
+      iconAnchor: [w / 2, 13],
+      popupAnchor: [0, -13]
+    });
+  };
 
   var popupHtml = function (pin) {
     return '<div>' +
@@ -140,16 +146,13 @@ function buildClientMapHtml(pins: MapPin[]): string {
   };
 
   var upsertPin = function (pin) {
-    var color = COLORS[pin.source] || COLORS.unknown;
     var existing = markers[pin.id];
     if (existing) {
       existing.setLatLng([pin.lat, pin.lng]);
-      existing.setStyle({ color: color, fillColor: color });
+      existing.setIcon(orderIcon(pin.order));
       existing.setPopupContent(popupHtml(pin));
     } else {
-      var m = L.circleMarker([pin.lat, pin.lng], {
-        radius: 8, weight: 2, color: color, fillColor: color, fillOpacity: 0.75
-      }).addTo(map);
+      var m = L.marker([pin.lat, pin.lng], { icon: orderIcon(pin.order) }).addTo(map);
       m.bindPopup(popupHtml(pin));
       markers[pin.id] = m;
     }

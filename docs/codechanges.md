@@ -2,7 +2,16 @@
 
 ## August 5, 2026
 
-### Data fix: full client geolocation audit via the Agent API
+### Round order map: numbered markers replace geoSource colour dots
+
+**Why**: With every client now pinned, the useful signal on the round order manager map is the visit order, not pin provenance. Reading the round order number directly off the map makes it easy to sanity-check the route when zoomed in.
+
+**Changes** (`components/ClientMapView.tsx`):
+- Markers are now fixed-size circular badges showing each client's `roundOrderNumber` (white on blue; grey "·" badge for clients without an order yet). Badge width grows with digit count so 3-4 digit positions stay legible.
+- Removed the green/amber/blue `geoSource` colour coding and the map legend entirely.
+- No clustering: badges keep their screen size at all zoom levels, so they overlap when zoomed out and read cleanly when zoomed in.
+
+**Regression notes**: display-only change inside the shared Leaflet HTML, so web (iframe) and native (WebView) render identically. The pin popup (name, address, price, interval, round position, "Edit location" button), the manual pin placement flow, live pin updates via `__applyPins`, and the unpinned-clients list are untouched. The popup still shows `Round position #N` as before.
 
 **Why**: The round order manager map had 477 of 563 active clients without a postcode and 82 without any pin at all, making geographic round ordering unreliable.
 
