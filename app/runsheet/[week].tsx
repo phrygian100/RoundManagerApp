@@ -31,7 +31,7 @@ import type { Job, Payment, User } from '../../types/models';
 import { getJobAccountDisplay } from '../../utils/jobDisplay';
 import { displayAccountNumber } from '../../utils/account';
 import { availabilityColor, summarizeDayAvailability } from '../../utils/availability';
-import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
+import { hrefToUrl, pushOrNewTab } from '../../utils/ctrlClickNavigation';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -2833,12 +2833,22 @@ ${signOff}`;
 
               // Rota availability for this day (traffic-light dot + count)
               const dayIndex = daysOfWeek.indexOf(title);
-              const dayAvailability = dayIndex >= 0 && availabilityRoster.length > 0
-                ? summarizeDayAvailability(
-                    rotaMap[format(addDays(weekStart, dayIndex), 'yyyy-MM-dd')],
-                    availabilityRoster,
-                  )
+              const dayDateKey = dayIndex >= 0 ? format(addDays(weekStart, dayIndex), 'yyyy-MM-dd') : null;
+              const dayAvailability = dayDateKey && availabilityRoster.length > 0
+                ? summarizeDayAvailability(rotaMap[dayDateKey], availabilityRoster)
                 : null;
+
+              // Open the rota for this day so the user can see who is off.
+              // New browser tab on web; in-app navigation on mobile.
+              const openRotaForDay = () => {
+                if (!dayDateKey) return;
+                const href = { pathname: '/rota', params: { date: dayDateKey } } as any;
+                if (Platform.OS === 'web') {
+                  window.open(hrefToUrl(href), '_blank');
+                } else {
+                  router.push(href);
+                }
+              };
 
               // Debug logging
               console.log(`Section header for ${title}:`, {
@@ -2858,7 +2868,12 @@ ${signOff}`;
                     </Text>
                   </Pressable>
                   {dayAvailability && dayAvailability.total > 0 && (
-                    <View style={styles.availabilityBadge}>
+                    <Pressable
+                      style={styles.availabilityBadge}
+                      onPress={openRotaForDay}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View rota for ${title}`}
+                    >
                       <View
                         style={[
                           styles.availabilityDot,
@@ -2868,7 +2883,7 @@ ${signOff}`;
                       <Text style={styles.availabilityBadgeText}>
                         {dayAvailability.available}/{dayAvailability.total} available
                       </Text>
-                    </View>
+                    </Pressable>
                   )}
                   {showDayCompleteButton && (
                     Platform.OS === 'web'

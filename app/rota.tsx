@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { addDays, format, isToday, startOfWeek } from 'date-fns';
-import { useRouter } from 'expo-router';
+import { addDays, differenceInCalendarWeeks, format, isToday, isValid, parseISO, startOfWeek } from 'date-fns';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -52,6 +52,22 @@ const TODAY_HIGHLIGHT = {
   dark: 'rgba(100, 170, 255, 0.08)',
 };
 
+// Stronger highlight for a day deep-linked via the `date` param
+// (e.g. clicking a runsheet availability badge).
+const TARGET_DAY_HIGHLIGHT = {
+  light: 'rgba(255, 149, 0, 0.12)',
+  dark: 'rgba(255, 159, 10, 0.15)',
+};
+
+/** Weeks between today's week and the week containing `date` (clamped to nav limits). */
+function weekOffsetForDate(dateParam: string | undefined): number {
+  if (!dateParam) return 0;
+  const parsed = parseISO(dateParam);
+  if (!isValid(parsed)) return 0;
+  const diff = differenceInCalendarWeeks(parsed, new Date(), { weekStartsOn: 1 });
+  return Math.max(-51, Math.min(51, diff));
+}
+
 function getMemberDisplayName(member: MemberRecord): string {
   const prefix = member.email.split('@')[0];
   return prefix.charAt(0).toUpperCase() + prefix.slice(1);
@@ -63,13 +79,16 @@ export default function RotaScreen() {
   const colors = STATUS_COLORS[colorScheme];
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { date: dateParam } = useLocalSearchParams<{ date?: string }>();
+  const targetDateKey =
+    typeof dateParam === 'string' && isValid(parseISO(dateParam)) ? dateParam : null;
 
   const [members, setMembers] = useState<MemberRecord[]>([]);
   const [weekDates, setWeekDates] = useState<Date[]>([]);
   const [rota, setRota] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [canEditAll, setCanEditAll] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(() => weekOffsetForDate(targetDateKey ?? undefined));
   const [loading, setLoading] = useState(true);
 
   // Default schedule modal state
@@ -290,6 +309,7 @@ export default function RotaScreen() {
                 {weekDates.map((date, rowIdx) => {
                   const dateKey = format(date, 'yyyy-MM-dd');
                   const isTodayRow = isToday(date);
+                  const isTargetRow = dateKey === targetDateKey;
                   const available = getAvailableCount(dateKey);
                   const isWeekend = rowIdx >= 5;
 
@@ -299,6 +319,7 @@ export default function RotaScreen() {
                       style={[
                         styles.gridRow,
                         isTodayRow && { backgroundColor: TODAY_HIGHLIGHT[colorScheme] },
+                        isTargetRow && { backgroundColor: TARGET_DAY_HIGHLIGHT[colorScheme] },
                         rowIdx < 6 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.cardBorder },
                       ]}
                     >

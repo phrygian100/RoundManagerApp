@@ -1,6 +1,16 @@
 # Code Changes Log
 
-## August 5, 2026
+## August 9, 2026
+
+### Runsheet availability badge now opens the rota for that day
+
+**Why**: The runsheet's traffic-light availability badge (e.g. "2/3 available" on a day header) showed *how many* operatives are available but gave no way to see *who* is off. Clicking it now jumps straight to the rota for that day.
+
+**Changes**:
+- `app/runsheet/[week].tsx` - the availability badge in each day's section header is now a `Pressable`. On web it opens the rota in a new browser tab (`/rota?date=YYYY-MM-DD` via `hrefToUrl`); on mobile it pushes the rota screen in-app. Accessibility label added ("View rota for {day}").
+- `app/rota.tsx` - the rota screen now accepts an optional `date` query param (`yyyy-MM-dd`). When present, the initial week offset is computed from the date (clamped to the existing ±51-week navigation limit) so the grid opens on the correct week, and that day's row gets an amber highlight so it stands out from the today-highlight.
+
+**Regression notes**: the `date` param is optional - navigating to `/rota` without it (e.g. from the home screen menu) behaves exactly as before (current week, no target highlight). Week navigation chevrons, cell editing, default schedules and the rota history/audit buttons are untouched. The runsheet day header's collapse toggle, "Day complete?" and reset buttons are unaffected; only the badge itself gained an onPress. Both platforms verified against the existing type-checker baseline (no new errors).
 
 ### Agent API: `setRoundOrder` bulk action + full geographic round reorder
 
