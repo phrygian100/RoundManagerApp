@@ -1,6 +1,16 @@
 # Code Changes Log
 
-## August 9, 2026
+## August 11, 2026
+
+### Add Client: "Guess Round Order from location" button
+
+**Why**: When adding a new client, picking a round order position among 500+ clients by hand is slow. Since nearly all existing clients now have map pins and a geographically-ordered round, the position can be inferred from the new client's location.
+
+**Changes**:
+- `services/roundOrderService.ts` (new) - `guessRoundOrderPosition(lat, lng)`: loads the owner's active clients that have both a pin and a round order number, finds the nearest one (haversine), then decides before/after it by comparing the detour cost of inserting on either adjacent leg of the round (cheapest-insertion heuristic). Returns the suggested position plus nearest-client context (address, distance).
+- `app/add-client.tsx` - new "✨ Guess Round Order from location" button under "Set Round Order Position". Uses the manually pinned location when set, otherwise geocodes the entered address via the existing `geocodeBestGuess`. On success it fills `roundOrderNumber` (same form state the manual picker returns into) and shows a hint line, e.g. "Guessed from location: after 12 Oak Avenue, Springfield (140 m away)". Alerts (platform-appropriate) when no address/location is available, geocoding fails, or no existing clients have pins + positions. Returning from the manual picker clears the hint since the manual choice supersedes the guess.
+
+**Regression notes**: the guess only sets local form state - saving behaves exactly as if the same number had been chosen via the existing "Set Round Order Position" picker (which for brand-new clients also just returns a number to the form; consecutive renumbering still happens in the round order manager). The manual picker flow, location pin flow and save path are unchanged. No writes happen at guess time (read-only Firestore query).
 
 ### Runsheet availability badge now opens the rota for that day
 

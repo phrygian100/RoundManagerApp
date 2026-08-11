@@ -22,6 +22,7 @@ import { formatAuditDescription, logAction } from '../services/auditService';
 import { getNextAccountNumber } from '../services/clientService';
 import { geocodeBestGuess } from '../services/geocodingService';
 import { createJobsForClient } from '../services/jobService';
+import { guessRoundOrderPosition } from '../services/roundOrderService';
 import { checkClientLimit } from '../services/subscriptionService';
 import { PREMIUM_PRICE_ONLY_LABEL } from '../shared/constants/pricing';
 
@@ -70,6 +71,8 @@ export default function AddClientScreen() {
   const [locationPickerVisible, setLocationPickerVisible] = useState(false);
   const [predictedLocation, setPredictedLocation] = useState<PickedLocation | null>(null);
   const [predictingLocation, setPredictingLocation] = useState(false);
+  const [guessingRoundOrder, setGuessingRoundOrder] = useState(false);
+  const [roundOrderGuessHint, setRoundOrderGuessHint] = useState<string | null>(null);
   const lastAppliedParamsSignatureRef = useRef<string>('');
   const { quoteData, clearQuoteData } = useQuoteToClient();
 
@@ -187,7 +190,11 @@ export default function AddClientScreen() {
     // If returning from round order manager, update all fields from params if present.
     const updates: (() => void)[] = [];
     
-    if (incoming.roundOrderNumber) updates.push(() => setRoundOrderNumber(Number(incoming.roundOrderNumber)));
+    if (incoming.roundOrderNumber) updates.push(() => {
+      setRoundOrderNumber(Number(incoming.roundOrderNumber));
+      // Manual choice from the picker supersedes any earlier location-based guess.
+      setRoundOrderGuessHint(null);
+    });
     if (incoming.name) updates.push(() => setName(incoming.name));
     if (incoming.address1) updates.push(() => setAddress1(incoming.address1));
     if (incoming.town) updates.push(() => setTown(incoming.town));
@@ -489,6 +496,64 @@ export default function AddClientScreen() {
     }
   };
 
+  const showFormAlert = (title: string, message: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(`${title}\n\n${message}`);
+    } else {
+      Alert.alert(title, message);
+    }
+  };
+
+  const handleGuessRoundOrder = async () => {
+    if (guessingRoundOrder) return;
+    setGuessingRoundOrder(true);
+    try {
+      // Use the pinned location when set; otherwise geocode the entered address.
+      let location = clientLocation;
+      if (!location) {
+        if (!address1.trim() && !postcode.trim()) {
+          showFormAlert(
+            'No location yet',
+            'Enter the address (or set the location on the map) first, then the round order can be guessed from it.',
+          );
+          return;
+        }
+        const hit = await geocodeBestGuess(address1, town, postcode);
+        if (!hit) {
+          showFormAlert(
+            'Location not found',
+            "Couldn't find this address on the map. Try setting the location manually, then guess again.",
+          );
+          return;
+        }
+        location = { latitude: hit.latitude, longitude: hit.longitude };
+      }
+
+      const guess = await guessRoundOrderPosition(location.latitude, location.longitude);
+      if (!guess) {
+        showFormAlert(
+          'Not enough data',
+          'No existing clients have both a map location and a round order position to compare against.',
+        );
+        return;
+      }
+
+      setRoundOrderNumber(guess.position);
+      const distance =
+        guess.nearest.distanceKm < 1
+          ? `${Math.round(guess.nearest.distanceKm * 1000)} m`
+          : `${guess.nearest.distanceKm.toFixed(1)} km`;
+      setRoundOrderGuessHint(
+        `Guessed from location: ${guess.placement} ${guess.nearest.addressLabel} (${distance} away). Tap the button above to adjust.`,
+      );
+    } catch (error) {
+      console.error('Error guessing round order:', error);
+      showFormAlert('Error', 'Could not guess the round order. Please set it manually.');
+    } finally {
+      setGuessingRoundOrder(false);
+    }
+  };
+
   const handleRoundOrderPress = () => {
     // Prepare the new client data, including address1, town, postcode
     const newClientData = {
@@ -633,6 +698,18 @@ export default function AddClientScreen() {
             {roundOrderNumber ? `Round Order: ${roundOrderNumber}` : 'Set Round Order Position'}
           </ThemedText>
         </Pressable>
+        <Pressable
+          style={[styles.roundOrderButton, styles.guessRoundOrderButton]}
+          onPress={handleGuessRoundOrder}
+          disabled={guessingRoundOrder}
+        >
+          <ThemedText style={styles.roundOrderButtonText}>
+            {guessingRoundOrder ? 'Guessing...' : '✨ Guess Round Order from location'}
+          </ThemedText>
+        </Pressable>
+        {roundOrderGuessHint && (
+          <ThemedText style={styles.guessHintText}>{roundOrderGuessHint}</ThemedText>
+        )}
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <View style={styles.frequencyContainer}>
@@ -800,6 +877,14 @@ const styles = StyleSheet.create({
   roundOrderButtonText: {
     color: '#007AFF',
     fontWeight: 'bold',
+  },
+  guessRoundOrderButton: {
+    marginTop: 8,
+  },
+  guessHintText: {
+    fontSize: 13,
+    color: '#666',
+    marginTop: 6,
   },
   locationButton: {
     height: 50,
