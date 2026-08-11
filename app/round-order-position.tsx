@@ -321,6 +321,16 @@ export default function RoundOrderPositionScreen() {
     }
   };
 
+  // Label for the client being positioned: its address when known, whether we're
+  // creating (address typed into the add-client form) or editing.
+  const activeClientLabel = (() => {
+    if (!activeClient) return 'NEW CLIENT';
+    const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
+    return addressParts.length > 0
+      ? addressParts.join(', ')
+      : (activeClient.address || 'NEW CLIENT');
+  })();
+
   const renderPositionList = () => {
     const maxPosition = clients.length + 1;
     const centerIndex = Math.floor(VISIBLE_ITEMS / 2);
@@ -333,14 +343,7 @@ export default function RoundOrderPositionScreen() {
       let displayText = '';
       
       if (pos === selectedPosition) {
-        if (activeClient && editingClientId) {
-          // Edit mode - show the client being edited
-          const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
-          displayText = addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
-        } else {
-          // Create mode - show NEW CLIENT
-          displayText = 'NEW CLIENT';
-        }
+        displayText = activeClientLabel;
       } else if (pos > selectedPosition) {
         // Show clients that will be at this position after NEW CLIENT is inserted
         // Find client that will be at position (pos - 1) in the current array
@@ -387,11 +390,11 @@ export default function RoundOrderPositionScreen() {
     // Create a simple list: just clients with NEW CLIENT inserted at selected position
     sortedClients.forEach((client) => {
       if (client.displayPosition === selectedPosition) {
-        // Insert NEW CLIENT before this client
+        // Insert the new client before this client
         displayList.push({
           id: 'new-client',
           isNewClient: true,
-          address: 'NEW CLIENT',
+          address: activeClientLabel,
           displayPosition: selectedPosition
         });
       }
@@ -408,7 +411,7 @@ export default function RoundOrderPositionScreen() {
       displayList.push({
         id: 'new-client',
         isNewClient: true,
-        address: 'NEW CLIENT',
+        address: activeClientLabel,
         displayPosition: selectedPosition
       });
     }
@@ -422,7 +425,7 @@ export default function RoundOrderPositionScreen() {
     let position = item.displayPosition || (index + 1);
     
     if (isNewClient) {
-      displayText = 'NEW CLIENT';
+      displayText = activeClientLabel;
       position = selectedPosition;
     } else {
       const addressParts = [item.address1, item.town, item.postcode].filter(Boolean);
@@ -583,17 +586,8 @@ export default function RoundOrderPositionScreen() {
 
   // Add the client being positioned at the selected position
   const wheelPickerDataWithNewClient = [...wheelPickerData];
-  let insertLabel = '';
-  if (activeClient && editingClientId) {
-    // Edit mode - show the client being edited
-    const addressParts = [activeClient.address1, activeClient.town, activeClient.postcode].filter(Boolean);
-    const address = addressParts.length > 0 ? addressParts.join(', ') : (activeClient.address || 'No address');
-    insertLabel = `${selectedPosition}. ${address}`;
-  } else {
-    // Create mode - show NEW CLIENT
-    insertLabel = `${selectedPosition}. NEW CLIENT`;
-  }
-  
+  const insertLabel = `${selectedPosition}. ${activeClientLabel}`;
+
   wheelPickerDataWithNewClient.splice(selectedPosition - 1, 0, {
     value: selectedPosition,
     label: insertLabel,
