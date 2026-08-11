@@ -86,8 +86,9 @@ export default function GoCardlessSetupGuidePage() {
             />
 
             <p className="text-gray-700">
-              Now copy that code and paste it into the screen in Guvnor. Tap on the green Test button to confirm it
-              works.
+              Now copy that code and paste it into the screen in Guvnor. Tap on the green Test button to check it.
+              On the mobile app this tests the connection to GoCardless; in a web browser it checks the token looks
+              right (the full connection is confirmed the first time it&apos;s used).
             </p>
 
             <Image
@@ -121,7 +122,8 @@ export default function GoCardlessSetupGuidePage() {
 
             <p className="text-gray-700">
               And paste it into their Guvnor client account. Under Quick Actions, you&apos;ll see a GoCardless button.
-              Tap on this Toggle GoCardless Customer to true and paste in the ID you copied earlier.
+              Tap on this, set GoCardless Customer to True and paste in the ID you copied earlier. (Setting it back to
+              False clears the stored ID, after a confirmation.)
             </p>
 
             <Image
@@ -133,7 +135,9 @@ export default function GoCardlessSetupGuidePage() {
             />
 
             <p className="text-gray-700">
-              This customer is now set up to be billed automatically via GoCardless.
+              This customer is now set up to be billed automatically via GoCardless. Their runsheet jobs carry a DD
+              badge, and when you mark a day complete Guvnor creates the Direct Debit payments for that day&apos;s
+              GoCardless customers for you — no manual collection needed.
             </p>
           </div>
 

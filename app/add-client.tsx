@@ -12,6 +12,7 @@ if (Platform.OS === 'web') {
   DatePicker = require('react-datepicker').default;
   require('react-datepicker/dist/react-datepicker.css');
 }
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import LocationPickerModal, { PickedLocation } from '../components/LocationPickerModal';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -585,9 +586,12 @@ export default function AddClientScreen() {
 
         <View style={styles.titleRow}>
           <ThemedText type="title">Add New Client</ThemedText>
-          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <GuideHelpButton slug="clients" color="#1976d2" />
+            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+              <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+            </Pressable>
+          </View>
         </View>
 
         <ThemedText style={styles.label}>Address Line 1</ThemedText>

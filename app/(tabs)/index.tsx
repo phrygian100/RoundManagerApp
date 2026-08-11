@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, BackHandler, Easing, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
+import { GuideHelpButton } from '../../components/GuideHelpButton';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
@@ -787,9 +788,12 @@ export default function HomeScreen() {
               ]}
             >
               <Text style={styles.settingsDrawerTitle}>Settings</Text>
-              <Pressable onPress={closeSettingsDrawer} hitSlop={12} style={styles.settingsDrawerClose}>
-                <Ionicons name="close" size={22} color="#111827" />
-              </Pressable>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <GuideHelpButton slug="settings" color="#111827" size={22} />
+                <Pressable onPress={closeSettingsDrawer} hitSlop={12} style={styles.settingsDrawerClose}>
+                  <Ionicons name="close" size={22} color="#111827" />
+                </Pressable>
+              </View>
             </View>
 
             <View style={{ flex: 1 }}>

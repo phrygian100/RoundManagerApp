@@ -54,6 +54,10 @@ export default function SettingsGuidePage() {
             <GuideTerm>Quote Wizard</GuideTerm> — set up the instant prices shown on
             your public quote page (see the Quote Wizard guide).
           </>,
+          <>
+            <GuideTerm>AI Assistant</GuideTerm> (owner) — manage API keys for
+            connecting an AI assistant to your account.
+          </>,
         ]}
       />
       <GuideCallout>

@@ -8,6 +8,7 @@ import {
   ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { db, storage } from '../core/firebase';
 import { getUserSession } from '../core/session';
 import { getUserProfile } from '../services/userService';
@@ -224,9 +225,15 @@ export default function QuoteSetupScreen() {
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
       <View style={[styles.main, isNarrow && styles.mainMobile]}>
-        <Text style={styles.title}>
-          {businessType === 'bin-cleaning' ? 'Set your bin cleaning prices' : 'Set your window cleaning prices'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={[styles.title, { flex: 1 }]}>
+            {businessType === 'bin-cleaning' ? 'Set your bin cleaning prices' : 'Set your window cleaning prices'}
+          </Text>
+          <GuideHelpButton
+            slug={businessType === 'bin-cleaning' ? 'bincleaning' : 'quotewizard'}
+            color="#1976d2"
+          />
+        </View>
         <Text style={styles.subtitle}>
           {businessType === 'bin-cleaning'
             ? 'New customers visiting your quote page will get an instant estimate from these prices. Takes 30 seconds.'

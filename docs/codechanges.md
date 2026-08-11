@@ -2,6 +2,30 @@
 
 ## August 11, 2026
 
+### Guides audit: content refresh, new vehicles guide, in-app "?" help buttons
+
+**Why**: The marketing-site guides had drifted from the current build (renamed buttons, missing features, one guide still describing a long-gone UI), and help was only reachable from the home screen. Every major screen now has a small "?" that deep-links to its guide, and the guides were audited screen-by-screen against the app.
+
+**Changes — guide content** (`web/src/app/guides/...`):
+- `runsheet` - largely rewritten: quick actions, complete/move jobs, vehicle blocks, ETA chips, day-complete flow, clickable availability badge.
+- `rota` - week clamping, jump-to-today, deep-link highlight from the runsheet badge.
+- `workloadforecast` - availability wording corrected ("marked as working", not "capacity free").
+- `payments` - "Outstanding"/"Credit" labels, Discretion payment method, new "Browsing all payments" section (search/filter/sort/delete), unknown-payment creation.
+- `accountsguide` - fully rewritten in the modern GuideLayout format; describes the current Accounts hub (financial summary, outstanding accounts, completed jobs, all/unknown payments, bulk + individual payments). Dropped obsolete RWC-matching content.
+- `chasingpayments` - Outstanding Accounts list, Send SMS Invoice, runsheet £ button behaviour, Bank & Business Info location.
+- `clients` - "Add Client" naming, map pin/geocoding, round order picker + Guess Round Order, list search/sort/ex-clients/badges.
+- `roundordermanager` - List|Map toggle, numbered map badges, pin editing, coverage banner, guess-from-location cross-reference.
+- `gocardlesssetup` - web Test button only validates token format (full check on first use); customer toggle wording; disabling clears the ID; day-complete auto-creates DD payments.
+- `memberaccounts` - invitees no longer need an existing Guvnor account (invite code + register); "daily rate £/day" not "daily capacity"; per-permission list; link to the new vehicles guide.
+- `auditlog` - filter pills corrected (client / quote / rota / payment / team changes).
+- `settings` - AI Assistant → Manage API Keys section added.
+- `quotes` (broken Quote Wizard link), `importing` (column names, Valid status), `bincleaning` (setup questions) - small corrections.
+- **New guide**: `vehicles` (+ OG image) - vans, member assignment, daily rates, runsheet vehicle blocks and rota-driven capacity. Registered in `GuidesBrowser.tsx` under Running your round.
+
+**Changes — in-app help buttons** (`components/GuideHelpButton.tsx` already existed): added to rota, clients list, ex-clients, completed jobs, payments list, add/chase/unknown payments, add-client, round-order-position, client balance, client detail, runsheet history, edit customer, quote setup, team members, activity log, new business, and the settings drawer header (in `app/(tabs)/index.tsx`). Each links to its matching guide slug; opens a new tab on web, system browser on native.
+
+**Regression notes**: help buttons are purely additive `Pressable`s in existing header rows - no layout or logic changes to the screens themselves. Guide edits are static marketing pages (web project type-checks clean). The two pre-existing app type errors (`team.tsx` memberIdentifier, `index.tsx` 100vh style) predate these changes, verified by stashing.
+
 ### Add Client: "Guess Round Order from location" button
 
 **Why**: When adding a new client, picking a round order position among 500+ clients by hand is slow. Since nearly all existing clients now have map pins and a geographically-ordered round, the position can be inferred from the new client's location.

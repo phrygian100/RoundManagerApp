@@ -37,7 +37,9 @@ export default function RoundOrderManagerGuidePage() {
       <GuideP>
         From the home screen, tap <GuideTerm>Round Order Manager</GuideTerm>. You
         get one clean list of every active client, numbered <code>1</code>{" "}
-        upwards in their current order.
+        upwards in their current order. A <GuideTerm>List | Map</GuideTerm>{" "}
+        toggle at the top switches between the list and a map of your whole
+        round.
       </GuideP>
 
       <GuideH2>Reordering clients</GuideH2>
@@ -71,6 +73,18 @@ export default function RoundOrderManagerGuidePage() {
         position; clear the search to go back to drag-and-drop on the full list.
       </GuideP>
 
+      <GuideH2>The Map view</GuideH2>
+      <GuideP>
+        Switch to <GuideTerm>Map</GuideTerm> to see every pinned client as a
+        numbered badge — the number is their round order position, so you can
+        literally read your route off the map and spot any zig-zags at a glance.
+        Tap a pin for the client&apos;s details, price and position, and use{" "}
+        <GuideTerm>Edit location</GuideTerm> to drag a wrongly-placed pin to the
+        right spot (pin moves save immediately). A banner shows how many of your
+        clients are pinned, and anyone without a pin is listed underneath so you
+        can place them by hand.
+      </GuideP>
+
       <GuideH2>Saving changes</GuideH2>
       <GuideSteps
         items={[
@@ -98,9 +112,12 @@ export default function RoundOrderManagerGuidePage() {
       <GuideH2>Adding new clients to the round</GuideH2>
       <GuideP>
         When you add a new client, Guvnor lets you choose where they slot into
-        the round at that point, so you usually won&apos;t need to come back
-        here. The Round Order Manager is for the bigger tidy-ups — for example
-        after winning a cluster of new work on one street.
+        the round at that point — or guess it for you from their location with{" "}
+        <GuideTerm>✨ Guess Round Order</GuideTerm> on the Add Client form,
+        which finds your nearest existing client and opens the position picker
+        on the suggested slot. So you usually won&apos;t need to come back here.
+        The Round Order Manager is for the bigger tidy-ups — for example after
+        winning a cluster of new work on one street.
       </GuideP>
     </GuideLayout>
   );

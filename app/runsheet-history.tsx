@@ -2,6 +2,7 @@ import { addWeeks, format, parseISO, startOfWeek, subWeeks } from 'date-fns';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { getJobsForWeek } from '../services/jobService';
 import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
@@ -56,9 +57,12 @@ export default function RunsheetHistoryScreen() {
     <View style={styles.container}>
       <View style={styles.titleRow}>
         <Text style={styles.title}>Runsheet History</Text>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <Text style={styles.homeButtonText}>🏠</Text>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GuideHelpButton slug="completedjobs" color="#1976d2" />
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <Text style={styles.homeButtonText}>🏠</Text>
+          </Pressable>
+        </View>
       </View>
       {loading ? (
         <Text style={styles.empty}>Loading...</Text>

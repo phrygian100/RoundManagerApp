@@ -38,7 +38,7 @@ export default function WorkloadForecastGuidePage() {
           </>,
           <>
             <GuideTerm>An availability badge</GuideTerm> — a colour-coded
-            percentage showing how much of your team&apos;s capacity is free that
+            percentage showing how much of your team is marked as working that
             week, pulled from the{" "}
             <a className="text-indigo-600 underline" href="/guides/rota">
               Rota

@@ -36,11 +36,11 @@ export default function PaymentsGuidePage() {
       <GuideList
         items={[
           <>
-            <GuideTerm>Owing you</GuideTerm> — completed work that hasn&apos;t been
-            paid for shows as an outstanding balance.
+            <GuideTerm>Outstanding</GuideTerm> — completed work that hasn&apos;t
+            been paid for shows as an outstanding balance.
           </>,
           <>
-            <GuideTerm>In credit</GuideTerm> — paid more than they&apos;ve been
+            <GuideTerm>Credit</GuideTerm> — paid more than they&apos;ve been
             billed (e.g. paid up front).
           </>,
         ]}
@@ -61,7 +61,8 @@ export default function PaymentsGuidePage() {
           <>
             Pick the method: <GuideTerm>Cash</GuideTerm>,{" "}
             <GuideTerm>Card</GuideTerm>, <GuideTerm>Bank Transfer</GuideTerm>,{" "}
-            <GuideTerm>Cheque</GuideTerm> or <GuideTerm>Other</GuideTerm>.
+            <GuideTerm>Cheque</GuideTerm>, <GuideTerm>Discretion</GuideTerm> (for
+            goodwill write-offs) or <GuideTerm>Other</GuideTerm>.
           </>,
           <>
             Add a reference or note if useful, then tap{" "}
@@ -101,11 +102,23 @@ export default function PaymentsGuidePage() {
         ]}
       />
 
+      <GuideH2>Browsing all payments</GuideH2>
+      <GuideP>
+        <GuideTerm>Accounts → All Payments</GuideTerm> lists every payment
+        you&apos;ve recorded. You can search, filter by method (cash, Direct
+        Debit, BACS), and sort by date or amount. The <GuideTerm>×</GuideTerm> on
+        a payment deletes it if something was recorded by mistake — the
+        client&apos;s balance updates accordingly.
+      </GuideP>
+
       <GuideH2>Sorting out unknown payments</GuideH2>
       <GuideP>
         Payments that couldn&apos;t be matched to a client (a missing or unrecognised
         account number) land in <GuideTerm>Accounts → Unknown Payments</GuideTerm> so
-        nothing is lost. Open one and you can:
+        nothing is lost. You can also add one by hand with{" "}
+        <GuideTerm>Create</GuideTerm> — useful when money has landed in the bank
+        and you don&apos;t yet know whose it is. Open an unknown payment and you
+        can:
       </GuideP>
       <GuideList
         items={[

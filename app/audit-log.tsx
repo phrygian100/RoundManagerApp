@@ -13,6 +13,7 @@ import {
     TextInput,
     View
 } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { getAuditLogsFiltered } from '../services/auditService';
@@ -171,6 +172,7 @@ export default function AuditLogScreen() {
             <Ionicons name="arrow-back" size={24} color="#007AFF" />
           </Pressable>
           <ThemedText style={styles.title}>Activity Log</ThemedText>
+          <GuideHelpButton slug="auditlog" color="#007AFF" size={22} style={{ marginLeft: 'auto' }} />
         </View>
 
         <View style={styles.controls}>

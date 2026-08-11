@@ -35,16 +35,21 @@ export default function ChasingPaymentsGuidePage() {
 
       <GuideH2>Spotting who&apos;s behind</GuideH2>
       <GuideP>
-        The <GuideTerm>Accounts</GuideTerm> section is your hub for money —
-        balances, payments and who&apos;s in the red. Start there to see who
-        needs chasing.
+        The <GuideTerm>Accounts</GuideTerm> section is your hub for money. Its{" "}
+        <GuideTerm>Outstanding Accounts</GuideTerm> list shows every client who
+        owes you, biggest balance first, so start there to see who needs
+        chasing. Each card has a <GuideTerm>Send SMS Invoice</GuideTerm> button
+        — a short reminder text with the amount due, your bank details and
+        their payment reference — and tapping the client offers{" "}
+        <GuideTerm>Chase Payment</GuideTerm> (the statement below) or{" "}
+        <GuideTerm>Add Payment</GuideTerm> if the money has just come in.
       </GuideP>
 
       <GuideH2>Option 1: send an account summary text</GuideH2>
       <GuideP>
-        The fastest nudge. From a customer&apos;s job on the runsheet, choose to
-        send an <GuideTerm>account summary</GuideTerm>. Guvnor writes a clear,
-        polite text that includes:
+        The fastest nudge while you&apos;re out working. Tap the{" "}
+        <GuideTerm>£</GuideTerm> button on a customer&apos;s job on the
+        runsheet. Guvnor writes a clear, polite text that includes:
       </GuideP>
       <GuideList
         items={[
@@ -84,7 +89,7 @@ export default function ChasingPaymentsGuidePage() {
       <GuideH2>Before you chase, set these up</GuideH2>
       <GuideList
         items={[
-          "Your business name, bank sort code and account number in Settings — these populate the bank details on both the text and the statement.",
+          "Your business name, bank sort code and account number in Settings → Bank & Business Info — these populate the bank details on both the text and the statement.",
           "Each client's account reference (their account number) so payments are easy to match.",
         ]}
       />

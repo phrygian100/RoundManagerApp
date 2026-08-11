@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -321,9 +322,12 @@ export default function CompletedJobsScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
         <ThemedText type="title" style={styles.title}>Completed Jobs</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-          <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GuideHelpButton slug="completedjobs" color="#1976d2" />
+          <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+          </Pressable>
+        </View>
       </View>
       <ThemedText style={styles.sectionSubtitle}>
         Total: £{calculateJobsTotal().toFixed(2)} ({filteredJobs.length} jobs)

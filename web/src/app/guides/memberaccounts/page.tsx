@@ -48,7 +48,8 @@ export default function MemberAccountsGuidePage() {
             />
 
             <p className="text-gray-700">
-              Provided the user has an account with Guvnor, they will receive an email with a code.
+              Enter their email address and they&apos;ll receive an invite code — they don&apos;t need a Guvnor
+              account yet. While an invite is pending you can cancel it from the same screen.
             </p>
 
             <Image
@@ -60,7 +61,7 @@ export default function MemberAccountsGuidePage() {
             />
 
             <p className="text-gray-700">
-              They will then need to input this code when they log in for the first time.
+              They register (or log in) and enter this code the first time they open Guvnor.
             </p>
 
             <Image
@@ -86,7 +87,13 @@ export default function MemberAccountsGuidePage() {
             <p className="text-gray-700">
               After they have done this, you may need to refresh the page/app. You will then see them added to the
               Team Members screen, where you can assign them to a vehicle, set what they can access in your account
-              and determine their daily capacity for work, which determines the automatic Runsheet generation.
+              (clients, runsheets, round order, accounts, materials and new business are each individually
+              switchable) and set their daily rate — the value of work in £ they can get through in a day, which
+              drives how the runsheet shares jobs out. See the{" "}
+              <Link href="/guides/vehicles" className="text-indigo-600 hover:text-indigo-700 underline">
+                vehicles guide
+              </Link>{" "}
+              for how vehicles, daily rates and the rota combine on multi-van days.
             </p>
 
             <Image

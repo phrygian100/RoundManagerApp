@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -286,7 +287,8 @@ export default function PaymentsListScreen() {
     <ThemedView style={styles.container}>
       <View style={styles.titleRow}>
         <ThemedText type="title" style={styles.title}>Payments</ThemedText>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GuideHelpButton slug="payments" color="#1976d2" />
           <Pressable style={styles.addButton} onPress={() => pushOrNewTab({ pathname: '/add-payment', params: { from: '/payments-list' } })}>
             <ThemedText style={styles.addButtonText}>+ Add Payment</ThemedText>
           </Pressable>

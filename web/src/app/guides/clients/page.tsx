@@ -26,7 +26,7 @@ export default function ClientsGuidePage() {
     >
       <GuideH2>Adding a client</GuideH2>
       <GuideP>
-        Open <GuideTerm>Add New Client</GuideTerm> (from the Client List, or
+        Open <GuideTerm>Add Client</GuideTerm> (from the Client List, or
         automatically when you win a quote or convert a New Business lead). The
         key fields are:
       </GuideP>
@@ -36,6 +36,15 @@ export default function ClientsGuidePage() {
             <GuideTerm>Address, name, mobile &amp; email</GuideTerm> — the
             mobile number is what makes ETA and account-summary texts work, so
             it&apos;s well worth filling in.
+          </>,
+          <>
+            <GuideTerm>Location</GuideTerm> — tap{" "}
+            <GuideTerm>Set location on map</GuideTerm> to pin exactly where the
+            property is. Guvnor guesses a position from the address you&apos;ve
+            typed; drag the pin if it&apos;s off, then confirm. If you skip
+            this, a best-guess pin is worked out in the background when you
+            save. The pin powers the round order map and the location-based
+            round order guess below.
           </>,
           <>
             <GuideTerm>Source</GuideTerm> — where they came from (Google,
@@ -51,8 +60,12 @@ export default function ClientsGuidePage() {
           </>,
           <>
             <GuideTerm>Round order</GuideTerm> — where they sit in your driving
-            sequence. For your third client onwards you pick their position; see
-            the{" "}
+            sequence. <GuideTerm>Set Round Order Position</GuideTerm> opens a
+            picker to slot them in by hand, or tap{" "}
+            <GuideTerm>✨ Guess Round Order from location</GuideTerm> and Guvnor
+            finds your nearest existing client and suggests the slot next to
+            them — the picker opens on the suggestion so you just confirm or
+            nudge it. See the{" "}
             <a
               className="text-indigo-600 underline"
               href="/guides/roundordermanager"
@@ -100,10 +113,24 @@ export default function ClientsGuidePage() {
         .
       </GuideCallout>
 
+      <GuideH2>Finding your way around the Client List</GuideH2>
+      <GuideP>
+        The Client List shows every active client with their balance (customers
+        who owe you are easy to spot) and a <GuideTerm>DD</GuideTerm> badge for
+        Direct Debit payers. You can search by name, address or account number,
+        and sort by address, next visit, round order, balance, account number or
+        visit interval. The <GuideTerm>Ex-Clients</GuideTerm> button near the
+        sort options is where archived customers live — see the{" "}
+        <a className="text-indigo-600 underline" href="/guides/exclients">
+          archiving guide
+        </a>
+        .
+      </GuideP>
+
       <GuideH2>Managing a client afterwards</GuideH2>
       <GuideP>
-        Open the <GuideTerm>Client List</GuideTerm> and tap a client to view and
-        edit their account. From there you can:
+        Tap a client in the list to view and edit their account. From there you
+        can:
       </GuideP>
       <GuideList
         items={[

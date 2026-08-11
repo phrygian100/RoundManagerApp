@@ -13,7 +13,7 @@ export const metadata = guideMetadata({
   slug: "auditlog",
   title: "The Activity Log",
   description:
-    "See who did what and when in your Guvnor account. The Activity Log records key changes to clients, quotes, jobs and GoCardless payments, with search and date filters.",
+    "See who did what and when in your Guvnor account. The Activity Log records key changes to clients, quotes, jobs, rota, team and GoCardless payments, with search and date filters.",
 });
 
 export default function AuditLogGuidePage() {
@@ -67,8 +67,8 @@ export default function AuditLogGuidePage() {
             a period, or Clear to reset.
           </>,
           <>
-            <GuideTerm>Filters</GuideTerm> — quick pills to show client, quote or
-            payment activity instead of everything.
+            <GuideTerm>Filters</GuideTerm> — quick pills to show client, quote,
+            rota, payment or team-change activity instead of everything.
           </>,
           <>
             <GuideTerm>Load more</GuideTerm> — the log pages through older entries

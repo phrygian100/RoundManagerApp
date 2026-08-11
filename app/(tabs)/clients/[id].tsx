@@ -8,6 +8,7 @@ import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
+import { GuideHelpButton } from '../../../components/GuideHelpButton';
 import { ThemedText } from '../../../components/ThemedText';
 import { ThemedView } from '../../../components/ThemedView';
 import { IconSymbol } from '../../../components/ui/IconSymbol';
@@ -1118,9 +1119,12 @@ export default function ClientDetailScreen() {
       {/* Header Bar - matching accounts/quotes style */}
       <View style={[styles.headerBar, { backgroundColor: theme.sectionCard, borderBottomColor: theme.sectionCardBorder }]}>
         <ThemedText style={[styles.headerTitle, { color: theme.text }]}>{displayAddress}</ThemedText>
-        <Pressable style={[styles.homeButton, { backgroundColor: theme.notesBackground }]} onPress={() => router.replace('/')}> 
-          <Ionicons name="home-outline" size={22} color="#1976d2" />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GuideHelpButton slug="clients" color="#1976d2" />
+          <Pressable style={[styles.homeButton, { backgroundColor: theme.notesBackground }]} onPress={() => router.replace('/')}> 
+            <Ionicons name="home-outline" size={22} color="#1976d2" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView 

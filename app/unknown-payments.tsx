@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import CreateUnknownPaymentModal from '../components/CreateUnknownPaymentModal';
 import PermissionGate from '../components/PermissionGate';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import UnknownPaymentActionModal from '../components/UnknownPaymentActionModal';
@@ -122,6 +123,7 @@ export default function UnknownPaymentsScreen() {
           <View style={styles.titleRow}>
             <ThemedText type="title" style={styles.title}>Unknown Payments</ThemedText>
             <View style={styles.headerButtons}>
+              <GuideHelpButton slug="payments" color="#1976d2" style={{ marginRight: 8 }} />
               <Pressable style={styles.createButton} onPress={() => setShowCreateModal(true)}>
                 <ThemedText style={styles.createButtonText}>Create</ThemedText>
               </Pressable>

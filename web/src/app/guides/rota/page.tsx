@@ -45,7 +45,9 @@ export default function RotaGuidePage() {
       <GuideP>
         Each day also shows a count of how many people are available, and the
         current day is highlighted. Use the arrows at the top to move between
-        weeks.
+        weeks (up to a year either way) — when you&apos;re away from the current
+        week, a <GuideTerm>today</GuideTerm> button appears to jump straight
+        back.
       </GuideP>
 
       <GuideH2>Setting availability</GuideH2>
@@ -86,6 +88,16 @@ export default function RotaGuidePage() {
         , so when you look ahead you can see whether a busy week is actually
         covered by the people who&apos;ll be in.
       </GuideP>
+      <GuideP>
+        It also feeds the{" "}
+        <a className="text-indigo-600 underline" href="/guides/runsheet">
+          Runsheet
+        </a>
+        : each day header there shows a traffic-light badge like{" "}
+        <GuideTerm>2/3 available</GuideTerm>, and tapping it opens the rota on
+        that exact day — with the day highlighted — so you can see at a glance
+        who&apos;s off.
+      </GuideP>
 
       <GuideCallout>
         <GuideTerm>A team feature.</GuideTerm> The Rota comes into its own once
@@ -102,8 +114,10 @@ export default function RotaGuidePage() {
       </GuideCallout>
 
       <GuideP>
-        There&apos;s also a history view and an audit log (the clock and document
-        icons at the top) so you can see how the rota has changed over time.
+        There&apos;s also a history view and an audit log (the clock and
+        document icons at the top). The history lists the past year of weeks and
+        shows which ones have rota data recorded, and the audit log tracks who
+        changed what.
       </GuideP>
     </GuideLayout>
   );

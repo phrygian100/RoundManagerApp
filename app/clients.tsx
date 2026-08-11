@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -442,9 +443,12 @@ export default function ClientsScreen() {
       <ThemedView style={styles.container}>
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>Clients</ThemedText>
-          <Pressable style={[styles.homeButton, { backgroundColor: theme.buttonSecondary, borderColor: theme.cardBorder }]} onPress={() => router.replace('/')}>
-            <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
-          </Pressable>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <GuideHelpButton slug="clients" color="#1976d2" />
+            <Pressable style={[styles.homeButton, { backgroundColor: theme.buttonSecondary, borderColor: theme.cardBorder }]} onPress={() => router.replace('/')}>
+              <ThemedText style={styles.homeButtonText}>🏠</ThemedText>
+            </Pressable>
+          </View>
         </View>
         <ThemedView style={styles.headerRow}>
           <View>

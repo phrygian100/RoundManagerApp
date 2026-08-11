@@ -1,188 +1,114 @@
-import Image from "next/image";
-import Link from "next/link";
+import {
+  GuideLayout,
+  GuideH2,
+  GuideP,
+  GuideTerm,
+  GuideList,
+  GuideSteps,
+  GuideCallout,
+} from "@/components/GuideLayout";
 import { guideMetadata } from "@/lib/seo";
-import { JsonLd } from "@/components/JsonLd";
 import { articleSchema } from "@/lib/jsonld";
 
 export const metadata = guideMetadata({
   slug: "accountsguide",
   title: "Updating accounts & recording payments",
   description:
-    "Keep client accounts up to date in Guvnor: add bulk payments matched on account number, and record individual payments against a client.",
+    "A tour of Guvnor's Accounts area: the financial summary, outstanding balances, SMS invoices, bulk payments matched on account number, and individual payments.",
 });
-import { MarketingNav } from "@/components/MarketingNav";
 
 export default function AccountsGuidePage() {
   return (
-    <div className="min-h-screen bg-white">
-      <JsonLd
-        data={articleSchema({
-          slug: "accountsguide",
-          title: "Updating accounts & recording payments",
-        })}
+    <GuideLayout
+      title="Updating Accounts"
+      jsonLd={articleSchema({
+        slug: "accountsguide",
+        title: "Updating accounts & recording payments",
+      })}
+      intro="Accounts is your money hub: a summary of what you've earned and collected, who owes you, and the tools for recording payments. You can update it however frequently you prefer — add payments as you receive them, or reconcile in batches from a bank statement."
+    >
+      <GuideH2>What&apos;s on the Accounts screen</GuideH2>
+      <GuideList
+        items={[
+          <>
+            <GuideTerm>Financial Summary</GuideTerm> — charts of work completed
+            and money received. Tap the range label to cycle between periods.
+          </>,
+          <>
+            <GuideTerm>Outstanding Accounts</GuideTerm> — every client with an
+            outstanding balance, largest first. Direct Debit customers carry a{" "}
+            <GuideTerm>DD</GuideTerm> badge, and each card has a{" "}
+            <GuideTerm>Send SMS Invoice</GuideTerm> button for a quick payment
+            reminder. Tap a client to add a payment or chase what&apos;s owed
+            (see the{" "}
+            <a
+              className="text-indigo-600 underline"
+              href="/guides/chasingpayments"
+            >
+              chasing late payments guide
+            </a>
+            ).
+          </>,
+          <>
+            <GuideTerm>Completed Jobs</GuideTerm>, <GuideTerm>All Payments</GuideTerm>{" "}
+            and <GuideTerm>Unknown Payments</GuideTerm> — the underlying records
+            (see the{" "}
+            <a className="text-indigo-600 underline" href="/guides/payments">
+              recording payments guide
+            </a>{" "}
+            for these).
+          </>,
+        ]}
       />
-      <MarketingNav />
 
-      <div className="py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-            Updating Accounts
-          </h1>
-          <p className="text-gray-700 mb-6">
-            You can choose to update your accounts however frequently you prefer, either by adding payments as
-            you receive them or in batches.
-          </p>
+      <GuideH2>Adding Bulk Payments</GuideH2>
+      <GuideP>
+        At the top of Accounts you&apos;ll find{" "}
+        <GuideTerm>Add Bulk Payments</GuideTerm> (also under Settings → Import
+        Data). Download your bank statement, then work through the grid — each
+        row is one payment. It&apos;s much easier on a desktop, where you can
+        paste a whole block from your bank export or a spreadsheet.
+      </GuideP>
+      <GuideSteps
+        items={[
+          <>
+            Each row needs an <GuideTerm>account number</GuideTerm>, date, amount
+            and type. If your customers pay by bank transfer, ask them to put
+            their account number (e.g. RWC123) in the payment reference — then
+            it comes across when you paste.
+          </>,
+          <>
+            Guvnor matches each row to a client by account number and flags it{" "}
+            <GuideTerm>Valid</GuideTerm>, <GuideTerm>Unknown</GuideTerm> or{" "}
+            <GuideTerm>Invalid</GuideTerm>.
+          </>,
+          <>
+            For rows it can&apos;t match — a customer wrote the wrong reference,
+            say — use <GuideTerm>Find Account</GuideTerm> to search by anything
+            you can see in the payment, like a name or street.
+          </>,
+          <>
+            Tap <GuideTerm>Submit Payments</GuideTerm>. Matched rows land on the
+            right client accounts; anything still unmatched goes to{" "}
+            <GuideTerm>Unknown Payments</GuideTerm>, where you can attribute it
+            to a customer later.
+          </>,
+        ]}
+      />
+      <GuideCallout>
+        Nothing gets lost: an unmatched payment is never discarded, it just
+        waits in Unknown Payments until you link it to the right account.
+      </GuideCallout>
 
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4">
-            Adding Bulk Payments
-          </h2>
-
-          <div className="space-y-6 mb-10">
-            <p className="text-gray-700">
-              In the accounts section, to the top right you will see a Button labelled &quot;Add Bulk Payments&quot;
-              Simply download your bank statement and paste the received payments into this screen.
-            </p>
-
-            <Image
-              src="/importPayments.png"
-              alt="Add Bulk Payments screen"
-              width={1200}
-              height={800}
-              className="w-full h-auto rounded-xl border border-gray-200 shadow-sm"
-            />
-
-            <p className="text-gray-700">
-              Because you&apos;ve instructed your users to reference their account number, Guvnor will look for
-              &quot;RWC&quot; and catch the reference, attributing the payment to their account. If in the event they
-              have mistakenly written something else, Guvnor will highlight that payment item and give you a window
-              to search an item you can see in the payment, such as the customers name or address. Ofcourse if there
-              is no way of telling where the payment has come from, then it will go into &quot;Unknown Payments&quot;
-              where you can later attribute to a customer account in future.
-            </p>
-          </div>
-
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-8">
-            Individual payments
-          </h2>
-
-          <div className="space-y-6 mb-10">
-            <p className="text-gray-700">
-              You can note payments on Guvnor as you receive them, such as when you take cash after completing a
-              job. Navigate to the Add Payment screen via Accounts or from any Client account
-            </p>
-
-            <Image
-              src="/addingIndividualPayments.jpg"
-              alt="Add Payment screen"
-              width={1200}
-              height={800}
-              className="w-full sm:w-1/4 h-auto rounded-xl border border-gray-200 shadow-sm"
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Link
-              href="/guides"
-              className="inline-flex justify-center border border-indigo-600 text-indigo-600 hover:bg-indigo-50 px-5 py-3 rounded-lg font-semibold transition-colors"
-            >
-              Back to Guides
-            </Link>
-            <Link
-              href="/contact"
-              className="inline-flex justify-center bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-3 rounded-lg font-semibold transition-colors"
-            >
-              Ask a question
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div>
-              <Image
-                src="/logo_colourInverted.png"
-                alt="Guvnor Logo"
-                width={96}
-                height={32}
-                className="w-24"
-              />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-8">
-              <div>
-                <h4 className="font-semibold mb-4">Product</h4>
-                <ul className="space-y-2 text-gray-400">
-                  <li>
-                    <Link href="/feature-tour" className="hover:text-white">
-                      Features
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/guides" className="hover:text-white">
-                      Guides
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/pricing" className="hover:text-white">
-                      Pricing
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Company</h4>
-                <ul className="space-y-2 text-gray-400">
-                  <li>
-                    <Link href="/about" className="hover:text-white">
-                      About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/contact" className="hover:text-white">
-                      Contact
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Support</h4>
-                <ul className="space-y-2 text-gray-400">
-                  <li>
-                    <Link href="/contact" className="hover:text-white">
-                      Help Center
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/login" className="hover:text-white">
-                      Sign In
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="font-semibold mb-4">Legal</h4>
-                <ul className="space-y-2 text-gray-400">
-                  <li>
-                    <Link href="/privacy-policy" className="hover:text-white">
-                      Privacy Policy
-                    </Link>
-                  </li>
-                  <li>
-                    <span className="text-gray-500">Terms of Service</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 Guvnor. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+      <GuideH2>Individual payments</GuideH2>
+      <GuideP>
+        You can note payments as you receive them, such as when you take cash
+        after completing a job. Navigate to <GuideTerm>Add Payment</GuideTerm>{" "}
+        via Accounts or from any client&apos;s account — pick the client, amount,
+        date and method, and the balance updates immediately. The quickest route
+        of all is tapping a job in <GuideTerm>Completed Jobs</GuideTerm>, which
+        pre-fills the client and amount for you.
+      </GuideP>
+    </GuideLayout>
   );
 }
-
-

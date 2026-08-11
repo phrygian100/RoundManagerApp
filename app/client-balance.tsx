@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, deleteDoc, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Button, Platform, Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -203,7 +204,10 @@ const ClientBalanceScreen = () => {
   return (
     <ThemedView style={styles.container}>
       <View style={styles.summaryContainer}>
-        <ThemedText style={styles.clientName}>{clientName}</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <ThemedText style={styles.clientName}>{clientName}</ThemedText>
+          <GuideHelpButton slug="accountsguide" color="#1976d2" />
+        </View>
         <ThemedText style={styles.balanceText}>
           <ThemedText>Current Balance: </ThemedText>
           <ThemedText style={[styles.balanceAmount, { color: balance >= 0 ? 'green' : 'red' }]}>

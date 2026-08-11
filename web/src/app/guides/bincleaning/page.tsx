@@ -51,9 +51,10 @@ export default function BinCleaningGuidePage() {
               2. Set your per-bin prices
             </h2>
             <p className="text-gray-700">
-              On your first login, Guvnor asks two quick questions: what you charge per bin for a
-              regular clean, and (optionally) what you charge for a one-off clean. That&apos;s it — no
-              complicated price lists. These two numbers power your own branded quote page: when a
+              On your first login, Guvnor asks a few quick questions: what you charge per bin for a
+              regular clean, (optionally) what you charge for a one-off clean, and how often you
+              visit (every 4 or 8 weeks). That&apos;s it — no
+              complicated price lists. These numbers power your own branded quote page: when a
               customer tells us how many bins they have, they see your price instantly. You can change
               your prices any time.
             </p>

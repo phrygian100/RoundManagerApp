@@ -83,16 +83,17 @@ export default function ImportingGuidePage() {
       />
       <GuideP>
         Optional columns include town, postcode, mobile, email, round order,
-        account number, source, starting balance and notes. Leave round order or
-        account number blank and Guvnor assigns them automatically.
+        account number, source, starting balance, a runsheet note and account
+        notes. Leave round order or account number blank and Guvnor assigns them
+        automatically.
       </GuideP>
       <GuideSteps
         items={[
           <>Paste or type your rows into the grid (use Add Rows if you need more).</>,
           <>
             Check the <GuideTerm>Status</GuideTerm> on each row — it shows{" "}
-            <GuideTerm>OK</GuideTerm> or <GuideTerm>Invalid</GuideTerm> with the
-            reason (e.g. a bad date).
+            <GuideTerm>Valid</GuideTerm> or <GuideTerm>Invalid</GuideTerm> with
+            the reason (e.g. a bad date).
           </>,
           <>
             Tap <GuideTerm>Import</GuideTerm>. Guvnor skips empty rows, lists any

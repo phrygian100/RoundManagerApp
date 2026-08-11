@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDocs, orderBy, query, where, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, Dimensions, FlatList, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -603,7 +604,10 @@ export default function RoundOrderPositionScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title">Set Round Order Position</ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <ThemedText type="title">Set Round Order Position</ThemedText>
+        <GuideHelpButton slug="roundordermanager" color="#1976d2" />
+      </View>
       <ThemedText style={styles.subtitle}>
         {newClientData ? 'Position your new client' : 'Change client position'}
       </ThemedText>

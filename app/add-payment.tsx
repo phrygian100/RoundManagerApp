@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -215,9 +216,12 @@ export default function AddPaymentScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <ThemedText type="title" style={styles.title}>
-        {isFromJob ? 'Create Payment from Job' : 'Add Payment'}
-      </ThemedText>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <ThemedText type="title" style={styles.title}>
+          {isFromJob ? 'Create Payment from Job' : 'Add Payment'}
+        </ThemedText>
+        <GuideHelpButton slug="payments" color="#1976d2" />
+      </View>
       
       {isFromJob && (
         <View style={styles.infoBox}>

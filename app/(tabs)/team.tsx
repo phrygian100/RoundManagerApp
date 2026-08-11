@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { TextInput as TextInputType } from 'react-native';
+import { GuideHelpButton } from '../../components/GuideHelpButton';
 import PermissionGate from '../../components/PermissionGate';
 import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
@@ -280,7 +281,10 @@ export default function TeamScreen() {
   return (
     <PermissionGate perm="isOwner" fallback={<ThemedText>No access</ThemedText>}>
       <ThemedView style={styles.container}>
-        <ThemedText type="title">Team Members</ThemedText>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <ThemedText type="title">Team Members</ThemedText>
+          <GuideHelpButton slug="memberaccounts" color="#1976d2" />
+        </View>
 
           {!hasNonOwnerMembers && (
             <ThemedView style={styles.infoCard}>

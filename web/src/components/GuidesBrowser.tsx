@@ -99,6 +99,12 @@ const CATEGORIES: Category[] = [
         title: "Using the team Rota",
         description: "Plan who works which days across your team.",
       },
+      {
+        href: "/guides/vehicles",
+        title: "Vehicles, daily rates & multi-van days",
+        description:
+          "Split each day's work across your vans, sized to who's in.",
+      },
     ],
   },
   {

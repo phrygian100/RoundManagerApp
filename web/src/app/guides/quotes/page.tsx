@@ -103,7 +103,7 @@ export default function QuotesGuidePage() {
       <GuideCallout>
         <GuideTerm>Quotes vs the Quote Wizard.</GuideTerm> This screen tracks
         real quotes for real prospects. The separate{" "}
-        <a className="text-indigo-600 underline" href="/guides/quotepage">
+        <a className="text-indigo-600 underline" href="/guides/quotewizard">
           Quote Wizard
         </a>{" "}
         is for building the example prices that power your public quote page.

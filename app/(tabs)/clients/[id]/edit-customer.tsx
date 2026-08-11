@@ -5,6 +5,7 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where, writeBatch }
 import { useEffect, useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import LocationPickerModal, { PickedLocation } from '../../../../components/LocationPickerModal';
+import { GuideHelpButton } from '../../../../components/GuideHelpButton';
 import { ThemedText } from '../../../../components/ThemedText';
 import { db } from '../../../../core/firebase';
 import { getDataOwnerId } from '../../../../core/session';
@@ -296,6 +297,7 @@ export default function EditCustomerScreen() {
               <ThemedText style={styles.modalTitle}>Edit Customer</ThemedText>
               <ThemedText style={styles.customerAddress}>{displayAddress}</ThemedText>
             </View>
+            <GuideHelpButton slug="clients" color="#666" size={22} style={{ marginRight: 8, alignSelf: 'center' }} />
             <Pressable style={styles.closeButton} onPress={handleClose}>
               <Ionicons name="close" size={24} color="#666" />
             </Pressable>

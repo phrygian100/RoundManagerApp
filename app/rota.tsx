@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { Colors } from '../constants/Colors';
@@ -227,6 +228,7 @@ export default function RotaScreen() {
           <ThemedText type="subtitle" style={styles.headerTitle}>Team Rota</ThemedText>
         </View>
         <View style={styles.headerRight}>
+          <GuideHelpButton slug="rota" color={theme.tint} size={22} style={styles.headerBtn} />
           <Pressable onPress={() => pushOrNewTab('/rota-history' as any)} style={styles.headerBtn}>
             <Ionicons name="time-outline" size={22} color={theme.tint} />
           </Pressable>

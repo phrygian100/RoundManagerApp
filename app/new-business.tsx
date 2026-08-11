@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import PermissionGate from '../components/PermissionGate';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -328,9 +329,12 @@ export default function NewBusinessScreen() {
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Text style={styles.title}>New Business</Text>
-            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
-              <Text style={styles.homeButtonText}>🏠</Text>
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <GuideHelpButton slug="quotepage" color="#1976d2" />
+              <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+                <Text style={styles.homeButtonText}>🏠</Text>
+              </Pressable>
+            </View>
           </View>
           <Text style={styles.subtitle}>
             Quote requests from your client portal

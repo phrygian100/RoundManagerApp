@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
@@ -231,9 +232,12 @@ export default function ChasePaymentScreen() {
           <Ionicons name="arrow-back" size={24} color="#1976d2" />
         </Pressable>
         <ThemedText style={styles.headerTitle}>Chase Payment</ThemedText>
-        <Pressable style={styles.homeButton} onPress={() => router.push('/')}>
-          <Ionicons name="home" size={24} color="#1976d2" />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <GuideHelpButton slug="chasingpayments" color="#1976d2" size={24} />
+          <Pressable style={styles.homeButton} onPress={() => router.push('/')}>
+            <Ionicons name="home" size={24} color="#1976d2" />
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
