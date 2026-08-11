@@ -30,7 +30,7 @@ const isMobileBrowser = () => {
 
 export default function RoundOrderPositionScreen() {
   const router = useRouter();
-  const { newClientData, editingClientId } = useLocalSearchParams();
+  const { newClientData, editingClientId, initialPosition: initialPositionParam, guessHint } = useLocalSearchParams();
   const [clients, setClients] = useState<ClientWithPosition[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPosition, setSelectedPosition] = useState(1);
@@ -85,7 +85,12 @@ export default function RoundOrderPositionScreen() {
             ...client,
             displayPosition: client.roundOrderNumber || 0
           }));
-          initialPosition = 1; // Default to first position
+          // Start at a suggested position when provided (e.g. guessed from the
+          // client's location); otherwise default to first position.
+          const suggested = Number(Array.isArray(initialPositionParam) ? initialPositionParam[0] : initialPositionParam);
+          initialPosition = Number.isFinite(suggested) && suggested >= 1
+            ? Math.min(Math.round(suggested), clientsList.length + 1)
+            : 1;
         } else if (typeof editingClientId === 'string') {
           // EDIT MODE
           const clientToEdit = activeClients.find(c => c.id === editingClientId);
@@ -138,7 +143,7 @@ export default function RoundOrderPositionScreen() {
     };
 
     loadClients();
-  }, [newClientData, editingClientId]);
+  }, [newClientData, editingClientId, initialPositionParam]);
 
   const handlePositionChange = (newPosition: number) => {
     const maxPosition = clients.length + 1;
@@ -608,6 +613,11 @@ export default function RoundOrderPositionScreen() {
       <ThemedText style={styles.subtitle}>
         {newClientData ? 'Position your new client' : 'Change client position'}
       </ThemedText>
+      {!!guessHint && (
+        <ThemedText style={styles.guessHint}>
+          ✨ {Array.isArray(guessHint) ? guessHint[0] : guessHint}
+        </ThemedText>
+      )}
 
       <View style={styles.listContainer}>
         {Platform.OS === 'web' ? (
@@ -740,6 +750,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 20,
     textAlign: 'center',
+  },
+  guessHint: {
+    fontSize: 14,
+    color: '#2c9e4b',
+    textAlign: 'center',
+    marginTop: -12,
+    marginBottom: 16,
   },
   instructions: {
     backgroundColor: '#f0f8ff',

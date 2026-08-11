@@ -72,7 +72,6 @@ export default function AddClientScreen() {
   const [predictedLocation, setPredictedLocation] = useState<PickedLocation | null>(null);
   const [predictingLocation, setPredictingLocation] = useState(false);
   const [guessingRoundOrder, setGuessingRoundOrder] = useState(false);
-  const [roundOrderGuessHint, setRoundOrderGuessHint] = useState<string | null>(null);
   const lastAppliedParamsSignatureRef = useRef<string>('');
   const { quoteData, clearQuoteData } = useQuoteToClient();
 
@@ -190,11 +189,7 @@ export default function AddClientScreen() {
     // If returning from round order manager, update all fields from params if present.
     const updates: (() => void)[] = [];
     
-    if (incoming.roundOrderNumber) updates.push(() => {
-      setRoundOrderNumber(Number(incoming.roundOrderNumber));
-      // Manual choice from the picker supersedes any earlier location-based guess.
-      setRoundOrderGuessHint(null);
-    });
+    if (incoming.roundOrderNumber) updates.push(() => setRoundOrderNumber(Number(incoming.roundOrderNumber)));
     if (incoming.name) updates.push(() => setName(incoming.name));
     if (incoming.address1) updates.push(() => setAddress1(incoming.address1));
     if (incoming.town) updates.push(() => setTown(incoming.town));
@@ -496,6 +491,22 @@ export default function AddClientScreen() {
     }
   };
 
+  // Client data passed to the round order position picker (manual or guessed flow).
+  const buildNewClientData = () => ({
+    name,
+    address1,
+    town,
+    postcode,
+    frequency,
+    nextVisit,
+    mobileNumber,
+    quote: Number(quote),
+    accountNumber,
+    status: 'active',
+    source: source === 'Other' ? customSource : source,
+    email,
+  });
+
   const showFormAlert = (title: string, message: string) => {
     if (Platform.OS === 'web') {
       window.alert(`${title}\n\n${message}`);
@@ -538,14 +549,20 @@ export default function AddClientScreen() {
         return;
       }
 
-      setRoundOrderNumber(guess.position);
+      // Open the usual position picker pre-scrolled to the guessed slot so the
+      // user confirms (or adjusts) there, exactly like the manual flow.
       const distance =
         guess.nearest.distanceKm < 1
           ? `${Math.round(guess.nearest.distanceKm * 1000)} m`
           : `${guess.nearest.distanceKm.toFixed(1)} km`;
-      setRoundOrderGuessHint(
-        `Guessed from location: ${guess.placement} ${guess.nearest.addressLabel} (${distance} away). Tap the button above to adjust.`,
-      );
+      router.push({
+        pathname: '/round-order-position' as any,
+        params: {
+          newClientData: JSON.stringify(buildNewClientData()),
+          initialPosition: String(guess.position),
+          guessHint: `Guessed from location: ${guess.placement} ${guess.nearest.addressLabel} (${distance} away)`,
+        },
+      });
     } catch (error) {
       console.error('Error guessing round order:', error);
       showFormAlert('Error', 'Could not guess the round order. Please set it manually.');
@@ -555,26 +572,10 @@ export default function AddClientScreen() {
   };
 
   const handleRoundOrderPress = () => {
-    // Prepare the new client data, including address1, town, postcode
-    const newClientData = {
-      name,
-      address1,
-      town,
-      postcode,
-      frequency,
-      nextVisit,
-      mobileNumber,
-      quote: Number(quote),
-      accountNumber,
-      status: 'active',
-      source: source === 'Other' ? customSource : source,
-      email,
-    };
-
     // Navigate to the round order position picker with the client data
     router.push({
       pathname: '/round-order-position' as any,
-      params: { newClientData: JSON.stringify(newClientData) }
+      params: { newClientData: JSON.stringify(buildNewClientData()) }
     });
   };
 
@@ -707,9 +708,6 @@ export default function AddClientScreen() {
             {guessingRoundOrder ? 'Guessing...' : '✨ Guess Round Order from location'}
           </ThemedText>
         </Pressable>
-        {roundOrderGuessHint && (
-          <ThemedText style={styles.guessHintText}>{roundOrderGuessHint}</ThemedText>
-        )}
 
         <ThemedText style={styles.label}>Visit Frequency</ThemedText>
         <View style={styles.frequencyContainer}>
@@ -880,11 +878,6 @@ const styles = StyleSheet.create({
   },
   guessRoundOrderButton: {
     marginTop: 8,
-  },
-  guessHintText: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 6,
   },
   locationButton: {
     height: 50,
