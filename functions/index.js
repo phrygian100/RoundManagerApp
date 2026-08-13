@@ -352,6 +352,7 @@ exports.sendBroadcastSms = onCall({ timeoutSeconds: 540 }, async (request) => {
     throw new HttpsError('failed-precondition', 'Twilio is not configured. Add your Account SID, Auth Token and sender in the broadcast screen.');
   }
 
+  const { Buffer } = require('buffer');
   const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
   const apiUrl = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
 
