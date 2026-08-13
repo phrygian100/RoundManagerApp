@@ -38,6 +38,11 @@ export type User = {
   // GoCardless integration
   gocardlessApiToken?: string; // API token for GoCardless integration
 
+  // Twilio SMS broadcast integration
+  twilioAccountSid?: string;
+  twilioAuthToken?: string;
+  twilioFromNumber?: string; // E.164 number or alphanumeric sender ID (max 11 chars)
+
   // Onboarding helpers
   firstTimeSetupCompleted?: boolean;
   importTipShown?: boolean; // "Import your data" one-time prompt

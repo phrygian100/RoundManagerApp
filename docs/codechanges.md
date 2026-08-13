@@ -1,5 +1,21 @@
 # Code Changes Log
 
+## August 13, 2026
+
+### Broadcast Message to Customers (Twilio SMS)
+
+**Why**: Need a one-button way to send the same announcement (e.g. everyone postponed by a week) to hundreds of customers, with each message personalised from that client's own next/last service dates — without using the owner's personal mobile as the sender.
+
+**Changes**:
+- `app/broadcast-message.tsx` (new) — two-step owner-only screen: (1) filter/select clients by search, frequency chips, sort (name / round order / next service / price), select-all / clear / per-row toggle; clients without a usable mobile are flagged and skipped; (2) compose with insertable tokens (`{name}`, `{firstName}`, `{address}`, `{nextServiceDate}`, `{lastServiceDate}`, `{price}`, `{frequency}`), live per-recipient preview, SMS segment estimate, Twilio sender config (Account SID / Auth Token / From — alphanumeric ID or E.164), confirm then send.
+- `services/broadcastService.ts` (new) — loads active clients + next/last job dates (3 Firestore queries), token rendering, UK phone → E.164 normalisation, chunked `httpsCallable('sendBroadcastSms')`.
+- `functions/index.js` — `sendBroadcastSms` callable (up to 500 messages, concurrency 5, 540s timeout); reads Twilio creds from the caller's `users` doc (same pattern as GoCardless).
+- `app/(tabs)/settings.tsx` — owner-only "Communications" section with "Broadcast Message to Customers".
+- `types/models.ts` — `twilioAccountSid` / `twilioAuthToken` / `twilioFromNumber` on User.
+- `types/audit.ts` — `broadcast_sms_sent` action type (logged after a successful send).
+
+**Regression notes**: Additive only — Settings gains a section; no changes to existing SMS (`Linking` / ETA) flows. Sending requires Twilio credentials on the owner's user doc; without them the compose step prompts for setup. Does not move/reschedule jobs (that comes later). Cloud function must be deployed separately from the Vercel frontend deploy.
+
 ## August 11, 2026
 
 ### Guides audit: content refresh, new vehicles guide, in-app "?" help buttons

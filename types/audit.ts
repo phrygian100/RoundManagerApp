@@ -33,6 +33,7 @@ export type AuditActionType =
   | 'job_completed'
   | 'runsheet_note_added'
   | 'recurring_service_added'
-  | 'gocardless_payments_processed';
+  | 'gocardless_payments_processed'
+  | 'broadcast_sms_sent';
 
 export type AuditEntityType = 'client' | 'quote' | 'rota' | 'payment' | 'member' | 'job'; 

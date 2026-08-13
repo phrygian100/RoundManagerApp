@@ -3034,6 +3034,21 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Communications - owners only */}
+        {isOwner && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Communications</ThemedText>
+            <ThemedText style={styles.sectionDescription}>
+              Send a templated SMS to many customers at once — for example to announce a schedule
+              change — with each message personalised with the customer's own service dates.
+            </ThemedText>
+            <StyledButton
+              title="Broadcast Message to Customers"
+              onPress={() => { pushOrNewTab('/broadcast-message'); }}
+            />
+          </View>
+        )}
+
         {/* AI Assistant Access - owners only */}
         {isOwner && (
           <View style={styles.section}>

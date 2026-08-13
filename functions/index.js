@@ -314,6 +314,79 @@ exports.createGoCardlessPayment = onCall(async (request) => {
   }
 });
 
+// Send a batch of pre-rendered SMS messages through the caller's Twilio account.
+// Credentials live on the caller's user doc (twilioAccountSid / twilioAuthToken /
+// twilioFromNumber) - same per-owner pattern as the GoCardless API token.
+exports.sendBroadcastSms = onCall({ timeoutSeconds: 540 }, async (request) => {
+  const caller = request.auth;
+  if (!caller) {
+    throw new HttpsError('unauthenticated', 'You must be logged in to send broadcasts.');
+  }
+
+  const { messages } = request.data || {};
+  if (!Array.isArray(messages) || messages.length === 0) {
+    throw new HttpsError('invalid-argument', 'No messages supplied.');
+  }
+  if (messages.length > 500) {
+    throw new HttpsError('invalid-argument', 'Maximum 500 messages per call.');
+  }
+  for (const m of messages) {
+    if (!m || typeof m.to !== 'string' || !/^\+\d{8,15}$/.test(m.to)) {
+      throw new HttpsError('invalid-argument', `Invalid recipient number: ${m && m.to}`);
+    }
+    if (typeof m.body !== 'string' || m.body.trim().length === 0 || m.body.length > 1600) {
+      throw new HttpsError('invalid-argument', 'Each message body must be 1-1600 characters.');
+    }
+  }
+
+  const db = admin.firestore();
+  const userDoc = await db.collection('users').doc(caller.uid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError('not-found', 'User not found.');
+  }
+  const userData = userDoc.data();
+  const accountSid = userData.twilioAccountSid;
+  const authToken = userData.twilioAuthToken;
+  const fromSender = userData.twilioFromNumber;
+  if (!accountSid || !authToken || !fromSender) {
+    throw new HttpsError('failed-precondition', 'Twilio is not configured. Add your Account SID, Auth Token and sender in the broadcast screen.');
+  }
+
+  const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const apiUrl = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
+
+  const results = [];
+  const CONCURRENCY = 5;
+  for (let i = 0; i < messages.length; i += CONCURRENCY) {
+    const chunk = messages.slice(i, i + CONCURRENCY);
+    const settled = await Promise.all(chunk.map(async (m) => {
+      try {
+        const form = new URLSearchParams({ To: m.to, From: fromSender, Body: m.body });
+        const res = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: form.toString(),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          return { to: m.to, clientId: m.clientId || null, ok: false, error: json.message || `HTTP ${res.status}` };
+        }
+        return { to: m.to, clientId: m.clientId || null, ok: true, sid: json.sid || null };
+      } catch (err) {
+        return { to: m.to, clientId: m.clientId || null, ok: false, error: err.message || 'Network error' };
+      }
+    }));
+    results.push(...settled);
+  }
+
+  const sent = results.filter(r => r.ok).length;
+  console.log(`sendBroadcastSms: ${sent}/${results.length} sent for ${caller.uid}`);
+  return { success: true, sent, failed: results.length - sent, results };
+});
+
 // Removed sendTeamInviteEmail as email is now handled in inviteMember
 
 exports.inviteMember = onCall({ secrets: [RESEND_KEY] }, async (request) => {
