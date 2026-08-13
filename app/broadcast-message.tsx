@@ -243,17 +243,38 @@ export default function BroadcastMessageScreen() {
     return max;
   }, [message, recipients]);
 
+  const alertMsg = (title: string, message: string) => {
+    if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
+    else Alert.alert(title, message);
+  };
+
   const saveSender = async () => {
     if (!ownerUid) return;
     const sid = twilioSid.trim();
     const token = twilioToken.trim();
     const from = twilioFrom.trim();
+    // Browser password managers often dump an email into the SID field — catch that clearly.
     if (!sid.startsWith('AC') || sid.length < 30) {
-      Platform.OS === 'web' ? window.alert('Account SID should start with "AC".') : Alert.alert('Invalid SID', 'Account SID should start with "AC".');
+      alertMsg(
+        'Invalid Account SID',
+        'Paste the Account SID from Twilio Console (it starts with "AC…"). If this field shows your email, clear it — the browser autofilled the wrong value.',
+      );
       return;
     }
-    if (!token || !from) {
-      Platform.OS === 'web' ? window.alert('Auth Token and sender are required.') : Alert.alert('Missing fields', 'Auth Token and sender are required.');
+    if (!token || token.length < 20) {
+      alertMsg('Invalid Auth Token', 'Paste the full Primary auth token from Twilio Console → API keys & auth tokens.');
+      return;
+    }
+    if (!from) {
+      alertMsg('Missing sender', 'Enter a Twilio phone number (+44…) or an alphanumeric name up to 11 characters (e.g. "TGM Windows").');
+      return;
+    }
+    const isPhone = /^\+\d{8,15}$/.test(from);
+    if (!isPhone && (from.length > 11 || !/^[A-Za-z0-9 ]+$/.test(from))) {
+      alertMsg(
+        'Invalid sender',
+        'Alphanumeric senders must be letters/numbers/spaces only and at most 11 characters (e.g. "TGM Windows"). Or use a Twilio number like +447…',
+      );
       return;
     }
     setSavingSender(true);
@@ -265,6 +286,8 @@ export default function BroadcastMessageScreen() {
       });
       setTwilioConfigured(true);
       setEditingSender(false);
+    } catch (err: any) {
+      alertMsg('Could not save', err?.message || 'Failed to save Twilio settings.');
     } finally {
       setSavingSender(false);
     }
@@ -445,6 +468,10 @@ export default function BroadcastMessageScreen() {
                   placeholder="Account SID (AC…)"
                   placeholderTextColor="#999"
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="none"
+                  importantForAutofill="no"
                   value={twilioSid}
                   onChangeText={setTwilioSid}
                 />
@@ -453,7 +480,11 @@ export default function BroadcastMessageScreen() {
                   placeholder="Auth Token"
                   placeholderTextColor="#999"
                   autoCapitalize="none"
-                  secureTextEntry
+                  autoCorrect={false}
+                  autoComplete="off"
+                  textContentType="oneTimeCode"
+                  importantForAutofill="no"
+                  secureTextEntry={Platform.OS !== 'web'}
                   value={twilioToken}
                   onChangeText={setTwilioToken}
                 />
@@ -462,6 +493,8 @@ export default function BroadcastMessageScreen() {
                   placeholder="Sender: +44 number or name (max 11 chars)"
                   placeholderTextColor="#999"
                   autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="off"
                   value={twilioFrom}
                   onChangeText={setTwilioFrom}
                 />

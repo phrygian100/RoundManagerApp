@@ -14,7 +14,7 @@
 - `types/models.ts` — `twilioAccountSid` / `twilioAuthToken` / `twilioFromNumber` on User.
 - `types/audit.ts` — `broadcast_sms_sent` action type (logged after a successful send).
 
-**Regression notes**: Additive only — Settings gains a section; no changes to existing SMS (`Linking` / ETA) flows. Sending requires Twilio credentials on the owner's user doc; without them the compose step prompts for setup. Does not move/reschedule jobs (that comes later). Cloud function must be deployed separately from the Vercel frontend deploy.
+**Regression notes**: Additive only — Settings gains a section; no changes to existing SMS (`Linking` / ETA) flows. Sending requires Twilio credentials on the owner's user doc; without them the compose step prompts for setup. Does not move/reschedule jobs (that comes later). Cloud function must be deployed separately from the Vercel frontend deploy. Sender form disables browser autofill (SID was getting the login email) and validates alphanumeric From length (max 11 chars).
 
 ## August 11, 2026
 
