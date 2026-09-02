@@ -1,5 +1,101 @@
 # Code Changes Log
 
+## September 2, 2026
+
+### Agent API: `updateClientService`, `archiveClient`, `createQuote`
+
+**Why**: Day-to-day admin needed changing a client's interval/price (and rebuilding the future book so 4-weekly isn't still scheduled 8-weekly), archiving leavers when they don't owe, and putting a WhatsApp quote on next week's runsheet.
+
+**Changes** (`functions/agentApi.js`, documented in `docs/agent-api.md`):
+- `updateClientService { clientId, frequencyWeeks?, quote?, serviceType?, note? }` — updates the client + matching service plan, deletes upcoming jobs for that service, regenerates ~24 months from the next visit at the new cadence/price.
+- `archiveClient { clientId, note?, force? }` — cancels upcoming jobs, deactivates plans, then archives (`ex-client`, round-order compacted) only if balance is not negative, unless `force: true`. If they owe, services still stop and a note is added but the account stays open.
+- `createQuote { name, address, town, number, scheduledDate, source?, notes?, lines? }` — writes a `quotes` doc and a `serviceId: 'quote'` runsheet job, same shape as the Quotes / New Business screens.
+
+**Regression notes**: Additive write actions. Archive compaction of later round-order numbers matches the client-screen archive path. Deployed 2 Sep.
+
+### End-of-day Direct Debit failures name the affected accounts
+
+**Why**: When Day Complete raised GoCardless payments, the failure alert only listed the raw error (e.g. "Missing required payment parameters") with a created count. It did not say which customers failed, so you had to guess from the runsheet DD badges.
+
+**Changes** (`app/runsheet/[week].tsx`):
+- Each failed payment now stores the client name and address, not just the error string.
+- The blocking alert lists `Name — address: error` for every failed account, plus created/failed counts.
+- The Day Complete Summary keeps a red "Direct debit failed" list after the alert is dismissed, and marks matching jobs in the Direct-Debit Jobs list as failed.
+- Day total and DD job list are populated when the summary opens (previously they stayed at £0.00 / empty until processing finished).
+- Audit log failure entries now include the client name as well as the id.
+
+**Regression notes**: Successful DD initiation, local payment mirroring (`createGoCardlessPaymentsForDay`), and the per-job DD badge modal are unchanged. Failures still do not block day completion.
+
+### Agent API: fewer round-trips (joined job lists + batch writes)
+
+**Why**: Using the key on live admin (whole-round +7d, 10-item day-to-day batch, rain-day SMS) was slow because almost every job change was its own HTTP call, and messaging a day's customers required `listJobs` then a full `listClients` dump just to get phone numbers. The function also timed out at 60s on large bulk work.
+
+**Changes** (`functions/agentApi.js`, documented in `docs/agent-api.md`):
+- `listJobs` / `getRunsheet` now join client `name`, `address`, `mobileNumber`, `email`, `frequency`, `runsheetNotes` (plus `jobNote` / defer fields on the job). Day-of SMS is one read + one `sendBroadcastSms`.
+- `searchClients` returns `nextJob` and `runsheetNotes` on each match — no follow-up `getClient` to learn the next visit.
+- New read `getClients { clientIds }` (max 40) — identity + next job, no financials.
+- New writes, each counting as **one** rate-limit token: `batchRescheduleJobs` (max 200), `batchCreateJobs` (max 50), `batchSetJobNotes` (max 100). Uses Firestore `getAll` + batched commits instead of N sequential doc reads/writes.
+- Function timeout raised 60s → 300s and memory 256MiB → 512MiB so `shiftSchedule`-scale work is not racing the clock.
+- Docs rule "there are no bulk endpoints" replaced with "prefer batch writes".
+
+**Regression notes**: Additive fields on existing read payloads (`jobNote`, `clientName`, `mobileNumber`, …). Callers that ignore extra keys are unaffected. Single-item write actions unchanged. Deployed 2 Sep.
+
+## August 27, 2026
+
+### Twilio API-key auth for broadcasts + `updateTwilioSettings` agent action
+
+**Why**: The stored Twilio Auth Token stopped authenticating (rain-deferral broadcast failed 25/25 with "Authenticate"; verified independently that Twilio rejects the SID+token pair). The owner created a Twilio API Key instead, which the send path didn't support.
+
+**Changes**:
+- `functions/index.js` (`sendBroadcastSms` callable) and `functions/agentApi.js` (`sendBroadcastSms` action) — both now authenticate with the API key pair (`twilioApiKeySid`/`twilioApiKeySecret` on the owner's user doc) when present, falling back to `twilioAccountSid`/`twilioAuthToken`. URL always addressed by the AC sid.
+- `functions/agentApi.js` — new `updateTwilioSettings` action: validates formats (AC/SK), verifies credentials against Twilio (read-only account fetch, no SMS) before saving, clears stale API keys when switching back to auth-token mode, optional `fromNumber` update. Audit log redacts secrets.
+- `docs/agent-api.md` — documented.
+
+**Regression notes**: In-app broadcast screen unchanged (still saves SID/token); API-key fields are additive and preferred only when present. Both functions deployed 27 Aug.
+
+## August 24, 2026
+
+### Agent API: job notes, client notes, deleteJob, per-client shiftSchedule
+
+**Why**: A batch of day-to-day admin (suspensions, runsheet/job notes, an ad-hoc soffits job, moving one customer +4 weeks) needed capabilities the API lacked.
+
+**Changes** (`functions/agentApi.js`, documented in `docs/agent-api.md`):
+- `createJob` — optional `note` (job's inline runsheet note).
+- `setJobNote` — set/clear the one-off note on a single job; returns the previous note.
+- `updateClientNotes` — append/replace the client-level runsheet note ("!" icon) and/or prepend a timestamped account note.
+- `deleteJob` — delete one non-completed job (completed jobs refused). Added after `createJob` produced a duplicate of an already-booked soffits job; docs now tell agents to check `listJobs` before creating.
+- `shiftSchedule` — optional `clientId` scopes the shift (jobs + plan anchors) to one client.
+
+**Regression notes**: All additive. Deployed 24 Aug.
+
+### Agent API: `suspendClientServices` action
+
+**Why**: Needed a way to pause a customer (Jade Cook, 26 West Drive — requested temporary suspension) via the API without archiving: cancel all future jobs, stop new ones being raised, keep the account open, and record why.
+
+**Changes**:
+- `functions/agentApi.js` — new audited write action `suspendClientServices { clientId, note?, fromDate? }`: deletes upcoming (pending/scheduled/in_progress) jobs from `fromDate` (default today), deactivates the client's active `servicePlans` (so the completion top-up and backfill generators raise nothing), and prepends an `accountNotes` entry in the same shape the client screen writes (author "Agent API"). Client `status` untouched. Deployed 24 Aug.
+- `docs/agent-api.md` — action documented.
+
+**Regression notes**: Additive action; nothing else changed. Suspension is reversed in-app by reactivating/re-creating the client's service plan (job generation then resumes from the plan anchor).
+
+## August 23, 2026
+
+### Agent API: `shiftSchedule` + `sendBroadcastSms` bulk actions (whole-round move)
+
+**Why**: The Giles Academy commercial job consumed the whole week (w/c 17 Aug), so every customer's schedule had to move forward one week and all customers had to be told their old/new dates. The agent API only had per-job `rescheduleJob` (600 writes/hr cap vs ~11.5k pending jobs) and no SMS action.
+
+**Changes**:
+- `functions/agentApi.js` — two new audited write actions:
+  - `shiftSchedule` — bulk-moves all non-completed jobs by N days (±28) preserving time-of-day; optional `minDate` (exclude stale past rows), `restoreOriginalFrom` (deferred jobs shift from their original slot and the deferral clears), `dryRun` (returns the full per-job from/to list — the revert map). Also shifts future `servicePlans.startDate` anchors. The recurring-job top-up anchors on the next scheduled job, so a whole-schedule shift keeps 4/8-weekly cadences intact.
+  - `sendBroadcastSms` — sends pre-rendered SMS (max 100/call) via the owner's stored Twilio credentials, same as the in-app broadcast screen; per-message results.
+  - `listClients` now also returns `frequency`. Audit entries for the new actions store counts/hashes, not full payloads (Firestore 1MB doc cap).
+- `docs/agent-api.md` — both actions documented.
+- `scripts/shift_week/` (new, operational) — staged scripts used for the move: dry-run/backup, weekday-evidence reconstruction, apply, verify, message build, send. Output JSONs (backup + revert map + send results) in `scripts/shift_week/out/`.
+
+**Operation performed** (23 Aug 2026): 11,554 jobs +7 days, 291 plan anchors shifted; the 109 incomplete Giles-week jobs (which had been rolled to Sat 22/08 with no defer metadata) were restored to each client's natural weekday in w/c 24 Aug using last-completed-visit weekday evidence (97 restored; 12 without evidence stay Sat 29/08). 475 personalised SMS sent (0 failures); 16 clients skipped (no usable mobile), 72 active clients had nothing scheduled so weren't messaged.
+
+**Regression notes**: Additive API actions only; existing actions untouched. `agentApi` function deployed 23 Aug. Stale pre-17-Aug rows (94 runsheet notes, 3 quote rows, 12 ancient pending jobs) deliberately not moved.
+
 ## August 13, 2026
 
 ### Broadcast Message to Customers (Twilio SMS)

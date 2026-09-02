@@ -35,6 +35,32 @@ import { hrefToUrl, pushOrNewTab } from '../../utils/ctrlClickNavigation';
 
 const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+type DdPaymentFailure = {
+  clientId: string;
+  clientName: string;
+  error: string;
+};
+
+function formatDdClientLabel(job: { clientId?: string; client?: Client | null }): string {
+  const client = job?.client;
+  const name = (client?.name || '').trim();
+  const address = (client?.address1 || client?.address || '').trim();
+  if (name && address) return `${name} — ${address}`;
+  if (name) return name;
+  if (address) return address;
+  return job?.clientId ? `Client ${job.clientId}` : 'Unknown client';
+}
+
+function getCallableErrorMessage(error: unknown): string {
+  if (!error) return 'Unknown error';
+  const anyErr = error as { message?: string; details?: { message?: string } };
+  const raw = (anyErr.details?.message || anyErr.message || String(error)).trim();
+  return raw
+    .replace(/^Firebase:\s*/i, '')
+    .replace(/\s*\(functions\/[^)]+\)\.?\s*$/, '')
+    .trim() || 'Unknown error';
+}
+
 export default function RunsheetWeekScreen() {
   const { week } = useLocalSearchParams();
   const { width } = useWindowDimensions();
@@ -92,6 +118,7 @@ export default function RunsheetWeekScreen() {
   const [summarySwapChoices, setSummarySwapChoices] = useState<Array<{ jobId: string; swapWithJobId: string; selected: boolean }>>([]);
   const [summaryDayTitle, setSummaryDayTitle] = useState<string | null>(null);
   const [summaryProcessing, setSummaryProcessing] = useState<boolean>(false);
+  const [summaryDDFailures, setSummaryDDFailures] = useState<DdPaymentFailure[]>([]);
 
   // Multi-select & bulk move
   const [multiSelectMode, setMultiSelectMode] = useState(false);
@@ -2011,6 +2038,15 @@ ${signOff}`;
       });
 
       // Process GoCardless payments for completed jobs (non-blocking UI)
+      const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
+      const ddJobs = dayJobs.filter(j => {
+        const enabled = (j as any).gocardlessEnabled ?? (j as any).client?.gocardlessEnabled ?? false;
+        const customerId = (j as any).gocardlessCustomerId ?? (j as any).client?.gocardlessCustomerId;
+        return !!enabled && !!customerId;
+      });
+      setSummaryTotal(totalValue);
+      setSummaryDDJobs(ddJobs as any);
+      setSummaryDDFailures([]);
       setSummaryProcessing(true);
       setSummaryDayTitle(dayTitle);
       
@@ -2022,16 +2058,9 @@ ${signOff}`;
       // Defer heavy processing to next tick to avoid UI jank/modal delay
       setTimeout(async () => {
         try {
-          await processGoCardlessPayments(dayJobs, dayTitle);
+          const result = await processGoCardlessPayments(dayJobs, dayTitle);
+          setSummaryDDFailures(result?.failedPayments || []);
         } finally {
-          const totalValue = dayJobs.reduce((sum, j) => sum + (j.price || 0), 0);
-          const ddJobs = dayJobs.filter(j => {
-            const enabled = (j as any).gocardlessEnabled ?? (j as any).client?.gocardlessEnabled ?? false;
-            const customerId = (j as any).gocardlessCustomerId ?? (j as any).client?.gocardlessCustomerId;
-            return !!enabled && !!customerId;
-          });
-          setSummaryTotal(totalValue);
-          setSummaryDDJobs(ddJobs as any);
           setSummaryProcessing(false);
         }
       }, 0);
@@ -2044,13 +2073,14 @@ ${signOff}`;
   /**
    * Process GoCardless payments for completed jobs
    */
-  const processGoCardlessPayments = async (dayJobs: any[], dayTitle: string) => {
+  const processGoCardlessPayments = async (dayJobs: any[], dayTitle: string): Promise<{ failedPayments: DdPaymentFailure[] }> => {
+    const emptyResult = { failedPayments: [] as DdPaymentFailure[] };
     try {
       // Check if GoCardless is configured
       const isConfigured = await GoCardlessService.isConfigured();
       if (!isConfigured) {
         console.log('GoCardless not configured, skipping payment processing');
-        return;
+        return emptyResult;
       }
 
       // Get GoCardless API token
@@ -2066,20 +2096,26 @@ ${signOff}`;
             [{ text: 'OK' }]
           );
         }
-        return;
+        return emptyResult;
       }
 
       // Group jobs by client for GoCardless API calls (use job OR client settings)
-      const gocardlessJobsByClient = new Map<string, Array<{ price: number; gocardlessCustomerId: string }>>();
+      const gocardlessJobsByClient = new Map<string, {
+        clientName: string;
+        jobs: Array<{ price: number; gocardlessCustomerId: string }>;
+      }>();
       
       dayJobs.forEach(job => {
         const enabled = (job as any).gocardlessEnabled ?? (job as any).client?.gocardlessEnabled ?? false;
         const customerId = (job as any).gocardlessCustomerId ?? (job as any).client?.gocardlessCustomerId;
         if (enabled && customerId) {
           if (!gocardlessJobsByClient.has(job.clientId)) {
-            gocardlessJobsByClient.set(job.clientId, []);
+            gocardlessJobsByClient.set(job.clientId, {
+              clientName: formatDdClientLabel(job),
+              jobs: [],
+            });
           }
-          gocardlessJobsByClient.get(job.clientId)!.push({
+          gocardlessJobsByClient.get(job.clientId)!.jobs.push({
             price: job.price,
             gocardlessCustomerId: customerId
           });
@@ -2091,12 +2127,12 @@ ${signOff}`;
         const functions = getFunctions(getApp());
         const createGoCardlessPayment = httpsCallable(functions, 'createGoCardlessPayment');
         const completionDate = format(new Date(), 'yyyy-MM-dd');
-        const apiErrors: string[] = [];
         let apiPaymentsCreated = 0;
-        const failedPayments: Array<{ clientId: string; error: string }> = [];
+        const failedPayments: DdPaymentFailure[] = [];
         const successfulClientIds = new Set<string>();
 
-        for (const [clientId, jobs] of gocardlessJobsByClient) {
+        for (const [clientId, group] of gocardlessJobsByClient) {
+          const { jobs, clientName } = group;
           try {
             const totalAmount = jobs.reduce((sum, j) => sum + (j.price || 0), 0);
             const firstJob = jobs[0];
@@ -2119,19 +2155,16 @@ ${signOff}`;
               throw new Error(result?.data?.message || 'Unknown error');
             }
           } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error);
-            console.error('Failed to create GoCardless payment for client', clientId, msg);
-            apiErrors.push(msg);
-            failedPayments.push({ clientId, error: msg });
+            const msg = getCallableErrorMessage(error);
+            console.error('Failed to create GoCardless payment for client', clientId, clientName, msg);
+            failedPayments.push({ clientId, clientName, error: msg });
           }
         }
 
         // Mirror to local payments
-        let localPaymentsCreated = 0;
         if (apiPaymentsCreated > 0) {
           const successfulDayJobs = dayJobs.filter(j => successfulClientIds.has(j.clientId));
-          const paymentResult = await createGoCardlessPaymentsForDay(successfulDayJobs, completionDate);
-          localPaymentsCreated = paymentResult.paymentsCreated;
+          await createGoCardlessPaymentsForDay(successfulDayJobs, completionDate);
           await logAction(
             'gocardless_payments_processed',
             'payment',
@@ -2146,19 +2179,20 @@ ${signOff}`;
               'gocardless_payments_processed',
               'payment',
               'failed',
-              formatAuditDescription('gocardless_payments_processed', `Failed to create direct debit for client ${failedPayment.clientId}: ${failedPayment.error}`)
+              formatAuditDescription('gocardless_payments_processed', `Failed to create direct debit for ${failedPayment.clientName} (${failedPayment.clientId}): ${failedPayment.error}`)
             );
           }
-        }
 
-        if (apiErrors.length > 0) {
-          const msg = `Some direct debit payments failed to initiate (created: ${apiPaymentsCreated}). Errors: \n- ${apiErrors.join('\n- ')}`;
+          const lines = failedPayments.map(f => `${f.clientName}: ${f.error}`);
+          const msg = `Some direct debit payments failed to initiate (created: ${apiPaymentsCreated}, failed: ${failedPayments.length}):\n- ${lines.join('\n- ')}`;
           if (Platform.OS === 'web') {
             window.alert(msg);
           } else {
             Alert.alert('GoCardless Payment Issues', msg);
           }
         }
+
+        return { failedPayments };
       } else {
         console.log('No GoCardless payments to process');
       }
@@ -2168,6 +2202,7 @@ ${signOff}`;
       // Don't fail the day completion if GoCardless processing fails
       Alert.alert('Success', `${dayJobs.length} jobs marked as completed for ${dayTitle}\n\nNote: GoCardless payment processing failed`);
     }
+    return emptyResult;
   };
 
   const handleResetDay = async (dayTitle: string) => {
@@ -2995,19 +3030,41 @@ ${signOff}`;
                 )}
                 {summaryProcessing ? (
                   <Text style={styles.summaryLine}>Looking up direct-debit jobs…</Text>
-                ) : summaryDDJobs.length > 0 ? (
-                  <>
-                    <Text style={styles.summarySub}>Direct-Debit Jobs ({summaryDDJobs.length})</Text>
-                    <ScrollView style={{ maxHeight: 200, width: '100%' }}>
-                      {summaryDDJobs.map((job, idx) => (
-                        <Text key={idx} style={styles.summaryLine}>
-                          {(job.client?.name || 'Client')} — £{(job.price || 0).toFixed(2)}
-                        </Text>
-                      ))}
-                    </ScrollView>
-                  </>
                 ) : (
-                  <Text style={styles.summaryLine}>No direct-debit jobs today.</Text>
+                  <>
+                    {summaryDDFailures.length > 0 && (
+                      <>
+                        <Text style={styles.summaryErrorSub}>
+                          Direct debit failed ({summaryDDFailures.length})
+                        </Text>
+                        <ScrollView style={{ maxHeight: 180, width: '100%', marginBottom: 8 }}>
+                          {summaryDDFailures.map((failure, idx) => (
+                            <Text key={`${failure.clientId}-${idx}`} style={styles.summaryErrorLine}>
+                              {failure.clientName} — {failure.error}
+                            </Text>
+                          ))}
+                        </ScrollView>
+                      </>
+                    )}
+                    {summaryDDJobs.length > 0 ? (
+                      <>
+                        <Text style={styles.summarySub}>Direct-Debit Jobs ({summaryDDJobs.length})</Text>
+                        <ScrollView style={{ maxHeight: 200, width: '100%' }}>
+                          {summaryDDJobs.map((job, idx) => {
+                            const failed = summaryDDFailures.some(f => f.clientId === job.clientId);
+                            return (
+                              <Text key={idx} style={[styles.summaryLine, failed && styles.summaryErrorLine]}>
+                                {(job.client?.name || 'Client')} — £{(job.price || 0).toFixed(2)}
+                                {failed ? ' — failed' : ''}
+                              </Text>
+                            );
+                          })}
+                        </ScrollView>
+                      </>
+                    ) : (
+                      <Text style={styles.summaryLine}>No direct-debit jobs today.</Text>
+                    )}
+                  </>
                 )}
                 <View style={{ flexDirection: 'row', gap: 12 }}>
                   <Pressable
@@ -3037,6 +3094,7 @@ ${signOff}`;
                       } finally {
                         setSummaryVisible(false);
                         setSummarySwapChoices([]);
+                        setSummaryDDFailures([]);
                         if (summaryDayTitle) {
                           // Clear swap proposals from local state
                           setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
@@ -3054,6 +3112,7 @@ ${signOff}`;
                     onPress={() => {
                       setSummaryVisible(false);
                       setSummarySwapChoices([]);
+                      setSummaryDDFailures([]);
                       if (summaryDayTitle) {
                         setSwapProposalsByDay(prev => ({ ...prev, [summaryDayTitle]: [] }));
                       }
@@ -4221,8 +4280,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 24,
-    width: '80%',
-    maxWidth: 350,
+    width: '90%',
+    maxWidth: 420,
     alignItems: 'center',
   },
   summaryTitle: {
@@ -4246,6 +4305,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginVertical: 2,
     alignSelf: 'flex-start',
+  },
+  summaryErrorSub: {
+    fontSize: 15,
+    fontWeight: '600',
+    marginTop: 10,
+    marginBottom: 4,
+    alignSelf: 'flex-start',
+    color: '#c62828',
+  },
+  summaryErrorLine: {
+    fontSize: 14,
+    marginVertical: 2,
+    alignSelf: 'flex-start',
+    color: '#c62828',
+    width: '100%',
   },
   summaryClose: {
     marginTop: 20,
