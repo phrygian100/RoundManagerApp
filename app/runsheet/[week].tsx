@@ -1354,8 +1354,31 @@ export default function RunsheetWeekScreen() {
     setBulkMoveLoading(true);
 
     try {
+      // Verify each job doc still exists: one stale/deleted row makes the whole
+      // batch commit fail with not-found, which used to abort the entire move.
+      const existingIds = new Set<string>();
+      for (let i = 0; i < jobsToMove.length; i += 30) {
+        const chunkIds = jobsToMove.slice(i, i + 30).map(j => j.id);
+        const snap = await getDocs(query(collection(db, 'jobs'), where('__name__', 'in', chunkIds)));
+        snap.docs.forEach(d => existingIds.add(d.id));
+      }
+      const missingJobs = jobsToMove.filter(j => !existingIds.has(j.id));
+      const movableJobs = jobsToMove.filter(j => existingIds.has(j.id));
+
+      if (!movableJobs.length) {
+        setBulkMoveLoading(false);
+        setShowBulkMovePicker(false);
+        const msg = 'None of the selected jobs exist any more. Refresh the runsheet and try again.';
+        if (Platform.OS === 'web') {
+          window.alert(msg);
+        } else {
+          Alert.alert('Jobs not found', msg);
+        }
+        return;
+      }
+
       const updates: Array<{ jobId: string; updateData: any }> = [];
-      for (const job of jobsToMove) {
+      for (const job of movableJobs) {
         const updateData = await buildMoveUpdateData(job, targetDate, bulkMoveVehicle);
         updates.push({ jobId: job.id, updateData });
       }
@@ -1366,17 +1389,23 @@ export default function RunsheetWeekScreen() {
       });
       await batch.commit();
 
-      setJobs(prev => prev.map(job => {
-        const match = updates.find(u => u.jobId === job.id);
-        return match ? { ...job, ...match.updateData } : job;
-      }));
+      setJobs(prev => prev
+        .filter(job => !missingJobs.some(m => m.id === job.id))
+        .map(job => {
+          const match = updates.find(u => u.jobId === job.id);
+          return match ? { ...job, ...match.updateData } : job;
+        }));
 
       setShowBulkMovePicker(false);
       setBulkMoveLoading(false);
       setSelectedJobIds([]);
       setMultiSelectMode(false);
 
-      const successMessage = `${updates.length} job${updates.length === 1 ? '' : 's'} moved to ${format(targetDate, 'EEEE, MMMM d')}.`;
+      let successMessage = `${updates.length} job${updates.length === 1 ? '' : 's'} moved to ${format(targetDate, 'EEEE, MMMM d')}.`;
+      if (missingJobs.length > 0) {
+        const missingNames = missingJobs.map(j => j.client?.name || j.id).join(', ');
+        successMessage += `\n\nSkipped ${missingJobs.length} job${missingJobs.length === 1 ? '' : 's'} that no longer exist (${missingNames}).`;
+      }
       if (Platform.OS === 'web') {
         window.alert(successMessage);
       } else {
@@ -1386,10 +1415,13 @@ export default function RunsheetWeekScreen() {
     } catch (error) {
       console.error('Error moving selected jobs:', error);
       setBulkMoveLoading(false);
+      const code = (error as any)?.code;
+      const detail = `${code ? `[${code}] ` : ''}${getCallableErrorMessage(error)}`;
+      const msg = `Failed to move selected jobs.\n\n${detail}`;
       if (Platform.OS === 'web') {
-        window.alert('Failed to move selected jobs. Please try again.');
+        window.alert(msg);
       } else {
-        Alert.alert('Error', 'Failed to move selected jobs. Please try again.');
+        Alert.alert('Error', msg);
       }
     }
   };

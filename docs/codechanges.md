@@ -1,6 +1,17 @@
 # Code Changes Log
 
-## September 2, 2026
+## September 6, 2026
+
+### Bulk "Move selected jobs" no longer fails wholesale; errors show the cause
+
+**Why**: Multi-select move on the runsheet failed with a generic "Failed to move selected jobs. Please try again." The move uses one Firestore batch, so a single selected job whose document no longer exists (stale local row) aborted every job in the selection with `not-found`, and the alert hid the underlying error.
+
+**Changes** (`app/runsheet/[week].tsx`, `handleBulkMoveJobs`):
+- Before committing, the selected job ids are checked against Firestore (chunked `__name__ in` queries). Jobs whose docs are gone are skipped and removed from the local list; the success alert names them.
+- If nothing selected still exists, the user is told to refresh instead of getting a generic failure.
+- The failure alert now includes the Firestore error code and message (e.g. `[permission-denied] …`) so the affected cause is visible.
+
+**Regression notes**: Single-job Move (defer flow) untouched. Successful bulk moves behave as before apart from the added existence check (one extra read per 30 selected jobs).
 
 ### Agent API: `updateClientService`, `archiveClient`, `createQuote`
 
