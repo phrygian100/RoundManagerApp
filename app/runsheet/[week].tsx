@@ -1354,16 +1354,24 @@ export default function RunsheetWeekScreen() {
     setBulkMoveLoading(true);
 
     try {
-      // Verify each job doc still exists: one stale/deleted row makes the whole
+      // Verify each job doc still exists: one stale/deleted row makes a
       // batch commit fail with not-found, which used to abort the entire move.
-      const existingIds = new Set<string>();
-      for (let i = 0; i < jobsToMove.length; i += 30) {
-        const chunkIds = jobsToMove.slice(i, i + 30).map(j => j.id);
-        const snap = await getDocs(query(collection(db, 'jobs'), where('__name__', 'in', chunkIds)));
-        snap.docs.forEach(d => existingIds.add(d.id));
+      // If this pre-check itself is denied, fall back to assuming all exist —
+      // the per-job retry below will isolate any genuinely bad row.
+      const missingJobs: typeof jobsToMove = [];
+      let movableJobs = jobsToMove;
+      try {
+        const existingIds = new Set<string>();
+        for (let i = 0; i < jobsToMove.length; i += 30) {
+          const chunkIds = jobsToMove.slice(i, i + 30).map(j => j.id);
+          const snap = await getDocs(query(collection(db, 'jobs'), where('__name__', 'in', chunkIds)));
+          snap.docs.forEach(d => existingIds.add(d.id));
+        }
+        missingJobs.push(...jobsToMove.filter(j => !existingIds.has(j.id)));
+        movableJobs = jobsToMove.filter(j => existingIds.has(j.id));
+      } catch (precheckError) {
+        console.warn('Bulk move: existence pre-check failed, proceeding without it', precheckError);
       }
-      const missingJobs = jobsToMove.filter(j => !existingIds.has(j.id));
-      const movableJobs = jobsToMove.filter(j => existingIds.has(j.id));
 
       if (!movableJobs.length) {
         setBulkMoveLoading(false);
@@ -1383,33 +1391,73 @@ export default function RunsheetWeekScreen() {
         updates.push({ jobId: job.id, updateData });
       }
 
-      const batch = writeBatch(db);
-      updates.forEach(({ jobId, updateData }) => {
-        batch.update(doc(db, 'jobs', jobId), updateData);
-      });
-      await batch.commit();
+      // Firestore security rules allow at most 20 exists()/get() lookups per
+      // batched write, and our job rules can need one membership lookup per
+      // update — a large single batch is rejected wholesale with
+      // permission-denied. Commit in small chunks; if a chunk still fails,
+      // retry its jobs one-by-one so a single bad job can't block the rest.
+      const BATCH_CHUNK = 15;
+      const movedIds = new Set<string>();
+      const failedMoves: Array<{ jobId: string; clientName: string; error: string }> = [];
+      for (let i = 0; i < updates.length; i += BATCH_CHUNK) {
+        const chunk = updates.slice(i, i + BATCH_CHUNK);
+        try {
+          const batch = writeBatch(db);
+          chunk.forEach(({ jobId, updateData }) => {
+            batch.update(doc(db, 'jobs', jobId), updateData);
+          });
+          await batch.commit();
+          chunk.forEach(({ jobId }) => movedIds.add(jobId));
+        } catch (chunkError) {
+          console.warn('Bulk move: chunk commit failed, retrying jobs individually', chunkError);
+          for (const { jobId, updateData } of chunk) {
+            try {
+              await updateDoc(doc(db, 'jobs', jobId), updateData);
+              movedIds.add(jobId);
+            } catch (jobError) {
+              console.error('Bulk move: job failed', jobId, jobError);
+              const job = movableJobs.find(j => j.id === jobId);
+              const code = (jobError as any)?.code;
+              failedMoves.push({
+                jobId,
+                clientName: job ? formatDdClientLabel(job) : jobId,
+                error: `${code ? `[${code}] ` : ''}${getCallableErrorMessage(jobError)}`,
+              });
+            }
+          }
+        }
+      }
 
       setJobs(prev => prev
         .filter(job => !missingJobs.some(m => m.id === job.id))
         .map(job => {
+          if (!movedIds.has(job.id)) return job;
           const match = updates.find(u => u.jobId === job.id);
           return match ? { ...job, ...match.updateData } : job;
         }));
 
       setShowBulkMovePicker(false);
       setBulkMoveLoading(false);
-      setSelectedJobIds([]);
-      setMultiSelectMode(false);
+      if (failedMoves.length === 0) {
+        setSelectedJobIds([]);
+        setMultiSelectMode(false);
+      } else {
+        // Keep only the failed jobs selected so the user can retry or inspect them.
+        setSelectedJobIds(failedMoves.map(f => f.jobId));
+      }
 
-      let successMessage = `${updates.length} job${updates.length === 1 ? '' : 's'} moved to ${format(targetDate, 'EEEE, MMMM d')}.`;
+      let message = `${movedIds.size} job${movedIds.size === 1 ? '' : 's'} moved to ${format(targetDate, 'EEEE, MMMM d')}.`;
       if (missingJobs.length > 0) {
         const missingNames = missingJobs.map(j => j.client?.name || j.id).join(', ');
-        successMessage += `\n\nSkipped ${missingJobs.length} job${missingJobs.length === 1 ? '' : 's'} that no longer exist (${missingNames}).`;
+        message += `\n\nSkipped ${missingJobs.length} job${missingJobs.length === 1 ? '' : 's'} that no longer exist (${missingNames}).`;
+      }
+      if (failedMoves.length > 0) {
+        message += `\n\n${failedMoves.length} job${failedMoves.length === 1 ? '' : 's'} could not be moved (left selected):\n- ${failedMoves.map(f => `${f.clientName}: ${f.error}`).join('\n- ')}`;
       }
       if (Platform.OS === 'web') {
-        window.alert(successMessage);
+        window.alert(message);
       } else {
-        Alert.alert('Jobs moved', successMessage);
+        Alert.alert(failedMoves.length ? 'Jobs partially moved' : 'Jobs moved', message);
       }
       setBulkMoveVehicle('auto');
     } catch (error) {

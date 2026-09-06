@@ -2,6 +2,18 @@
 
 ## September 6, 2026
 
+### Bulk move: chunked commits + per-job fallback (fixes permission-denied on large selections)
+
+**Why**: Moving 43 jobs failed with `[permission-denied] Missing or insufficient permissions` while a 3-job selection succeeded. Firestore security rules allow at most 20 `exists()`/`get()` document-access calls per batched write, and `hasResourceAccess` can need a `/accounts/{accountId}/members/{uid}` lookup per update, so one large `writeBatch` covering the whole selection is rejected wholesale. Verified via the agent API that all 43 Monday jobs carry the correct `ownerId` — the data is fine; the batch size is the problem.
+
+**Changes** (`app/runsheet/[week].tsx`, `handleBulkMoveJobs`):
+- Updates are committed in chunks of 15 instead of one batch.
+- If a chunk is still refused, its jobs are retried individually; any job that genuinely fails is reported by client name with the Firestore error code, and is left selected so it can be retried.
+- The existence pre-check (added earlier today) is now non-fatal: if the check itself is denied, the move proceeds and relies on the per-job fallback.
+- Local state/selection only updates for jobs that actually moved.
+
+**Regression notes**: The move is no longer atomic across the whole selection (it already wasn't from the user's perspective when it failed wholesale); each chunk is atomic. Single-job Move flow untouched.
+
 ### Bulk "Move selected jobs" no longer fails wholesale; errors show the cause
 
 **Why**: Multi-select move on the runsheet failed with a generic "Failed to move selected jobs. Please try again." The move uses one Firestore batch, so a single selected job whose document no longer exists (stale local row) aborted every job in the selection with `not-found`, and the alert hid the underlying error.
