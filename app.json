@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "RoundManagerApp",
+    "name": "Guvnor",
     "slug": "RoundManagerApp",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,7 +9,15 @@
     "userInterfaceStyle": "automatic",
   "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.guvnor.roundmanagerapp",
+      "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Guvnor uses the camera to attach photos to quotes and jobs.",
+        "NSPhotoLibraryUsageDescription": "Guvnor uses your photo library so you can attach photos to quotes and jobs."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -17,7 +25,9 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.guvnor.roundmanagerapp"
+      "package": "com.guvnor.roundmanagerapp",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -42,6 +52,15 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      "@react-native-firebase/app",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],

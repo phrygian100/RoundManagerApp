@@ -1,5 +1,20 @@
 # Code Changes Log
 
+## September 14, 2026
+
+### Native store apps: React Native Firebase + offline persistence (packaging groundwork)
+
+**Why**: Guvnor is to ship as real Android/iOS apps (Play Store / App Store) with offline access to runsheets in poor-signal rural areas. The Firebase **JS** SDK has no disk persistence on React Native (memory-only), so a native app alone wouldn't have fixed offline; React Native Firebase (native SDK) has disk persistence on by default and, since v22+, a modular API that mirrors the firebase-js-sdk import surface.
+
+**Changes**:
+- Installed `@react-native-firebase/{app,auth,firestore,functions,storage}@25.1.0` (v25 = last old-architecture line; `newArchEnabled` stays false) and `expo-build-properties`.
+- `metro.config.js` — on non-web platforms, aliases `firebase/app|auth|firestore|functions|storage` imports to the `@react-native-firebase/*` equivalents. Zero changes to service code; web resolves the JS SDK as before.
+- `core/firebase.ts` (native-only file; web uses `core/firebase.web.ts`) — native branch now uses the RNFB default app (configured from `google-services.json` / `GoogleService-Info.plist`), native auth persistence (dropped the AsyncStorage shim), and default-on Firestore disk persistence.
+- `app.json` — display name "Guvnor" (slug unchanged), `ios.bundleIdentifier`/`buildNumber`, `android.versionCode`, `googleServicesFile` for both platforms, camera/photo-library iOS usage strings, `ITSAppUsesNonExemptEncryption: false`, plugins `@react-native-firebase/app` + `expo-build-properties` (iOS `useFrameworks: static`, required by RNFB).
+- `docs/app-store-packaging.md` (new) — runbook: Firebase native app registrations (the two google-services files must be downloaded and committed before any EAS build), store accounts, EAS build/submit commands, versioning, dev-client note (Expo Go can no longer run the native app), offline field-test checklist.
+
+**Regression notes**: Web bundles are unaffected (alias is platform-gated; web export verified locally before push). Native behaviour changes SDK — needs a `release-apk` EAS build + the offline checklist in the runbook before store submission. Cloud Function calls (GoCardless on Day Complete, SMS, chase emails) still require connectivity.
+
 ## September 6, 2026
 
 ### Bulk move: chunked commits + per-job fallback (fixes permission-denied on large selections)

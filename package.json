@@ -23,6 +23,11 @@
     "@quidone/react-native-wheel-picker": "^1.4.1",
     "@react-native-async-storage/async-storage": "2.1.2",
     "@react-native-community/datetimepicker": "8.4.1",
+    "@react-native-firebase/app": "^25.1.0",
+    "@react-native-firebase/auth": "^25.1.0",
+    "@react-native-firebase/firestore": "^25.1.0",
+    "@react-native-firebase/functions": "^25.1.0",
+    "@react-native-firebase/storage": "^25.1.0",
     "@react-native-picker/picker": "2.11.1",
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
@@ -37,6 +42,7 @@
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",
     "expo-image": "~2.4.0",
+    "expo-image-picker": "~16.1.4",
     "expo-linear-gradient": "~14.0.1",
     "expo-linking": "~7.1.7",
     "expo-router": "~5.1.4",
@@ -63,7 +69,7 @@
     "react-native-webview": "13.13.5",
     "stream-browserify": "^3.0.0",
     "xlsx": "^0.18.5",
-    "expo-image-picker": "~16.1.4"
+    "expo-build-properties": "~0.14.8"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -57,46 +57,43 @@ if (missingKeys.length) {
   );
 }
 
-// Initialize Firebase app
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApp();
-}
-
-// Initialize Firebase services
 if (Platform.OS !== 'web') {
-  try {
-    // Use the returned native Auth instance instead of calling getAuth on RN
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { initializeAuth, getReactNativePersistence } = require('firebase/auth/react-native');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
-  } catch (e) {
-    // Fallback if initializeAuth has already been called elsewhere
-    auth = getAuth(app);
-  }
-} else {
+  // Native (iOS/Android): metro.config.js aliases the firebase/* imports in this
+  // file (and everywhere else) to React Native Firebase. The default app is
+  // configured from the native google-services.json / GoogleService-Info.plist,
+  // auth state persists on-device automatically, and Firestore ships with disk
+  // persistence enabled by default — runsheets viewed online stay readable
+  // offline and field writes are queued until connectivity returns.
+  app = getApp();
   auth = getAuth(app);
-}
-// On web, persist Firestore data in IndexedDB so runsheets/clients viewed while
-// online stay readable offline, and writes (e.g. marking jobs complete in the
-// field) are journaled locally and synced when connectivity returns.
-// SSR/static export and React Native have no IndexedDB, so they keep the default cache.
-if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
-  try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    });
-  } catch (e) {
-    console.warn('Persistent Firestore cache unavailable; using in-memory cache.', e);
+  db = getFirestore(app);
+  storage = getStorage(app);
+} else {
+  // Web: firebase JS SDK, initialised from EXPO_PUBLIC_* / extra.firebase config.
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApp();
+  }
+  auth = getAuth(app);
+  // Persist Firestore data in IndexedDB so runsheets/clients viewed while
+  // online stay readable offline, and writes (e.g. marking jobs complete in the
+  // field) are journaled locally and synced when connectivity returns.
+  // SSR/static export has no IndexedDB, so it keeps the default cache.
+  if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+      });
+    } catch (e) {
+      console.warn('Persistent Firestore cache unavailable; using in-memory cache.', e);
+      db = getFirestore(app);
+    }
+  } else {
     db = getFirestore(app);
   }
-} else {
-  db = getFirestore(app);
+  storage = getStorage(app);
 }
-storage = getStorage(app);
 
 export { app, auth, db, storage };
 
