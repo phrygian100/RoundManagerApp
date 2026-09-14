@@ -2,6 +2,25 @@
 
 Last updated: 14 September 2026
 
+## How updates ship once the apps are live
+
+- **JS/TS changes (screens, logic — the everyday case)** go **over the air**:
+  the GitHub Action `.github/workflows/eas-update.yml` runs `eas update` on
+  every push to master (it skips pushes that only touch `web/`, `functions/`,
+  `scripts/` or docs). Phones pick the new bundle up on next app launch. No
+  store review, no cost. One git push updates web (Vercel) and the native apps
+  (EAS Update) together. Requires the `EXPO_TOKEN` GitHub secret (see tasks).
+- **Native changes** (adding/upgrading a package containing native code,
+  Expo SDK upgrades, `app.json` native config like icons/permissions/plugins)
+  need a new store build: bump `expo.version` (plus `android.versionCode` and
+  `ios.buildNumber`), run `eas build` for both platforms and `eas submit`.
+  Store review applies (Google: hours; Apple: usually < 48h; no fee).
+- **The guard rail**: OTA updates only apply to binaries with the same
+  `expo.version` (runtime version policy `appVersion`). If you add a native
+  module and forget a store build, existing installs simply won't take that
+  update — they won't crash. **Rule of thumb: touching package.json with
+  anything native ⇒ bump `expo.version` ⇒ store build.**
+
 ## What's in place
 
 The Expo app now builds as a real native app on both platforms, with **on-device

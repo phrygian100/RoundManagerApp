@@ -1,0 +1,51 @@
+# Publishes an over-the-air (EAS Update) bundle to the installed native apps on
+# every push to master, mirroring how Vercel redeploys the web app.
+#
+# Requires an EXPO_TOKEN repository secret (expo.dev -> Account settings ->
+# Access tokens -> create a robot token, then GitHub repo -> Settings ->
+# Secrets and variables -> Actions -> New repository secret).
+#
+# JS/TS changes reach phones on next app launch. Native changes (new native
+# modules, Expo SDK upgrades, app.json native config) still need an `eas build`
+# + store submission, gated by bumping expo.version (the runtime version).
+name: EAS Update (native apps OTA)
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - 'web/**'
+      - 'functions/**'
+      - 'scripts/**'
+      - 'docs/**'
+      - '**/*.md'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    # Don't fail builds for forks/PRs without the secret.
+    if: ${{ github.repository == 'phrygian100/RoundManagerApp' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Publish update
+        run: eas update --channel production --message "${{ github.event.head_commit.message }}" --non-interactive
+        env:
+          EXPO_USE_CLASSIC_BUNDLE: '1'
+          EXPO_ROUTER_IMPORT_MODE: sync

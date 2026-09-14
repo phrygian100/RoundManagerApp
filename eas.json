@@ -6,11 +6,14 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "channel": "development"
     },
     "internal": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_ROUTER_IMPORT_MODE": "sync",
         "EXPO_USE_CLASSIC_BUNDLE": "1",
@@ -20,11 +23,15 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "roundmanagerapp.appspot.com",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1049000869926",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1049000869926:web:dbd1ff76e097cae72526e7"
-      }
+      },
+      "channel": "internal"
     },
     "preview": {
       "developmentClient": true,
-      "env": { "EXPO_ROUTER_IMPORT_MODE": "sync" }
+      "env": {
+        "EXPO_ROUTER_IMPORT_MODE": "sync"
+      },
+      "channel": "preview"
     },
     "production": {
       "android": {
@@ -39,11 +46,14 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "roundmanagerapp.appspot.com",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1049000869926",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1049000869926:web:dbd1ff76e097cae72526e7"
-      }
+      },
+      "channel": "production"
     },
     "release-apk": {
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
       "env": {
         "EXPO_ROUTER_IMPORT_MODE": "sync",
         "EXPO_USE_CLASSIC_BUNDLE": "1",
@@ -53,10 +63,11 @@
         "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "roundmanagerapp.appspot.com",
         "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "1049000869926",
         "EXPO_PUBLIC_FIREBASE_APP_ID": "1:1049000869926:web:dbd1ff76e097cae72526e7"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
     "production": {}
   }
-} 
+}

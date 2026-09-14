@@ -69,7 +69,8 @@
     "react-native-webview": "13.13.5",
     "stream-browserify": "^3.0.0",
     "xlsx": "^0.18.5",
-    "expo-build-properties": "~0.14.8"
+    "expo-build-properties": "~0.14.8",
+    "expo-updates": "~0.28.18"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

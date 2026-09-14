@@ -7,7 +7,7 @@
     "icon": "./assets/images/icon.png",
     "scheme": "roundmanagerapp",
     "userInterfaceStyle": "automatic",
-  "newArchEnabled": false,
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.guvnor.roundmanagerapp",
@@ -78,6 +78,12 @@
       "eas": {
         "projectId": "fb9540c5-f865-437c-af65-3f7b33779b5a"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fb9540c5-f865-437c-af65-3f7b33779b5a"
     }
   }
 }

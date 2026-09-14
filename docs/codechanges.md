@@ -2,6 +2,17 @@
 
 ## September 14, 2026
 
+### OTA updates for the native apps (EAS Update + GitHub Action)
+
+**Why**: Store apps shouldn't need a store review cycle for everyday JS fixes; the goal is git-push-to-master updates native apps the same way Vercel updates web.
+
+**Changes**:
+- Installed `expo-updates`; `eas update:configure` set `updates.url` and `runtimeVersion: { policy: "appVersion" }` in `app.json`, and channels per build profile in `eas.json` (`release-apk` channel set to `production` so field-test APKs receive the same OTA stream as store builds).
+- `.github/workflows/eas-update.yml` (new) — publishes `eas update --channel production` on every push to master, skipping pushes that only touch `web/`, `functions/`, `scripts/` or docs. Needs an `EXPO_TOKEN` repo secret before it can run.
+- Runbook updated with the update model and the "native change ⇒ bump expo.version ⇒ store build" rule.
+
+**Regression notes**: Web export verified again post-install. OTA updates only apply to binaries with a matching runtime version, so a forgotten store build results in stale (not broken) installs.
+
 ### Native store apps: React Native Firebase + offline persistence (packaging groundwork)
 
 **Why**: Guvnor is to ship as real Android/iOS apps (Play Store / App Store) with offline access to runsheets in poor-signal rural areas. The Firebase **JS** SDK has no disk persistence on React Native (memory-only), so a native app alone wouldn't have fixed offline; React Native Firebase (native SDK) has disk persistence on by default and, since v22+, a modular API that mirrors the firebase-js-sdk import surface.
