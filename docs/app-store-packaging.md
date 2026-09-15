@@ -1,6 +1,6 @@
 # Packaging Guvnor for the App Store & Google Play
 
-Last updated: 14 September 2026
+Last updated: 15 September 2026
 
 ## How updates ship once the apps are live
 
@@ -92,17 +92,20 @@ npx eas build -p ios --profile production
 
 ## Submitting
 
-- **Google Play**: the *first* upload must be manual — create the app in Play
-  Console, then upload the AAB under *Testing → Internal testing*. After that,
-  `npx eas submit -p android` can automate uploads (needs a Google service
-  account key, which EAS walks you through).
+- **Google Play (Android):** follow **[play-store-launch.md](./play-store-launch.md)**
+  end-to-end. The first AAB upload is manual (Play Console → Internal testing).
+  Register the Play developer account as an **Organisation** if you can, so you
+  skip the 12-tester / 14-day gate on new personal accounts. After the first
+  upload, `npx eas submit -p android` can automate later releases (needs a
+  Google service-account key; EAS walks you through it).
 - **App Store**: `npx eas submit -p ios` uploads to App Store Connect /
   TestFlight directly.
 
 Store listings need: screenshots (phone + tablet for Play), a privacy policy
-URL (use the one on guvnor.app), the Play data-safety form and Apple privacy
-labels (data collected: email, name, customer records; not shared with third
-parties; no tracking).
+URL (https://guvnor.app/privacy-policy), the Play data-safety form and Apple
+privacy labels (data collected: email, name, customer records; not shared with
+third parties; no tracking). Play feature graphic and starter screenshots live
+in `assets/play-store/`.
 
 ## Versioning each release
 

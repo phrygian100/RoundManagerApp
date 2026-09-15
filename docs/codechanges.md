@@ -2,6 +2,18 @@
 
 ## September 15, 2026
 
+### Google Play launch pack (AAB + listing assets + runbook)
+
+**Why**: Field APK is good enough to submit. Play needs an App Bundle, a store listing, questionnaires, and a developer account — most of that is Travis in Play Console; this side prepares the binary, copy, and graphics.
+
+**Changes**:
+- Started `eas build -p android --profile production` (AAB, version 1.0.2 / versionCode 3, existing EAS upload keystore).
+- `assets/play-store/` — 1024×500 feature graphic, dashboard phone screenshot, splash phone screenshot.
+- `docs/play-store-launch.md` — Play Console steps, listing copy, Data safety answers, reviewer notes.
+- `docs/app-store-packaging.md` — points Android submit at that runbook.
+
+**Regression notes**: No app runtime change. Do not upload the side-loaded APK to Play. Do not commit Play service-account JSON if one is created later.
+
 ### Replace Expo placeholder icon and splash with Guvnor branding
 
 **Why**: The field-test APK used Expo's default concentric-circle icon and splash. Home-screen icon and the launch fade-in are baked into the native binary, so they still showed Expo art after JS-only OTAs.
