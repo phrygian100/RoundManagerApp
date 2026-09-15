@@ -1,3 +1,4 @@
+import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
@@ -164,7 +165,12 @@ function AppContent() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Slot />
+      {/* Force the light navigation theme: the app has no designed dark
+          palette, and system dark mode was giving screens a dark background
+          on native that never appears on web. */}
+      <ThemeProvider value={DefaultTheme}>
+        <Slot />
+      </ThemeProvider>
     </GestureHandlerRootView>
   );
 }

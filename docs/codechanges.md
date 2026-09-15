@@ -7,7 +7,8 @@
 **Why**: Field testing on a phone with system dark mode showed dark backgrounds on the runsheet and other screens, unlike Chrome. `userInterfaceStyle: "automatic"` let the system scheme flip `useColorScheme()`-styled screens (clients, rota, client detail, themed components) and the navigation theme to dark palettes the app was never designed for; web always renders light.
 
 **Changes**:
-- `app/_layout.tsx` — `Appearance.setColorScheme('light')` at startup on native only. JS-level, so it reaches installed binaries via OTA.
+- `app/_layout.tsx` — `Appearance.setColorScheme('light')` at startup on native only. JS-level, so it reaches installed binaries via OTA. On-device testing showed this alone did not flip expo-router's navigation theme on the New Architecture build, so additionally the root layout now wraps `<Slot />` in `ThemeProvider value={DefaultTheme}` (light) from `@react-navigation/native`.
+- `hooks/useColorScheme.ts` (native variant) — pinned to return `'light'`, so screens with scheme-driven palettes (clients, rota, client detail, Collapsible, ParallaxScrollView, useThemeColor) always render their light design on native. The `.web.ts` variant is untouched, so web behaviour is unchanged.
 - `app.json` — `userInterfaceStyle` "automatic" → "light" for future binaries.
 
 **Regression notes**: Web untouched (native-only call; web hook already defaults light). Dark mode was never a designed feature, so nothing is lost. If dark mode is ever wanted, revert both and design the palettes properly.
