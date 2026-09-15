@@ -2,7 +2,7 @@
   "expo": {
     "name": "Guvnor",
     "slug": "RoundManagerApp",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "roundmanagerapp",
@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.guvnor.roundmanagerapp",
-      "buildNumber": "2",
+      "buildNumber": "3",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -22,11 +22,11 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0c1b3c"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.guvnor.roundmanagerapp",
-      "versionCode": 2,
+      "versionCode": 3,
       "googleServicesFile": "./google-services.json"
     },
     "web": {
@@ -49,9 +49,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
+          "imageWidth": 280,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#0c1b3c"
         }
       ],
       "@react-native-firebase/app",

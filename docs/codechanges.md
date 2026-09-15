@@ -2,6 +2,18 @@
 
 ## September 15, 2026
 
+### Replace Expo placeholder icon and splash with Guvnor branding
+
+**Why**: The field-test APK used Expo's default concentric-circle icon and splash. Home-screen icon and the launch fade-in are baked into the native binary, so they still showed Expo art after JS-only OTAs.
+
+**Changes**:
+- `assets/images/icon.png` — 1024² opaque Guvnor mark (white) on dashboard navy `#0c1b3c`. Used by iOS and as the Android fallback icon.
+- `assets/images/adaptive-icon.png` — same mark on a transparent canvas, sized inside Android's 66% adaptive-icon safe zone.
+- `assets/images/splash-icon.png` — inverted Guvnor mark + `GUVNOR.APP` wordmark on transparent.
+- `app.json` — adaptive and splash background colours `#ffffff` → `#0c1b3c`; splash `imageWidth` 200 → 280. Native assets changed, so `version` 1.0.1→1.0.2, `android.versionCode` 2→3, `ios.buildNumber` 2→3.
+
+**Regression notes**: Web favicon is unchanged (`assets/images/favicon.png`). Login/marketing screens still use `logo_transparent.png`. This cannot ship over the air — a new APK/IPA is required. Existing 1.0.1 installs keep receiving OTAs on the 1.0.1 runtime; they will not pick up this binary until reinstalled.
+
 ### Force light mode on native (dark-mode phones got undesigned dark screens)
 
 **Why**: Field testing on a phone with system dark mode showed dark backgrounds on the runsheet and other screens, unlike Chrome. `userInterfaceStyle: "automatic"` let the system scheme flip `useColorScheme()`-styled screens (clients, rota, client detail, themed components) and the navigation theme to dark palettes the app was never designed for; web always renders light.
