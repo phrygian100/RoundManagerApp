@@ -1,5 +1,20 @@
 # Code Changes Log
 
+## September 15, 2026
+
+### First Android build: google-services.json committed, New Architecture enabled
+
+**Why**: First `eas build -p android --profile release-apk` failed in the Gradle phase. The remote build log showed React Native Firebase v25 aborting the Gradle daemon with "New Architecture support is required for @react-native-firebase/functions" — v25 requires RN New Architecture, contradicting the earlier assumption that it still supported the old one.
+
+**Changes**:
+- `google-services.json` (new, repo root) — Android Firebase app registration for package `com.guvnor.roundmanagerapp`, consumed by the `@react-native-firebase/app` config plugin during EAS prebuild. No manual Gradle edits needed (the Firebase console's Gradle instructions don't apply to Expo-managed projects).
+- `app.json` — `newArchEnabled` flipped `false` → `true`. The `false` came from the original project template, not from any known incompatibility; core native deps (reanimated 3.17, gesture-handler 2.24, screens 4.11) all support New Architecture and RN 0.79 provides a legacy-module interop.
+- `scripts/_eas_logs.js` (new, untracked debug utility) — downloads EAS build phase logs via the Expo GraphQL API using the local CLI session.
+
+**Result**: Second build succeeded — installable APK at the EAS build page (build `f8830a85`, version 1.0.0 / versionCode 1, channel `production`).
+
+**Regression notes**: New Architecture only affects native binaries; web is untouched. Any native-module misbehaviour under New Arch will surface in the field-test APK — run the offline checklist in `docs/app-store-packaging.md`. iOS remains unconfigured (no `GoogleService-Info.plist` yet) by choice; iOS-only `app.json` settings are ignored by Android builds.
+
 ## September 14, 2026
 
 ### OTA updates for the native apps (EAS Update + GitHub Action)
