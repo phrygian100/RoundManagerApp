@@ -243,7 +243,9 @@ export class GoCardlessService {
     try {
       // On web platforms, we can't test the connection directly due to CORS
       // Instead, we validate the token format and return true if it looks valid
-      if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
+      // window.location only exists in browsers; on native (where window is
+      // defined but has no location) fall through to the real API call below.
+      if (typeof window !== 'undefined' && window.location?.protocol === 'https:') {
         // Web platform - validate token format only
         return this.apiToken.startsWith('live_') || this.apiToken.startsWith('sandbox_');
       }

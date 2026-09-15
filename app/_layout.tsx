@@ -49,7 +49,9 @@ function AppContent() {
   useEffect(() => {
     if (!authReady) return; // Wait for auth to be ready
     
-    const isPasswordResetFlow = typeof window !== 'undefined' &&
+    // Note: on native, `window` exists (it aliases the JS global) but has no
+    // `location`, so browser APIs must be gated on Platform.OS, not typeof window.
+    const isPasswordResetFlow = Platform.OS === 'web' &&
       window.location?.href?.includes('type=recovery');
     const loggedIn = !!currentUser;
     const unauthAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/window-cleaning-quote', '/welcome', '/bin-cleaning-quote', '/welcome-bin-cleaning'];
@@ -58,7 +60,7 @@ function AppContent() {
 
     // For web, use window.location.pathname directly as it's more reliable than Expo Router's pathname
     // which may not be set immediately on initial load
-    const actualPathname = typeof window !== 'undefined' 
+    const actualPathname = Platform.OS === 'web'
       ? window.location.pathname 
       : pathname;
 
@@ -105,8 +107,9 @@ function AppContent() {
           // Debounce redirect for non-business routes
           if (!loginRedirectTimeoutRef.current) {
             loginRedirectTimeoutRef.current = setTimeout(() => {
-              // Re-check business route status using window.location
-              const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+              // Re-check business route status using window.location (web only;
+              // native has no business-portal deep links, so redirect to login)
+              const currentPath = Platform.OS === 'web' ? window.location.pathname : '';
               const currentSegment = currentPath ? currentPath.split('/')[1] : '';
               const stillNotBusinessRoute = !currentPath || 
                 !/^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$/.test(currentPath) ||

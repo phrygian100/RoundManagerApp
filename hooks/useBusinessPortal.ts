@@ -29,7 +29,7 @@ export function useBusinessPortal() {
   useEffect(() => {
     const extractedName = typeof params.businessName === 'string'
       ? decodeURIComponent(params.businessName)
-      : (typeof window !== 'undefined' ? decodeURIComponent(window.location.pathname.split('/')[1] || '') : '');
+      : (Platform.OS === 'web' ? decodeURIComponent(window.location.pathname.split('/')[1] || '') : '');
 
     if (extractedName) {
       setBusinessName(extractedName);
@@ -52,14 +52,14 @@ export function useBusinessPortal() {
           name: portalData.ownerName || '',
         });
       } else {
-        if (typeof window !== 'undefined') {
+        if (Platform.OS === 'web') {
           window.alert('Business not found. Please check the URL and try again.');
         }
         router.replace('/login');
       }
     } catch (error) {
       console.error('Error looking up business:', error);
-      if (typeof window !== 'undefined') {
+      if (Platform.OS === 'web') {
         window.alert('Unable to load business information. Please try again.');
       }
       router.replace('/login');

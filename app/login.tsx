@@ -69,7 +69,7 @@ export default function LoginScreen() {
             const sendVerificationEmail = httpsCallable(functions, 'sendVerificationEmail');
             await sendVerificationEmail({});
             const sentMsg = 'Verification email sent. Please check your inbox (and spam) then try logging in again.';
-            if (typeof window !== 'undefined') {
+            if (Platform.OS === 'web') {
               window.alert(sentMsg);
             } else {
               Alert.alert('Email sent', sentMsg);
@@ -77,7 +77,7 @@ export default function LoginScreen() {
           } catch (err) {
             console.warn('Resend verification email failed:', err);
             const errMsg = 'Could not resend verification email. Please try again later.';
-            if (typeof window !== 'undefined') {
+            if (Platform.OS === 'web') {
               window.alert(errMsg);
             } else {
               Alert.alert('Error', errMsg);
@@ -102,7 +102,7 @@ export default function LoginScreen() {
         const msg = `Could not prepare your account. Please contact support. (${
           refreshResult.message || 'No details'
         })`;
-        if (typeof window !== 'undefined') {
+        if (Platform.OS === 'web') {
           window.alert(msg);
         } else {
           Alert.alert('Login Error', msg);
@@ -122,7 +122,7 @@ export default function LoginScreen() {
       const errMsg = error?.code || error?.message || '';
       // Use window.alert for web compatibility
       const showAlert = (title: string, msg: string) => {
-        if (typeof window !== 'undefined') {
+        if (Platform.OS === 'web') {
           window.alert(msg);
         } else {
           Alert.alert(title, msg);

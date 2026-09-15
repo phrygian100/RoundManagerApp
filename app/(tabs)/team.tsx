@@ -1,7 +1,7 @@
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import type { TextInput as TextInputType } from 'react-native';
 import { GuideHelpButton } from '../../components/GuideHelpButton';
 import PermissionGate from '../../components/PermissionGate';
@@ -161,7 +161,15 @@ export default function TeamScreen() {
 
   const handleRemove = async (memberId: string, memberStatus: string) => {
     const actionText = memberStatus === 'invited' ? 'cancel this invitation' : 'remove this member';
-    const confirmed = window.confirm(`Are you sure you want to ${actionText}?`);
+    const confirmMsg = `Are you sure you want to ${actionText}?`;
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm(confirmMsg)
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Confirm', confirmMsg, [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Remove', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
     
     if (confirmed) {
       try {
@@ -172,7 +180,12 @@ export default function TeamScreen() {
         }));
       } catch (err) {
         console.error(err);
-        window.alert('Error: Could not remove member');
+        const errMsg = 'Error: Could not remove member';
+        if (Platform.OS === 'web') {
+          window.alert(errMsg);
+        } else {
+          Alert.alert('Error', errMsg);
+        }
       }
     }
   };

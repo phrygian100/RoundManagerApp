@@ -2,6 +2,20 @@
 
 ## September 15, 2026
 
+### Fix native app crash on startup (window.location on Android/iOS)
+
+**Why**: The first field-test APK crashed on launch ("Guvnor keeps stopping"). Reproduced on a local emulator: `TypeError: Cannot read property 'pathname' of undefined` thrown from the root layout's auth-redirect effect. Root cause: on React Native, `window` **is** defined (it aliases the JS global), so `typeof window !== 'undefined'` is not a web check — but `window.location` / `window.alert` / `window.confirm` don't exist, so touching them throws. Never affected web.
+
+**Changes** (all: gate browser APIs on `Platform.OS === 'web'`, falling back to the existing native `Alert` paths):
+- `app/_layout.tsx` — the startup crash (`window.location.pathname` in the redirect effect), plus the password-reset check and the debounced login-redirect recheck.
+- `app/login.tsx` — four error/confirmation alerts (e.g. wrong password) that would have crashed native right after the startup fix.
+- `app/(tabs)/team.tsx` — `handleRemove` used bare `window.confirm`/`window.alert`; now Promise-wrapped `Alert.alert` on native.
+- `app/quotes.tsx` — six inline `window.confirm` delete/mark-lost callbacks replaced with a platform-aware `confirmDialog` helper.
+- `hooks/useBusinessPortal.ts` — `window.location.pathname` fallback and two alerts.
+- `services/gocardlessService.ts` — `testConnection` read `window.location.protocol`; optional-chained so native falls through to the real API test (as documented).
+
+**Regression notes**: Web behaviour is identical — every change keeps the web branch's `window.*` call and only reroutes native to `Alert`. Audited all `window.alert|confirm|prompt|location` call sites; the rest were already `Platform.OS === 'web'`-guarded. Pre-existing `tsc` error in `team.tsx` (line ~270, string|undefined) confirmed present at baseline. Verified fix by publishing an OTA update to the `production` channel and relaunching the installed APK on the emulator.
+
 ### First Android build: google-services.json committed, New Architecture enabled
 
 **Why**: First `eas build -p android --profile release-apk` failed in the Gradle phase. The remote build log showed React Native Firebase v25 aborting the Gradle daemon with "New Architecture support is required for @react-native-firebase/functions" — v25 requires RN New Architecture, contradicting the earlier assumption that it still supported the old one.

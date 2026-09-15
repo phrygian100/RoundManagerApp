@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
-import { Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { Alert, Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
@@ -37,6 +37,17 @@ type Quote = {
   value?: string;
   source?: string;
   customSource?: string;
+};
+
+const confirmDialog = (message: string, onConfirm: () => void) => {
+  if (Platform.OS === 'web') {
+    if (window.confirm(message)) onConfirm();
+  } else {
+    Alert.alert('Confirm', message, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'OK', onPress: onConfirm },
+    ]);
+  }
 };
 
 let DatePicker: any = null;
@@ -478,7 +489,7 @@ export default function QuotesScreen() {
                     quote={item}
                     action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
                     onDelete={() => {
-                      if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                      confirmDialog('Are you sure you want to delete this quote?', () => handleDeleteQuote(item.id));
                     }}
                   />
                 ))
@@ -494,7 +505,7 @@ export default function QuotesScreen() {
                     quote={item}
                     action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
                     onDelete={() => {
-                      if (window.confirm('Mark this quote as Lost? It will move to the Lost section.')) handleMarkLost(item);
+                      confirmDialog('Mark this quote as Lost? It will move to the Lost section.', () => handleMarkLost(item));
                     }}
                   />
                 ))
@@ -521,7 +532,7 @@ export default function QuotesScreen() {
                     key={item.id}
                     quote={item}
                     onDelete={() => {
-                      if (window.confirm('Permanently delete this lost quote?')) handleDeleteQuote(item.id);
+                      confirmDialog('Permanently delete this lost quote?', () => handleDeleteQuote(item.id));
                     }}
                   />
                 ))
@@ -542,7 +553,7 @@ export default function QuotesScreen() {
                   quote={item}
                   action={<Button title="Next" onPress={() => handleOpenDetails(item)} />}
                   onDelete={() => {
-                    if (window.confirm('Are you sure you want to delete this quote?')) handleDeleteQuote(item.id);
+                    confirmDialog('Are you sure you want to delete this quote?', () => handleDeleteQuote(item.id));
                   }}
                 />
               ))
@@ -558,7 +569,7 @@ export default function QuotesScreen() {
                   quote={item}
                   action={<Button title="Next" onPress={() => handleOpenAddClient(item)} />}
                   onDelete={() => {
-                    if (window.confirm('Mark this quote as Lost? It will move to the Lost section.')) handleMarkLost(item);
+                    confirmDialog('Mark this quote as Lost? It will move to the Lost section.', () => handleMarkLost(item));
                   }}
                 />
               ))
@@ -579,7 +590,7 @@ export default function QuotesScreen() {
             ) : (
               lostFiltered.map(item => (
                 <QuoteCard key={item.id} quote={item} onDelete={() => {
-                  if (window.confirm('Permanently delete this lost quote?')) handleDeleteQuote(item.id);
+                  confirmDialog('Permanently delete this lost quote?', () => handleDeleteQuote(item.id));
                 }} />
               ))
             )}
