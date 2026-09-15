@@ -2,6 +2,16 @@
 
 ## September 15, 2026
 
+### Fix native crash after login: SDK-52-era expo-linear-gradient in SDK 53 build
+
+**Why**: With the startup crash fixed, the app crashed (or black-screened) right after login. Reproduced with a real login on the emulator; the JS log showed `Unable to get the view config for ExpoLinearGradient` the moment the home screen mounted. `expo-linear-gradient@14.0.2` is the Expo SDK 52 line — its native view doesn't register on SDK 53 / New Architecture, so the dashboard's `<LinearGradient>` background is a missing native component (web never noticed because the web implementation is plain CSS).
+
+**Changes**:
+- `npx expo install --fix` aligned all drifted packages to SDK 53: `expo-linear-gradient` 14.0.2→14.1.5 (the fix), plus patch bumps to `expo`, `expo-constants`, `expo-image`, `expo-router`, `expo-system-ui`, `@expo/metro-config`, and `react-native` 0.79.5→0.79.6.
+- `app.json` — native modules changed, so per the runbook: `version` 1.0.0→1.0.1, `android.versionCode` 1→2, `ios.buildNumber` 1→2. The new runtime version keeps OTA update streams for the old and new binaries separate.
+
+**Regression notes**: Web export verified after the bumps (all patch-level except linear-gradient, which is identical on web). This is a native change — OTA cannot deliver it; a new APK/store build is required. Verified on emulator with a real account: home dashboard renders with gradient background after login.
+
 ### Fix native app crash on startup (window.location on Android/iOS)
 
 **Why**: The first field-test APK crashed on launch ("Guvnor keeps stopping"). Reproduced on a local emulator: `TypeError: Cannot read property 'pathname' of undefined` thrown from the root layout's auth-redirect effect. Root cause: on React Native, `window` **is** defined (it aliases the JS global), so `typeof window !== 'undefined'` is not a web check — but `window.location` / `window.alert` / `window.confirm` don't exist, so touching them throws. Never affected web.
