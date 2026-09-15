@@ -14,7 +14,7 @@
 - `hooks/useBusinessPortal.ts` — `window.location.pathname` fallback and two alerts.
 - `services/gocardlessService.ts` — `testConnection` read `window.location.protocol`; optional-chained so native falls through to the real API test (as documented).
 
-**Regression notes**: Web behaviour is identical — every change keeps the web branch's `window.*` call and only reroutes native to `Alert`. Audited all `window.alert|confirm|prompt|location` call sites; the rest were already `Platform.OS === 'web'`-guarded. Pre-existing `tsc` error in `team.tsx` (line ~270, string|undefined) confirmed present at baseline. Verified fix by publishing an OTA update to the `production` channel and relaunching the installed APK on the emulator.
+**Regression notes**: Web behaviour is identical — every change keeps the web branch's `window.*` call and only reroutes native to `Alert`. Audited all `window.alert|confirm|prompt|location` call sites; the rest were already `Platform.OS === 'web'`-guarded. Pre-existing `tsc` error in `team.tsx` (line ~270, string|undefined) confirmed present at baseline. Verified two ways on the emulator: (1) OTA update `b646471b` published to the `production` channel was picked up by the broken APK and fixed it on relaunch — first end-to-end proof of the OTA pipeline; (2) replacement APK build `929396e6` (fix embedded) boots to login on a clean install.
 
 ### First Android build: google-services.json committed, New Architecture enabled
 
