@@ -1,11 +1,20 @@
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, View } from 'react-native';
+import { ActivityIndicator, Appearance, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
 import { captureUtmParams } from '../utils/utmTracking';
+
+// The app is designed light-only (web always renders light). On native, phones
+// in system dark mode were flipping useColorScheme()-styled screens and the
+// navigation theme to dark palettes that were never designed. Force light to
+// match web. (app.json userInterfaceStyle is also "light" for new binaries;
+// this call covers binaries already in the field via OTA.)
+if (Platform.OS !== 'web') {
+  Appearance.setColorScheme('light');
+}
 
 function AppContent() {
   const router = useRouter();

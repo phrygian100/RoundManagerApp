@@ -2,6 +2,16 @@
 
 ## September 15, 2026
 
+### Force light mode on native (dark-mode phones got undesigned dark screens)
+
+**Why**: Field testing on a phone with system dark mode showed dark backgrounds on the runsheet and other screens, unlike Chrome. `userInterfaceStyle: "automatic"` let the system scheme flip `useColorScheme()`-styled screens (clients, rota, client detail, themed components) and the navigation theme to dark palettes the app was never designed for; web always renders light.
+
+**Changes**:
+- `app/_layout.tsx` — `Appearance.setColorScheme('light')` at startup on native only. JS-level, so it reaches installed binaries via OTA.
+- `app.json` — `userInterfaceStyle` "automatic" → "light" for future binaries.
+
+**Regression notes**: Web untouched (native-only call; web hook already defaults light). Dark mode was never a designed feature, so nothing is lost. If dark mode is ever wanted, revert both and design the palettes properly.
+
 ### Fix native crash after login: SDK-52-era expo-linear-gradient in SDK 53 build
 
 **Why**: With the startup crash fixed, the app crashed (or black-screened) right after login. Reproduced with a real login on the emulator; the JS log showed `Unable to get the view config for ExpoLinearGradient` the moment the home screen mounted. `expo-linear-gradient@14.0.2` is the Expo SDK 52 line — its native view doesn't register on SDK 53 / New Architecture, so the dashboard's `<LinearGradient>` background is a missing native component (web never noticed because the web implementation is plain CSS).
