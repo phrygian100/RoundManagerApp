@@ -164,10 +164,12 @@ function AppContent() {
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      {/* Force the light navigation theme: the app has no designed dark
-          palette, and system dark mode was giving screens a dark background
-          on native that never appears on web. */}
+    // The white background is load-bearing on native: the root route uses
+    // Slot (no navigator paints a screen background), so screens without
+    // their own backgroundColor show the Android/iOS window background,
+    // which is dark when the phone is in system dark mode. The app has no
+    // designed dark palette, so paint white to match web.
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ThemeProvider value={DefaultTheme}>
         <Slot />
       </ThemeProvider>
