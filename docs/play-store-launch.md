@@ -14,7 +14,7 @@ The production App Bundle is built from `eas.json` profile `production` (AAB, no
 
 ## What is already done from this side
 
-- Branded icon + splash on version **1.0.2** / versionCode **3**.
+- Branded icon + splash on version **1.0.3** / versionCode **4** (includes push notifications). Do not upload the older 1.0.2 AAB.
 - EAS Android **upload keystore** already exists on Expo (`Build Credentials 56eqvxcY1i`). Keep it. Losing it means you cannot update the Play listing.
 - Production AAB build kicked off 15 Sep 2026 (`eas build -p android --profile production`). When it finishes, download it from the Expo build page (not the APK you side-loaded).
 - Store assets in `assets/play-store/`:
@@ -200,7 +200,7 @@ Play will **not** accept the `.apk` you installed for testing. It needs the `.aa
 2. Download the AAB from the Expo build page.
 3. Play Console → **Test and release → Testing → Internal testing** → Create a new release.
 4. Upload the AAB. First upload enrols **Play App Signing** — accept Google’s signing key. Our EAS keystore is the *upload* key; Google re-signs what users install. Do not generate a new keystore later.
-5. Release name: `1.0.2 (3)`
+5. Release name: `1.0.3 (4)`
 6. Release notes:
 ```
 First Play release of Guvnor: runsheets, clients, quotes and payments.
@@ -247,6 +247,6 @@ No ads. No user-to-user public social features.
 
 ## After it ships
 
-- JS/TS fixes still go out on `git push` to master via EAS Update (same as now). They apply to Play installs of version **1.0.2**.
+- JS/TS fixes still go out on `git push` to master via EAS Update (same as now). They apply to Play installs of version **1.0.3**.
 - Icon, splash, permissions, native modules, or `expo.version` bumps still need a new AAB + Play release and a `versionCode` increment.
 - When Play App Signing SHA-1 is available (Release → App integrity), add it to the Firebase Android app if you ever turn on Google Sign-In. Email/password auth does not need it.
