@@ -7,7 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { getApp } from 'firebase/app';
 import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
 import TimePickerModal from '../../components/TimePickerModal';
@@ -17,7 +17,7 @@ import { listMembers, MemberRecord } from '../../services/accountService';
 import { formatAuditDescription, logAction } from '../../services/auditService';
 import { getNextAccountNumber } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
-import { getJobsForWeek, updateJobStatus } from '../../services/jobService';
+import { getClientsByIds, getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
@@ -70,6 +70,8 @@ export default function RunsheetWeekScreen() {
   // Job ids whose completion/undo write hasn't been acknowledged by the server yet
   // (e.g. while offline). Cleared when Firestore confirms the write.
   const [pendingSyncIds, setPendingSyncIds] = useState<Set<string>>(new Set());
+  const pendingSyncIdsRef = useRef(pendingSyncIds);
+  pendingSyncIdsRef.current = pendingSyncIds;
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [memberMap, setMemberMap] = useState<Record<string, MemberRecord>>({});
   const [availabilityRoster, setAvailabilityRoster] = useState<MemberRecord[]>([]);
@@ -206,96 +208,32 @@ export default function RunsheetWeekScreen() {
   useEffect(() => {
     setIsCurrentWeek(isThisWeek(weekStart, { weekStartsOn: 1 }));
 
-    let jobsUnsubscribe: (() => void) | null = null;
+    let cancelled = false;
+    const startDate = format(weekStart, 'yyyy-MM-dd');
+    const endDate = format(weekEnd, 'yyyy-MM-dd');
 
-    const fetchJobsAndClients = async () => {
-      setLoading(true);
-      const startDate = format(weekStart, 'yyyy-MM-dd');
-      const endDate = format(weekEnd, 'yyyy-MM-dd');
-      
-      console.log('🔍 Fetching jobs for week:', startDate, 'to', endDate);
-      
-      // 1. Fetch all jobs for the week
-      const jobsForWeek = await getJobsForWeek(startDate, endDate);
-      console.log('📋 Jobs found for week:', jobsForWeek.length);
-      console.log('📋 Jobs data:', jobsForWeek.map(job => ({
-        id: job.id,
-        clientId: job.clientId,
-        scheduledTime: job.scheduledTime,
-        status: job.status,
-        serviceId: job.serviceId,
-        ownerId: job.ownerId
-      })));
-      
-      // Log quote jobs specifically
-      const quoteJobs = jobsForWeek.filter(job => job.serviceId === 'quote');
-      console.log('📋 Quote jobs found:', quoteJobs.length);
-      if (quoteJobs.length > 0) {
-        console.log('📋 Quote jobs details:', quoteJobs.map(job => ({
-          id: job.id,
-          name: (job as any).name,
-          address: (job as any).address,
-          scheduledTime: job.scheduledTime,
-          ownerId: job.ownerId
-        })));
-      }
-      
+    const hydrate = async (
+      jobsForWeek: Job[],
+      opts: { loadSecondary: boolean }
+    ) => {
+      if (cancelled) return;
+
       if (jobsForWeek.length === 0) {
-        setJobs([]);
-        setLoading(false);
+        if (!pendingSyncIdsRef.current.size) setJobs([]);
         return;
       }
 
-      // 2. Get unique client IDs from the jobs
-      // IMPORTANT: exclude quote/note jobs and any falsy clientIds.
-      // If we include placeholder/nonexistent clientIds, Firestore rules will deny the batched lookup
-      // (missing docs evaluate as permission denied under our rules).
       const clientIds = [...new Set(
         jobsForWeek
           .filter(job => !isQuoteJob(job) && !isNoteJob(job) && !!job.clientId)
           .map(job => job.clientId)
       )];
-      console.log('👥 Unique client IDs:', clientIds);
-      
-      // 3. Fetch all required clients in batched queries (Firestore 'in' query limit is 30)
-      const clientChunks = [];
-      for (let i = 0; i < clientIds.length; i += 30) {
-          clientChunks.push(clientIds.slice(i, i + 30));
-      }
-      
-      const clientsMap = new Map<string, Client>();
-      try {
-        const clientPromises = clientChunks.map(chunk =>
-          getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
-        );
-        const clientSnapshots = await Promise.all(clientPromises);
-        clientSnapshots.forEach(snapshot => {
-          snapshot.forEach(docSnap => {
-            clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
-          });
-        });
-      } catch (err) {
-        // If *any* doc in an `in` batch is not readable, Firestore rejects the whole query.
-        // Fall back to per-doc fetch so the runsheet can still load (missing clients become null).
-        console.warn('⚠️ Batched client lookup failed; falling back to per-client fetch.', err);
-        const { doc: fsDoc, getDoc: fsGetDoc } = await import('firebase/firestore');
-        const settled = await Promise.allSettled(
-          clientIds.map((id) => fsGetDoc(fsDoc(db, 'clients', id)))
-        );
-        settled.forEach((r) => {
-          if (r.status === 'fulfilled') {
-            const snap = r.value;
-            if (snap.exists()) {
-              clientsMap.set(snap.id, { id: snap.id, ...snap.data() } as Client);
-            }
-          }
-        });
-      }
-      
-      console.log('👥 Clients found:', clientsMap.size);
-      console.log('👥 Client IDs:', Array.from(clientsMap.keys()));
-      
-      // 4. Map clients back to their jobs
+
+      const clientsMap = await getClientsByIds(clientIds, {
+        source: opts.loadSecondary ? 'server' : 'cache',
+      });
+      if (cancelled) return;
+
       const jobsWithClients = jobsForWeek.map(job => {
         if (isQuoteJob(job) || isNoteJob(job)) {
           return { ...job, client: null };
@@ -306,37 +244,6 @@ export default function RunsheetWeekScreen() {
         };
       });
 
-      console.log('✅ Final jobs with clients:', jobsWithClients.length);
-      console.log('✅ Jobs with missing clients:', jobsWithClients.filter(job => !job.client).length);
-
-      // Load vehicles and member assignments
-      try {
-        const [vehicleList, memberList] = await Promise.all([
-          listVehicles(),
-          listMembers(),
-        ]);
-        setVehicles(vehicleList);
-        const map: Record<string, MemberRecord> = {};
-        memberList.forEach((m: MemberRecord) => { map[m.uid] = m; });
-        setMemberMap(map);
-
-        // Roster for the day availability indicator: active members plus the
-        // account owner (listMembers may not include the owner).
-        const roster = memberList.filter((m: MemberRecord) => m.status === 'active');
-        const accountOwnerId = await getDataOwnerId();
-        if (accountOwnerId && !roster.some((m: MemberRecord) => m.uid === accountOwnerId)) {
-          roster.unshift({ uid: accountOwnerId, status: 'active' } as MemberRecord);
-        }
-        setAvailabilityRoster(roster);
-
-        // Load rota for this week
-        const rota = await fetchRotaRange(weekStart, weekEnd);
-        setRotaMap(rota);
-      } catch (err) {
-        console.error('Error loading vehicles/members/rota:', err);
-      }
-
-      // Populate completion map from database for jobs already marked complete
       const initialCompletionMap: Record<string, number> = {};
       jobsWithClients.forEach(job => {
         if (job.status === 'completed' && (job as any).completionSequence) {
@@ -344,47 +251,74 @@ export default function RunsheetWeekScreen() {
         }
       });
       setCompletionMap(initialCompletionMap);
-      
-      setJobs(jobsWithClients);
-      
-      // 5. Fetch and verify completed days for this week
+
+      setJobs((prev) => {
+        const pending = pendingSyncIdsRef.current;
+        if (!pending.size) return jobsWithClients;
+        return jobsWithClients.map((job) => {
+          if (!pending.has(job.id)) return job;
+          const local = prev.find((p) => p.id === job.id);
+          if (!local) return job;
+          return {
+            ...job,
+            status: local.status,
+            completionSequence: (local as any).completionSequence,
+            completedAt: (local as any).completedAt,
+            client: job.client || local.client,
+          };
+        });
+      });
+
+      if (!opts.loadSecondary) return;
+
+      try {
+        const [vehicleList, memberList] = await Promise.all([
+          listVehicles(),
+          listMembers(),
+        ]);
+        if (cancelled) return;
+        setVehicles(vehicleList);
+        const map: Record<string, MemberRecord> = {};
+        memberList.forEach((m: MemberRecord) => { map[m.uid] = m; });
+        setMemberMap(map);
+
+        const roster = memberList.filter((m: MemberRecord) => m.status === 'active');
+        const accountOwnerId = await getDataOwnerId();
+        if (accountOwnerId && !roster.some((m: MemberRecord) => m.uid === accountOwnerId)) {
+          roster.unshift({ uid: accountOwnerId, status: 'active' } as MemberRecord);
+        }
+        setAvailabilityRoster(roster);
+
+        const rota = await fetchRotaRange(weekStart, weekEnd);
+        if (!cancelled) setRotaMap(rota);
+      } catch (err) {
+        console.error('Error loading vehicles/members/rota:', err);
+      }
+
       try {
         const ownerId = await getDataOwnerId();
         if (!ownerId) {
-          console.log('No ownerId found, skipping completed days fetch');
           setCompletedDays([]);
         } else {
           try {
             const completedDaysDoc = await getDoc(doc(db, 'completedWeeks', `${ownerId}_${startDate}`));
+            if (cancelled) return;
             if (completedDaysDoc.exists()) {
               const data = completedDaysDoc.data();
               const loadedCompletedDays = data.completedDays || [];
-              console.log(`Loaded completed days from Firestore for week ${startDate}:`, loadedCompletedDays);
-
               const verifiedCompletedDays = loadedCompletedDays.filter((dayTitle: string) => {
                 const dayIndex = daysOfWeek.indexOf(dayTitle);
                 if (dayIndex === -1) return false;
-
                 const dayDate = addDays(weekStart, dayIndex);
                 const jobsForDay = jobsWithClients.filter((job: any) => {
-                    const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
-                    return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
+                  const jobDate = job.scheduledTime ? parseISO(job.scheduledTime) : null;
+                  return jobDate && jobDate.toDateString() === dayDate.toDateString() && !isNoteJob(job) && !isQuoteJob(job);
                 });
-                
                 const isActuallyComplete = jobsForDay.length > 0 && jobsForDay.every(job => job.status === 'completed');
-
-                if (jobsForDay.length > 0 && !isActuallyComplete) {
-                    console.warn(`Data inconsistency: Day "${dayTitle}" was marked as complete in Firestore, but has incomplete jobs. Ignoring for this session.`);
-                }
-
                 return isActuallyComplete;
               });
-              
-              console.log('Verified completed days:', verifiedCompletedDays);
               setCompletedDays(verifiedCompletedDays);
-
             } else {
-              console.log(`No completed days document found for week ${startDate}.`);
               setCompletedDays([]);
             }
           } catch (docError) {
@@ -396,45 +330,41 @@ export default function RunsheetWeekScreen() {
         console.error('Error in completed days fetch process:', error);
         setCompletedDays([]);
       }
-      
-      setLoading(false);
+    };
 
-      // DISABLED: Real-time job updates causing blank screen
-      // // Set up real-time job updates after initial load
-      // const ownerId = await getDataOwnerId();
-      // if (ownerId) {
-      //   const jobsQuery = query(
-      //     collection(db, 'jobs'),
-      //     where('ownerId', '==', ownerId),
-      //     where('scheduledTime', '>=', startDate),
-      //     where('scheduledTime', '<=', endDate)
-      //   );
-      //
-      //   jobsUnsubscribe = onSnapshot(jobsQuery, (snapshot) => {
-      //     console.log('Real-time job update received');
-      //     const updatedJobs = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
-      //
-      //     // Update jobs state, merging with existing client data
-      //     setJobs(currentJobs => {
-      //       return updatedJobs.map(updatedJob => {
-      //         // Find existing job to preserve client data
-      //         const existingJob = currentJobs.find(j => j.id === updatedJob.id);
-      //         return existingJob ? { ...updatedJob, client: existingJob.client } : updatedJob;
-      //       });
-      //     });
-      //   }, (error) => {
-      //     console.error('Error in real-time jobs listener:', error);
-      //   });
-      // }
+    const fetchJobsAndClients = async () => {
+      setLoading(true);
+
+      const cached = await getJobsForWeek(startDate, endDate, { source: 'cache' });
+      if (cancelled) return;
+      if (cached.length > 0) {
+        await hydrate(cached, { loadSecondary: false });
+        if (!cancelled) setLoading(false);
+      }
+
+      try {
+        const serverJobs = await getJobsForWeek(startDate, endDate, { source: 'server' });
+        if (cancelled) return;
+        await hydrate(serverJobs, { loadSecondary: true });
+      } catch (err) {
+        console.warn('Runsheet server refresh failed; keeping cached jobs', err);
+        if (cached.length === 0) {
+          try {
+            const fallback = await getJobsForWeek(startDate, endDate);
+            if (!cancelled) await hydrate(fallback, { loadSecondary: true });
+          } catch (fallbackErr) {
+            console.error('Runsheet fallback fetch failed', fallbackErr);
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
     fetchJobsAndClients();
 
-    // Cleanup function
     return () => {
-      if (jobsUnsubscribe) {
-        jobsUnsubscribe();
-      }
+      cancelled = true;
     };
   }, [week]);
 

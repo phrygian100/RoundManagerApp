@@ -6,6 +6,7 @@ import { ActivityIndicator, Appearance, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { auth } from '../core/firebase';
+import { listenNotificationOpens, registerPushNotifications } from '../services/pushNotifications';
 import { captureUtmParams } from '../utils/utmTracking';
 
 // The app is designed light-only (web always renders light). On native, phones
@@ -54,6 +55,22 @@ function AppContent() {
     });
     return () => unsubscribe();
   }, [clearQuoteData]);
+
+  useEffect(() => {
+    if (!authReady || !currentUser || Platform.OS === 'web') return;
+    registerPushNotifications().catch((e) =>
+      console.warn('push: registration failed', e)
+    );
+    return listenNotificationOpens((data) => {
+      if (data.type === 'quote_request') {
+        router.push('/new-business' as any);
+        return;
+      }
+      if (data.week) {
+        router.push({ pathname: '/runsheet/[week]', params: { week: data.week } } as any);
+      }
+    });
+  }, [authReady, currentUser, router]);
   
   // Handle redirects based on auth state and pathname
   useEffect(() => {

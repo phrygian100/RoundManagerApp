@@ -16,7 +16,8 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Guvnor uses the camera to attach photos to quotes and jobs.",
-        "NSPhotoLibraryUsageDescription": "Guvnor uses your photo library so you can attach photos to quotes and jobs."
+        "NSPhotoLibraryUsageDescription": "Guvnor uses your photo library so you can attach photos to quotes and jobs.",
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {
@@ -27,7 +28,12 @@
       "edgeToEdgeEnabled": true,
       "package": "com.guvnor.roundmanagerapp",
       "versionCode": 3,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -55,6 +61,7 @@
         }
       ],
       "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
       [
         "expo-build-properties",
         {

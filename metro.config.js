@@ -13,6 +13,7 @@ const FIREBASE_NATIVE_MODULE_MAP = {
   'firebase/firestore': '@react-native-firebase/firestore',
   'firebase/functions': '@react-native-firebase/functions',
   'firebase/storage': '@react-native-firebase/storage',
+  'firebase/messaging': '@react-native-firebase/messaging',
 };
 
 const defaultResolveRequest = config.resolver.resolveRequest;

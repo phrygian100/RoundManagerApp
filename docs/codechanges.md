@@ -1,5 +1,23 @@
 # Code Changes Log
 
+## September 16, 2026
+
+### Owner push notifications + cache-first runsheet
+
+**Why**: In the field the runsheet waited on a Firebase round-trip before painting, even though native Firestore already had yesterday's week on disk. Separately, owners had no system notification when a member ticked a job, when the day was fully done and ready to review, or when a portal quote request arrived.
+
+**Notifications**:
+- `updateJobStatus` now stamps `completedBy` / `completedByName` (cleared on undo). Day Complete batch still does not stamp them, so the owner is not spammed for their own review action. Agent API stamps `completedBy: 'agent'`.
+- Cloud Functions `onJobCompleted` (jobs update) and `onQuoteRequestCreated` (quoteRequests create) send FCM to `users/{ownerUid}.fcmTokens`. A member tick notifies the owner; if that tick finishes the day (and the day is not already in `completedWeeks`), they get a single "Day ready to review" instead of a second job ping. Quote requests go to `businessId`.
+- Native: `@react-native-firebase/messaging`, permission + token save after login (`services/pushNotifications.ts`; web stub is a no-op). Notification tap opens runsheet week or `/new-business`. Foreground quote requests also Alert. Messaging is a **native** module — existing 1.0.2 APKs will not show system notifications until the next EAS binary (then bump `version` / `versionCode`). The JS is try/catch-guarded so an OTA of this commit will not crash 1.0.2.
+
+**Runsheet cache-first**:
+- `getJobsForWeek` / `getClientsByIds` accept `{ source: 'cache' | 'server' }`.
+- Opening a week paints cached jobs+clients immediately (no spinner if cache hits), then refreshes from the server. Vehicles/members/rota/completedDays still load on the server pass (members is a Cloud Function).
+- A tick you just made locally (`pendingSyncIds`) is not overwritten by a slower server snapshot — last write still wins per job document in Firestore, so two devices ticking different jobs both persist; two devices ticking the same job is last-write-wins.
+
+**Regression notes**: Web runsheet uses IndexedDB cache the same way. Cloud Functions `onJobCompleted` and `onQuoteRequestCreated` are deployed. Existing 1.0.2 APKs get cache-first via OTA; they cannot receive FCM until a new native build that includes `@react-native-firebase/messaging`. Owners only get pushes on a device where they have signed in and allowed notifications. Do not upload a 1.0.2 AAB built before this if you want notifications in the first Play binary — rebuild after bumping versionCode.
+
 ## September 15, 2026
 
 ### Google Play launch pack (AAB + listing assets + runbook)

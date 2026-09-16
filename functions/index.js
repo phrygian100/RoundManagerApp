@@ -28,6 +28,10 @@ if (!admin.apps.length) {
   admin.initializeApp();
 }
 
+const pushNotifications = require("./pushNotifications");
+exports.onQuoteRequestCreated = pushNotifications.onQuoteRequestCreated;
+exports.onJobCompleted = pushNotifications.onJobCompleted;
+
 // Configure CORS for Firebase v2 functions to allow custom domain
 setGlobalOptions({ 
   maxInstances: 10
@@ -346,14 +350,17 @@ exports.sendBroadcastSms = onCall({ timeoutSeconds: 540 }, async (request) => {
   }
   const userData = userDoc.data();
   const accountSid = userData.twilioAccountSid;
-  const authToken = userData.twilioAuthToken;
   const fromSender = userData.twilioFromNumber;
-  if (!accountSid || !authToken || !fromSender) {
+  // Prefer an API key pair (SK sid + secret) when stored; fall back to the
+  // account auth token. The URL is always addressed by the AC sid.
+  const authUser = userData.twilioApiKeySid || accountSid;
+  const authPass = userData.twilioApiKeySid ? userData.twilioApiKeySecret : userData.twilioAuthToken;
+  if (!accountSid || !authUser || !authPass || !fromSender) {
     throw new HttpsError('failed-precondition', 'Twilio is not configured. Add your Account SID, Auth Token and sender in the broadcast screen.');
   }
 
   const { Buffer } = require('buffer');
-  const authHeader = 'Basic ' + Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+  const authHeader = 'Basic ' + Buffer.from(`${authUser}:${authPass}`).toString('base64');
   const apiUrl = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(accountSid)}/Messages.json`;
 
   const results = [];

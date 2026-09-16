@@ -78,6 +78,11 @@ export type Job = {
   // GoCardless integration
   gocardlessEnabled?: boolean; // Boolean flag for quick checks
   gocardlessCustomerId?: string; // Customer ID for payment processing
+  completedAt?: string;
+  completionSequence?: number;
+  /** Auth uid of whoever last marked the job completed (owner, member, or agent). */
+  completedBy?: string | null;
+  completedByName?: string | null;
 };
 
 export type Payment = {

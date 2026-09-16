@@ -1,12 +1,12 @@
 import { addDays, addMonths, addWeeks, endOfWeek, format, isBefore, parseISO, startOfWeek } from 'date-fns';
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
-import { db } from '../core/firebase';
-import { getDataOwnerId } from '../core/session';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, getDocsFromCache, getDocsFromServer, query, updateDoc, where, writeBatch } from 'firebase/firestore';
+import { auth, db } from '../core/firebase';
+import { getDataOwnerId, getUserSession } from '../core/session';
 import { USE_SERVICE_PLANS_GENERATION } from '../shared/features';
 import type { Client } from '../types/client';
 import type { Job } from '../types/models';
 import type { ServicePlan } from '../types/servicePlan';
-import { deactivatePlanIfPastLastService, getNextFutureAnchor, getServicePlansForClient } from './servicePlanService';
+import { getUserProfile } from './userService';
 
 const JOBS_COLLECTION = 'jobs';
 
@@ -135,6 +135,26 @@ export async function updateJobStatus(
     // If unmarking as complete (undo), remove completion data
     updateData.completionSequence = null;
     updateData.completedAt = null;
+    updateData.completedBy = null;
+    updateData.completedByName = null;
+  }
+
+  if (status === 'completed') {
+    try {
+      const session = await getUserSession();
+      const uid = session?.uid || auth.currentUser?.uid || null;
+      if (uid) {
+        updateData.completedBy = uid;
+        const profile = await getUserProfile(uid).catch(() => null);
+        updateData.completedByName =
+          profile?.name ||
+          auth.currentUser?.displayName ||
+          auth.currentUser?.email ||
+          'Team member';
+      }
+    } catch (e) {
+      console.warn('updateJobStatus: could not stamp completedBy (non-fatal)', e);
+    }
   }
   
   await updateDoc(jobRef, updateData);
@@ -1424,7 +1444,11 @@ export async function topUpRecurringJobsAfterCompletion(jobId: string, monthsAhe
   return jobsToCreate.length;
 }
 
-export async function getJobsForWeek(startDate: string, endDate: string): Promise<Job[]> {
+export async function getJobsForWeek(
+  startDate: string,
+  endDate: string,
+  options?: { source?: 'default' | 'cache' | 'server' }
+): Promise<Job[]> {
   const jobsRef = collection(db, JOBS_COLLECTION);
   const ownerId = await getDataOwnerId();
   if (!ownerId) return [];
@@ -1437,10 +1461,28 @@ export async function getJobsForWeek(startDate: string, endDate: string): Promis
     where('scheduledTime', '>=', startDate + 'T00:00:00'),
     where('scheduledTime', '<', inclusiveEndDate + 'T00:00:00')
   );
+
+  const run = async (source: 'default' | 'cache' | 'server') => {
+    if (source === 'cache') return getDocsFromCache(q);
+    if (source === 'server') return getDocsFromServer(q);
+    return getDocs(q);
+  };
+
+  const mapSnap = (querySnapshot: Awaited<ReturnType<typeof getDocs>>) =>
+    querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+
+  const source = options?.source ?? 'default';
   try {
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job));
+    return mapSnap(await run(source));
   } catch (error: any) {
+    if (source === 'cache') {
+      // No cached results for this query yet (first open of this week).
+      return [];
+    }
+    if (source === 'server') {
+      console.warn('getJobsForWeek: server fetch failed; leaving caller on cache', error);
+      throw error;
+    }
     console.warn('getJobsForWeek: primary query failed (likely missing composite index)', error);
     // Fallback: fetch by ownerId only, then filter client-side by date range
     const ownerOnlyQuery = query(jobsRef, where('ownerId', '==', ownerId));
@@ -1448,6 +1490,48 @@ export async function getJobsForWeek(startDate: string, endDate: string): Promis
     return fallbackSnap.docs
       .map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Job))
       .filter(job => job.scheduledTime >= startDate + 'T00:00:00' && job.scheduledTime < inclusiveEndDate + 'T00:00:00');
+  }
+}
+
+export async function getClientsByIds(
+  clientIds: string[],
+  options?: { source?: 'default' | 'cache' | 'server' }
+): Promise<Map<string, Client>> {
+  const clientsMap = new Map<string, Client>();
+  if (!clientIds.length) return clientsMap;
+
+  const chunks: string[][] = [];
+  for (let i = 0; i < clientIds.length; i += 30) {
+    chunks.push(clientIds.slice(i, i + 30));
+  }
+
+  const source = options?.source ?? 'default';
+  const run = async (q: ReturnType<typeof query>) => {
+    if (source === 'cache') return getDocsFromCache(q);
+    if (source === 'server') return getDocsFromServer(q);
+    return getDocs(q);
+  };
+
+  try {
+    const snapshots = await Promise.all(
+      chunks.map((chunk) => run(query(collection(db, 'clients'), where('__name__', 'in', chunk))))
+    );
+    snapshots.forEach((snapshot) => {
+      snapshot.forEach((docSnap) => {
+        clientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
+      });
+    });
+    return clientsMap;
+  } catch (err) {
+    if (source === 'cache') return clientsMap;
+    console.warn('getClientsByIds: batched lookup failed; falling back to per-client fetch.', err);
+    const settled = await Promise.allSettled(clientIds.map((id) => getDoc(doc(db, 'clients', id))));
+    settled.forEach((r) => {
+      if (r.status === 'fulfilled' && r.value.exists()) {
+        clientsMap.set(r.value.id, { id: r.value.id, ...r.value.data() } as Client);
+      }
+    });
+    return clientsMap;
   }
 }
 
