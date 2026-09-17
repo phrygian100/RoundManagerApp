@@ -1,4 +1,5 @@
-import { Platform } from 'react-native';
+import { Linking, PermissionsAndroid, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { arrayUnion, doc, setDoc } from 'firebase/firestore';
 import { auth, db } from '../core/firebase';
 
@@ -10,7 +11,12 @@ export type PushOpenPayload = {
   day?: string;
 };
 
+export type NotificationPermissionStatus = 'granted' | 'denied' | 'undetermined';
+export type NotificationPermissionRequestResult = 'granted' | 'denied' | 'blocked';
+
 type OpenHandler = (data: PushOpenPayload) => void;
+
+const PROMPT_DISMISSED_KEY = 'guvnor.pushOptInDismissed';
 
 function messagingOrNull(): any | null {
   if (Platform.OS === 'web') return null;
@@ -34,25 +40,104 @@ async function persistToken(token: string) {
   );
 }
 
+function isGrantedStatus(authStatus: unknown): boolean {
+  return authStatus === 1 || authStatus === 2 || authStatus === true;
+}
+
+/**
+ * Current OS notification permission. Does not show a dialog.
+ */
+export async function getNotificationPermissionStatus(): Promise<NotificationPermissionStatus> {
+  if (Platform.OS === 'web') return 'denied';
+
+  if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+    try {
+      const ok = await PermissionsAndroid.check(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+      );
+      if (ok) return 'granted';
+      return 'undetermined';
+    } catch (e) {
+      console.warn('push: permission check failed', e);
+    }
+  }
+
+  const messaging = messagingOrNull();
+  if (!messaging) return 'denied';
+  try {
+    const status = await messaging().hasPermission();
+    if (isGrantedStatus(status)) return 'granted';
+    if (status === 0) return 'denied';
+    return 'undetermined';
+  } catch (e) {
+    return 'undetermined';
+  }
+}
+
+export async function hasDismissedNotificationPrompt(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(PROMPT_DISMISSED_KEY)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export async function markNotificationPromptDismissed(): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PROMPT_DISMISSED_KEY, '1');
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Show the OS permission dialog (must be called from a user tap, not at
+ * splash). On Android 13+ this is POST_NOTIFICATIONS.
+ * `blocked` means the OS will not show a dialog again — open Settings.
+ */
+export async function requestNotificationPermission(): Promise<NotificationPermissionRequestResult> {
+  if (Platform.OS === 'android' && Number(Platform.Version) >= 33) {
+    const result = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      {
+        title: 'Allow notifications',
+        message:
+          'Guvnor notifies you when a team member completes a job, when the day is ready to review, and when a new quote request arrives.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Not now',
+      }
+    );
+    if (result === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+      return 'blocked';
+    }
+    if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+      return 'denied';
+    }
+  }
+
+  const messaging = messagingOrNull();
+  if (!messaging) {
+    return Platform.OS === 'android' && Number(Platform.Version) < 33 ? 'granted' : 'denied';
+  }
+
+  const before = await messaging().hasPermission();
+  const authStatus = await messaging().requestPermission();
+  if (isGrantedStatus(authStatus)) return 'granted';
+  if (before === 1) return 'blocked';
+  return 'denied';
+}
+
 let pushListenersAttached = false;
 
 /**
- * Ask for notification permission (Android 13+) and save this device's FCM
- * token on the signed-in user so Cloud Functions can reach them.
+ * Save an FCM token if permission is already granted. Does not prompt.
  */
 export async function registerPushNotifications(): Promise<void> {
   const messaging = messagingOrNull();
   if (!messaging || !auth.currentUser) return;
 
-  const authStatus = await messaging().requestPermission();
-  const enabled =
-    authStatus === 1 /* AUTHORIZED */ ||
-    authStatus === 2 /* PROVISIONAL */ ||
-    authStatus === true;
-  if (!enabled) {
-    console.log('push: permission not granted', authStatus);
-    return;
-  }
+  const status = await getNotificationPermissionStatus();
+  if (status !== 'granted') return;
 
   await messaging().registerDeviceForRemoteMessages();
   const token = await messaging().getToken();
@@ -64,6 +149,22 @@ export async function registerPushNotifications(): Promise<void> {
       persistToken(t).catch((e) => console.warn('push: token refresh save failed', e));
     });
   }
+}
+
+export async function enableNotificationsFromUserTap(): Promise<boolean> {
+  const result = await requestNotificationPermission();
+  if (result === 'granted') {
+    await registerPushNotifications();
+    return true;
+  }
+  if (result === 'blocked') {
+    openSystemNotificationSettings();
+  }
+  return false;
+}
+
+export function openSystemNotificationSettings(): void {
+  Linking.openSettings().catch(() => {});
 }
 
 /**

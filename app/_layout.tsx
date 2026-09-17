@@ -5,8 +5,14 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Appearance, Platform, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
+import NotificationOptInModal from '../components/NotificationOptInModal';
 import { auth } from '../core/firebase';
-import { listenNotificationOpens, registerPushNotifications } from '../services/pushNotifications';
+import {
+  getNotificationPermissionStatus,
+  hasDismissedNotificationPrompt,
+  listenNotificationOpens,
+  registerPushNotifications,
+} from '../services/pushNotifications';
 import { captureUtmParams } from '../utils/utmTracking';
 
 // The app is designed light-only (web always renders light). On native, phones
@@ -26,6 +32,8 @@ function AppContent() {
   const { clearQuoteData } = useQuoteToClient();
   const previousUserRef = useRef<User | null>(null);
   const loginRedirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [showPushPrompt, setShowPushPrompt] = useState(false);
 
   // Capture ad-campaign labels (utm_* params) on first load, before any
   // redirect strips the query string (e.g. unauth '/' -> '/welcome').
@@ -57,20 +65,64 @@ function AppContent() {
   }, [clearQuoteData]);
 
   useEffect(() => {
+    if (!currentUser) setShowPushPrompt(false);
+  }, [currentUser]);
+
+  useEffect(() => {
     if (!authReady || !currentUser || Platform.OS === 'web') return;
+
+    // Token save only — never prompt here. The OS dialog must follow a visible
+    // "Enable notifications" tap or Android leaves them off / the user misses it.
     registerPushNotifications().catch((e) =>
       console.warn('push: registration failed', e)
     );
-    return listenNotificationOpens((data) => {
+
+    const unsub = listenNotificationOpens((data) => {
       if (data.type === 'quote_request') {
         router.push('/new-business' as any);
         return;
       }
       if (data.week) {
-        router.push({ pathname: '/runsheet/[week]', params: { week: data.week } } as any);
+        const params: Record<string, string> = { week: data.week };
+        if (data.jobId) params.jobId = data.jobId;
+        router.push({ pathname: '/runsheet/[week]', params } as any);
       }
     });
+
+    return unsub;
   }, [authReady, currentUser, router]);
+
+  useEffect(() => {
+    if (!authReady || !currentUser || Platform.OS === 'web') return;
+
+    const blocked = [
+      '/login',
+      '/register',
+      '/forgot-password',
+      '/set-password',
+      '/welcome',
+      '/window-cleaning-quote',
+      '/bin-cleaning-quote',
+    ];
+    if (blocked.some((p) => (pathname || '').startsWith(p))) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      Promise.all([
+        getNotificationPermissionStatus(),
+        hasDismissedNotificationPrompt(),
+      ]).then(([status, dismissed]) => {
+        if (!cancelled && status !== 'granted' && !dismissed) {
+          setShowPushPrompt(true);
+        }
+      }).catch(() => {});
+    }, 900);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [authReady, currentUser, pathname]);
   
   // Handle redirects based on auth state and pathname
   useEffect(() => {
@@ -189,6 +241,10 @@ function AppContent() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ThemeProvider value={DefaultTheme}>
         <Slot />
+        <NotificationOptInModal
+          visible={showPushPrompt}
+          onDone={() => setShowPushPrompt(false)}
+        />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

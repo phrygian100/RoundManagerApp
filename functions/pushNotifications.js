@@ -7,8 +7,9 @@
 const admin = require('firebase-admin');
 const {
   onDocumentCreated,
-  onDocumentUpdated,
+  onDocumentUpdatedWithAuthContext,
 } = require('firebase-functions/v2/firestore');
+
 
 function isCountableJob(data) {
   if (!data) return false;
@@ -90,6 +91,70 @@ async function sendToUser(uid, { title, body, data }) {
   console.log(`push: sent to ${uid} success=${res.successCount} fail=${res.failureCount}`);
 }
 
+/**
+ * Who ticked the job: stamped completedBy, else the Firestore writer uid.
+ * Client SDK writes arrive as authType `api_key` with authId = the user's uid
+ * (not an anonymous API key). Display: profile name, then email, then uid.
+ */
+function writerUidFromEvent(after, event) {
+  if (after.completedBy) return after.completedBy;
+  const authType = event.authType || '';
+  const authId = event.authId || '';
+  if (authType === 'service_account' || authType === 'system') return '';
+  if (!authId || authId.startsWith('AIza')) return '';
+  return authId;
+}
+
+function rotaStyleLabel(email) {
+  const prefix = String(email || '').split('@')[0];
+  if (!prefix) return '';
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
+}
+
+async function actorLabel(after, event) {
+  const stampedName = String(after.completedByName || '').trim();
+  const uid = writerUidFromEvent(after, event);
+
+  if (stampedName && stampedName !== 'Team member' && stampedName !== 'A team member') {
+    return { uid: uid || '', name: stampedName };
+  }
+  if (!uid) return { uid: '', name: '' };
+  if (uid === 'agent') return { uid, name: 'Guvnor agent' };
+
+  try {
+    const snap = await admin.firestore().collection('users').doc(uid).get();
+    if (snap.exists) {
+      const name = String(snap.get('name') || '').trim();
+      if (name) return { uid, name };
+      const email = String(snap.get('email') || '').trim();
+      if (email) return { uid, name: rotaStyleLabel(email) || email };
+    }
+  } catch (_) {
+    // fall through
+  }
+
+  const ownerId = after.ownerId || after.accountId;
+  if (ownerId) {
+    try {
+      const member = await admin
+        .firestore()
+        .collection('accounts')
+        .doc(ownerId)
+        .collection('members')
+        .doc(uid)
+        .get();
+      if (member.exists) {
+        const email = String(member.get('email') || '').trim();
+        if (email) return { uid, name: rotaStyleLabel(email) || email };
+      }
+    } catch (_) {
+      // fall through to uid
+    }
+  }
+
+  return { uid, name: uid };
+}
+
 async function clientLabel(clientId) {
   if (!clientId) return '';
   try {
@@ -154,7 +219,7 @@ exports.onQuoteRequestCreated = onDocumentCreated(
   }
 );
 
-exports.onJobCompleted = onDocumentUpdated(
+exports.onJobCompleted = onDocumentUpdatedWithAuthContext(
   'jobs/{jobId}',
   async (event) => {
     const before = (event.data && event.data.before && event.data.before.data()) || {};
@@ -162,14 +227,36 @@ exports.onJobCompleted = onDocumentUpdated(
     if (before.status === 'completed' || after.status !== 'completed') return;
 
     const ownerId = after.ownerId || after.accountId;
-    const actor = after.completedBy || '';
-    // Owner (or Day Complete batch, which does not set completedBy) already
-    // knows they ticked the job — only notify when a member/agent did it.
-    if (!ownerId || !actor || actor === ownerId) return;
+    if (!ownerId) {
+      console.log('push: skip no owner', event.params.jobId);
+      return;
+    }
+
+    const { uid: actor, name: actorName } = await actorLabel(after, event);
+    // Owner ticking their own job, or Day Complete (also the owner).
+    if (actor && actor === ownerId) {
+      console.log('push: skip owner self-complete', event.params.jobId);
+      return;
+    }
+    // Day Complete is owner-only and only writes { status: 'completed' }.
+    // A runsheet tick always writes completedAt. Keep this if auth context
+    // is missing on an older client.
+    if (!actor && !after.completedAt) {
+      console.log('push: skip day-complete batch', event.params.jobId);
+      return;
+    }
+    const display = actorName || actor || 'Unknown';
+    console.log('push: job completed', {
+      jobId: event.params.jobId,
+      ownerId,
+      actor: actor || 'unstamped',
+      display,
+      authType: event.authType || '',
+      authIdPrefix: (event.authId || '').slice(0, 8),
+    });
 
     const ymd = (after.scheduledTime || '').slice(0, 10);
     const weekStart = mondayOf(ymd);
-    const actorName = after.completedByName || 'A team member';
     const where = await clientLabel(after.clientId);
     const dayDone =
       ymd && !(await dayAlreadyClosed(ownerId, ymd)) && (await isDayFullyComplete(ownerId, ymd));
@@ -177,7 +264,7 @@ exports.onJobCompleted = onDocumentUpdated(
     if (dayDone) {
       await sendToUser(ownerId, {
         title: 'Day ready to review',
-        body: `${weekdayName(ymd)} — all jobs are done${where ? ` (last: ${where})` : ''}`,
+        body: `${display} finished ${weekdayName(ymd)}${where ? ` (last: ${where})` : ''}`,
         data: {
           type: 'day_ready',
           jobId: event.params.jobId,
@@ -190,7 +277,7 @@ exports.onJobCompleted = onDocumentUpdated(
 
     await sendToUser(ownerId, {
       title: 'Job completed',
-      body: where ? `${actorName} completed ${where}` : `${actorName} completed a job`,
+      body: where ? `${display} completed ${where}` : `${display} completed a job`,
       data: {
         type: 'job_completed',
         jobId: event.params.jobId,

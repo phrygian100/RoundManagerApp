@@ -2,6 +2,42 @@
 
 ## September 16, 2026
 
+### Runsheet opens on today's last completed job
+
+**Why**: Opening this week's runsheet always started at Monday. On Wednesday that meant collapsing Mon/Tue and scrolling through Wednesday to find the round. Notification taps opened the week, not the job.
+
+**Changes**:
+- Current week: past days start collapsed. After load, the list scrolls to today's last completed job (`completedAt` / sequence), or the first still-open job if none are done.
+- Notification taps pass `jobId`; that day stays expanded and the list centres on that row (brief navy outline).
+- Web uses `scrollIntoView` as well as `SectionList.scrollToLocation` so desktop matches the phone.
+
+**Regression notes**: Other weeks are unchanged (no auto-collapse). Expanding a collapsed day still works. Cache-first load focuses once so the later server refresh does not jump the list again.
+
+### Job-complete pushes were never sent (missing `completedBy`)
+
+**Why**: Operatives ticked 14 jobs today and `onJobCompleted` ran each time, but it required `completedBy !== ownerId`. Those ticks came from a client that still only writes `status` + `completedAt` (the `completedBy` stamp has not reached their app). The function returned without sending. Travis’s user doc already has an FCM token.
+
+**Changes**:
+- Notify on a pending→completed runsheet tick even when `completedBy` is missing (`completedAt` is the signal that it was a real tick, not Day Complete).
+- Still skip the owner ticking their own job (`completedBy === ownerId`) and skip Day Complete (status-only write, no `completedAt`).
+- Job-complete body uses the writer’s profile **name**, then email, then uid — not “A team member”. Trigger is now `onDocumentUpdatedWithAuthContext` so we still know who ticked when the client never stamped `completedBy`. Client SDK writes report `authType: api_key` with `authId` = the user’s uid; we treat that as the member (not an anonymous key). Jacob’s profile is `Jacob Warrington`.
+- Log skip/send reasons. Deployed `onJobCompleted`.
+
+**Regression notes**: Until operatives pick up the JS that stamps `completedBy`, the notification body says “A team member” instead of their name. Owner self-ticks on that older JS would also ping (they write `completedAt` and no `completedBy`); once their app stamps `completedBy`, self-ticks stay quiet. Phone still needs notification permission enabled or the OS will drop the tray item even after FCM accepts the send.
+
+### First-launch notification opt-in (Android 13+)
+
+**Why**: The 1.0.3 APK registered FCM after login without a visible “Enable notifications” tap. On Android 13+ (`POST_NOTIFICATIONS`) that leaves notifications off by default, so owners never saw the OS prompt.
+
+**Changes**:
+- After login, native shows an in-app “Stay in the loop” card (`components/NotificationOptInModal.tsx`) once the dashboard is up. **Enable notifications** then requests the OS permission (required user tap); **Not now** dismisses it for later.
+- `registerPushNotifications()` no longer prompts — it only saves an FCM token if permission is already granted.
+- If the OS will not show a dialog again (`NEVER_ASK_AGAIN` / previously denied), Enable opens system app settings.
+- Settings → Notifications has an Enable row for anyone who skipped the first prompt. Native only; web is unchanged (stub).
+- JS-only — no version bump. Existing 1.0.3 installs pick this up on next launch via OTA. The 1.0.3 binary already declares `POST_NOTIFICATIONS`.
+
+**Regression notes**: Web never shows the modal. Prompt is skipped on login/welcome routes and if permission is already granted. Dismiss is stored in AsyncStorage (`guvnor.pushOptInDismissed`) so it does not reappear every launch. Overlaps with the existing FCM token list on `users/{uid}` — same tokens, no second channel.
+
 ### Owner push notifications + cache-first runsheet
 
 **Why**: In the field the runsheet waited on a Firebase round-trip before painting, even though native Firestore already had yesterday's week on disk. Separately, owners had no system notification when a member ticked a job, when the day was fully done and ready to review, or when a portal quote request arrived.

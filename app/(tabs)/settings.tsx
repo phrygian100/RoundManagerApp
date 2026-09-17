@@ -20,6 +20,10 @@ import { bulkGeocodeClients } from '../../services/geocodingService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { backfillRecurringSchedulesForActivePlans, deleteAllJobs, deleteDuplicateJobs, deleteOrphanJobs, generateJobsForActivePlansWithNoFuture, generateRecurringJobs, getJobCount, migrateLegacyToServicePlans, runScheduleDiagnostic, scanDuplicateJobs, scanOrphanJobs } from '../../services/jobService';
 import { createPayment, deleteAllPayments, getPaymentCount } from '../../services/paymentService';
+import {
+  enableNotificationsFromUserTap,
+  getNotificationPermissionStatus,
+} from '../../services/pushNotifications';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
 import {
   PREMIUM_PRICE_ONLY_LABEL,
@@ -105,6 +109,8 @@ export default function SettingsScreen() {
 
   // Upgrade modal state
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+  const [pushGranted, setPushGranted] = useState(false);
+  const [enablingPush, setEnablingPush] = useState(false);
 
   // Profile edit modal state
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -663,6 +669,14 @@ export default function SettingsScreen() {
             } catch (e) {
               console.warn('Business portal sync (settings focus):', e);
             }
+          }
+        }
+        if (Platform.OS !== 'web') {
+          try {
+            const status = await getNotificationPermissionStatus();
+            setPushGranted(status === 'granted');
+          } catch {
+            // ignore
           }
         }
       })();
@@ -2907,6 +2921,43 @@ export default function SettingsScreen() {
             onPress={() => { pushOrNewTab('/quote-wizard'); }}
           />
         </View>
+
+        {Platform.OS !== 'web' && (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle}>Notifications</ThemedText>
+            <ThemedText style={styles.subscriptionDescription}>
+              Job completions, day ready to review, and new quote requests.
+            </ThemedText>
+            <StyledButton
+              title={pushGranted ? 'Notifications enabled' : enablingPush ? 'Enabling…' : 'Enable notifications'}
+              disabled={pushGranted || enablingPush}
+              onPress={async () => {
+                setEnablingPush(true);
+                try {
+                  const ok = await enableNotificationsFromUserTap();
+                  if (ok) {
+                    setPushGranted(true);
+                    showAlert(
+                      'Notifications on',
+                      'You will get alerts when a team member completes a job, when the day is ready to review, and when a new quote request arrives.'
+                    );
+                    return;
+                  }
+                  const status = await getNotificationPermissionStatus();
+                  setPushGranted(status === 'granted');
+                  if (status !== 'granted') {
+                    showAlert(
+                      'Notifications still off',
+                      'If the system dialog did not appear, open Guvnor in your phone’s app settings, turn Notifications on, then return here.'
+                    );
+                  }
+                } finally {
+                  setEnablingPush(false);
+                }
+              }}
+            />
+          </View>
+        )}
 
         {/* Subscription Section */}
         <View style={styles.section}>

@@ -61,9 +61,47 @@ function getCallableErrorMessage(error: unknown): string {
     .trim() || 'Unknown error';
 }
 
+function isCountableRunsheetJob(job: any) {
+  return job && !(job as any).__type && job.serviceId !== 'note' && job.serviceId !== 'quote';
+}
+
+function pastDayTitles(weekStart: Date): string[] {
+  return daysOfWeek.filter((_, i) => isBefore(addDays(weekStart, i), startOfToday()));
+}
+
+function locateJobInSections(sections: { title: string; data: any[] }[], jobId: string) {
+  for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+    const itemIndex = sections[sectionIndex].data.findIndex((item: any) => item && item.id === jobId);
+    if (itemIndex >= 0) {
+      return { sectionIndex, itemIndex, dayTitle: sections[sectionIndex].title };
+    }
+  }
+  return null;
+}
+
+/** Last completed job today (by completedAt / sequence), else the first still-open job. */
+function pickActiveJob(section: { data: any[] } | undefined) {
+  if (!section) return null;
+  const jobs = section.data.filter(isCountableRunsheetJob);
+  const completed = jobs.filter((j: any) => j.status === 'completed');
+  if (completed.length) {
+    completed.sort((a: any, b: any) => {
+      const at = a.completedAt || '';
+      const bt = b.completedAt || '';
+      if (at && bt && at !== bt) return bt.localeCompare(at);
+      return (b.completionSequence || 0) - (a.completionSequence || 0);
+    });
+    return completed[0];
+  }
+  return jobs.find((j: any) => j.status !== 'completed') || jobs[0] || null;
+}
+
 export default function RunsheetWeekScreen() {
-  const { week } = useLocalSearchParams();
+  const { week, jobId: focusJobIdParam } = useLocalSearchParams<{ week?: string; jobId?: string }>();
   const { width } = useWindowDimensions();
+  const listRef = useRef<SectionList<any>>(null);
+  const autoFocusedWeekRef = useRef<string | null>(null);
+  const lastNotificationJobRef = useRef<string | null>(null);
   const compactHeader = Platform.OS !== 'web' || width < 480;
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<(Job & { client: Client | null })[]>([]);
@@ -77,7 +115,12 @@ export default function RunsheetWeekScreen() {
   const [availabilityRoster, setAvailabilityRoster] = useState<MemberRecord[]>([]);
   const [rotaMap, setRotaMap] = useState<Record<string, Record<string, AvailabilityStatus>>>({});
   const [actionSheetJob, setActionSheetJob] = useState<Job & { client: Client | null } | null>(null);
-  const [collapsedDays, setCollapsedDays] = useState<string[]>([]);
+  const [collapsedDays, setCollapsedDays] = useState<string[]>(() => {
+    const start = week ? parseISO(week as string) : startOfWeek(new Date(), { weekStartsOn: 1 });
+    if (!isThisWeek(start, { weekStartsOn: 1 })) return [];
+    return pastDayTitles(start);
+  });
+  const [highlightedJobId, setHighlightedJobId] = useState<string | null>(null);
   const [collapsedVehicles, setCollapsedVehicles] = useState<string[]>([]);
   const [isCurrentWeek, setIsCurrentWeek] = useState(false);
   const [completedDays, setCompletedDays] = useState<string[]>([]);
@@ -207,6 +250,13 @@ export default function RunsheetWeekScreen() {
 
   useEffect(() => {
     setIsCurrentWeek(isThisWeek(weekStart, { weekStartsOn: 1 }));
+    autoFocusedWeekRef.current = null;
+    setLoading(true);
+    if (isThisWeek(weekStart, { weekStartsOn: 1 })) {
+      setCollapsedDays(pastDayTitles(weekStart));
+    } else {
+      setCollapsedDays([]);
+    }
 
     let cancelled = false;
     const startDate = format(weekStart, 'yyyy-MM-dd');
@@ -746,6 +796,74 @@ export default function RunsheetWeekScreen() {
       dayDate,
     };
   });
+
+  useEffect(() => {
+    if (loading || jobs.length === 0) return;
+
+    const weekKey = format(weekStart, 'yyyy-MM-dd');
+    const requestedId = Array.isArray(focusJobIdParam)
+      ? focusJobIdParam[0]
+      : (focusJobIdParam || '');
+    const fromNotification = !!(requestedId && requestedId !== lastNotificationJobRef.current);
+    const firstOpenThisWeek = autoFocusedWeekRef.current !== weekKey;
+    if (!fromNotification && !firstOpenThisWeek) return;
+
+    const currentWeek = isThisWeek(weekStart, { weekStartsOn: 1 });
+    let targetId = requestedId;
+    if (!targetId && currentWeek) {
+      const todayKey = startOfToday().toDateString();
+      const todaySection = sections.find((s: any) => s.dayDate && s.dayDate.toDateString() === todayKey);
+      targetId = pickActiveJob(todaySection)?.id || '';
+    }
+
+    const loc = targetId ? locateJobInSections(sections, targetId) : null;
+    if (currentWeek) {
+      const keepOpen = loc?.dayTitle;
+      const nextCollapsed = pastDayTitles(weekStart).filter((d) => d !== keepOpen);
+      setCollapsedDays((prev) => (
+        prev.length === nextCollapsed.length && prev.every((d, i) => d === nextCollapsed[i])
+          ? prev
+          : nextCollapsed
+      ));
+    }
+
+    autoFocusedWeekRef.current = weekKey;
+    if (requestedId) lastNotificationJobRef.current = requestedId;
+    if (!loc || !targetId) return;
+
+    setHighlightedJobId(targetId);
+    const clearHighlight = setTimeout(() => setHighlightedJobId(null), 4000);
+
+    const scrollToJob = () => {
+      try {
+        listRef.current?.scrollToLocation({
+          sectionIndex: loc.sectionIndex,
+          itemIndex: loc.itemIndex,
+          viewPosition: 0.2,
+          viewOffset: 8,
+          animated: true,
+        });
+      } catch {
+        // List may not have measured yet; retries below cover that.
+      }
+      if (Platform.OS === 'web' && typeof document !== 'undefined') {
+        document.getElementById(`runsheet-job-${targetId}`)?.scrollIntoView({
+          block: 'center',
+          behavior: 'smooth',
+        });
+      }
+    };
+
+    const t1 = setTimeout(scrollToJob, 80);
+    const t2 = setTimeout(scrollToJob, 350);
+    return () => {
+      clearTimeout(clearHighlight);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+    // sections is derived from jobs/vehicles; jobs is the load signal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, jobs, week, focusJobIdParam]);
 
   useEffect(() => {
     // Drop selections that are no longer present or movable
@@ -2509,13 +2627,16 @@ ${signOff}`;
     const hasOutstandingBalance = clientBalance !== undefined && clientBalance < 0;
 
     return (
-      <View style={[
+      <View
+        nativeID={`runsheet-job-${item.id}`}
+        style={[
         styles.clientRow,
         isCompleted && styles.completedRow,
         isDeferred && !isCompleted && styles.deferredRow,
         shouldUseOneOffStyling && !isCompleted && !isDeferred && styles.oneOffJobRow,
         isAdditionalService && !isCompleted && !isDeferred && styles.additionalServiceRow,
-        selectionEnabled && isSelected && styles.selectedJobRow
+        selectionEnabled && isSelected && styles.selectedJobRow,
+        highlightedJobId === item.id && styles.focusedJobRow,
       ]}>
         <View style={{ flex: 1 }}>
           {/* Quick Action Buttons */}
@@ -2846,8 +2967,20 @@ ${signOff}`;
           <ActivityIndicator size="large" />
         ) : (
           <SectionList
+            ref={listRef}
             sections={sections}
             keyExtractor={(item) => item.id}
+            onScrollToIndexFailed={() => {
+              const id = highlightedJobId;
+              if (Platform.OS === 'web' && id && typeof document !== 'undefined') {
+                setTimeout(() => {
+                  document.getElementById(`runsheet-job-${id}`)?.scrollIntoView({
+                    block: 'center',
+                    behavior: 'smooth',
+                  });
+                }, 120);
+              }
+            }}
             renderItem={({ item, index, section }) => {
               // Don't render anything if the day is collapsed
               if (collapsedDays.includes(section.title)) return null;
@@ -3997,6 +4130,10 @@ const styles = StyleSheet.create({
   selectedJobRow: {
     borderWidth: 2,
     borderColor: '#007AFF',
+  },
+  focusedJobRow: {
+    borderWidth: 2,
+    borderColor: '#0c1b3c',
   },
   quickActionsRow: {
     flexDirection: 'row',
