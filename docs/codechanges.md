@@ -1,6 +1,15 @@
 # Code Changes Log
 
-## September 16, 2026
+## September 17, 2026
+
+### EAS Update GitHub Action was never installing the CLI
+
+**Why**: Every OTA workflow run (including the runsheet-focus push) died in ~20s at Setup EAS: `yarn` exit code 1. GitHub-hosted yarn cannot `yarn add eas-cli` the way `expo/expo-github-action@v8` does by default. The runsheet bundle was published from this machine instead (`eas update --channel production`, runtime 1.0.3).
+
+**Changes**:
+- `.github/workflows/eas-update.yml` — `packager: npm` and Node 22 so Setup EAS stops using yarn.
+
+**Regression notes**: Still needs the `EXPO_TOKEN` GitHub secret. Fully close and reopen the 1.0.3 APK to pick up the OTA that was published locally.
 
 ### Runsheet opens on today's last completed job
 
@@ -12,6 +21,8 @@
 - Web uses `scrollIntoView` as well as `SectionList.scrollToLocation` so desktop matches the phone.
 
 **Regression notes**: Other weeks are unchanged (no auto-collapse). Expanding a collapsed day still works. Cache-first load focuses once so the later server refresh does not jump the list again.
+
+## September 16, 2026
 
 ### Job-complete pushes were never sent (missing `completedBy`)
 
