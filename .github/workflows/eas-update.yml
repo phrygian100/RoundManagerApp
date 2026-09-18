@@ -46,7 +46,10 @@ jobs:
         run: npm ci
 
       - name: Publish update
-        run: eas update --channel production --message "${{ github.event.head_commit.message }}" --non-interactive
+        # Use the commit subject via git rather than interpolating
+        # github.event.head_commit.message into the script: multiline commit
+        # messages break the generated shell command (failed run f067977).
+        run: eas update --channel production --message "$(git log -1 --pretty=%s)" --non-interactive
         env:
           EXPO_USE_CLASSIC_BUNDLE: '1'
           EXPO_ROUTER_IMPORT_MODE: sync

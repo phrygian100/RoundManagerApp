@@ -2,6 +2,15 @@
 
 ## September 18, 2026
 
+### EAS Update workflow: stop interpolating raw commit messages into the shell
+
+**Why**: The `EAS Update (native apps OTA)` action failed on push f067977 because the workflow ran `eas update --message "${{ github.event.head_commit.message }}"` — GitHub substitutes the commit message verbatim into the run script, so a multiline commit message produced a syntactically broken shell command.
+
+**Changes** (`.github/workflows/eas-update.yml`):
+- The publish step now uses `--message "$(git log -1 --pretty=%s)"` (commit subject line from the checked-out repo) instead of expression interpolation. No injection surface, single line guaranteed.
+
+**Regression notes**: The failed OTA for f067977 was published manually from the dev machine (`eas update --channel production`, update group `92772cfc-eb4b-496c-9c93-8b8429ef5f7c`, runtime 1.0.3), so installed apps aren't waiting on this fix.
+
 ### Guides tile added to the home dashboard grid
 
 **Why**: The guides link existed only as a small help-circle icon in the top bar next to Settings (added Jan 2026) and was easy to miss. User wanted it to have the same presence as the other square dashboard tiles, on both web and the Android app.
@@ -9,7 +18,7 @@
 **Changes** (`app/(tabs)/index.tsx`):
 - Added a `Guides` tile (book icon) to the end of the dashboard grid for all users regardless of permissions. It opens https://guvnor.app/guides via `Linking.openURL` — system browser on native, new tab on web (same mechanism as the existing top-bar icon, which remains).
 
-**Regression notes**: Pure additive UI change; permission-filtered tiles are untouched (Guides is appended after the filter). JS-only, so it can ship to the Play build via EAS Update OTA without a new review. Not yet committed/pushed.
+**Regression notes**: Pure additive UI change; permission-filtered tiles are untouched (Guides is appended after the filter). JS-only, so it can ship to the Play build via EAS Update OTA without a new review. Committed/pushed as f067977; OTA published manually the same day after the workflow run failed (see entry above).
 
 ## September 17, 2026
 
