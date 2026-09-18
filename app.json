@@ -27,7 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.guvnor.roundmanagerapp",
-      "versionCode": 4,
+      "versionCode": 5,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
@@ -65,6 +65,11 @@
       [
         "expo-build-properties",
         {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "buildToolsVersion": "36.0.0"
+          },
           "ios": {
             "useFrameworks": "static"
           }

@@ -1,6 +1,95 @@
 # Code Changes Log
 
+## September 18, 2026
+
+### Guides tile added to the home dashboard grid
+
+**Why**: The guides link existed only as a small help-circle icon in the top bar next to Settings (added Jan 2026) and was easy to miss. User wanted it to have the same presence as the other square dashboard tiles, on both web and the Android app.
+
+**Changes** (`app/(tabs)/index.tsx`):
+- Added a `Guides` tile (book icon) to the end of the dashboard grid for all users regardless of permissions. It opens https://guvnor.app/guides via `Linking.openURL` — system browser on native, new tab on web (same mechanism as the existing top-bar icon, which remains).
+
+**Regression notes**: Pure additive UI change; permission-filtered tiles are untouched (Guides is appended after the filter). JS-only, so it can ship to the Play build via EAS Update OTA without a new review. Not yet committed/pushed.
+
 ## September 17, 2026
+
+### New Play Store screenshots (runsheet + client list) from demo account
+
+**Why**: The listing only had 2 phone screenshots (dashboard + splash). Polished it with real-content screenshots from the Play demo account (fake Leeds clients only), which also makes the listing eligible for Play promotion (needs 4+).
+
+**Changes**:
+- `scripts/_seed_play_demo2.cjs` (new, one-off): added 6 more fake clients (Priya Kaur, Alfie Turner, Grace Osei, Tommy Barnes, Ellie Fletcher, Noah Simmons) with window-cleaning jobs to the demo account, so lists look realistically full. Demo account now has 10 clients.
+- `scripts/_seed_play_demo3.cjs` (new, one-off): moved jobs dated 2026-09-17 to 2026-09-18 — today's 09:00 slot had passed, so clients showed "Next Visit: N/A" and the runsheet day looked empty. Friday 18th now has all 8 jobs.
+- `scripts/_play_screenshots.cjs` (new, reusable): captures Play screenshots headlessly. Signs into guvnor.app as the demo user via the Firebase Auth REST API and injects the session into IndexedDB (the login form ignores synthetic events in headless Chrome), then screenshots `/runsheet/2026-09-14` (scrolled to Friday) and `/clients` at 360×640 @3x = **1080×1920 (9:16)** — the Play asset library flags any other ratio (incl. the older 1080×2400) as "needs cropping". Uses `puppeteer-core` (installed with `--no-save`) + local Chrome.
+- New assets: `assets/play-store/phone-03-runsheet.png`, `assets/play-store/phone-04-clients.png`.
+- Play Console: uploaded both to the asset library (via catbox.moe as a CORS-friendly relay — Play's CSP blocks localhost and the Firebase Storage bucket sends no CORS headers), attached them to **Phone screenshots (now 4/8)** and **7-inch tablet screenshots (2/8)**, and saved the listing.
+- **NOT sent for review**: submitting the 2 saved listing changes would cancel and restart the production review in progress since 17 Sept (Play warned explicitly). They're saved in Publishing overview → "Changes not yet submitted for review"; send them after the current review completes.
+
+**Regression notes**: Demo-account data only — no real customer data touched. Temp copies uploaded to Firebase Storage (`quoteWizards/_playtmp/`) during a failed CORS attempt were deleted. The catbox.moe uploads are public but contain only fake demo data. The 1080×2400 runsheet asset left in the Play asset library is unused and harmless.
+
+### Internal testing release 1.0.3 (5) published on Google Play
+
+**Why**: First installable Play release. The API-36 rebuild (versionCode 5) finished and needed to replace the rejected versionCode 4 bundle in the draft internal-testing release.
+
+**Changes** (no repo code changes; Play Console + local artifact only):
+- Downloaded EAS build `48f11350` artifact to `guvnor-1.0.3-vc5.aab` (repo root, untracked — do not commit).
+- Play Console: removed the old versionCode 4 bundle from the draft, uploaded the versionCode 5 AAB (user did the file-picker step; the Cursor browser blocks localhost fetches from https pages so programmatic injection was impossible), renamed the release to "1.0.3 (5)" and published. Status: Available to internal testers, not yet reviewed.
+- Tester email list "Internal testers" (travis_gm@live.co.uk) created and saved on the internal testing track. Opt-in link: https://play.google.com/apps/internaltest/4700841304646978933.
+
+**Regression notes**: Only the internal testing track is live — nothing is public. The only publish warning was the standard "no deobfuscation file" notice (benign; R8/proguard mapping upload is optional). Next: install via the opt-in link, verify the Play-signed build, then promote to Production.
+
+### Production release submitted for Google review
+
+**Why**: Goal is public availability. Organisation accounts skip the 12-testers/14-days closed-testing gate, and Google review time (up to ~7 days) is the long pole, so we submitted immediately rather than waiting on internal testing.
+
+**Changes** (Play Console only, no repo changes):
+- Promoted internal release 1.0.3 (5) to the Production track (bundle + release notes carried over).
+- Countries/regions: selected all 176 + rest of world.
+- Completed the advertising ID declaration (No — the app contains no ads and does not use the AD_ID permission), which was the one issue blocking submission.
+- Sent 11 changes for review from Publishing overview (17 Sept 2026). Managed publishing is off, so the app publishes automatically on approval.
+
+**Regression notes**: If review rejects anything, fix in Play Console and resubmit — the internal testing track keeps working regardless. Do not upload new AABs with versionCode ≤ 5.
+
+### Android target SDK bumped to 36 for Google Play (versionCode 5)
+
+**Why**: Play Console rejected the 1.0.3 (versionCode 4) AAB on the internal-testing release with "must target at least API level 36" — Google requires new apps to target Android 16 from 31 Aug 2026. Expo SDK 53 builds target API 35 by default.
+
+**Changes**:
+- `app.json` — `expo-build-properties` android block: `compileSdkVersion: 36`, `targetSdkVersion: 36`, `buildToolsVersion: "36.0.0"`. `android.versionCode` 4 → 5. `expo.version` stays **1.0.3** so the EAS Update runtime (`appVersion` policy) is unchanged and existing 1.0.3 installs keep receiving OTAs.
+- New production AAB build started (EAS build `48f11350-1a66-4648-9204-3328c23e6d31`). The versionCode 4 draft release in Play internal testing needs its bundle swapped for the versionCode 5 one.
+
+**Regression notes**: iOS untouched (`useFrameworks: static` preserved; iOS buildNumber still 4). Web untouched. `edgeToEdgeEnabled: true` was already set, which is the main Android 16 behaviour change when targeting SDK 36. Next `release-apk` sideload builds will also target 36.
+
+### Play Console store setup completed (Data safety, category, contact, store listing)
+
+**Why**: The last three store-setup tasks were blocking the Guvnor Play launch. The Data safety CSV import kept failing with "Line 1: Invalid header row".
+
+**Changes**:
+- `assets/play-store/data-safety.csv` — stripped trailing whitespace from every line (717 of 778 lines had it, including the header, which is what the Play importer was rejecting). Imported and saved in Play Console: collected-not-shared data types, encrypted in transit, username/password accounts, deletion via https://guvnor.app/privacy-policy.
+- `assets/play-store/app-icon-512.png` — new 512×512 icon resized from `assets/images/icon.png` (Play requires exactly 512×512, the source is 1024×1024).
+- Play Console (no repo change): category set to **Business**, contact details support@guvnor.app / https://guvnor.app, main store listing saved (name, short + full description from `docs/play-store-launch.md`, icon, 1024×500 feature graphic, 2 phone screenshots). All dashboard store-setup tasks now complete.
+
+**Regression notes**: If `scripts/_fill_data_safety_csv.cjs` is re-run against a template with trailing spaces, strip them again before importing. Store listing has the minimum 2 phone screenshots; add runsheet + client-list shots from the demo account later for a better listing. Next Play step: upload the 1.0.3 production AAB to Internal testing.
+
+### Play reviewer demo account seeded (fake clients)
+
+**Why**: Google Play sign-in details need a restricted demo login with a few clients so reviewers are not looking at a 0/20 empty account.
+
+**Changes**:
+- Created throwaway Harper Windows account (email verified). Onboarding complete.
+- `scripts/_seed_play_demo.cjs` — signs in, mints an Agent API key, writes four fake Leeds clients + one pending job each. Args are email/password; do not commit credentials. Agent API still has no `createClient`.
+
+**Regression notes**: Do not put the demo password or the minted `gvnr_` key in git. These clients are dummy PII only. Play Console IARC questionnaire is saved (PEGI 3). Data safety / category / store listing still outstanding.
+
+### Play Data safety CSV for Console import
+
+**Why**: The Data safety questionnaire Next button stayed disabled (deletion Yes/No radios have no accessible names; sticky footer intercepts clicks). Importing a CSV is the reliable path.
+
+**Changes**:
+- `assets/play-store/data-safety.csv` — filled from Google’s sample template.
+- `scripts/_fill_data_safety_csv.cjs` — regenerates that file from a downloaded Play sample.
+
+**Regression notes**: Import overwrites whatever is already in the Play form. After import, walk Preview and Save. Category + main store listing still needed.
 
 ### EAS Update GitHub Action was never installing the CLI
 

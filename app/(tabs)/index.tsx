@@ -30,6 +30,7 @@ const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Quotes': 'chatbubble-ellipses-outline',
   'New Business': 'briefcase-outline',
   'Guvnor Leads': 'megaphone-outline',
+  'Guides': 'book-outline',
 };
 
 export default function HomeScreen() {
@@ -378,13 +379,19 @@ export default function HomeScreen() {
       return !!perms[btn.permKey];
     });
 
-    setButtons(
-      allowed.map((btn) => ({
+    setButtons([
+      ...allowed.map((btn) => ({
         label: btn.label,
         onPress: () => handleNavigation(btn.path as any),
         disabled: false,
-      }))
-    );
+      })),
+      // External link tile — available to everyone on web and native.
+      {
+        label: 'Guides',
+        onPress: () => Linking.openURL('https://guvnor.app/guides'),
+        disabled: false,
+      },
+    ]);
     
     // Fetch dashboard data
     fetchWeather();

@@ -1,6 +1,6 @@
 # Google Play launch — Guvnor Android
 
-Last updated: 15 September 2026
+Last updated: 17 September 2026
 
 This is the working runbook for getting `com.guvnor.roundmanagerapp` onto Google Play.
 The production App Bundle is built from `eas.json` profile `production` (AAB, not APK).
@@ -14,14 +14,23 @@ The production App Bundle is built from `eas.json` profile `production` (AAB, no
 
 ## What is already done from this side
 
-- Branded icon + splash on version **1.0.3** / versionCode **4** (includes push notifications). Do not upload the older 1.0.2 AAB.
+- Branded icon + splash on version **1.0.3** / versionCode **5** (includes push notifications). Do not upload the older 1.0.2 AAB or the versionCode 4 AAB (targets API 35 — Play now requires **API 36** for new apps; `app.json` sets `targetSdkVersion` 36 via `expo-build-properties`).
 - EAS Android **upload keystore** already exists on Expo (`Build Credentials 56eqvxcY1i`). Keep it. Losing it means you cannot update the Play listing.
-- Production AAB build kicked off 15 Sep 2026 (`eas build -p android --profile production`). When it finishes, download it from the Expo build page (not the APK you side-loaded).
+- **Internal testing release "1.0.3 (5)" is LIVE** (published 17 Sept 2026 15:57). Production AAB (API 36, versionCode 5, build `48f11350`) is at `guvnor-1.0.3-vc5.aab` in the repo root (untracked) and uploaded to the track. Status: "Available to internal testers / Not reviewed" — testers see a temporary app name (`com.guvnor.roundmanagerapp (unreviewed)`) until Google reviews the app.
+- Tester email list **Internal testers** (travis_gm@live.co.uk) is created, ticked and saved on the track. Opt-in link: https://play.google.com/apps/internaltest/4700841304646978933 — open it signed in as that Google account, accept, then install from the Play Store.
+- **Production release 1.0.3 (5) SUBMITTED FOR REVIEW** (17 Sept 2026 ~16:05): promoted from internal testing, all 176 countries/regions + rest of world selected, advertising ID declaration completed (No — app has no ads). 11 changes sent via Publishing overview. Google says reviews are "typically completed within seven days". Managed publishing is OFF, so once approved the app goes live automatically.
+- While waiting: verify the Play-installed internal build on a phone (login, runsheet, notifications). JS-level fixes can ship via EAS Update OTA without a new review.
 - Store assets in `assets/play-store/`:
   - `feature-graphic.png` — required 1024×500 banner
   - `phone-01-dashboard.png` — phone screenshot (home)
   - `phone-02-splash.png` — phone screenshot (launch)
-- You still need **at least two more phone screenshots of real app screens** (runsheet + client list are the ones that sell the app). Take them on your phone from the 1.0.2 APK, **using a demo account with fake clients** — do not upload real customer names or addresses.
+  - `phone-03-runsheet.png` / `phone-04-clients.png` — 1080×1920 (9:16) shots of Friday's runsheet + client list from the demo account, captured 17 Sept 2026 with `node scripts/_play_screenshots.cjs <demo-email> <password>` (headless Chrome, REST-auth session injection). **Attached to the listing (Phone 4/8, 7-inch tablet 2/8) and saved, but NOT yet sent for review** — sending would restart the production review in progress. After the review completes, go to Publishing overview and submit the 2 pending listing changes.
+- New screenshots must be exactly **9:16** (e.g. 1080×1920) or the Play asset library marks them "needs cropping" and they can't be attached.
+- Play Console organisation **TGM Window Cleaning Limited** is identity- and website-verified (`guvnor.app`). App **Guvnor** (`com.guvnor.roundmanagerapp`) is a Draft created 17 Sept 2026.
+- Dashboard: **all store-setup tasks are done** (17 Sept 2026): privacy policy, sign-in details, ads, content rating (IARC PEGI 3 / ESRB Everyone / 3+), target audience (18+), government, financial features, health, **Data safety** (saved, ready for review), **category (Business) + contact (support@guvnor.app / https://guvnor.app)**, **main store listing** (name, descriptions, 512px icon, feature graphic, 2 phone screenshots — all saved). The dashboard now shows the Internal testing tasks. Next: upload the 1.0.3 AAB to Internal testing.
+- Data safety import file: `assets/play-store/data-safety.csv` — **imported and saved 17 Sept 2026**. Declares collect + encrypted in transit + username/password accounts + user-requested deletion via https://guvnor.app/privacy-policy. Data types: name, email, user IDs, address, phone, approximate location, photos, app interactions, user-generated content, device IDs — collected not shared, required, app functionality (plus account management / fraud-prevention where it applies). Regenerated with `node scripts/_fill_data_safety_csv.cjs <template.csv> <out.csv>`. NOTE: the Play importer rejects any trailing whitespace on the header row ("Line 1: Invalid header row") — lines are now stripped.
+- Store listing icon: `assets/play-store/app-icon-512.png` (512×512, resized from `assets/images/icon.png`). The 1080×2400 dashboard screenshot was accepted as-is; the listing has the minimum 2 phone screenshots and can take 2 more (runsheet + client list from the demo account) whenever you shoot them.
+- Play reviewer demo (do **not** put the password in git): `hanise8456@dreameg.com`. Seeded with **ten** fake Leeds clients (Sam Patel, Jordan Ellis, Riley Chen, Morgan Walsh + 6 more via `scripts/_seed_play_demo2.cjs`) and window-cleaning jobs (8 on Friday 18 Sept — dates shifted via `scripts/_seed_play_demo3.cjs`). Agent API has no `createClient`; clients were written with the Firebase client SDK as that user. Mint a key via Settings → AI Assistant or `node scripts/create-agent-key.cjs` / `scripts/_seed_play_demo.cjs` if you need one.
 
 Premium purchases stay on the **website** (Stripe). The Android app does not take card payments, which is what we want for a first Play review. Do not add in-app Stripe checkout on Android without Play Billing.
 
