@@ -1614,7 +1614,12 @@ export default function RunsheetWeekScreen() {
       return;
     }
     
-    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    // Native iOS opens the preinstalled Apple Maps; Android and web keep
+    // Google Maps (Platform.OS is 'web' in mobile browsers, so this only
+    // affects the packaged iOS app).
+    const url = Platform.OS === 'ios'
+      ? `https://maps.apple.com/?q=${encodeURIComponent(address)}`
+      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
     Linking.openURL(url);
     setActionSheetJob(null);
   };
