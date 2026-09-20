@@ -22,6 +22,18 @@ const DEFAULT_PERMS: Record<string, boolean> = {
   viewPayments: false,
 };
 
+/**
+ * Permanently deletes the caller's account via the deleteAccount Cloud Function.
+ * Owners: wipes all business data, team member accounts, storage and Stripe.
+ * Members: deletes only their own membership and account.
+ * The caller's Auth user is deleted server-side, so sign out afterwards.
+ */
+export async function deleteOwnAccount(): Promise<void> {
+  const functions = getFunctions();
+  const deleteAccountFn = httpsCallable(functions, 'deleteAccount');
+  await deleteAccountFn({ confirm: 'DELETE' });
+}
+
 export async function listMembers(): Promise<MemberRecord[]> {
   const functions = getFunctions();
   const listMembersFn = httpsCallable(functions, 'listMembers');

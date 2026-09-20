@@ -14,7 +14,7 @@ import { ThemedView } from '../../components/ThemedView';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
 import { getDataOwnerId, getUserSession } from '../../core/session';
-import { backfillAccountIds, refreshClaims } from '../../services/accountService';
+import { backfillAccountIds, deleteOwnAccount, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
 import { bulkGeocodeClients } from '../../services/geocodingService';
 import { GoCardlessService } from '../../services/gocardlessService';
@@ -3360,6 +3360,60 @@ export default function SettingsScreen() {
                   console.error('Error signing out:', error);
                   showAlert('Error', 'Failed to sign out.');
                 }
+              }
+            }}
+          />
+          <ThemedText style={styles.warningText}>
+            ⚠️ Deleting your account is permanent and cannot be undone
+          </ThemedText>
+          <StyledButton
+            title="Delete Account"
+            color="red"
+            disabled={loading}
+            onPress={async () => {
+              const ownerWarning =
+                'This will PERMANENTLY delete your entire Guvnor account, including:\n\n' +
+                '• ALL clients, jobs, payments, quotes and history\n' +
+                '• ALL team member accounts — your team will lose their logins\n' +
+                '• Your subscription (any active plan is cancelled)\n' +
+                '• Your login itself\n\n' +
+                'This CANNOT be undone. There is no way to recover any of this data afterwards.\n\nContinue?';
+              const memberWarning =
+                'This will permanently delete your Guvnor login and remove you from the business account you belong to.\n\n' +
+                'The business\'s data (clients, jobs, payments) is NOT affected.\n\n' +
+                'This CANNOT be undone.\n\nContinue?';
+
+              const confirmed = await showConfirm(
+                'Delete Account',
+                isOwner ? ownerWarning : memberWarning
+              );
+              if (!confirmed) return;
+
+              const finalConfirmed = await showConfirm(
+                'FINAL WARNING',
+                isOwner
+                  ? 'Last chance: pressing OK will immediately and permanently erase your account, all business data and all team member accounts.\n\nAre you absolutely sure?'
+                  : 'Last chance: pressing OK will immediately and permanently delete your login.\n\nAre you absolutely sure?'
+              );
+              if (!finalConfirmed) return;
+
+              try {
+                setLoading(true);
+                await deleteOwnAccount();
+                // The server has deleted the Auth user; clear any local session state.
+                try {
+                  const { signOut } = await import('firebase/auth');
+                  const { auth } = await import('../../core/firebase');
+                  await signOut(auth);
+                } catch {}
+                showAlert('Account Deleted', 'Your account and data have been permanently deleted.');
+                router.replace('/login');
+              } catch (error) {
+                console.error('Error deleting account:', error);
+                const msg = error instanceof Error ? error.message : 'Failed to delete account.';
+                showAlert('Error', `Account deletion failed: ${msg}\n\nPlease try again or contact support@guvnor.app.`);
+              } finally {
+                setLoading(false);
               }
             }}
           />

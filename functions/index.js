@@ -884,6 +884,184 @@ exports.removeMember = onCall(async (request) => {
   return { success: true };
 });
 
+// Permanently delete the caller's account (App Store guideline 5.1.1(v) requires
+// in-app account deletion). Owners: wipes ALL business data, team member accounts
+// (Firestore + Auth), storage files, cancels any Stripe subscription, then deletes
+// the owner's own user doc and Auth account. Members: deletes only their own
+// membership, user doc and Auth account.
+exports.deleteAccount = onCall({ secrets: [STRIPE_SECRET_KEY], timeoutSeconds: 540, memory: '512MiB' }, async (request) => {
+  const caller = request.auth;
+  if (!caller) {
+    throw new HttpsError('unauthenticated', 'You must be signed in to delete your account.');
+  }
+  if (!request.data || request.data.confirm !== 'DELETE') {
+    throw new HttpsError('invalid-argument', 'Deletion not confirmed.');
+  }
+
+  const db = admin.firestore();
+  const uid = caller.uid;
+
+  const userSnap = await db.collection('users').doc(uid).get();
+  const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+  const accountId = userData.accountId || (caller.token && caller.token.accountId) || uid;
+  const isOwner = accountId === uid;
+
+  // --- Member self-deletion: remove membership + own user doc + Auth account ---
+  if (!isOwner) {
+    try {
+      await db.doc(`accounts/${accountId}/members/${uid}`).delete();
+    } catch (e) {
+      console.warn(`[deleteAccount] member ${uid}: failed deleting membership doc`, e);
+    }
+    await db.collection('users').doc(uid).delete().catch((e) =>
+      console.warn(`[deleteAccount] member ${uid}: failed deleting user doc`, e));
+    await admin.auth().deleteUser(uid);
+    console.log(`[deleteAccount] member ${uid} deleted (was on account ${accountId})`);
+    return { success: true, scope: 'member' };
+  }
+
+  // --- Owner: full account wipe ---
+  console.log(`[deleteAccount] OWNER WIPE starting for ${uid}`);
+  const summary = { success: true, scope: 'owner', docsDeleted: 0, membersDeleted: 0, warnings: [] };
+
+  // 1. Cancel Stripe subscription (best-effort; deleting the customer cancels subs too).
+  if (userData.stripeSubscriptionId || userData.stripeCustomerId) {
+    try {
+      const stripeKey = STRIPE_SECRET_KEY.value() || process.env.STRIPE_SECRET_KEY;
+      if (stripeKey) {
+        const stripe = require('stripe')(stripeKey);
+        if (userData.stripeSubscriptionId) {
+          await stripe.subscriptions.cancel(userData.stripeSubscriptionId).catch((e) => {
+            if (e && e.code !== 'resource_missing') throw e;
+          });
+        }
+        if (userData.stripeCustomerId) {
+          await stripe.customers.del(userData.stripeCustomerId).catch((e) => {
+            if (e && e.code !== 'resource_missing') throw e;
+          });
+        }
+        console.log(`[deleteAccount] ${uid}: Stripe subscription/customer cancelled`);
+      }
+    } catch (e) {
+      console.warn(`[deleteAccount] ${uid}: Stripe cancellation failed`, e);
+      summary.warnings.push('stripe');
+    }
+  }
+
+  // 2. Collect member UIDs before the members subcollection is wiped.
+  const memberUids = [];
+  try {
+    const membersSnap = await db.collection(`accounts/${uid}/members`).get();
+    membersSnap.docs.forEach((d) => {
+      const data = d.data() || {};
+      const memberUid = data.uid || d.id;
+      // Skip pending invites (uid null / invite-code doc ids) and the owner themself.
+      if (memberUid && memberUid !== uid && data.uid && data.status === 'active') {
+        memberUids.push(memberUid);
+      }
+    });
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed listing members`, e);
+    summary.warnings.push('members-list');
+  }
+
+  // 3. Delete all owned documents, collection by collection.
+  const deleteByQuery = async (collectionName, field, value) => {
+    // Loop because batches max out; 300 keeps well under the 500 write limit.
+    for (;;) {
+      const snap = await db.collection(collectionName).where(field, '==', value).limit(300).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      summary.docsDeleted += snap.size;
+    }
+  };
+
+  const ownerIdCollections = [
+    'clients', 'jobs', 'payments', 'servicePlans', 'quotes', 'quoteWizards',
+    'unknownPayments', 'auditLogs', 'completedDays', 'businessPortals', 'portalSessions',
+  ];
+  for (const coll of ownerIdCollections) {
+    try {
+      await deleteByQuery(coll, 'ownerId', uid);
+    } catch (e) {
+      console.warn(`[deleteAccount] ${uid}: failed wiping ${coll}`, e);
+      summary.warnings.push(coll);
+    }
+  }
+  try {
+    await deleteByQuery('quoteRequests', 'businessId', uid);
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed wiping quoteRequests`, e);
+    summary.warnings.push('quoteRequests');
+  }
+  try {
+    await deleteByQuery('agentApiKeys', 'accountId', uid);
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed wiping agentApiKeys`, e);
+    summary.warnings.push('agentApiKeys');
+  }
+
+  // completedWeeks uses doc ids of the form `${ownerId}_${date}` with no ownerId field.
+  try {
+    for (;;) {
+      const snap = await db.collection('completedWeeks')
+        .where(admin.firestore.FieldPath.documentId(), '>=', `${uid}_`)
+        .where(admin.firestore.FieldPath.documentId(), '<=', `${uid}_\uf8ff`)
+        .limit(300).get();
+      if (snap.empty) break;
+      const batch = db.batch();
+      snap.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      summary.docsDeleted += snap.size;
+    }
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed wiping completedWeeks`, e);
+    summary.warnings.push('completedWeeks');
+  }
+
+  // Single docs keyed by owner uid.
+  await db.collection('materialsConfig').doc(uid).delete().catch(() => {});
+
+  // 4. accounts/{uid} and all subcollections (members, vehicles, rota, rotaRules).
+  try {
+    await db.recursiveDelete(db.collection('accounts').doc(uid));
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: recursiveDelete of account doc failed`, e);
+    summary.warnings.push('account-doc');
+  }
+
+  // 5. Storage files (quote photos etc) — best-effort.
+  try {
+    await admin.storage().bucket().deleteFiles({ prefix: `quoteWizards/${uid}/` });
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: storage cleanup failed`, e);
+    summary.warnings.push('storage');
+  }
+
+  // 6. Delete member user docs + Auth accounts.
+  for (const memberUid of memberUids) {
+    try {
+      await db.collection('users').doc(memberUid).delete().catch(() => {});
+      await admin.auth().deleteUser(memberUid);
+      summary.membersDeleted += 1;
+      console.log(`[deleteAccount] ${uid}: deleted member ${memberUid}`);
+    } catch (e) {
+      console.warn(`[deleteAccount] ${uid}: failed deleting member ${memberUid}`, e);
+      summary.warnings.push(`member:${memberUid}`);
+    }
+  }
+
+  // 7. Finally the owner's own user doc and Auth account.
+  await db.collection('users').doc(uid).delete().catch((e) =>
+    console.warn(`[deleteAccount] ${uid}: failed deleting own user doc`, e));
+  await admin.auth().deleteUser(uid);
+
+  console.log(`[deleteAccount] OWNER WIPE complete for ${uid}:`, JSON.stringify(summary));
+  return summary;
+});
+
 // Stripe Checkout session creation
 exports.createCheckoutSession = onRequest({ secrets: [STRIPE_SECRET_KEY] }, async (req, res) => {
   console.log('🚀 [FUNCTION DEBUG] createCheckoutSession called');

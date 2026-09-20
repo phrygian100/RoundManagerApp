@@ -1,6 +1,28 @@
 # Code Changes Log
 
+## September 20, 2026
+
+### In-app account deletion (App Store requirement)
+
+**Why**: Apple guideline 5.1.1(v) requires apps with account creation to offer in-app account deletion — a hard blocker for the upcoming iOS release. Design agreed with user: owner deletion wipes everything including team member accounts, with explicit warnings.
+
+**Changes**:
+- `functions/index.js`: new `deleteAccount` callable (v2, 540s timeout, Stripe secret). Owner path: cancels Stripe subscription + deletes Stripe customer (best-effort), collects active member uids, batch-deletes all owned docs (`clients`, `jobs`, `payments`, `servicePlans`, `quotes`, `quoteWizards`, `unknownPayments`, `auditLogs`, `completedDays`, `businessPortals`, `portalSessions` by `ownerId`; `quoteRequests` by `businessId`; `agentApiKeys` by `accountId`; `completedWeeks` by doc-id prefix; `materialsConfig/{uid}`), recursive-deletes `accounts/{uid}` (members/vehicles/rota/rotaRules), deletes Storage `quoteWizards/{uid}/`, deletes member user docs + Auth users, then the owner's own user doc + Auth user. Member path: deletes only their membership doc, user doc and Auth user. Requires `{ confirm: 'DELETE' }` payload. **Deployed to us-central1 20 Sept.**
+- `services/accountService.ts`: new `deleteOwnAccount()` wrapper.
+- `app/(tabs)/settings.tsx`: red "Delete Account" button in the Account section (below Sign Out, all platforms, owners and members). Two-stage explicit confirmation via the existing `showConfirm` helper (native Alert / web confirm), with owner-specific wording spelling out that clients, jobs, payments, quotes AND team member logins are permanently erased. On success signs out locally and redirects to /login.
+
+**Regression notes**: New function only — no existing functions touched (verified single "Successful create operation" on deploy). UI change is additive to Settings. Warning from deploy: functions run on Node.js 20 which Google decommissions 2026-10-30 — runtime upgrade needed before then.
+
 ## September 18, 2026
+
+### Runsheet Navigate opens Apple Maps on native iOS
+
+**Why**: First hands-on iPhone test (iPhone 13) showed the runsheet Navigate button bouncing to the App Store to install Google Maps. Apple Maps is preinstalled and the default for most iPhone users, so the packaged iOS app should use it. Android is unchanged per user preference.
+
+**Changes** (`app/runsheet/[week].tsx`):
+- `handleNavigate` now branches on `Platform.OS === 'ios'` and opens `https://maps.apple.com/?q=<address>`; every other platform keeps the existing Google Maps URL. `Platform.OS` is `'web'` in mobile browsers, so guvnor.app in iPhone Safari still uses Google Maps — only the future packaged iOS app changes.
+
+**Regression notes**: Android app and web behaviour byte-identical (same URL as before). The developer-only Guvnor Leads screen also links to Google Maps; left untouched (user is on Android). JS-only change, ships via EAS Update OTA.
 
 ### EAS Update workflow: stop interpolating raw commit messages into the shell
 
