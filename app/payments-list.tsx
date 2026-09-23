@@ -1,12 +1,13 @@
-import { format, parseISO } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
-import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { GuideHelpButton } from '../components/GuideHelpButton';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
 import { db } from '../core/firebase';
+import { getDataOwnerId } from '../core/session';
 import { updateJobStatus } from '../services/jobService';
 import { deletePayment, getAllPayments } from '../services/paymentService';
 import type { Client } from '../types/client';
@@ -21,6 +22,29 @@ const isMobileBrowser = () => {
   return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent) ||
     (window.innerWidth <= 768);
 };
+
+function paymentAmount(amount: unknown): number {
+  const n = typeof amount === 'number' ? amount : Number(amount);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function paymentMethodLabel(method: unknown): string {
+  if (typeof method !== 'string' || !method) return 'UNKNOWN';
+  return method.replace(/_/g, ' ').toUpperCase();
+}
+
+function paymentDateLabel(date: unknown): string {
+  if (typeof date !== 'string' || !date) return 'Unknown date';
+  const parsed = parseISO(date);
+  if (!isValid(parsed)) return date;
+  return format(parsed, 'd MMMM yyyy');
+}
+
+function paymentTime(date: unknown): number {
+  if (typeof date !== 'string' || !date) return 0;
+  const t = parseISO(date).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
 
 export default function PaymentsListScreen() {
   const [loading, setLoading] = useState(true);
@@ -40,61 +64,37 @@ export default function PaymentsListScreen() {
     const fetchPayments = async () => {
       setLoading(true);
       try {
-        const paymentsData = await getAllPayments();
-        const paymentClientIds = [...new Set(
-          paymentsData
-            .map(payment => payment.clientId)
-            .filter(Boolean)
-        )];
-        
-        if (paymentClientIds.length === 0) {
-          setPayments([]);
-          setFilteredPayments([]);
-          setLoading(false);
-          return;
-        }
-
-        const paymentClientChunks = [];
-        for (let i = 0; i < paymentClientIds.length; i += 30) {
-          paymentClientChunks.push(paymentClientIds.slice(i, i + 30));
-        }
-        
+        const [paymentsData, sessionOwnerId] = await Promise.all([
+          getAllPayments(),
+          getDataOwnerId(),
+        ]);
+        // One owner-scoped client read, same query the clients screen uses.
+        // A document-id `in` query is rejected by the locked-down rules, and the
+        // old per-client fallback then fired hundreds of reads before painting —
+        // enough to hang the web tab and white-screen the Android APK.
         const paymentClientsMap = new Map<string, Client>();
-        try {
-          // Fast path: batched lookup (Firestore 'in' limit is 30)
-          const paymentClientPromises = paymentClientChunks.map(chunk =>
-            getDocs(query(collection(db, 'clients'), where('__name__', 'in', chunk)))
-          );
-          const paymentClientSnapshots = await Promise.all(paymentClientPromises);
-          
-          paymentClientSnapshots.forEach((snapshot: any) => {
-            snapshot.forEach((docSnap: any) => {
+        if (sessionOwnerId) {
+          const addClients = (snapshot: Awaited<ReturnType<typeof getDocs>>) => {
+            snapshot.forEach((docSnap) => {
               paymentClientsMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Client);
             });
-          });
-        } catch (err) {
-          // If any doc in an `in` batch is not readable/missing, Firestore can reject the whole query.
-          // Fall back to per-doc fetch so payments still render (clients may show as Unknown).
-          console.warn('⚠️ Batched client lookup failed in payments-list; falling back to per-client getDoc.', err);
-          const settled = await Promise.allSettled(
-            paymentClientIds.map((id) => getDoc(doc(db, 'clients', id)))
-          );
-          settled.forEach((r) => {
-            if (r.status === 'fulfilled') {
-              const snap = r.value;
-              if (snap.exists()) {
-                paymentClientsMap.set(snap.id, { id: snap.id, ...snap.data() } as Client);
-              }
-            }
-          });
+          };
+          const ownerSnap = await getDocs(query(collection(db, 'clients'), where('ownerId', '==', sessionOwnerId)));
+          addClients(ownerSnap);
+          try {
+            const accountSnap = await getDocs(query(collection(db, 'clients'), where('accountId', '==', sessionOwnerId)));
+            addClients(accountSnap);
+          } catch (err) {
+            console.warn('payments-list: accountId client query failed; ownerId results kept.', err);
+          }
         }
-        
+
         const paymentsWithClients = paymentsData.map(payment => ({
           ...payment,
           client: paymentClientsMap.get(payment.clientId) || null,
         }));
         
-        paymentsWithClients.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        paymentsWithClients.sort((a, b) => paymentTime(b.date) - paymentTime(a.date));
         
         setPayments(paymentsWithClients);
         setFilteredPayments(paymentsWithClients);
@@ -148,7 +148,7 @@ export default function PaymentsListScreen() {
       if (fullAddress.includes(query)) return true;
       
       // Search by date
-      if (payment.date.includes(query)) return true;
+      if (typeof payment.date === 'string' && payment.date.includes(query)) return true;
       
       return false;
     });
@@ -156,10 +156,9 @@ export default function PaymentsListScreen() {
     // Sort
     const sorted = [...filtered].sort((a, b) => {
       if (sortBy === 'date') {
-        return new Date(b.date).getTime() - new Date(a.date).getTime(); // Desc by date
+        return paymentTime(b.date) - paymentTime(a.date);
       }
-      // amount
-      return b.amount - a.amount; // Desc by amount
+      return paymentAmount(b.amount) - paymentAmount(a.amount);
     });
 
     setFilteredPayments(sorted);
@@ -256,10 +255,10 @@ export default function PaymentsListScreen() {
         </Pressable>
         <ThemedText type="defaultSemiBold">{displayAddress}</ThemedText>
         <ThemedText>{client?.name || 'Unknown client'}</ThemedText>
-        <ThemedText>£{item.amount.toFixed(2)}</ThemedText>
-        <ThemedText style={styles.paymentMethod}>{item.method.replace('_', ' ').toUpperCase()}</ThemedText>
+        <ThemedText>£{paymentAmount(item.amount).toFixed(2)}</ThemedText>
+        <ThemedText style={styles.paymentMethod}>{paymentMethodLabel(item.method)}</ThemedText>
         <ThemedText>
-          Date: {format(parseISO(item.date), 'd MMMM yyyy')}
+          Date: {paymentDateLabel(item.date)}
         </ThemedText>
         {item.reference && (
           <ThemedText style={styles.reference}>Ref: {item.reference}</ThemedText>
@@ -272,12 +271,12 @@ export default function PaymentsListScreen() {
   };
 
   const calculatePaymentsTotal = () => {
-    return payments.reduce((sum, payment) => sum + payment.amount, 0);
+    return payments.reduce((sum, payment) => sum + paymentAmount(payment.amount), 0);
   };
 
   if (loading) {
     return (
-      <ThemedView style={styles.container}>
+      <ThemedView style={[styles.container, styles.centered]}>
         <ActivityIndicator size="large" />
       </ThemedView>
     );
@@ -367,9 +366,13 @@ export default function PaymentsListScreen() {
       </View>
       
       <FlatList
+        style={styles.list}
         data={filteredPayments}
         renderItem={renderPayment}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.id || `${item.clientId}-${item.date}-${item.amount}`}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={7}
         contentContainerStyle={{ paddingTop: 10 }}
         ListEmptyComponent={
           <ThemedText style={styles.emptyText}>
@@ -384,8 +387,17 @@ export default function PaymentsListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    minHeight: 0,
     padding: 24,
     paddingTop: 60,
+  },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  list: {
+    flex: 1,
+    minHeight: 0,
   },
   title: {
     fontSize: 28,

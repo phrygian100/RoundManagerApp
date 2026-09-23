@@ -1,5 +1,15 @@
 # Code Changes Log
 
+## September 23, 2026
+
+### Payments list: stop the white screen on web and Android
+
+**File Changed**: `app/payments-list.tsx`
+
+**Problem**: `/payments-list` never painted on web and showed a white screen in the Android APK. The screen loads every payment (about 7,900) and then looked up each client with a document-id `in` query. Locked-down Firestore rules reject that query, so it fell back to one `getDoc` per client (600+ at once) before drawing anything. The list itself had no bounded height, so once the data arrived the app tried to mount every row. One bad amount, method, or date in a row also threw during render and took the whole screen down.
+
+**Solution**: Load clients with the same owner-scoped query the clients screen uses (plus an `accountId` fallback). Give the list `flex: 1` so it virtualizes. Format amount, method, and date defensively so one bad payment cannot crash the screen.
+
 ## September 20, 2026
 
 ### In-app account deletion (App Store requirement)
