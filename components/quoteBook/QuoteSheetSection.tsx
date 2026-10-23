@@ -10,6 +10,7 @@ import {
   QuoteBookEntry,
 } from '../../services/quoteBookService';
 import { buildQrSvgs, buildQuoteSheetsHtml, QuoteSheetBrand, QuoteSheetContent } from '../../utils/quoteSheetHtml';
+import { buildQuoteSheetsPdf, downloadPdf, QuoteSheetPaper } from '../../utils/quoteSheetPdf';
 import QuoteOrderModal from './QuoteOrderModal';
 
 const PRESET_PHOTO = require('../../assets/presets/flyer-back/ConservatoryroofBeforeandAfter.jpg');
@@ -51,6 +52,14 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
   const [batch, setBatch] = useState<QuoteBookEntry[] | null>(null);
   const [busy, setBusy] = useState<'' | 'ref' | 'area' | 'print'>('');
   const [showOrder, setShowOrder] = useState(false);
+  const [paper, setPaperState] = useState<QuoteSheetPaper>(() => {
+    if (Platform.OS !== 'web') return 'A5';
+    try { return window.localStorage.getItem('quoteSheetPaper') === 'A4' ? 'A4' : 'A5'; } catch { return 'A5'; }
+  });
+  const setPaper = (p: QuoteSheetPaper) => {
+    setPaperState(p);
+    try { window.localStorage.setItem('quoteSheetPaper', p); } catch { /* storage blocked */ }
+  };
 
   const content: QuoteSheetContent = useMemo(() => ({
     servicesText,
@@ -116,30 +125,19 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
 
   const printSheets = async (entries: QuoteBookEntry[], offerMarkPrinted: boolean) => {
     if (!entries.length) return;
-    const win = window.open('', '_blank');
-    if (!win) { alertWeb('Allow pop-ups for this site to print quote sheets.'); return; }
-    win.document.write('<p style="font-family:sans-serif;padding:24px">Preparing quote sheets…</p>');
     setBusy('print');
     try {
-      const qr = await buildQrSvgs(brand.businessName, entries.map((e) => e.ref));
-      const html = buildQuoteSheetsHtml(entries, { ...brand, logoUrl: absoluteUrl(brand.logoUrl) }, content, qr, {
-        title: entries.length === 1 ? `Quote ${entries[0].ref}` : `Quote sheets (${entries.length})`,
-      });
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      const images = Array.from(win.document.images);
-      await Promise.all(images.map((img) => (img.complete ? null : new Promise((r) => { img.onload = r; img.onerror = r; }))));
-      await new Promise((r) => setTimeout(r, 600));
-      win.focus();
-      win.print();
+      const bytes = await buildQuoteSheetsPdf(entries, { ...brand, logoUrl: absoluteUrl(brand.logoUrl) }, content, paper);
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadPdf(bytes, entries.length === 1
+        ? `quote-${entries[0].ref}-${paper}.pdf`
+        : `quote-sheets-${stamp}-${entries.length}-${paper}.pdf`);
       if (offerMarkPrinted && window.confirm(`Mark these ${entries.length} quotes as printed? They will be left out of the next "never printed" run.`)) {
         await markSheetsPrinted(entries.map((e) => e.ref));
         setBatch((prev) => (prev && onlyUnprinted ? prev.filter((q) => !entries.some((e) => e.ref === q.ref)) : prev));
       }
     } catch (err) {
-      console.error('Quote sheet print failed:', err);
-      win.close();
+      console.error('Quote sheet PDF failed:', err);
       alertWeb('Could not build the quote sheets.');
     } finally {
       setBusy('');
@@ -154,12 +152,26 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Quote informed sheet <Text style={styles.devTag}>DEVELOPER</Text></Text>
           <Text style={styles.subtitle}>
-            A personalised quote for one home, with the 4- and 8-weekly prices from the quote book and a QR code that opens their accept page. Print double-sided on A5. The back uses the Canvassing Flyer photo and additional services.
+            A personalised quote for one home, with the 4- and 8-weekly prices from the quote book and a QR code that opens their accept page. Downloads as a PDF at the exact paper size, front then back for each home, ready to print double-sided (flip on long edge). The back uses the Canvassing Flyer photo and additional services.
           </Text>
         </View>
       </View>
 
       <View style={styles.controls}>
+        <View style={styles.controlGroup}>
+          <Text style={styles.label}>Paper size</Text>
+          <View style={styles.row}>
+            {(['A5', 'A4'] as const).map((p) => (
+              <Pressable key={p} style={[styles.btn, paper === p && styles.btnActive]} onPress={() => setPaper(p)} disabled={!!busy}>
+                <Text style={[styles.btnText, paper === p && styles.btnActiveText]}>{p}</Text>
+              </Pressable>
+            ))}
+            <Text style={styles.hint}>
+              {paper === 'A5' ? 'A5 flyer (148 × 210 mm), for a print shop or A5 paper.' : 'The same design enlarged to fill A4, for a home printer.'}
+            </Text>
+          </View>
+        </View>
+
         <View style={styles.controlGroup}>
           <Text style={styles.label}>Single sheet</Text>
           <View style={styles.row}>
@@ -168,8 +180,8 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
               {busy === 'ref' ? <ActivityIndicator size="small" color="#007AFF" /> : <Text style={styles.btnText}>Load</Text>}
             </Pressable>
             <Pressable style={[styles.btnPrimary, !entry && styles.disabled]} onPress={() => entry && printSheets([entry], false)} disabled={!entry || !!busy}>
-              <Ionicons name="print-outline" size={16} color="#fff" />
-              <Text style={styles.btnPrimaryText}>Print this sheet</Text>
+              {busy === 'print' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="download-outline" size={16} color="#fff" />}
+              <Text style={styles.btnPrimaryText}>Download PDF</Text>
             </Pressable>
           </View>
           {!entry ? <Text style={styles.hint}>The preview shows sample prices until a quote is loaded.</Text> : null}
@@ -195,7 +207,7 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
               </Text>
               <Pressable style={[styles.btnPrimary, !batch.length && styles.disabled]} onPress={() => printSheets(batchToPrint, true)} disabled={!batch.length || !!busy}>
                 {busy === 'print' ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="document-outline" size={16} color="#fff" />}
-                <Text style={styles.btnPrimaryText}>Print {batchToPrint.length} sheets (save as PDF)</Text>
+                <Text style={styles.btnPrimaryText}>Download {batchToPrint.length} sheets (PDF)</Text>
               </Pressable>
             </View>
           ) : null}
@@ -249,6 +261,8 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, fontSize: 15, minWidth: 240, backgroundColor: '#fff' },
   btn: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, borderWidth: 1, borderColor: '#007AFF' },
   btnText: { color: '#007AFF', fontWeight: '600' },
+  btnActive: { backgroundColor: '#007AFF' },
+  btnActiveText: { color: '#fff' },
   btnPrimary: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingHorizontal: 14, paddingVertical: 9, borderRadius: 8, backgroundColor: '#007AFF' },
   btnPrimaryText: { color: '#fff', fontWeight: '600' },
   disabled: { opacity: 0.5 },
