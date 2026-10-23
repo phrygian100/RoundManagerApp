@@ -10,6 +10,7 @@ import {
   QuoteBookEntry,
 } from '../../services/quoteBookService';
 import { buildQrSvgs, buildQuoteSheetsHtml, QuoteSheetBrand, QuoteSheetContent } from '../../utils/quoteSheetHtml';
+import QuoteOrderModal from './QuoteOrderModal';
 
 const PRESET_PHOTO = require('../../assets/presets/flyer-back/ConservatoryroofBeforeandAfter.jpg');
 const MAX_SHEETS_PER_PRINT = 500;
@@ -49,6 +50,7 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
   const [onlyUnprinted, setOnlyUnprinted] = useState(true);
   const [batch, setBatch] = useState<QuoteBookEntry[] | null>(null);
   const [busy, setBusy] = useState<'' | 'ref' | 'area' | 'print'>('');
+  const [showOrder, setShowOrder] = useState(false);
 
   const content: QuoteSheetContent = useMemo(() => ({
     servicesText,
@@ -198,7 +200,28 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
             </View>
           ) : null}
         </View>
+
+        <View style={styles.controlGroup}>
+          <Text style={styles.label}>Your own order</Text>
+          <View style={styles.row}>
+            <Pressable style={styles.btn} onPress={() => setShowOrder(true)} disabled={!!busy}>
+              <Text style={styles.btnText}>Specify order</Text>
+            </Pressable>
+            <Text style={styles.hint}>Paste quote references from a spreadsheet and print them in that order.</Text>
+          </View>
+        </View>
       </View>
+
+      <QuoteOrderModal
+        visible={showOrder}
+        maxSheets={MAX_SHEETS_PER_PRINT}
+        busy={busy === 'print'}
+        onClose={() => setShowOrder(false)}
+        onPrint={(entries) => {
+          setShowOrder(false);
+          printSheets(entries, true);
+        }}
+      />
 
       {previewHtml ? (
         React.createElement('iframe', {
