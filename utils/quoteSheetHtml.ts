@@ -72,7 +72,7 @@ h1 { font-size: 5.2mm; margin: 0 0 1.5mm; color: #2E86AB; }
 .qr .how { font-size: 2.8mm; color: #52606d; margin-top: 1mm; line-height: 1.35; }
 .qr .ref { font-size: 3.4mm; margin-top: 1.6mm; }
 .qr .ref b { font-family: 'Consolas', 'Courier New', monospace; font-size: 4.2mm; letter-spacing: .4mm; }
-.photo { position: absolute; inset: 0 0 52mm 0; background: #ddd center/cover no-repeat; }
+.photo { position: absolute; inset: 0 0 44mm 0; background: #ddd center/cover no-repeat; }
 .ba { position: absolute; top: 5mm; left: 0; right: 0; display: flex; justify-content: space-around; }
 .ba span { background: rgba(0,0,0,.6); color: #fff; font-weight: 800; font-size: 3.6mm; padding: 1.2mm 3.4mm; border-radius: 2mm; }
 .extras { position: absolute; left: 8mm; right: 8mm; bottom: 58mm; background: rgba(255,255,255,.95); border-radius: 3mm; padding: 4mm 5mm; box-shadow: 0 1mm 3mm rgba(0,0,0,.15); }
@@ -83,8 +83,10 @@ h1 { font-size: 5.2mm; margin: 0 0 1.5mm; color: #2E86AB; }
 .extras .n { font-size: 2.9mm; color: #52606d; margin-top: 2.4mm; }
 .foot { position: absolute; left: 0; right: 0; bottom: 0; height: 52mm; background: #2E86AB; color: #fff; padding: 9mm 8mm 0; border-radius: 50% 50% 0 0 / 8mm 8mm 0 0; }
 .foot .t { font-size: 5.4mm; font-weight: 800; margin-bottom: 3mm; }
-.foot .r { font-size: 3.8mm; margin-bottom: 1.8mm; display: flex; gap: 2.4mm; align-items: center; }
+.foot .r { font-size: 3.8mm; margin-bottom: 2.2mm; display: flex; gap: 2.6mm; align-items: center; }
+.foot .r svg { width: 4.6mm; height: 4.6mm; flex: none; fill: #fff; }
 .foot .ph { font-size: 6mm; font-weight: 800; }
+.foot .ph svg { width: 5.6mm; height: 5.6mm; }
 `;
 
 function frontPage(entry: QuoteBookEntry, brand: QuoteSheetBrand, content: QuoteSheetContent, qrSvg: string) {
@@ -131,6 +133,10 @@ function frontPage(entry: QuoteBookEntry, brand: QuoteSheetBrand, content: Quote
 </section>`;
 }
 
+const ICON_PHONE = '<svg viewBox="0 0 24 24"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1z"/></svg>';
+const ICON_FACEBOOK = '<svg viewBox="0 0 24 24"><path d="M24 12a12 12 0 1 0-13.9 11.9v-8.4h-3V12h3V9.4c0-3 1.8-4.7 4.5-4.7 1.3 0 2.7.2 2.7.2v2.9h-1.5c-1.5 0-2 .9-2 1.9V12h3.4l-.5 3.5h-2.9v8.4A12 12 0 0 0 24 12z"/></svg>';
+const ICON_WEB = '<svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm6.9 6h-2.9a15.6 15.6 0 0 0-1.4-3.6A8 8 0 0 1 18.9 8zM12 4c.8 1.2 1.5 2.5 1.9 4h-3.8c.4-1.4 1.1-2.8 1.9-4zM4.3 14a8.2 8.2 0 0 1 0-4h3.4a16.5 16.5 0 0 0 0 4H4.3zm.8 2h2.9c.3 1.3.8 2.5 1.4 3.6A8 8 0 0 1 5.1 16zM8 8H5.1a8 8 0 0 1 4.3-3.6C8.8 5.5 8.3 6.7 8 8zm4 12c-.8-1.2-1.5-2.5-1.9-4h3.8c-.4 1.4-1.1 2.8-1.9 4zm2.3-6H9.7a14.7 14.7 0 0 1 0-4h4.6a14.7 14.7 0 0 1 0 4zm.3 5.6c.6-1.1 1.1-2.3 1.4-3.6h2.9a8 8 0 0 1-4.3 3.6zm1.8-5.6a16.5 16.5 0 0 0 0-4h3.4a8.2 8.2 0 0 1 0 4h-3.4z"/></svg>';
+
 function backPage(brand: QuoteSheetBrand, content: QuoteSheetContent) {
   const extras = lines(content.additionalServicesText);
   return `
@@ -141,9 +147,9 @@ function backPage(brand: QuoteSheetBrand, content: QuoteSheetContent) {
   ${extras.length ? `<div class="extras"><div class="t">Additional Services</div><div class="grid">${extras.map((s) => `<div>${esc(s)}</div>`).join('')}</div><div class="n">Just ask when you accept your quote and we will price these for you too.</div></div>` : ''}
   <div class="foot">
     <div class="t">Get in touch</div>
-    ${brand.mobileNumber ? `<div class="r ph">☎ ${esc(brand.mobileNumber)}</div>` : ''}
-    ${brand.facebookHandle ? `<div class="r">f&nbsp; ${esc(brand.facebookHandle)}</div>` : ''}
-    ${brand.websiteAddress ? `<div class="r">🌐 ${esc(brand.websiteAddress)}</div>` : ''}
+    ${brand.mobileNumber ? `<div class="r ph">${ICON_PHONE}${esc(brand.mobileNumber)}</div>` : ''}
+    ${brand.facebookHandle ? `<div class="r">${ICON_FACEBOOK}${esc(brand.facebookHandle)}</div>` : ''}
+    ${brand.websiteAddress ? `<div class="r">${ICON_WEB}${esc(brand.websiteAddress)}</div>` : ''}
   </div>
 </section>`;
 }
