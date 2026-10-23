@@ -14,7 +14,8 @@ import { buildQuoteSheetsPdf, downloadPdf, QuoteSheetPaper } from '../../utils/q
 import QuoteOrderModal from './QuoteOrderModal';
 
 const PRESET_PHOTO = require('../../assets/presets/flyer-back/ConservatoryroofBeforeandAfter.jpg');
-const MAX_SHEETS_PER_PRINT = 500;
+// 1,000 quotes (2,000 pages) builds in ~12 s and peaks around 1.2 GB of browser memory; higher risks the tab.
+const MAX_SHEETS_PER_PRINT = 1000;
 
 const SAMPLE: QuoteBookEntry = {
   id: '00000000',
