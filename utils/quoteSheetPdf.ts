@@ -95,8 +95,10 @@ export async function buildQuoteSheetsPdf(
   content: QuoteSheetContent,
   paper: QuoteSheetPaper = 'A5',
 ): Promise<Uint8Array> {
+  // The self-contained UMD build: pdf-lib's ES build reads tslib's default export, which Metro's web resolution leaves undefined.
   const [{ PDFDocument, StandardFonts, rgb, degrees }, QRCode] = await Promise.all([
-    import('pdf-lib'),
+    // @ts-expect-error The UMD file has no declarations; it is typed by the cast.
+    import('pdf-lib/dist/pdf-lib.min.js') as Promise<typeof import('pdf-lib')>,
     import('qrcode').then((m) => m.default),
   ]);
 
