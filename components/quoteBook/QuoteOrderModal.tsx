@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { getDataOwnerId } from '../../core/session';
-import { getQuoteBookEntry, QuoteBookEntry } from '../../services/quoteBookService';
+import { getQuoteBookEntry, QUOTE_BOOK_STATUS_LABELS, QuoteBookEntry } from '../../services/quoteBookService';
 
 const INITIAL_ROWS = 15;
 const LOOKUP_CONCURRENCY = 20;
@@ -101,7 +101,7 @@ export default function QuoteOrderModal({ visible, maxSheets, busy, onClose, onP
     if (!found || found === 'loading') return <span style={{ color: '#6c757d' }}>Checking…</span>;
     if (found === 'missing') return <span style={{ color: '#c62828' }}>Not in your quote book</span>;
     if (firstRowFor[r] !== i) return <span style={{ color: '#e65100' }}>Repeat of row {firstRowFor[r] + 1}</span>;
-    if (found.status !== 'open') return <span style={{ color: '#e65100' }}>{found.status}</span>;
+    if (found.status !== 'open') return <span style={{ color: '#e65100' }}>{QUOTE_BOOK_STATUS_LABELS[found.status] || found.status}</span>;
     return <span style={{ color: '#2e7d32' }}>✓ Ready</span>;
   };
 
@@ -122,7 +122,7 @@ export default function QuoteOrderModal({ visible, maxSheets, busy, onClose, onP
           </View>
 
           <div style={{ flex: 1, minHeight: 0, overflow: 'auto', border: '1px solid #e0e0e0', borderRadius: 8, background: '#fff' }}>
-            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640 }}>
+            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640, fontFamily: 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' }}>
               <thead>
                 <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #dee2e6', position: 'sticky', top: 0 }}>
                   <th style={{ ...thStyle, width: 40 }}>#</th>
