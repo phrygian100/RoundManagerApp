@@ -4,8 +4,10 @@ import * as FileSystem from 'expo-file-system';
 import { useRouter } from 'expo-router';
 import { addDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import Papa from 'papaparse';
-import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Linking, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { deepLinkToSubscriptions } from '../../services/storeIap';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as XLSX from 'xlsx';
 import AgentApiKeysModal from '../../components/AgentApiKeysModal';
 import GoCardlessApiTokenModal from '../../components/GoCardlessApiTokenModal';
@@ -13,6 +15,8 @@ import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
+import { closeSettingsDrawer } from '../../core/settingsDrawer';
+import { prepareForSignOut } from '../../core/signOutPrep';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { backfillAccountIds, deleteOwnAccount, refreshClaims } from '../../services/accountService';
 import { deleteAllClients, getClientCount } from '../../services/clientService';
@@ -29,6 +33,11 @@ import {
   PREMIUM_PRICE_ONLY_LABEL,
   PREMIUM_PRICE_PER_MONTH_LABEL,
 } from '../../shared/constants/pricing';
+import { APPLE_SUBSCRIPTION_MANAGEMENT_URL } from '../../shared/constants/appleIap';
+import {
+  ANDROID_PACKAGE_NAME,
+  GOOGLE_PLAY_PREMIUM_PRODUCT_ID,
+} from '../../shared/constants/googlePlayIap';
 import { clearAccountBusinessTypeCache, getUserProfile, syncBusinessPortalFromUserDocument, updateUserProfile } from '../../services/userService';
 import { DEVELOPER_UID } from '../../shared/constants/developer';
 import { pushOrNewTab } from '../../utils/ctrlClickNavigation';
@@ -95,9 +104,41 @@ async function showConfirm(title: string, message: string): Promise<boolean> {
   });
 }
 
+// Close the settings panel and let that unmount finish before auth changes.
+// Navigating in the same moment is what iOS reports as "Guvnor Crashed".
+async function leaveAfterConfirm(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  closeSettingsDrawer();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+}
+
 export default function SettingsScreen() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const nativeConfirmRef = useRef<{
+    title: string;
+    message: string;
+    resolve: (ok: boolean) => void;
+  } | null>(null);
+  const [nativeConfirm, setNativeConfirm] = useState<{
+    title: string;
+    message: string;
+  } | null>(null);
+
+  const askNativeConfirm = (title: string, message: string) =>
+    new Promise<boolean>((resolve) => {
+      nativeConfirmRef.current = { title, message, resolve };
+      setNativeConfirm({ title, message });
+    });
+
+  const finishNativeConfirm = (ok: boolean) => {
+    const pending = nativeConfirmRef.current;
+    nativeConfirmRef.current = null;
+    setNativeConfirm(null);
+    pending?.resolve(ok);
+  };
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [isMemberOfAnotherAccount, setIsMemberOfAnotherAccount] = useState<boolean | null>(null);
   const [sessionUid, setSessionUid] = useState<string | null>(null);
@@ -230,8 +271,22 @@ export default function SettingsScreen() {
         }
         
         window.location.href = url;
+      } else if (
+        Platform.OS === 'ios' &&
+        (subscription?.provider === 'apple' ||
+          subscription?.provider === 'multiple')
+      ) {
+        await Linking.openURL(APPLE_SUBSCRIPTION_MANAGEMENT_URL);
+      } else if (
+        Platform.OS === 'android' &&
+        (subscription?.provider === 'google' ||
+          subscription?.provider === 'multiple')
+      ) {
+        await deepLinkToSubscriptions({
+          skuAndroid: GOOGLE_PLAY_PREMIUM_PRODUCT_ID,
+          packageNameAndroid: ANDROID_PACKAGE_NAME,
+        });
       } else {
-        // For mobile, show message to use web
         Alert.alert(
           'Manage Billing',
           'Please use the web version to manage your billing and subscription settings.',
@@ -3014,7 +3069,7 @@ export default function SettingsScreen() {
           )}
           
           {/* Manage billing button for premium users */}
-          {subscription && subscription.tier === 'premium' && subscription.status === 'active' && (
+          {subscription && subscription.tier === 'premium' && (
             <StyledButton
               title="Manage Billing"
               onPress={handleManageBilling}
@@ -3343,19 +3398,24 @@ export default function SettingsScreen() {
           <StyledButton
             title="Sign Out"
             onPress={async () => {
-              const confirmed = await showConfirm(
-                'Sign Out',
-                'Are you sure you want to sign out?'
-              );
-              
+              const confirmed = Platform.OS === 'web'
+                ? window.confirm('Sign Out\n\nAre you sure you want to sign out?')
+                : await askNativeConfirm('Sign Out', 'Are you sure you want to sign out?');
+
               if (confirmed) {
                 try {
+                  await leaveAfterConfirm();
                   console.log('🔑 Signing out user...');
                   const { signOut } = await import('firebase/auth');
                   const { auth } = await import('../../core/firebase');
+                  await prepareForSignOut();
                   await signOut(auth);
-                  console.log('🔑 Sign out successful, redirecting to login');
-                  router.replace('/login');
+                  console.log('🔑 Sign out successful');
+                  // iOS: the root layout draws the login screen over the app.
+                  // Replacing the route here as well crashes the app.
+                  if (Platform.OS === 'web') {
+                    router.replace('/login');
+                  }
                 } catch (error) {
                   console.error('Error signing out:', error);
                   showAlert('Error', 'Failed to sign out.');
@@ -3371,11 +3431,19 @@ export default function SettingsScreen() {
             color="red"
             disabled={loading}
             onPress={async () => {
+              const subscriptionDeletionWarning =
+                subscription?.provider === 'apple'
+                  ? '• Your Guvnor account (an App Store subscription must be cancelled separately in Apple Subscriptions)\n'
+                  : subscription?.provider === 'google'
+                    ? '• Your subscription (Google Play renewal is cancelled)\n'
+                    : subscription?.provider === 'multiple'
+                      ? '• Your subscription (Google Play/Stripe renewal is cancelled; any App Store subscription must be cancelled separately)\n'
+                      : '• Your subscription (any active Stripe plan is cancelled)\n';
               const ownerWarning =
                 'This will PERMANENTLY delete your entire Guvnor account, including:\n\n' +
                 '• ALL clients, jobs, payments, quotes and history\n' +
                 '• ALL team member accounts — your team will lose their logins\n' +
-                '• Your subscription (any active plan is cancelled)\n' +
+                subscriptionDeletionWarning +
                 '• Your login itself\n\n' +
                 'This CANNOT be undone. There is no way to recover any of this data afterwards.\n\nContinue?';
               const memberWarning =
@@ -3383,22 +3451,25 @@ export default function SettingsScreen() {
                 'The business\'s data (clients, jobs, payments) is NOT affected.\n\n' +
                 'This CANNOT be undone.\n\nContinue?';
 
-              const confirmed = await showConfirm(
-                'Delete Account',
-                isOwner ? ownerWarning : memberWarning
-              );
+              const confirmed = Platform.OS === 'web'
+                ? window.confirm(`Delete Account\n\n${isOwner ? ownerWarning : memberWarning}`)
+                : await askNativeConfirm('Delete Account', isOwner ? ownerWarning : memberWarning);
               if (!confirmed) return;
 
-              const finalConfirmed = await showConfirm(
-                'FINAL WARNING',
-                isOwner
-                  ? 'Last chance: pressing OK will immediately and permanently erase your account, all business data and all team member accounts.\n\nAre you absolutely sure?'
-                  : 'Last chance: pressing OK will immediately and permanently delete your login.\n\nAre you absolutely sure?'
-              );
+              const finalMessage = isOwner
+                ? 'Last chance: pressing OK will immediately and permanently erase your account, all business data and all team member accounts.\n\nAre you absolutely sure?'
+                : 'Last chance: pressing OK will immediately and permanently delete your login.\n\nAre you absolutely sure?';
+              const finalConfirmed = Platform.OS === 'web'
+                ? window.confirm(`FINAL WARNING\n\n${finalMessage}`)
+                : await askNativeConfirm('FINAL WARNING', finalMessage);
               if (!finalConfirmed) return;
 
+              let leftScreen = false;
               try {
                 setLoading(true);
+                await leaveAfterConfirm();
+                leftScreen = true;
+                await prepareForSignOut();
                 await deleteOwnAccount();
                 // The server has deleted the Auth user; clear any local session state.
                 try {
@@ -3406,14 +3477,15 @@ export default function SettingsScreen() {
                   const { auth } = await import('../../core/firebase');
                   await signOut(auth);
                 } catch {}
-                showAlert('Account Deleted', 'Your account and data have been permanently deleted.');
-                router.replace('/login');
+                if (Platform.OS === 'web') {
+                  router.replace('/login');
+                }
               } catch (error) {
                 console.error('Error deleting account:', error);
                 const msg = error instanceof Error ? error.message : 'Failed to delete account.';
                 showAlert('Error', `Account deletion failed: ${msg}\n\nPlease try again or contact support@guvnor.app.`);
               } finally {
-                setLoading(false);
+                if (!leftScreen) setLoading(false);
               }
             }}
           />
@@ -3427,8 +3499,19 @@ export default function SettingsScreen() {
         visible={profileModalVisible}
         onRequestClose={() => setProfileModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalView}>
+        <KeyboardAvoidingView
+          style={[
+            styles.modalContainer,
+            { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
+          ]}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            style={styles.modalView}
+            contentContainerStyle={styles.modalViewContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <ThemedText style={styles.modalTitle}>Edit Profile</ThemedText>
             
             <TextInput
@@ -3485,8 +3568,8 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Bank & Business Info Modal */}
@@ -3496,8 +3579,19 @@ export default function SettingsScreen() {
         visible={bankInfoModalVisible}
         onRequestClose={() => setBankInfoModalVisible(false)}
       >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalView}>
+        <KeyboardAvoidingView
+          style={[
+            styles.modalContainer,
+            { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 12 },
+          ]}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <ScrollView
+            style={styles.modalView}
+            contentContainerStyle={styles.modalViewContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <ThemedText style={styles.modalTitle}>Bank & Business Info</ThemedText>
             
             <TextInput
@@ -3576,8 +3670,8 @@ export default function SettingsScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
-        </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* AI Assistant API Keys Modal */}
@@ -3601,6 +3695,31 @@ export default function SettingsScreen() {
         onClose={() => setUpgradeModalVisible(false)}
         onUpgradeSuccess={handleUpgradeSuccess}
       />
+
+      {nativeConfirm && (
+        <View style={styles.nativeConfirmOverlay}>
+          <View style={styles.nativeConfirmCard}>
+            <Text style={styles.nativeConfirmTitle}>{nativeConfirm.title}</Text>
+            <ScrollView style={styles.nativeConfirmMessageScroll}>
+              <Text style={styles.nativeConfirmMessage}>{nativeConfirm.message}</Text>
+            </ScrollView>
+            <View style={styles.nativeConfirmActions}>
+              <TouchableOpacity
+                style={styles.nativeConfirmCancel}
+                onPress={() => finishNativeConfirm(false)}
+              >
+                <Text style={styles.nativeConfirmCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.nativeConfirmOk}
+                onPress={() => finishNativeConfirm(true)}
+              >
+                <Text style={styles.nativeConfirmOkText}>OK</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </ThemedView>
   );
 }
@@ -3609,6 +3728,60 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
+  },
+  nativeConfirmOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    justifyContent: 'center',
+    padding: 24,
+    zIndex: 20,
+  },
+  nativeConfirmCard: {
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  nativeConfirmTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  nativeConfirmMessageScroll: {
+    flexGrow: 0,
+    maxHeight: 280,
+    marginBottom: 16,
+  },
+  nativeConfirmMessage: {
+    fontSize: 15,
+    lineHeight: 21,
+    color: '#374151',
+  },
+  nativeConfirmActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  nativeConfirmCancel: {
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  nativeConfirmCancelText: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  nativeConfirmOk: {
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
+  },
+  nativeConfirmOkText: {
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '700',
   },
   scrollView: {
     flex: 1,
@@ -3711,11 +3884,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalView: {
-    margin: 20,
     backgroundColor: 'white',
     borderRadius: 20,
-    padding: 35,
-    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -3726,6 +3896,11 @@ const styles = StyleSheet.create({
     elevation: 5,
     width: '90%',
     maxWidth: 400,
+    maxHeight: '100%',
+  },
+  modalViewContent: {
+    padding: 24,
+    alignItems: 'center',
   },
   modalTitle: {
     fontSize: 20,

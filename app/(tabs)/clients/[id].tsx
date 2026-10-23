@@ -7,6 +7,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, query, updateDoc, where, writeBatch } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, Platform, Pressable, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GoCardlessSettingsModal from '../../../components/GoCardlessSettingsModal';
 import { GuideHelpButton } from '../../../components/GuideHelpButton';
 import { ThemedText } from '../../../components/ThemedText';
@@ -53,6 +54,7 @@ export default function ClientDetailScreen() {
   const params = useLocalSearchParams();
   const id = typeof (params as any).id === 'string' ? (params as any).id : '';
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
   const [client, setClient] = useState<Client | null>(null);
@@ -1117,9 +1119,9 @@ export default function ClientDetailScreen() {
   return (
     <ThemedView style={{ flex: 1 }}>
       {/* Header Bar - matching accounts/quotes style */}
-      <View style={[styles.headerBar, { backgroundColor: theme.sectionCard, borderBottomColor: theme.sectionCardBorder }]}>
-        <ThemedText style={[styles.headerTitle, { color: theme.text }]}>{displayAddress}</ThemedText>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <View style={[styles.headerBar, { backgroundColor: theme.sectionCard, borderBottomColor: theme.sectionCardBorder, paddingTop: Math.max(styles.headerBar.paddingTop as number, insets.top + 8) }]}>
+        <ThemedText style={[styles.headerTitle, { color: theme.text }]} numberOfLines={2}>{displayAddress}</ThemedText>
+        <View style={styles.headerActions}>
           <GuideHelpButton slug="clients" color="#1976d2" />
           <Pressable style={[styles.homeButton, { backgroundColor: theme.notesBackground }]} onPress={() => router.replace('/')}> 
             <Ionicons name="home-outline" size={22} color="#1976d2" />
@@ -2911,7 +2913,17 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+    marginLeft: 8,
+  },
   headerTitle: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     fontSize: 24,
     fontWeight: 'bold',
     color: '#333',

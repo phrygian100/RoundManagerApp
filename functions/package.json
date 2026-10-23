@@ -14,8 +14,10 @@
   },
   "main": "index.js",
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
     "firebase-admin": "^12.6.0",
     "firebase-functions": "4.9.0",
+    "google-auth-library": "^9.15.1",
     "resend": "^4.6.0",
     "stripe": "^18.3.0"
   },

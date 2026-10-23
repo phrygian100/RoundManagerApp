@@ -37,6 +37,7 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+.tmp-*/
 
 # Data files - NEVER commit customer data
 *.csv
@@ -56,3 +57,6 @@ exports/
 *.log
 backup/
 dumps/
+.cursor/*.local.md
+.cursor/ios-signing/
+/credentials.json

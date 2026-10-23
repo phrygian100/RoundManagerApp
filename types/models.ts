@@ -34,6 +34,12 @@ export type User = {
   isExempt?: boolean; // Extra security flag for developer accounts
   stripeCustomerId?: string; // For future Stripe integration
   stripeSubscriptionId?: string; // For future Stripe integration
+  subscriptionProvider?: 'stripe' | 'apple' | 'google' | 'multiple' | null;
+  subscriptionRenewalDate?: string | null;
+  appleAppAccountToken?: string;
+  appleOriginalTransactionId?: string;
+  appleTransactionId?: string;
+  googlePlayAccountId?: string;
   
   // GoCardless integration
   gocardlessApiToken?: string; // API token for GoCardless integration

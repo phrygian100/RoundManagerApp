@@ -341,8 +341,14 @@ module.exports = function buildAgentApi(deps) {
       paymentStatus: j.paymentStatus || '',
       completedAt: j.completedAt || null,
       jobNote: j.jobNote || null,
+      eta: j.eta || null,
+      assignedVehicleId: j.assignedVehicleId || null,
       isDeferred: j.isDeferred === true,
       originalScheduledTime: j.originalScheduledTime || null,
+      // End of day raises a DD from these job-level fields (not the client), so
+      // expose them for auditing.
+      gocardlessEnabled: j.gocardlessEnabled === true,
+      gocardlessCustomerId: j.gocardlessCustomerId || null,
     };
   }
 
@@ -674,6 +680,68 @@ module.exports = function buildAgentApi(deps) {
   // Write actions
   // ---------------------------------------------------------------------------
 
+  /**
+   * List quote requests (the "New Business" screen queue - website/portal
+   * leads). Optional `status` filter: pending | contacted | converted |
+   * declined | all (default 'pending').
+   *
+   * Entries with businessName 'Guvnor' are the developer-only Guvnor Leads
+   * marketplace inbox (shown on /guvnor-leads, hidden from /new-business),
+   * so they are excluded unless `includeGuvnorLeads: true`.
+   */
+  async function actionListQuoteRequests(db, accountId, body) {
+    const status = body && typeof body.status === 'string' ? body.status : 'pending';
+    const VALID = ['pending', 'contacted', 'converted', 'declined', 'all'];
+    if (VALID.indexOf(status) === -1) throw badRequest(`status must be one of: ${VALID.join(', ')}.`);
+    const includeGuvnorLeads = !!(body && body.includeGuvnorLeads === true);
+    const snap = await db.collection('quoteRequests').where('businessId', '==', accountId).get();
+    const requests = snap.docs
+      .map((d) => Object.assign({ id: d.id }, d.data()))
+      .filter((r) => includeGuvnorLeads || r.businessName !== 'Guvnor')
+      .filter((r) => status === 'all' || (r.status || 'pending') === status)
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+      .map((r) => ({
+        id: r.id,
+        name: r.name || '',
+        phone: r.phone || '',
+        address: r.address || '',
+        town: r.town || '',
+        postcode: r.postcode || '',
+        email: r.email || '',
+        notes: r.notes || '',
+        propertyType: r.propertyType || null,
+        hasConservatory: r.hasConservatory === undefined ? null : r.hasConservatory,
+        status: r.status || 'pending',
+        createdAt: r.createdAt || '',
+        source: r.source || '',
+        businessName: r.businessName || null,
+        assignedByGuvnor: !!r.assignedByGuvnor,
+        selectedFrequency: r.selectedFrequency || null,
+        selectedCost: r.selectedCost === undefined ? null : r.selectedCost,
+        additionalServices: Array.isArray(r.additionalServices) ? r.additionalServices : [],
+        preApprovedQuote: !!r.preApprovedQuote,
+        quoteRef: r.quoteRef || null,
+      }));
+    return { ok: true, count: requests.length, requests };
+  }
+
+  /**
+   * Update a quote request's status after it has been actioned (mirrors the
+   * New Business screen marking entries contacted/converted/declined).
+   */
+  async function actionUpdateQuoteRequest(db, accountId, body) {
+    const requestId = body && body.requestId;
+    if (!requestId || typeof requestId !== 'string') throw badRequest('requestId is required.');
+    const VALID = ['pending', 'contacted', 'converted', 'declined'];
+    const status = body && body.status;
+    if (VALID.indexOf(status) === -1) throw badRequest(`status must be one of: ${VALID.join(', ')}.`);
+    const snap = await db.collection('quoteRequests').doc(requestId).get();
+    const data = snap.exists ? (snap.data() || {}) : null;
+    if (!data || data.businessId !== accountId) throw new HttpsError('not-found', 'Quote request not found.');
+    await db.collection('quoteRequests').doc(requestId).update({ status, updatedAt: new Date().toISOString() });
+    return { ok: true, requestId, previousStatus: data.status || 'pending', status };
+  }
+
   async function actionCreatePayment(db, accountId, body) {
     const client = await getOwnedClient(db, accountId, body && body.clientId);
 
@@ -702,6 +770,29 @@ module.exports = function buildAgentApi(deps) {
 
     const ref = await db.collection('payments').add(paymentData);
     return { ok: true, paymentId: ref.id, clientName: client.name || '' };
+  }
+
+  /**
+   * Delete a payment record - narrow escape hatch for correcting mistaken
+   * entries (e.g. a write-off applied in error). The deleted payment's
+   * details are returned for the audit trail.
+   */
+  async function actionDeletePayment(db, accountId, body) {
+    const paymentId = body && body.paymentId;
+    if (!paymentId || typeof paymentId !== 'string') throw badRequest('paymentId is required.');
+    const snap = await db.collection('payments').doc(paymentId).get();
+    const data = snap.exists ? (snap.data() || {}) : null;
+    if (!data || data.ownerId !== accountId) throw new HttpsError('not-found', 'Payment not found.');
+    await db.collection('payments').doc(paymentId).delete();
+    return {
+      ok: true,
+      paymentId,
+      clientId: data.clientId || '',
+      amount: Number(data.amount) || 0,
+      date: data.date || '',
+      method: data.method || '',
+      reference: data.reference || '',
+    };
   }
 
   async function getOwnedJob(db, accountId, jobId) {
@@ -761,7 +852,7 @@ module.exports = function buildAgentApi(deps) {
     };
   }
 
-  function buildCreateJobData(accountId, client, scheduledDate, serviceId, price, note) {
+  function buildCreateJobData(accountId, client, scheduledDate, serviceId, price, note, eta) {
     const jobData = {
       ownerId: accountId,
       accountId: accountId,
@@ -779,6 +870,9 @@ module.exports = function buildAgentApi(deps) {
     if (note && typeof note === 'string' && note.trim()) {
       jobData.jobNote = note.trim();
     }
+    if (eta !== undefined) {
+      jobData.eta = parseEta(eta);
+    }
     return jobData;
   }
 
@@ -788,12 +882,14 @@ module.exports = function buildAgentApi(deps) {
     if (!isYmd(scheduledDate)) throw badRequest('scheduledDate must be yyyy-MM-dd.');
 
     const serviceId = (body.serviceId && typeof body.serviceId === 'string') ? body.serviceId : 'window-cleaning';
+    // Explicit 0 is honoured (free return visits etc.); absent/invalid/negative
+    // prices fall back to the client's standard quote.
     let price = Number(body.price);
-    if (!Number.isFinite(price) || price <= 0) {
+    if (!Number.isFinite(price) || price < 0) {
       price = typeof client.quote === 'number' ? client.quote : 25;
     }
 
-    const jobData = buildCreateJobData(accountId, client, scheduledDate, serviceId, price, body && body.note);
+    const jobData = buildCreateJobData(accountId, client, scheduledDate, serviceId, price, body && body.note, body && body.eta);
     const ref = await db.collection('jobs').add(jobData);
     return { ok: true, jobId: ref.id, clientName: client.name || '', scheduledTime: jobData.scheduledTime, price };
   }
@@ -896,7 +992,7 @@ module.exports = function buildAgentApi(deps) {
       if (!Number.isFinite(price) || price <= 0) {
         price = typeof client.quote === 'number' ? client.quote : 25;
       }
-      const jobData = buildCreateJobData(accountId, client, j.scheduledDate, serviceId, price, j.note);
+      const jobData = buildCreateJobData(accountId, client, j.scheduledDate, serviceId, price, j.note, j.eta);
       const ref = db.collection('jobs').doc();
       ops.push({ type: 'set', ref, data: jobData });
       created.push({
@@ -1035,6 +1131,265 @@ module.exports = function buildAgentApi(deps) {
       serviceId: job.serviceId || '',
       scheduledTime: job.scheduledTime || '',
       price: Number(job.price) || 0,
+    };
+  }
+
+  function parseEta(raw) {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const s = String(raw).trim();
+    const m = /^(\d{1,2}):([0-5]\d)$/.exec(s);
+    if (!m) throw badRequest('eta must be HH:mm (24-hour) or empty to clear.');
+    const h = Number(m[1]);
+    if (h > 23) throw badRequest('eta hour must be 0-23.');
+    return `${String(h).padStart(2, '0')}:${m[2]}`;
+  }
+
+  /** Set or clear the runsheet ETA on one job (same field the ETA button writes). */
+  async function actionSetJobEta(db, accountId, body) {
+    const job = await getOwnedJob(db, accountId, body && body.jobId);
+    const eta = parseEta(body && body.eta);
+    await db.collection('jobs').doc(job.id).update({ eta });
+    return {
+      ok: true,
+      jobId: job.id,
+      scheduledTime: job.scheduledTime || '',
+      previousEta: job.eta || null,
+      newEta: eta,
+    };
+  }
+
+  async function actionBatchSetJobEtas(db, accountId, body) {
+    const items = body && body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw badRequest('items must be a non-empty array of { jobId, eta }.');
+    }
+    if (items.length > MAX_BATCH_NOTES) {
+      throw badRequest(`Maximum ${MAX_BATCH_NOTES} items per call.`);
+    }
+    const results = [];
+    for (const item of items) {
+      try {
+        const one = await actionSetJobEta(db, accountId, item);
+        results.push(one);
+      } catch (err) {
+        results.push({
+          ok: false,
+          jobId: item && item.jobId ? String(item.jobId) : '',
+          error: (err && err.message) || String(err),
+        });
+      }
+    }
+    return {
+      ok: true,
+      updated: results.filter((r) => r.ok).length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
+    };
+  }
+
+  /**
+   * Copy a client's DD settings onto their not-yet-completed jobs. End of day
+   * reads `job.gocardlessEnabled ?? client.gocardlessEnabled` and every job is
+   * written with an explicit boolean, so the client value never gets a look —
+   * a stale job-level `false` silently skips the raise. Returns ids touched.
+   */
+  async function syncClientGocardlessToJobs(db, accountId, client, enabled, customerId) {
+    const snap = await db.collection('jobs')
+      .where('ownerId', '==', accountId)
+      .where('clientId', '==', client.id)
+      .get();
+    const stale = snap.docs.filter((d) => {
+      const j = d.data();
+      if (j.status === 'completed') return false;
+      const jobEnabled = j.gocardlessEnabled === true;
+      const jobCustomer = j.gocardlessCustomerId || null;
+      return jobEnabled !== enabled || jobCustomer !== (enabled ? customerId : null);
+    });
+    for (let i = 0; i < stale.length; i += 400) {
+      const batch = db.batch();
+      stale.slice(i, i + 400).forEach((d) => {
+        batch.update(d.ref, {
+          gocardlessEnabled: enabled,
+          gocardlessCustomerId: enabled ? customerId : null,
+          updatedAt: new Date().toISOString(),
+        });
+      });
+      await batch.commit();
+    }
+    return stale.map((d) => d.id);
+  }
+
+  /**
+   * Turn a client's Direct Debit flag on or off. Does not cancel the
+   * GoCardless mandate — that stays in GC. Also stamps the flag onto the
+   * client's pending jobs, which is what End of day actually reads.
+   */
+  async function actionSetClientGocardless(db, accountId, body) {
+    const client = await getOwnedClient(db, accountId, body && body.clientId);
+    if (typeof (body && body.enabled) !== 'boolean') {
+      throw badRequest('enabled must be true or false.');
+    }
+    const customerId = (body && typeof body.customerId === 'string' && body.customerId.trim())
+      ? body.customerId.trim()
+      : (client.gocardlessCustomerId || null);
+    if (body.enabled && !customerId) {
+      throw badRequest('Client has no gocardlessCustomerId; pass customerId to enable.');
+    }
+    const previous = !!client.gocardlessEnabled;
+    const clientUpdate = { gocardlessEnabled: body.enabled };
+    if (body.enabled) clientUpdate.gocardlessCustomerId = customerId;
+    await db.collection('clients').doc(client.id).update(clientUpdate);
+    const jobsUpdated = await syncClientGocardlessToJobs(db, accountId, client, body.enabled, customerId);
+    return {
+      ok: true,
+      clientId: client.id,
+      clientName: client.name || '',
+      previousEnabled: previous,
+      enabled: body.enabled,
+      gocardlessCustomerId: body.enabled ? customerId : (client.gocardlessCustomerId || null),
+      jobsUpdated: jobsUpdated.length,
+    };
+  }
+
+  /**
+   * Find pending jobs whose DD fields disagree with their client. These are
+   * the visits End of day will silently not collect (or would wrongly try
+   * to). `fix: true` stamps the client's settings onto them. Optional
+   * `startDate`/`endDate` (YYYY-MM-DD) narrow to a scheduling window.
+   */
+  async function actionAuditGocardlessJobs(db, accountId, body) {
+    const fix = !!(body && body.fix === true);
+    let q = db.collection('jobs').where('ownerId', '==', accountId);
+    if (body && body.startDate) {
+      if (!isYmd(body.startDate)) throw badRequest('startDate must be yyyy-MM-dd.');
+      q = q.where('scheduledTime', '>=', body.startDate + 'T00:00:00');
+    }
+    if (body && body.endDate) {
+      if (!isYmd(body.endDate)) throw badRequest('endDate must be yyyy-MM-dd.');
+      q = q.where('scheduledTime', '<=', body.endDate + 'T23:59:59');
+    }
+    const snap = await q.get();
+    const pending = snap.docs
+      .map((d) => Object.assign({ id: d.id, ref: d.ref }, d.data()))
+      .filter((j) => j.status !== 'completed' && j.clientId);
+    const clients = await loadClientsByIds(db, pending.map((j) => j.clientId));
+
+    const mismatches = [];
+    pending.forEach((j) => {
+      const c = clients.get(j.clientId);
+      if (!c) return;
+      const clientEnabled = c.gocardlessEnabled === true && !!c.gocardlessCustomerId;
+      const clientCustomer = clientEnabled ? c.gocardlessCustomerId : null;
+      const jobEnabled = j.gocardlessEnabled === true;
+      const jobCustomer = j.gocardlessCustomerId || null;
+      if (jobEnabled === clientEnabled && jobCustomer === clientCustomer) return;
+      mismatches.push({
+        jobId: j.id,
+        ref: j.ref,
+        clientId: j.clientId,
+        clientName: c.name || '',
+        accountNumber: c.accountNumber || '',
+        scheduledTime: j.scheduledTime || '',
+        price: Number(j.price) || 0,
+        job: { gocardlessEnabled: jobEnabled, gocardlessCustomerId: jobCustomer },
+        client: { gocardlessEnabled: clientEnabled, gocardlessCustomerId: clientCustomer },
+        problem: clientEnabled && !jobEnabled
+          ? 'client on DD but job would not be collected'
+          : (!clientEnabled && jobEnabled
+            ? 'client off DD but job would still be charged'
+            : 'customer id differs'),
+      });
+    });
+
+    let fixed = 0;
+    if (fix && mismatches.length) {
+      for (let i = 0; i < mismatches.length; i += 400) {
+        const batch = db.batch();
+        mismatches.slice(i, i + 400).forEach((m) => {
+          batch.update(m.ref, {
+            gocardlessEnabled: m.client.gocardlessEnabled,
+            gocardlessCustomerId: m.client.gocardlessCustomerId,
+            updatedAt: new Date().toISOString(),
+          });
+        });
+        await batch.commit();
+        fixed += Math.min(400, mismatches.length - i);
+      }
+    }
+
+    return {
+      ok: true,
+      pendingJobsChecked: pending.length,
+      mismatches: mismatches.length,
+      fixed,
+      items: mismatches.map((m) => {
+        const out = Object.assign({}, m);
+        delete out.ref;
+        return out;
+      }),
+    };
+  }
+
+  /**
+   * Set a job's price (same write as the runsheet price-edit modal:
+   * `price` + `hasCustomPrice: true`). Explicit 0 is honoured for free visits.
+   */
+  async function actionSetJobPrice(db, accountId, body) {
+    const job = await getOwnedJob(db, accountId, body && body.jobId);
+    const price = Number(body && body.price);
+    if (!Number.isFinite(price) || price < 0) {
+      throw badRequest('price must be a number of 0 or more.');
+    }
+    await db.collection('jobs').doc(job.id).update({ price, hasCustomPrice: true });
+    return {
+      ok: true,
+      jobId: job.id,
+      scheduledTime: job.scheduledTime || '',
+      previousPrice: Number(job.price) || 0,
+      newPrice: price,
+    };
+  }
+
+  async function actionBatchSetJobPrices(db, accountId, body) {
+    const items = body && body.items;
+    if (!Array.isArray(items) || items.length === 0) {
+      throw badRequest('items must be a non-empty array of { jobId, price }.');
+    }
+    if (items.length > 100) throw badRequest('Maximum 100 jobs per call.');
+    items.forEach((it, i) => {
+      if (!it || typeof it.jobId !== 'string') throw badRequest(`items[${i}].jobId is required.`);
+      const price = Number(it.price);
+      if (!Number.isFinite(price) || price < 0) throw badRequest(`items[${i}].price must be a number of 0 or more.`);
+    });
+    const snaps = await getAllDocs(db, items.map((it) => db.collection('jobs').doc(it.jobId)));
+    const results = [];
+    const ops = [];
+    items.forEach((it, idx) => {
+      const snap = snaps[idx];
+      if (!snap || !snap.exists) {
+        results.push({ jobId: it.jobId, ok: false, error: 'not found' });
+        return;
+      }
+      const job = snap.data();
+      if (job.accountId !== accountId && job.ownerId !== accountId) {
+        results.push({ jobId: it.jobId, ok: false, error: 'not found' });
+        return;
+      }
+      const price = Number(it.price);
+      ops.push({ type: 'update', ref: snap.ref, data: { price, hasCustomPrice: true } });
+      results.push({
+        jobId: it.jobId,
+        ok: true,
+        previousPrice: Number(job.price) || 0,
+        newPrice: price,
+      });
+    });
+    await commitWrites(db, ops);
+    return {
+      ok: true,
+      updated: ops.length,
+      failed: results.filter((r) => !r.ok).length,
+      results,
     };
   }
 
@@ -1791,6 +2146,210 @@ module.exports = function buildAgentApi(deps) {
   }
 
   /**
+   * Create a new client - the Agent API equivalent of the app's Add Client
+   * screen. Writes the client doc (next free RWC account number, round order
+   * slot), and for recurring frequencies also creates a service plan plus
+   * ~24 months of pending window-cleaning jobs anchored on firstVisitDate
+   * (mirroring actionUpdateClientService's generation).
+   */
+  async function actionCreateClient(db, accountId, body) {
+    const name = body && typeof body.name === 'string' ? body.name.trim() : '';
+    const address1 = body && typeof body.address1 === 'string' ? body.address1.trim() : '';
+    const town = body && typeof body.town === 'string' ? body.town.trim() : '';
+    if (!name) throw badRequest('name is required.');
+    if (!address1) throw badRequest('address1 is required.');
+    if (!town) throw badRequest('town is required.');
+    const postcode = body && typeof body.postcode === 'string' ? body.postcode.trim() : '';
+    const mobileNumber = body && typeof body.mobileNumber === 'string' ? body.mobileNumber.trim() : '';
+    const email = body && typeof body.email === 'string' ? body.email.trim() : '';
+    const source = body && typeof body.source === 'string' && body.source.trim() ? body.source.trim() : 'Agent API';
+
+    const quote = Number(body && body.quote);
+    if (!Number.isFinite(quote) || quote < 0) throw badRequest('quote must be a non-negative number.');
+
+    const isOneOff = !!(body && (body.frequencyWeeks === 'one-off' || body.oneOff === true));
+    let freq = null;
+    if (!isOneOff) {
+      freq = Number(body && body.frequencyWeeks);
+      if (!Number.isInteger(freq) || freq < 1 || freq > 52) {
+        throw badRequest("frequencyWeeks must be an integer 1-52, or the string 'one-off'.");
+      }
+    }
+    const firstVisit = body && body.firstVisitDate;
+    if (!isOneOff && !isYmd(firstVisit)) {
+      throw badRequest('firstVisitDate (yyyy-MM-dd) is required for recurring clients.');
+    }
+    if (firstVisit && !isYmd(firstVisit)) throw badRequest('firstVisitDate must be yyyy-MM-dd.');
+
+    const startingBalance = body && body.startingBalance !== undefined ? Number(body.startingBalance) : 0;
+    if (!Number.isFinite(startingBalance)) throw badRequest('startingBalance must be a number.');
+
+    const clientsSnap = await db.collection('clients').where('ownerId', '==', accountId).get();
+
+    // Duplicate guard: refuse a second active client at the same address
+    // unless the caller explicitly overrides (e.g. flats).
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const dup = clientsSnap.docs.find((d) => {
+      const c = d.data() || {};
+      return c.status !== 'ex-client' && norm(c.address1) === norm(address1) && norm(c.town) === norm(town);
+    });
+    if (dup && !(body && body.allowDuplicateAddress === true)) {
+      throw badRequest(`An active client already exists at that address (clientId ${dup.id}). Pass allowDuplicateAddress: true to override.`);
+    }
+
+    // Next free RWC number (checked across archived clients too) and the
+    // current end of the round.
+    let maxAcct = 0;
+    let maxRound = 0;
+    clientsSnap.docs.forEach((d) => {
+      const c = d.data() || {};
+      const m = /^RWC0*(\d+)$/i.exec(String(c.accountNumber || '').trim());
+      if (m) maxAcct = Math.max(maxAcct, parseInt(m[1], 10));
+      if (c.status !== 'ex-client' && Number.isFinite(Number(c.roundOrderNumber))) {
+        maxRound = Math.max(maxRound, Number(c.roundOrderNumber));
+      }
+    });
+    const accountNumber = 'RWC' + (maxAcct + 1);
+
+    // Round order: slot in directly after afterClientId (shifting later
+    // clients down one), or append to the end of the round.
+    let roundOrderNumber = maxRound + 1;
+    let shifted = 0;
+    if (body && body.afterClientId) {
+      const after = await getOwnedClient(db, accountId, body.afterClientId);
+      const pos = Number(after.roundOrderNumber);
+      if (Number.isFinite(pos)) {
+        roundOrderNumber = pos + 1;
+        const ops = [];
+        clientsSnap.docs.forEach((d) => {
+          const c = d.data() || {};
+          if (c.status === 'ex-client') return;
+          const n = Number(c.roundOrderNumber);
+          if (Number.isFinite(n) && n >= roundOrderNumber) {
+            ops.push({ type: 'update', ref: d.ref, data: { roundOrderNumber: n + 1 } });
+          }
+        });
+        await commitWrites(db, ops);
+        shifted = ops.length;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const clientRef = db.collection('clients').doc();
+    const clientData = {
+      name,
+      address1,
+      town,
+      postcode,
+      address: `${address1}, ${town}, ${postcode}`,
+      frequency: isOneOff ? 'one-off' : freq,
+      nextVisit: firstVisit || '',
+      mobileNumber,
+      quote,
+      accountNumber,
+      roundOrderNumber,
+      status: 'active',
+      dateAdded: now,
+      source,
+      email,
+      startingBalance,
+      ownerId: accountId,
+      accountId: accountId,
+    };
+    const noteText = body && typeof body.accountNote === 'string' ? body.accountNote.trim() : '';
+    if (noteText) clientData.accountNotes = [makeAccountNote(noteText)];
+    const runsheetNote = body && typeof body.runsheetNote === 'string' ? body.runsheetNote.trim() : '';
+    if (runsheetNote) clientData.runsheetNotes = runsheetNote;
+    await clientRef.set(clientData);
+    const client = Object.assign({ id: clientRef.id }, clientData);
+
+    const created = [];
+    if (!isOneOff) {
+      const horizon = ymd(addDaysUtc(new Date(firstVisit + 'T00:00:00Z'), 24 * 30));
+      let visit = firstVisit;
+      const ops = [];
+      while (visit <= horizon) {
+        ops.push({
+          type: 'set',
+          ref: db.collection('jobs').doc(),
+          data: buildCreateJobData(accountId, client, visit, 'window-cleaning', quote, null),
+        });
+        created.push(visit);
+        visit = ymd(addDaysUtc(new Date(visit + 'T00:00:00Z'), freq * 7));
+      }
+      await commitWrites(db, ops);
+      await db.collection('servicePlans').add({
+        ownerId: accountId,
+        accountId: accountId,
+        clientId: clientRef.id,
+        serviceType: 'window-cleaning',
+        scheduleType: 'recurring',
+        frequencyWeeks: freq,
+        startDate: firstVisit,
+        lastServiceDate: null,
+        price: quote,
+        isActive: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    return {
+      ok: true,
+      clientId: clientRef.id,
+      accountNumber,
+      roundOrderNumber,
+      roundOrderShifted: shifted,
+      jobsCreated: created.length,
+      firstJob: created[0] || null,
+      lastJob: created.length ? created[created.length - 1] : null,
+    };
+  }
+
+  /**
+   * Update a client's contact details (mobile number, email and/or display
+   * name). Deliberately narrow - address/financial fields have their own
+   * actions or stay app-only. Old values are returned for the audit trail.
+   */
+  async function actionUpdateClientContact(db, accountId, body) {
+    const client = await getOwnedClient(db, accountId, body && body.clientId);
+    const update = {};
+    const changed = {};
+    if (body.mobileNumber !== undefined) {
+      const mob = String(body.mobileNumber || '').trim();
+      if (mob && !/^[+0-9][0-9 ]{6,17}$/.test(mob)) {
+        throw badRequest('mobileNumber does not look like a phone number.');
+      }
+      update.mobileNumber = mob;
+      changed.mobileNumber = { from: client.mobileNumber || '', to: mob };
+    }
+    if (body.email !== undefined) {
+      const email = String(body.email || '').trim();
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        throw badRequest('email does not look like an email address.');
+      }
+      update.email = email;
+      changed.email = { from: client.email || '', to: email };
+    }
+    if (body.name !== undefined) {
+      const name = String(body.name || '').trim();
+      if (!name) throw badRequest('name cannot be cleared.');
+      update.name = name;
+      changed.name = { from: client.name || '', to: name };
+    }
+    if (Object.keys(update).length === 0) {
+      throw badRequest('Provide at least one of mobileNumber, email, name.');
+    }
+    const noteText = body && typeof body.note === 'string' ? body.note.trim() : '';
+    if (noteText) {
+      const existing = Array.isArray(client.accountNotes) ? client.accountNotes : [];
+      update.accountNotes = [makeAccountNote(noteText)].concat(existing);
+    }
+    await db.collection('clients').doc(client.id).update(update);
+    return { ok: true, clientId: client.id, clientName: client.name || '', changed };
+  }
+
+  /**
    * Send pre-rendered SMS messages through the account owner's Twilio
    * credentials (users/{accountId}.twilioAccountSid / twilioAuthToken /
    * twilioFromNumber - the same creds the in-app broadcast screen uses).
@@ -1873,15 +2432,20 @@ module.exports = function buildAgentApi(deps) {
     listJobs: actionListJobs,
     listPayments: actionListPayments,
     getRunsheet: actionGetRunsheet,
+    listQuoteRequests: actionListQuoteRequests,
   };
 
   const WRITE_ACTIONS = {
     createPayment: actionCreatePayment,
+    deletePayment: actionDeletePayment,
+    updateQuoteRequest: actionUpdateQuoteRequest,
     updateJobStatus: actionUpdateJobStatus,
     rescheduleJob: actionRescheduleJob,
     batchRescheduleJobs: actionBatchRescheduleJobs,
     createJob: actionCreateJob,
     batchCreateJobs: actionBatchCreateJobs,
+    createClient: actionCreateClient,
+    updateClientContact: actionUpdateClientContact,
     updateClientLocation: actionUpdateClientLocation,
     setRoundOrder: actionSetRoundOrder,
     sendChaseEmail: actionSendChaseEmail,
@@ -1893,6 +2457,12 @@ module.exports = function buildAgentApi(deps) {
     createQuote: actionCreateQuote,
     setJobNote: actionSetJobNote,
     batchSetJobNotes: actionBatchSetJobNotes,
+    setJobPrice: actionSetJobPrice,
+    batchSetJobPrices: actionBatchSetJobPrices,
+    setJobEta: actionSetJobEta,
+    batchSetJobEtas: actionBatchSetJobEtas,
+    setClientGocardless: actionSetClientGocardless,
+    auditGocardlessJobs: actionAuditGocardlessJobs,
     updateClientNotes: actionUpdateClientNotes,
     deleteJob: actionDeleteJob,
     updateTwilioSettings: actionUpdateTwilioSettings,
@@ -1933,6 +2503,9 @@ module.exports = function buildAgentApi(deps) {
     if (action === 'batchSetJobNotes' && body && Array.isArray(body.items)) {
       return { count: body.items.length };
     }
+    if (action === 'batchSetJobEtas' && body && Array.isArray(body.items)) {
+      return { count: body.items.length };
+    }
     return body;
   }
 
@@ -1953,6 +2526,9 @@ module.exports = function buildAgentApi(deps) {
       return { ok: result.ok, created: result.created, failed: result.failed };
     }
     if (action === 'batchSetJobNotes' && result) {
+      return { ok: result.ok, updated: result.updated, failed: result.failed };
+    }
+    if (action === 'batchSetJobEtas' && result) {
       return { ok: result.ok, updated: result.updated, failed: result.failed };
     }
     return result;

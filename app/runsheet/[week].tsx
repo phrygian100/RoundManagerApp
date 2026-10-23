@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { GuideHelpButton } from '../../components/GuideHelpButton';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Picker as RNPicker } from '@react-native-picker/picker';
 import { addDays, endOfWeek, format, isBefore, isThisWeek, parseISO, startOfToday, startOfWeek } from 'date-fns';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,6 +9,7 @@ import { addDoc, collection, deleteDoc, deleteField, doc, getDoc, getDocs, query
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Button, Linking, Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import GoCardlessPaymentModal from '../../components/GoCardlessPaymentModal';
 import TimePickerModal from '../../components/TimePickerModal';
 import { db } from '../../core/firebase';
@@ -19,6 +20,7 @@ import { getNextAccountNumber } from '../../services/clientService';
 import { GoCardlessService } from '../../services/gocardlessService';
 import { getClientsByIds, getJobsForWeek, updateJobStatus } from '../../services/jobService';
 import { createGoCardlessPaymentsForDay } from '../../services/paymentService';
+import { migrateLegacyQuotes } from '../../services/quoteBookService';
 import { resetDayToRoundOrder } from '../../services/resetService';
 import { AvailabilityStatus, fetchRotaRange } from '../../services/rotaService';
 import { checkClientLimit } from '../../services/subscriptionService';
@@ -99,6 +101,7 @@ function pickActiveJob(section: { data: any[] } | undefined) {
 export default function RunsheetWeekScreen() {
   const { week, jobId: focusJobIdParam } = useLocalSearchParams<{ week?: string; jobId?: string }>();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const listRef = useRef<SectionList<any>>(null);
   const autoFocusedWeekRef = useRef<string | null>(null);
   const lastNotificationJobRef = useRef<string | null>(null);
@@ -1101,6 +1104,26 @@ export default function RunsheetWeekScreen() {
   const handleDeferJob = (job: Job & { client: Client | null }) => {
     setDeferJob(job);
     setDeferSelectedVehicle(job.vehicleId || 'auto'); // Initialize with current vehicle or 'auto'
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: job.scheduledTime ? new Date(job.scheduledTime) : new Date(),
+        mode: 'date',
+        minimumDate: new Date(),
+        onChange: (event, date) => {
+          if (event.type === 'dismissed' || !date) {
+            setDeferJob(null);
+            setDeferSelectedVehicle('auto');
+            return;
+          }
+          setDeferJob({
+            ...job,
+            scheduledTime: format(date, 'yyyy-MM-dd') + 'T09:00:00',
+          });
+          setShowDeferDatePicker(true);
+        },
+      });
+      return;
+    }
     setShowDeferDatePicker(true);
   };
 
@@ -1359,6 +1382,19 @@ export default function RunsheetWeekScreen() {
     const baseDate = firstJob?.scheduledTime ? new Date(firstJob.scheduledTime) : startOfToday();
     setBulkMoveDate(baseDate);
     setBulkMoveVehicle(firstJob?.vehicleId || 'auto');
+    if (Platform.OS === 'android') {
+      DateTimePickerAndroid.open({
+        value: baseDate,
+        mode: 'date',
+        minimumDate: new Date(),
+        onChange: (event, date) => {
+          if (event.type === 'dismissed' || !date) return;
+          setBulkMoveDate(date);
+          setShowBulkMovePicker(true);
+        },
+      });
+      return;
+    }
     setShowBulkMovePicker(true);
   };
 
@@ -2912,7 +2948,13 @@ ${signOff}`;
 
   return (
     <View style={{ flex: 1 }}>
-      <View style={[styles.container, compactHeader && styles.containerCompact]}>
+      <View
+        style={[
+          styles.container,
+          compactHeader && styles.containerCompact,
+          Platform.OS !== 'web' && { paddingTop: insets.top + 8 },
+        ]}
+      >
         <View style={[styles.titleRow, compactHeader && styles.titleRowCompact]}>
           <Pressable
             style={[styles.calendarButton, compactHeader && styles.calendarButtonCompact]}
@@ -3043,32 +3085,45 @@ ${signOff}`;
               });
 
               return (
-                <View style={styles.sectionHeaderContainer}>
-                  <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
-                    <Text style={styles.sectionHeader}>
-                      {title} ({data.filter(item => !item.__type).length}) {collapsedDays.includes(title) ? '+' : '-'}
-                      {(dayIsCompleted || dayIsPast) && ' 🔒'}
-                    </Text>
-                  </Pressable>
-                  {dayAvailability && dayAvailability.total > 0 && (
-                    <Pressable
-                      style={styles.availabilityBadge}
-                      onPress={openRotaForDay}
-                      accessibilityRole="button"
-                      accessibilityLabel={`View rota for ${title}`}
-                    >
-                      <View
-                        style={[
-                          styles.availabilityDot,
-                          { backgroundColor: availabilityColor(dayAvailability.ratio) },
-                        ]}
-                      />
-                      <Text style={styles.availabilityBadgeText}>
-                        {dayAvailability.available}/{dayAvailability.total} available
+                <View
+                  style={[
+                    styles.sectionHeaderContainer,
+                    width < 400 && styles.sectionHeaderContainerNarrow,
+                  ]}
+                >
+                  <View style={styles.sectionHeaderPrimary}>
+                    <Pressable onPress={() => toggleDay(title)} style={styles.sectionHeaderPressable}>
+                      <Text style={styles.sectionHeader} numberOfLines={1} ellipsizeMode="tail">
+                        {title} ({data.filter(item => !item.__type).length}) {collapsedDays.includes(title) ? '+' : '-'}
+                        {(dayIsCompleted || dayIsPast) && ' 🔒'}
                       </Text>
                     </Pressable>
-                  )}
-                  {showDayCompleteButton && (
+                    {dayAvailability && dayAvailability.total > 0 && (
+                      <Pressable
+                        style={styles.availabilityBadge}
+                        onPress={openRotaForDay}
+                        accessibilityRole="button"
+                        accessibilityLabel={`View rota for ${title}`}
+                      >
+                        <View
+                          style={[
+                            styles.availabilityDot,
+                            { backgroundColor: availabilityColor(dayAvailability.ratio) },
+                          ]}
+                        />
+                        <Text style={styles.availabilityBadgeText} numberOfLines={1}>
+                          {dayAvailability.available}/{dayAvailability.total} available
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View
+                    style={[
+                      styles.sectionHeaderActions,
+                      width < 400 && styles.sectionHeaderActionsNarrow,
+                    ]}
+                  >
+                    {showDayCompleteButton && (
                     Platform.OS === 'web'
                       ? (
                           <button
@@ -3095,8 +3150,8 @@ ${signOff}`;
                             <Text style={styles.dayCompleteButtonText}>Day complete?</Text>
                           </Pressable>
                         )
-                  )}
-                  {!dayIsCompleted && !dayIsPast && (
+                    )}
+                    {!dayIsCompleted && !dayIsPast && (
                     Platform.OS === 'web'
                       ? (
                           <button
@@ -3128,18 +3183,22 @@ ${signOff}`;
                             </Text>
                           </Pressable>
                         )
-                  )}
-                  {(dayIsCompleted || dayIsPast) && (
-                    <View style={styles.dayCompletedIndicator}>
-                      <Text style={styles.dayCompletedText}>Completed</Text>
-                    </View>
-                  )}
+                    )}
+                    {(dayIsCompleted || dayIsPast) && (
+                      <View style={styles.dayCompletedIndicator}>
+                        <Text style={styles.dayCompletedText}>Completed</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               );
             }}
             ListEmptyComponent={<Text style={styles.empty}>No jobs due this week.</Text>}
             style={{ flex: 1 }}
-            contentContainerStyle={{ flexGrow: 1 }}
+            contentContainerStyle={{
+              flexGrow: 1,
+              paddingBottom: Platform.OS === 'web' ? 0 : insets.bottom + 24,
+            }}
           />
         )}
         {summaryVisible && (
@@ -3501,18 +3560,24 @@ ${signOff}`;
               <View style={styles.modalOverlay}>
                 <View style={styles.datePickerModal}>
                   <Text style={styles.datePickerTitle}>Move Job To:</Text>
-                  
-                  <DateTimePicker
-                    value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    minimumDate={new Date()}
-                    onChange={(event, date) => {
-                      if (date && deferJob) {
-                        setDeferJob({ ...deferJob, scheduledTime: format(date, 'yyyy-MM-dd') + 'T09:00:00' });
-                      }
-                    }}
-                  />
+
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={deferJob.scheduledTime ? new Date(deferJob.scheduledTime) : new Date()}
+                      mode="date"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(event, date) => {
+                        if (date && deferJob) {
+                          setDeferJob({ ...deferJob, scheduledTime: format(date, 'yyyy-MM-dd') + 'T09:00:00' });
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Text style={styles.selectedMoveDate}>
+                      {format(new Date(deferJob.scheduledTime), 'EEEE, MMMM d')}
+                    </Text>
+                  )}
                   
                   <View style={styles.vehiclePickerContainer}>
                     <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
@@ -3635,17 +3700,23 @@ ${signOff}`;
               <View style={styles.modalOverlay}>
                 <View style={styles.datePickerModal}>
                   <Text style={styles.datePickerTitle}>Move selected jobs to:</Text>
-                  <DateTimePicker
-                    value={bulkMoveDate}
-                    mode="date"
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    minimumDate={new Date()}
-                    onChange={(event, date) => {
-                      if (date) {
-                        setBulkMoveDate(date);
-                      }
-                    }}
-                  />
+                  {Platform.OS === 'ios' ? (
+                    <DateTimePicker
+                      value={bulkMoveDate}
+                      mode="date"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(event, date) => {
+                        if (date) {
+                          setBulkMoveDate(date);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <Text style={styles.selectedMoveDate}>
+                      {format(bulkMoveDate, 'EEEE, MMMM d')}
+                    </Text>
+                  )}
                   <View style={styles.vehiclePickerContainer}>
                     <Text style={styles.vehiclePickerLabel}>Assign to Vehicle:</Text>
                     <View style={styles.vehiclePicker}>
@@ -3845,6 +3916,12 @@ ${signOff}`;
                       quoteDetails.quoteId,
                       formatAuditDescription('quote_progressed', `${quoteData.name} - ${quoteData.address}`)
                     );
+                  }
+
+                  try {
+                    await migrateLegacyQuotes(quoteDetails.quoteId);
+                  } catch (err) {
+                    console.error('Could not copy progressed quote into the quote book:', err);
                   }
 
                   // Remove the corresponding quote job from the runsheet
@@ -4092,17 +4169,42 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 8,
     paddingHorizontal: 8,
+    backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderColor: '#eee',
+    zIndex: 2,
+    elevation: 2,
+  },
+  sectionHeaderContainerNarrow: {
+    flexDirection: 'column',
+    alignItems: 'stretch',
+  },
+  sectionHeaderPrimary: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    flexShrink: 0,
+  },
+  sectionHeaderActionsNarrow: {
+    marginTop: 6,
   },
   sectionHeaderPressable: {
     flex: 1,
+    minWidth: 0,
   },
   sectionHeader: { fontSize: 20, fontWeight: 'bold' },
   availabilityBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 8,
+    flexShrink: 1,
   },
   availabilityDot: {
     width: 10,
@@ -4114,6 +4216,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#555',
+    flexShrink: 1,
   },
   clientRow: {
     flexDirection: 'row',
@@ -4550,6 +4653,16 @@ const styles = StyleSheet.create({
     fontSize: 18,
     marginBottom: 16,
     textAlign: 'center',
+  },
+  selectedMoveDate: {
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: '#1f2937',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
   },
   vehiclePickerContainer: {
     marginTop: 16,

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, format, startOfWeek } from 'date-fns';
-import { addDoc, collection, doc, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, setDoc, writeBatch } from 'firebase/firestore';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
@@ -18,6 +19,7 @@ import {
 } from 'react-native';
 import { auth, db } from '../core/firebase';
 import { getUserSession } from '../core/session';
+import { listMembers, refreshClaims } from '../services/accountService';
 import { AvailabilityStatus } from '../services/rotaService';
 import { getUserProfile, syncBusinessPortalFromUserDocument } from '../services/userService';
 
@@ -141,36 +143,33 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
     }
   };
 
-  const setupDefaultRota = async (session: any) => {
-    try {
-      // Set up default rota for the next 52 weeks based on selected working days
-      const today = new Date();
-      const start = startOfWeek(today, { weekStartsOn: 1 });
-      
-      for (let week = 0; week < 52; week++) {
-        const weekStart = addDays(start, week * 7);
-        
-        for (const dayConfig of DAYS_OF_WEEK) {
-          const dayDate = addDays(weekStart, dayConfig.dayIndex);
-          const dateKey = format(dayDate, 'yyyy-MM-dd');
-          const status: AvailabilityStatus = workingDays[dayConfig.key] ? 'on' : 'off';
-          
-          // Create rota document for this day
-          const rotaRef = doc(db, `accounts/${session.accountId}/rota/${dateKey}`);
-          await setDoc(rotaRef, { [session.uid]: status }, { merge: true });
-        }
+  const setupDefaultRota = async (session: { uid: string; accountId: string }) => {
+    const today = new Date();
+    const start = startOfWeek(today, { weekStartsOn: 1 });
+    const batch = writeBatch(db);
+
+    for (let week = 0; week < 52; week++) {
+      const weekStart = addDays(start, week * 7);
+      for (const dayConfig of DAYS_OF_WEEK) {
+        const dayDate = addDays(weekStart, dayConfig.dayIndex);
+        const dateKey = format(dayDate, 'yyyy-MM-dd');
+        const status: AvailabilityStatus = workingDays[dayConfig.key] ? 'on' : 'off';
+        const rotaRef = doc(db, `accounts/${session.accountId}/rota/${dateKey}`);
+        batch.set(rotaRef, { [session.uid]: status }, { merge: true });
       }
-    } catch (error) {
-      console.error('Error setting up default rota:', error);
     }
+
+    await batch.commit();
   };
 
   const handleSave = async () => {
-    if (!vehicleNameOrReg.trim()) {
+    const vehicleName = vehicleNameOrReg.trim();
+    const turnover = Number(String(dailyTurnoverLimit).replace(/[^0-9.]/g, ''));
+    if (!vehicleName) {
       Alert.alert('Error', 'Please enter a vehicle name or registration.');
       return;
     }
-    if (!dailyTurnoverLimit.trim() || isNaN(Number(dailyTurnoverLimit))) {
+    if (!Number.isFinite(turnover) || turnover <= 0) {
       Alert.alert('Error', 'Please enter a valid daily turnover limit.');
       return;
     }
@@ -180,50 +179,82 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       const session = await getUserSession();
       if (!session) throw new Error('No session found');
 
+      try {
+        await refreshClaims();
+      } catch (claimsError) {
+        console.warn('refreshClaims before setup:', claimsError);
+      }
+
       const priorProfile = await getUserProfile(session.uid);
       const previousBusinessName = priorProfile?.businessName ?? null;
 
-      // Update user document with setup completion, preferences, and business info
-      await updateDoc(doc(db, 'users', session.uid), {
-        firstTimeSetupCompleted: true,
-        importTipShown: true, // tip is shown as part of setup flow (step 5)
+      await setDoc(doc(db, 'users', session.uid), {
         defaultWorkingDays: workingDays,
-        vehicleName: vehicleNameOrReg.trim(),
-        dailyTurnoverLimit: Number(dailyTurnoverLimit),
+        vehicleName,
+        dailyTurnoverLimit: turnover,
         businessName: businessName.trim(),
         bankSortCode: bankSortCode.trim(),
         bankAccountNumber: bankAccountNumber.trim(),
         updatedAt: new Date().toISOString(),
-      });
+      }, { merge: true });
 
-      await syncBusinessPortalFromUserDocument(session.uid, { previousBusinessName });
+      try {
+        await syncBusinessPortalFromUserDocument(session.uid, { previousBusinessName });
+      } catch (portalError) {
+        console.warn('Business portal sync skipped:', portalError);
+      }
 
-      // Set up default rota
-      await setupDefaultRota(session);
+      let vehicleId: string | null = null;
+      try {
+        const addVehicleFn = httpsCallable(getFunctions(), 'addVehicle');
+        const result = await addVehicleFn({
+          name: vehicleName,
+          dailyRate: turnover,
+          assignToOwner: true,
+        });
+        vehicleId = (result.data as { id?: string })?.id || null;
+      } catch (callableError) {
+        console.warn('addVehicle callable failed, writing vehicle directly:', callableError);
+        const vehicleDoc = await addDoc(collection(db, `accounts/${session.accountId}/vehicles`), {
+          name: vehicleName,
+          registration: vehicleName,
+          dailyLimit: turnover,
+          dailyRate: turnover,
+          createdAt: new Date().toISOString(),
+          ownerId: session.accountId,
+        });
+        vehicleId = vehicleDoc.id;
+      }
 
-      // Create vehicle
-      const vehicleDoc = await addDoc(collection(db, `accounts/${session.accountId}/vehicles`), {
-        name: vehicleNameOrReg.trim(),
-        registration: vehicleNameOrReg.trim(),
-        dailyLimit: Number(dailyTurnoverLimit),
-        createdAt: new Date().toISOString(),
-        ownerId: session.accountId,
-      });
+      try {
+        await setDoc(doc(db, `accounts/${session.accountId}/members/${session.uid}`), {
+          uid: session.uid,
+          email: auth.currentUser?.email || '',
+          role: 'owner',
+          perms: {
+            viewClients: true,
+            viewRunsheet: true,
+            viewPayments: true,
+          },
+          status: 'active',
+          vehicleId,
+          dailyRate: turnover,
+          createdAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch (memberError) {
+        console.warn('Direct member write failed:', memberError);
+        await listMembers();
+      }
 
-      // Create/update member record with vehicle assignment and daily rate
-      await setDoc(doc(db, `accounts/${session.accountId}/members/${session.uid}`), {
-        uid: session.uid,
-        email: auth.currentUser?.email || '',
-        role: 'owner',
-        perms: {
-          viewClients: true,
-          viewRunsheet: true,
-          viewPayments: true,
-        },
-        status: 'active',
-        vehicleId: vehicleDoc.id,
-        dailyRate: Number(dailyTurnoverLimit),
-        createdAt: new Date().toISOString(),
+      try {
+        await setupDefaultRota(session);
+      } catch (rotaError) {
+        console.warn('Default rota setup skipped:', rotaError);
+      }
+
+      await setDoc(doc(db, 'users', session.uid), {
+        firstTimeSetupCompleted: true,
+        importTipShown: true,
       }, { merge: true });
 
       // Clear any saved draft now that setup is complete
@@ -236,7 +267,10 @@ export default function FirstTimeSetupModal({ visible, onComplete }: FirstTimeSe
       setStep(5);
     } catch (error) {
       console.error('Error saving setup:', error);
-      Alert.alert('Error', 'Failed to save setup. Please try again.');
+      const detail = error instanceof Error && error.message
+        ? error.message.replace(/^FirebaseError:\s*/, '')
+        : 'Please try again.';
+      Alert.alert('Error', `Failed to save setup. ${detail}`.slice(0, 280));
     } finally {
       setSaving(false);
     }

@@ -1,0 +1,76 @@
+# EAS upload ignore. When this file exists, .gitignore is not used.
+# The p12, provisioning profile, and credentials.json must be uploaded
+# so the ios-store profile can sign with local credentials. The private
+# key, p8, and passwords-in-other-files stay excluded.
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+.tmp-*/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+app-example
+
+# Data files - NEVER commit customer data
+*.csv
+*.xlsx
+*.xls
+docs/importToGuvnor*.csv
+docs/import*.csv
+exports/
+/data/*
+!/data/uk-window-cleaners.csv
+!/data/top-100-uk-towns.csv
+
+# Sensitive files
+*.env
+*.env.local
+*.env.production
+*.log
+backup/
+dumps/
+.cursor/*.local.md
+.cursor/ios-signing/*
+*.aab
+
+# Local audit dumps (customer data). Not needed to compile the app.
+scripts/_wa_audit/
+scripts/_gc_reconcile_data/
+scripts/_geo/
+scripts/_reconcile_out/
+scripts/shift_week/out/
+
+# Local App Store signing inputs for the ios-store profile
+!.cursor/ios-signing/dist.p12
+!.cursor/ios-signing/Guvnor_App_Store.mobileprovision

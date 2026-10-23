@@ -209,7 +209,7 @@ exports.onQuoteRequestCreated = onDocumentCreated(
     const name = data.name || 'A customer';
     const where = [data.address, data.town, data.postcode].filter(Boolean).join(', ');
     await sendToUser(data.businessId, {
-      title: 'New quote request',
+      title: data.preApprovedQuote ? 'Quote accepted' : 'New quote request',
       body: where ? `${name} — ${where}` : name,
       data: {
         type: 'quote_request',

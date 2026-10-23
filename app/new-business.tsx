@@ -39,6 +39,8 @@ interface QuoteRequest {
   selectedFrequency?: string;
   selectedCost?: number;
   additionalServices?: string[];
+  preApprovedQuote?: boolean;
+  quoteRef?: string;
 }
 
 const sourceOptions = [
@@ -257,7 +259,11 @@ export default function NewBusinessScreen() {
         postcode: request.postcode,
         mobileNumber: request.phone,
         email: request.email || '',
-        source: request.assignedByGuvnor ? 'Guvnor' : 'Client Portal'
+        source: request.preApprovedQuote ? 'Quote sheet' : request.assignedByGuvnor ? 'Guvnor' : 'Client Portal',
+        ...(request.selectedFrequency && request.selectedCost != null
+          ? { quote: String(request.selectedCost), frequency: String(request.selectedFrequency) }
+          : {}),
+        ...(request.quoteRef ? { quoteBookRef: request.quoteRef } : {}),
       }
     });
 
@@ -369,6 +375,13 @@ export default function NewBusinessScreen() {
                       <Text style={styles.guvnorBadgeText}>Lead from Guvnor</Text>
                     </View>
                   )}
+                  {request.preApprovedQuote && (
+                    <View style={styles.preApprovedBadge}>
+                      <Text style={styles.preApprovedBadgeText}>
+                        Pre-approved quote{request.quoteRef ? ` · Ref ${request.quoteRef}` : ''}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 {/* Card Body - Contact & Address Info */}
@@ -418,7 +431,9 @@ export default function NewBusinessScreen() {
                         <Image source={{ uri: request.selectedImageUrl }} style={styles.selectedServiceThumb} resizeMode="cover" />
                       )}
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.selectedServiceLabel}>Prospect selected:</Text>
+                        <Text style={styles.selectedServiceLabel}>
+                          {request.preApprovedQuote ? 'Accepted our quote:' : 'Prospect selected:'}
+                        </Text>
                         <Text style={styles.selectedServiceValue}>
                           {request.selectedFrequency === 'one-off' ? 'One-off' : `${request.selectedFrequency} Weekly`} at £{Number(request.selectedCost).toFixed(2)}
                         </Text>
@@ -438,6 +453,7 @@ export default function NewBusinessScreen() {
 
                 {/* Action Buttons */}
                 <View style={styles.actionButtons}>
+                  {!request.preApprovedQuote && (
                   <View style={styles.scheduleButtonContainer}>
                     <Pressable 
                       style={styles.scheduleButton}
@@ -448,6 +464,7 @@ export default function NewBusinessScreen() {
                     </Pressable>
                     <Text style={styles.buttonTip}>Raise a visit to quote on a later date</Text>
                   </View>
+                  )}
                   
                   <Pressable 
                     style={styles.addClientButton}
@@ -791,6 +808,19 @@ const styles = StyleSheet.create({
   },
   guvnorBadgeText: {
     color: '#065f46',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  preApprovedBadge: {
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#93c5fd',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  preApprovedBadgeText: {
+    color: '#1e40af',
     fontSize: 12,
     fontWeight: '700',
   },

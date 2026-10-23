@@ -47,6 +47,15 @@ function normalizeBusinessName(name: string): string {
   return name.replace(/\s+/g, '').toLowerCase();
 }
 
+/** Firestore document ids cannot contain "/" and a few other values are reserved. */
+function portalDocumentId(businessName: string): string {
+  const compact = normalizeBusinessName(businessName).replace(/\//g, '');
+  if (compact && compact !== '.' && compact !== '..' && !compact.startsWith('__')) {
+    return compact.slice(0, 120);
+  }
+  return compact.replace(/[^a-z0-9]/g, '').slice(0, 120) || 'business';
+}
+
 export async function createUserProfile(user: User) {
   const userRef = doc(db, USERS_COLLECTION, user.id);
   await setDoc(userRef, user);
@@ -135,10 +144,19 @@ async function updateBusinessPortal(
   ownerName?: string, 
   email?: string
 ) {
-  const normalizedName = normalizeBusinessName(businessName);
-  const portalRef = doc(db, BUSINESS_PORTALS_COLLECTION, normalizedName);
+  let portalId = portalDocumentId(businessName);
+  let portalRef = doc(db, BUSINESS_PORTALS_COLLECTION, portalId);
   const now = new Date().toISOString();
-  const existing = await getDoc(portalRef);
+  let existing = await getDoc(portalRef);
+  if (existing.exists()) {
+    const owner = (existing.data() as { ownerId?: string })?.ownerId;
+    if (owner && owner !== ownerId) {
+      // Another business already uses this name. Don't overwrite their portal.
+      portalId = `${portalId.slice(0, 100)}-${ownerId.slice(0, 8).toLowerCase()}`;
+      portalRef = doc(db, BUSINESS_PORTALS_COLLECTION, portalId);
+      existing = await getDoc(portalRef);
+    }
+  }
   let createdAt = now;
   if (existing.exists()) {
     const d = existing.data() as { createdAt?: string; ownerId?: string };
@@ -150,7 +168,7 @@ async function updateBusinessPortal(
   await setDoc(portalRef, {
     ownerId,
     businessName,
-    normalizedName,
+    normalizedName: portalId,
     ownerName: ownerName || '',
     email: email || '',
     createdAt,

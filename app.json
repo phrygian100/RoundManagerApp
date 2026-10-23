@@ -11,7 +11,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.guvnor.roundmanagerapp",
-      "buildNumber": "4",
+      "buildNumber": "12",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -27,9 +27,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.guvnor.roundmanagerapp",
-      "versionCode": 5,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE"
@@ -51,6 +52,15 @@
     "plugins": [
       "expo-router",
       "expo-web-browser",
+      "expo-iap",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Guvnor uses your photo library so you can attach photos to quotes and jobs.",
+          "cameraPermission": "Guvnor uses the camera to attach photos to quotes and jobs.",
+          "microphonePermission": false
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -68,7 +78,8 @@
           "android": {
             "compileSdkVersion": 36,
             "targetSdkVersion": 36,
-            "buildToolsVersion": "36.0.0"
+            "buildToolsVersion": "36.0.0",
+            "kotlinVersion": "2.0.21"
           },
           "ios": {
             "useFrameworks": "static"

@@ -22,6 +22,7 @@ export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'exempt';
 export interface EffectiveSubscription {
   tier: SubscriptionTier;
   status: SubscriptionStatus;
+  provider?: 'stripe' | 'apple' | 'google' | 'multiple' | null;
   clientLimit: number | null; // null = unlimited
   canCreateMembers: boolean;
   isExempt: boolean;
@@ -77,6 +78,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
       return {
         tier: 'exempt',
         status: 'exempt',
+        provider: null,
         clientLimit: null,
         canCreateMembers: true,
         isExempt: true,
@@ -93,6 +95,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
     return {
       tier,
       status,
+      provider: userData.subscriptionProvider || null,
       clientLimit: tier === 'free' ? 20 : null,
       canCreateMembers: tier === 'premium' || tier === 'exempt',
       isExempt: false,
@@ -106,6 +109,7 @@ export async function getEffectiveSubscription(): Promise<EffectiveSubscription>
     return {
       tier: 'free',
       status: 'active',
+      provider: null,
       clientLimit: 20,
       canCreateMembers: false,
       isExempt: false,

@@ -8,6 +8,7 @@ import {
   ActivityIndicator, Alert, Image, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GuideHelpButton } from '../components/GuideHelpButton';
 import { db, storage } from '../core/firebase';
 import { getUserSession } from '../core/session';
@@ -42,6 +43,8 @@ function genId() {
 
 export default function QuoteSetupScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const isNative = Platform.OS !== 'web';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uid, setUid] = useState<string | null>(null);
@@ -223,7 +226,16 @@ export default function QuoteSetupScreen() {
   }
 
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.pageContent}>
+    <ScrollView
+      style={styles.page}
+      contentContainerStyle={[
+        styles.pageContent,
+        isNative && {
+          paddingTop: insets.top + 16,
+          paddingBottom: Math.max(insets.bottom, 16),
+        },
+      ]}
+    >
       <View style={[styles.main, isNarrow && styles.mainMobile]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <Text style={[styles.title, { flex: 1 }]}>
@@ -311,8 +323,12 @@ export default function QuoteSetupScreen() {
           {WINDOW_QUOTE_PRESETS.map((preset, idx) => {
             const v = prices[preset.key] || { first: '', second: '', oneOff: '' };
             return (
-              <View key={preset.key} style={styles.presetCard}>
-                <Image source={preset.source} style={styles.presetImage} resizeMode="contain" />
+              <View key={preset.key} style={[styles.presetCard, isNative && styles.presetCardNative]}>
+                <Image
+                  source={preset.source}
+                  style={isNative ? styles.presetImageNative : styles.presetImage}
+                  resizeMode="contain"
+                />
                 <Text style={styles.presetLabel}>Property type {idx + 1}</Text>
                 <View style={styles.priceRow}>
                   {([
@@ -395,6 +411,10 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  presetCardNative: {
+    padding: 12,
+    marginBottom: 10,
+  },
   presetImage: {
     width: '100%',
     aspectRatio: 4 / 5,
@@ -402,6 +422,15 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#f3f4f6',
     marginBottom: 10,
+  },
+  // Phone photos were locked to a tall 4:5 frame, so each house sat in a large
+  // empty block. A fixed height lets the drawing fill the card instead.
+  presetImageNative: {
+    width: '100%',
+    height: 200,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    marginBottom: 8,
   },
   presetLabel: { fontSize: 14, fontWeight: '600', color: '#6b7280', marginBottom: 10, textAlign: 'center' },
   priceRow: { flexDirection: 'row', gap: 10 },

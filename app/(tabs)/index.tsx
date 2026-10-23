@@ -12,6 +12,8 @@ import FirstTimeSetupModal from '../../components/FirstTimeSetupModal';
 import { GuideHelpButton } from '../../components/GuideHelpButton';
 import UpgradeModal from '../../components/UpgradeModal';
 import { auth, db } from '../../core/firebase';
+import { registerSettingsDrawerClose } from '../../core/settingsDrawer';
+import { registerSignOutPrep } from '../../core/signOutPrep';
 import { getDataOwnerId, getUserSession } from '../../core/session';
 import { getClientCount } from '../../services/clientService';
 import { EffectiveSubscription, getEffectiveSubscription } from '../../services/subscriptionService';
@@ -76,6 +78,13 @@ export default function HomeScreen() {
   // Settings drawer state (Home-side sheet)
   const [settingsDrawerVisible, setSettingsDrawerVisible] = useState(false);
   const settingsDrawerAnim = useRef(new Animated.Value(0)).current; // 0 closed, 1 open
+
+  useEffect(() => {
+    return registerSettingsDrawerClose(() => {
+      settingsDrawerAnim.stopAnimation();
+      setSettingsDrawerVisible(false);
+    });
+  }, [settingsDrawerAnim]);
 
   // Fetch user address for weather
   const fetchUserAddress = async () => {
@@ -430,18 +439,36 @@ export default function HomeScreen() {
   }, [router]);
 
 
-  // Listen for quote request count (for badge)
+  // Listen for quote request count (for badge).
+  // The unsubscribe is registered so sign-out can detach it before auth.signOut().
+  // Doing that afterwards crashes iOS while this screen is still mounted.
+  const quoteUnsubRef = useRef<(() => void) | null>(null);
+  const [quoteListenerUid, setQuoteListenerUid] = useState<string | null>(auth.currentUser?.uid ?? null);
+
+  useEffect(() => onAuthStateChanged(auth, (user) => {
+    setQuoteListenerUid(user?.uid ?? null);
+  }), []);
+
+  useEffect(() => registerSignOutPrep(() => {
+    quoteUnsubRef.current?.();
+    quoteUnsubRef.current = null;
+  }), []);
+
   useEffect(() => {
-    let unsubscribe: () => void;
+    if (!quoteListenerUid) return;
+    let cancelled = false;
+    let unsubscribe: (() => void) | undefined;
 
     const setupQuoteListener = async () => {
       const ownerId = await getDataOwnerId();
-      if (!ownerId) return;
+      if (!ownerId || cancelled || !auth.currentUser) return;
 
       const q = query(
         collection(db, 'quoteRequests'),
         where('businessId', '==', ownerId)
       );
+
+      if (cancelled || !auth.currentUser) return;
 
       unsubscribe = onSnapshot(q, (snapshot) => {
         // Guvnor consumer leads share the developer's quoteRequests bucket but
@@ -454,14 +481,17 @@ export default function HomeScreen() {
       }, (error) => {
         console.error('Error listening to quote requests:', error);
       });
+      quoteUnsubRef.current = unsubscribe;
     };
 
     setupQuoteListener();
 
     return () => {
-      if (unsubscribe) unsubscribe();
+      cancelled = true;
+      unsubscribe?.();
+      if (quoteUnsubRef.current === unsubscribe) quoteUnsubRef.current = null;
     };
-  }, []);
+  }, [quoteListenerUid]);
 
   // Rebuild buttons whenever screen gains focus (permissions may have changed).
   // Delegates to the same guarded build as the auth listener, so the dashboard
@@ -507,7 +537,7 @@ export default function HomeScreen() {
       toValue: 1,
       duration: 260,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start();
   };
 
@@ -516,7 +546,7 @@ export default function HomeScreen() {
       toValue: 0,
       duration: 220,
       easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: false,
     }).start(({ finished }) => {
       if (finished) setSettingsDrawerVisible(false);
     });
@@ -549,6 +579,7 @@ export default function HomeScreen() {
     Linking.openURL('https://guvnor.app/guides');
   }, []);
 
+  const compactDashboard = width < 600;
   const gridColumns = safeWidth >= 1200 ? 4 : safeWidth >= 900 ? 3 : 2;
   const gridMaxWidth = Math.min(safeWidth - 32, 1180);
   const tileGap = 16;
@@ -581,12 +612,16 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
+          Platform.OS !== 'web' && {
+            paddingTop: insets.top + 12,
+            paddingBottom: insets.bottom + 24,
+          },
           Platform.OS === 'web' ? { minHeight: '100vh' } : null
         ]}
         bounces={false}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.topBar, { paddingHorizontal: 24 }]}>
+        <View style={[styles.topBar, { paddingHorizontal: compactDashboard ? 8 : 24 }]}>
           <View style={styles.topBarLeftButtons}>
             <Pressable
               style={styles.settingsButton}
@@ -607,19 +642,19 @@ export default function HomeScreen() {
               <Ionicons name="help-circle-outline" size={20} color="#e8ecf8" />
             </Pressable>
           </View>
-          <View style={styles.weatherWrapper}>
+          <View style={[styles.weatherWrapper, compactDashboard && styles.weatherWrapperCompact]}>
             {weatherLoading ? (
-              <Text style={styles.weatherPlaceholder}>Loading weather...</Text>
+              <Text style={styles.weatherPlaceholder} numberOfLines={1}>Loading weather...</Text>
             ) : weather ? (
-              <View style={styles.weatherPill}>
+              <View style={[styles.weatherPill, compactDashboard && styles.weatherPillCompact]}>
                 <Text style={styles.weatherEmoji}>{weather.icon}</Text>
-                <Text style={styles.weatherText}>{weather.temp}°C {weather.condition}</Text>
+                <Text style={styles.weatherText} numberOfLines={1}>{weather.temp}°C {weather.condition}</Text>
               </View>
             ) : (
-              <Text style={styles.weatherPlaceholder}>Weather unavailable</Text>
+              <Text style={styles.weatherPlaceholder} numberOfLines={1}>Weather unavailable</Text>
             )}
           </View>
-          <View style={styles.topBarSpacer} />
+          {!compactDashboard && <View style={styles.topBarSpacer} />}
         </View>
 
         <Pressable
@@ -784,6 +819,7 @@ export default function HomeScreen() {
               styles.settingsDrawerPanel,
               {
                 width: settingsDrawerWidth,
+                paddingBottom: insets.bottom,
                 transform: [{ translateX: settingsTranslateX }],
               },
             ]}
@@ -970,6 +1006,11 @@ const styles = StyleSheet.create({
   weatherWrapper: {
     flex: 1,
     alignItems: 'center',
+    minWidth: 0,
+  },
+  weatherWrapperCompact: {
+    alignItems: 'flex-end',
+    marginLeft: 10,
   },
   topBarSpacer: {
     // Keep the weather pill centered by matching the left icon cluster width:
@@ -987,6 +1028,12 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.12)',
+  },
+  weatherPillCompact: {
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexShrink: 1,
   },
   weatherEmoji: {
     fontSize: 18,

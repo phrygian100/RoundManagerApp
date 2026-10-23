@@ -1,9 +1,10 @@
-import { useRouter } from 'expo-router';
+import { usePathname, useRouter } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import React, { useState, useEffect } from 'react';
 import { Alert, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 import { auth } from '../core/firebase';
+import { prepareForSignOut } from '../core/signOutPrep';
 
 // Get build ID from environment or fallback to version
 const BUILD_ID = '9a50efa';
@@ -14,6 +15,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const { width } = useWindowDimensions();
   const isNarrowWeb = Platform.OS === 'web' && width < 640;
 
@@ -85,6 +87,7 @@ export default function LoginScreen() {
           }
         }
 
+        await prepareForSignOut();
         await auth.signOut();
         return;
       }
@@ -107,6 +110,7 @@ export default function LoginScreen() {
         } else {
           Alert.alert('Login Error', msg);
         }
+        await prepareForSignOut();
         await auth.signOut();
         return;
       }
@@ -114,8 +118,14 @@ export default function LoginScreen() {
       // Force a token refresh to get the new claims
       await user.getIdToken(true);
 
-      // Navigate to home screen on success
-      router.replace('/');
+      // Sign-out on iPhone leaves the app on the home route and draws this
+      // screen over it. Replacing that route crashes iOS. A real /login
+      // screen still goes home.
+      const onAuthRoute = pathname === '/login' || pathname.startsWith('/login')
+        || pathname === '/register' || pathname.startsWith('/register');
+      if (Platform.OS === 'web' || onAuthRoute) {
+        router.replace('/');
+      }
 
     } catch (error: any) {
       console.error('Login error', error);

@@ -1,6 +1,6 @@
 # Packaging Guvnor for the App Store & Google Play
 
-Last updated: 15 September 2026
+Last updated: 24 September 2026
 
 ## How updates ship once the apps are live
 
@@ -48,18 +48,19 @@ Firestore persistence** on iOS/Android:
 
 ### 1. Firebase native app registrations
 
-The project currently only has a **web** Firebase app registered. In the
-[Firebase console](https://console.firebase.google.com/project/roundmanagerapp/settings/general):
+Firebase project `roundmanagerapp` now has Android, **iOS**, and web apps:
 
-1. **Add app → Android**, package name `com.guvnor.roundmanagerapp`.
-   Download `google-services.json` into the repo root.
-2. **Add app → iOS**, bundle ID `com.guvnor.roundmanagerapp`.
-   Download `GoogleService-Info.plist` into the repo root.
-3. Commit both files (they contain public client config, not secrets —
-   security is enforced by Firestore rules).
+1. **Android** `com.guvnor.roundmanagerapp` — `google-services.json` in the repo root.
+2. **iOS** nickname Guvnor iOS, bundle `com.guvnor.roundmanagerapp`, app ID
+   `1:1049000869926:ios:261fc0bf6627b7502526e7` — `GoogleService-Info.plist`
+   in the repo root (23 Sept 2026). Commit it with the next iOS-related commit
+   (public client config, not a secret).
+3. APNs Authentication Key **KHU9YYJFV9** (team **93K9P427U5**, Sandbox &
+   Production) is uploaded to Firebase Cloud Messaging for both development
+   and production. The `.p8` lives at `.cursor/AuthKey_KHU9YYJFV9.p8`
+   (`*.p8` is gitignored). Do not commit or paste the key.
 
-`app.json` already points at both files. **EAS builds will fail until these two
-files exist.**
+`app.json` already points at both Google service files.
 
 ### 2. Store accounts
 
@@ -69,6 +70,25 @@ files exist.**
   registering as a business (you have a real trading business) avoids this.
 - **Apple Developer Program** — $99/year at https://developer.apple.com.
   EAS builds iOS in the cloud, so no Mac is needed.
+  - **Status (23 Sept 2026 20:51): membership paid.** Apple order
+    **W1404492568** — Apple Developer Program, one year, £79.
+    Confirmation emailed to travis_gm@live.co.uk. Membership is live:
+    TGM Window Cleaning Limited, Team ID **93K9P427U5**. App ID
+    `com.guvnor.roundmanagerapp` (description Guvnor, Push Notifications
+    on) is registered. App Store Connect app **Guvnor** exists
+    (SKU `GUVNOR-IOS`, Apple ID **6815394049**, English UK, iOS 1.0
+    Prepare for Submission). 24 Sept: listing copy, URLs, contact,
+    Business + Productivity, 3 iPhone 6.5" screenshots, age rating
+    **4+**, published App Privacy labels (policy
+    https://guvnor.app/privacy-policy), reviewer demo login filled.
+    EU DSA trader status **Active** (24 Sept 2026): address on file,
+    phone +44 7814 804759, email `admin@guvnor.app`.     First iOS EAS build `62ab967e` errored in Prepare credentials
+    because the signing files were gitignored. `.easignore` now
+    lets the p12, profile, and credentials.json upload. Rebuild
+    `4b70620f` (1.0.3 / build 4) was rejected with ITMS-90725.
+    `ios-store` now builds on Xcode 26.2. Build 5 (`adfa3e15`)
+    is uploaded and version 1.0.3 is Waiting for Review.
+    Company name: TGM Window Cleaning.
 
 ## Building
 

@@ -49,6 +49,13 @@
       },
       "channel": "production"
     },
+    "ios-store": {
+      "extends": "production",
+      "credentialsSource": "local",
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      }
+    },
     "release-apk": {
       "distribution": "internal",
       "android": {
@@ -68,6 +75,13 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6815394049",
+        "ascApiKeyPath": "./.cursor/AuthKey_6RW5LNQF29.p8",
+        "ascApiKeyIssuerId": "46c2eb26-2715-4f0b-85ff-06029f2cccc1",
+        "ascApiKeyId": "6RW5LNQF29"
+      }
+    }
   }
 }

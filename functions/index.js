@@ -10,6 +10,7 @@
 // const { onDocumentCreated } = require("firebase-functions/v2/firestore"); // Currently unused
 const { setGlobalOptions } = require("firebase-functions/v2/options");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onMessagePublished } = require("firebase-functions/v2/pubsub");
 const admin = require("firebase-admin");
 const { onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { Resend } = require("resend");
@@ -51,6 +52,28 @@ exports.agentApi = agentApiExports.agentApi;
 exports.createAgentApiKey = agentApiExports.createAgentApiKey;
 exports.listAgentApiKeys = agentApiExports.listAgentApiKeys;
 exports.revokeAgentApiKey = agentApiExports.revokeAgentApiKey;
+const buildAppleIap = require('./appleIap');
+const appleIapExports = buildAppleIap({ admin, onRequest, onCall, HttpsError });
+exports.getAppleAppAccountToken = appleIapExports.getAppleAppAccountToken;
+exports.verifyApplePurchase = appleIapExports.verifyApplePurchase;
+exports.appleStoreNotifications = appleIapExports.appleStoreNotifications;
+const buildGooglePlayIap = require('./googlePlayIap');
+const googlePlayIapExports = buildGooglePlayIap({
+  admin,
+  onCall,
+  onMessagePublished,
+  HttpsError,
+  updateProviderEntitlement: appleIapExports.updateProviderEntitlement,
+});
+exports.getGooglePlayAccountId = googlePlayIapExports.getGooglePlayAccountId;
+exports.verifyGooglePlayPurchase = googlePlayIapExports.verifyGooglePlayPurchase;
+exports.googlePlaySubscriptionNotifications =
+  googlePlayIapExports.googlePlaySubscriptionNotifications;
+const buildQuoteBook = require('./quoteBook');
+const quoteBook = buildQuoteBook({ admin, onCall, HttpsError, crypto });
+exports.importQuoteBook = quoteBook.importQuoteBook;
+exports.migrateLegacyQuotes = quoteBook.migrateLegacyQuotes;
+exports.deleteQuoteBookEntries = quoteBook.deleteQuoteBookEntries;
 exports.setDefaultSubscriptionTier = onDocumentCreated('users/{userId}', async (event) => {
   const snapshot = event.data;
   if (!snapshot) return;
@@ -734,10 +757,32 @@ exports.addVehicle = onCall(async (request) => {
   if (!user || !user.token.accountId) {
     throw new HttpsError('unauthenticated', 'User must be authenticated and have an account ID.');
   }
-  const { name, dailyRate } = request.data;
+  const { name, dailyRate, assignToOwner } = request.data || {};
   const db = admin.firestore();
-  const newDocRef = db.collection(`accounts/${user.token.accountId}/vehicles`).doc();
-  await newDocRef.set({ name, dailyRate });
+  const accountId = user.token.accountId;
+  const rate = Number(dailyRate);
+  const newDocRef = db.collection(`accounts/${accountId}/vehicles`).doc();
+  await newDocRef.set({
+    name,
+    dailyRate: Number.isFinite(rate) ? rate : 0,
+    createdAt: new Date().toISOString(),
+    ownerId: accountId,
+  });
+
+  // First-time setup asks for this. Team "add a van" does not, so it stays opt-in.
+  if (assignToOwner === true && user.token.isOwner === true && accountId === user.uid) {
+    await db.collection(`accounts/${accountId}/members`).doc(user.uid).set({
+      uid: user.uid,
+      email: user.token.email || '',
+      role: 'owner',
+      perms: { viewClients: true, viewRunsheet: true, viewPayments: true },
+      status: 'active',
+      vehicleId: newDocRef.id,
+      dailyRate: Number.isFinite(rate) ? rate : 0,
+      createdAt: new Date().toISOString(),
+    }, { merge: true });
+  }
+
   return { success: true, id: newDocRef.id };
 });
 
@@ -948,6 +993,24 @@ exports.deleteAccount = onCall({ secrets: [STRIPE_SECRET_KEY], timeoutSeconds: 5
     }
   }
 
+  // Stop Google Play renewals before removing the token-to-account mapping.
+  // Existing paid access remains until expiry, but no future charge is taken.
+  try {
+    const playSubscriptions = await db
+      .collection('googlePlaySubscriptions')
+      .where('userId', '==', uid)
+      .get();
+    for (const subscription of playSubscriptions.docs) {
+      const purchaseToken = subscription.data().purchaseToken;
+      if (purchaseToken) {
+        await googlePlayIapExports.cancelGooglePlaySubscription(purchaseToken);
+      }
+    }
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: Google Play cancellation failed`, e);
+    summary.warnings.push('google-play');
+  }
+
   // 2. Collect member UIDs before the members subcollection is wiped.
   const memberUids = [];
   try {
@@ -1001,6 +1064,18 @@ exports.deleteAccount = onCall({ secrets: [STRIPE_SECRET_KEY], timeoutSeconds: 5
   } catch (e) {
     console.warn(`[deleteAccount] ${uid}: failed wiping agentApiKeys`, e);
     summary.warnings.push('agentApiKeys');
+  }
+  try {
+    await deleteByQuery('appleSubscriptions', 'userId', uid);
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed wiping Apple subscription links`, e);
+    summary.warnings.push('appleSubscriptions');
+  }
+  try {
+    await deleteByQuery('googlePlaySubscriptions', 'userId', uid);
+  } catch (e) {
+    console.warn(`[deleteAccount] ${uid}: failed wiping Google Play subscription links`, e);
+    summary.warnings.push('googlePlaySubscriptions');
   }
 
   // completedWeeks uses doc ids of the form `${ownerId}_${date}` with no ownerId field.
@@ -1448,26 +1523,17 @@ exports.stripeWebhook = onRequest({
 // Helper function to update user subscription
 async function updateUserSubscription(db, userId, tier, status, subscriptionId, renewalDate = null) {
   try {
-    const updates = {
-      subscriptionTier: tier,
-      subscriptionStatus: status,
-      isExempt: tier === 'exempt',
-      clientLimit: tier === 'free' ? 20 : null,
-      updatedAt: new Date().toISOString(),
-    };
-    
+    await appleIapExports.updateProviderEntitlement(db, userId, 'stripe', {
+      status: tier === 'premium' ? status : 'canceled',
+      subscriptionId: subscriptionId || null,
+      expiresAt: renewalDate,
+    });
     if (subscriptionId) {
-      updates.stripeSubscriptionId = subscriptionId;
+      await db.collection('users').doc(userId).set(
+        { stripeSubscriptionId: subscriptionId },
+        { merge: true }
+      );
     }
-    
-    if (renewalDate) {
-      updates.subscriptionRenewalDate = renewalDate;
-    } else if (tier === 'free') {
-      // Clear renewal date for free users
-      updates.subscriptionRenewalDate = null;
-    }
-    
-    await db.collection('users').doc(userId).update(updates);
     console.log(`Updated subscription for user ${userId}: ${tier} (${status})`);
   } catch (error) {
     console.error('Error updating user subscription:', error);
@@ -2197,6 +2263,10 @@ exports.portalApi = onRequest(async (req, res) => {
 
       await db.collection('quoteRequests').add(payload);
       res.status(200).json({ ok: true });
+      return;
+    }
+
+    if (await quoteBook.handlePortalAction(action, { req, res, db, ipKey, enforceRateLimit })) {
       return;
     }
 

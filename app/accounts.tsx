@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
 import { ThemedView } from '../components/ThemedView';
@@ -184,6 +185,7 @@ export default function AccountsScreen() {
   const [userProfile, setUserProfile] = useState<User | null>(null);
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
 
   // Load owner profile (bank/business info for invoicing)
   useEffect(() => {
@@ -816,13 +818,20 @@ ${signOff}`;
 
   const isWeb = Platform.OS === 'web';
   const isLargeScreen = isWeb && width > 768;
+  const isCompactHeader = width < 600;
 
   return (
     <PermissionGate perm="viewPayments" fallback={<ThemedView style={styles.container}><ThemedText>You don't have permission to view accounts.</ThemedText></ThemedView>}>
       <ThemedView style={styles.container}>
         {/* Header Bar */}
-        <View style={styles.headerBar}>
-          <ThemedText style={styles.headerTitle}>Accounts</ThemedText>
+        <View style={[
+          styles.headerBar,
+          {
+            paddingTop: Platform.OS === 'web' ? 24 : insets.top + 8,
+            paddingHorizontal: isCompactHeader ? 16 : 24,
+          },
+        ]}>
+          <ThemedText style={[styles.headerTitle, isCompactHeader && styles.headerTitleCompact]} numberOfLines={1}>Accounts</ThemedText>
           <View style={styles.headerButtons}>
             <GuideHelpButton slug="payments" color="#1976d2" />
             <Pressable
@@ -836,9 +845,15 @@ ${signOff}`;
               }}
             >
               <Ionicons name="grid-outline" size={18} color="#fff" />
-              <ThemedText style={styles.bulkPaymentsButtonText}>Add Bulk Payments</ThemedText>
+              {!isCompactHeader && <ThemedText style={styles.bulkPaymentsButtonText}>Add Bulk Payments</ThemedText>}
             </Pressable>
-            <Pressable style={styles.homeButton} onPress={() => router.replace('/')}>
+            <Pressable
+              style={styles.homeButton}
+              onPress={() => router.replace('/')}
+              accessibilityRole="button"
+              accessibilityLabel="Home"
+              hitSlop={8}
+            >
               <Ionicons name="home-outline" size={22} color="#1976d2" />
             </Pressable>
           </View>
@@ -1101,22 +1116,35 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headerTitle: {
+    flex: 1,
+    minWidth: 0,
     fontWeight: 'bold',
     fontSize: 28,
     letterSpacing: 0.5,
   },
+  headerTitleCompact: {
+    fontSize: 24,
+  },
   headerButtons: {
     flexDirection: 'row',
+    alignItems: 'center',
+    flexShrink: 0,
     gap: 12,
   },
   homeButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 6,
     backgroundColor: '#eaf2ff',
   },
   bulkPaymentsButton: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 40,
+    minHeight: 40,
     gap: 6,
     paddingVertical: 8,
     paddingHorizontal: 12,

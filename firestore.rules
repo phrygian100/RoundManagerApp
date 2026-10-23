@@ -29,6 +29,48 @@ service cloud.firestore {
         : (('ownerId' in data) ? data.ownerId : null);
     }
 
+    // Subscription state is derived and written by trusted backend processes.
+    // Registration may seed only the normal free-plan defaults.
+    function hasValidInitialSubscription() {
+      return request.resource.data.subscriptionTier == 'free' &&
+        request.resource.data.subscriptionStatus == 'active' &&
+        request.resource.data.clientLimit == 20 &&
+        request.resource.data.isExempt == false &&
+        !request.resource.data.keys().hasAny([
+          'subscriptionProvider',
+          'subscriptionRenewalDate',
+          'subscriptionExpiresAt',
+          'subscriptionEntitlements',
+          'stripeCustomerId',
+          'stripeSubscriptionId',
+          'appleAppAccountToken',
+          'appleOriginalTransactionId',
+          'appleTransactionId',
+          'googlePlayAccountId',
+          'googlePlayPurchaseTokenHash'
+        ]);
+    }
+
+    function keepsSubscriptionStateServerOnly() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'subscriptionTier',
+        'subscriptionStatus',
+        'subscriptionProvider',
+        'subscriptionRenewalDate',
+        'subscriptionExpiresAt',
+        'subscriptionEntitlements',
+        'clientLimit',
+        'isExempt',
+        'stripeCustomerId',
+        'stripeSubscriptionId',
+        'appleAppAccountToken',
+        'appleOriginalTransactionId',
+        'appleTransactionId',
+        'googlePlayAccountId',
+        'googlePlayPurchaseTokenHash'
+      ]);
+    }
+
     // Check if user has access to existing resource
     function hasResourceAccess(resource) {
       // Support both legacy `ownerId` and newer `accountId` fields.
@@ -64,6 +106,19 @@ service cloud.firestore {
       allow get: if isSignedIn() && hasResourceAccess(resource);
       allow create: if isSignedIn() && hasCreateAccess();
       allow update, delete: if isSignedIn() && hasResourceAccess(resource);
+    }
+
+    // Quote book records are created and deleted by Cloud Functions (unique refs + dedupe keys).
+    match /quoteBook/{ref} {
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
+      allow create, delete: if false;
+      allow update: if isSignedIn() && hasResourceAccess(resource) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['ownerId', 'accountId', 'ref', 'dedupeKey', 'createdAt']);
+    }
+
+    match /quoteBookKeys/{key} {
+      allow read, write: if false;
     }
 
     match /clients/{clientId} {
@@ -105,13 +160,18 @@ service cloud.firestore {
 
     // Each user can manage a single document under /users/{uid}
     match /users/{userId} {
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() &&
+        request.auth.uid == userId &&
+        hasValidInitialSubscription();
       // Do not allow public reads. Allow self-read and account-member read of the account owner's doc.
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
         exists(/databases/$(database)/documents/accounts/$(userId)/members/$(request.auth.uid))
       );
-      allow update, delete: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() &&
+        request.auth.uid == userId &&
+        keepsSubscriptionStateServerOnly();
+      allow delete: if isSignedIn() && request.auth.uid == userId;
     }
 
     // Business portals - public read access for client portal login pages

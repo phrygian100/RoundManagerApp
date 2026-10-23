@@ -4,7 +4,8 @@ import { format, parseISO } from 'date-fns';
 import { useRouter } from 'expo-router';
 import { collection, getDocs, onSnapshot, query, where } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GuideHelpButton } from '../components/GuideHelpButton';
 import PermissionGate from '../components/PermissionGate';
 import { ThemedText } from '../components/ThemedText';
@@ -23,6 +24,8 @@ import { pushOrNewTab } from '../utils/ctrlClickNavigation';
 
 export default function ClientsScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme() ?? 'light';
   const theme = Colors[colorScheme];
   const [clients, setClients] = useState<Client[]>([]);
@@ -437,10 +440,14 @@ export default function ClientsScreen() {
       return false;
     }
   }).length;
+  const isCompactHeader = width < 480;
 
   return (
     <PermissionGate perm="viewClients" fallback={<ThemedView style={styles.container}><ThemedText>You don't have permission to view clients.</ThemedText></ThemedView>}>
-      <ThemedView style={styles.container}>
+      <ThemedView style={[
+        styles.container,
+        { paddingTop: Platform.OS === 'web' ? 60 : insets.top + 12 },
+      ]}>
         <View style={styles.titleRow}>
           <ThemedText type="title" style={styles.title}>Clients</ThemedText>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -450,8 +457,8 @@ export default function ClientsScreen() {
             </Pressable>
           </View>
         </View>
-        <ThemedView style={styles.headerRow}>
-          <View>
+        <ThemedView style={[styles.headerRow, isCompactHeader && styles.headerRowCompact]}>
+          <View style={isCompactHeader && styles.clientCountsCompact}>
             <ThemedText style={styles.clientCount}>Total: {clients?.length || 0} clients</ThemedText>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <ThemedText style={[styles.clientCount, { marginTop: 4 }]}>Active: {activeClientsCount} clients</ThemedText>
@@ -460,7 +467,7 @@ export default function ClientsScreen() {
               </Pressable>
             </View>
           </View>
-          <View style={{ flexDirection: 'row' }}>
+          <View style={[styles.clientHeaderActions, isCompactHeader && styles.clientHeaderActionsCompact]}>
             <Pressable style={[styles.sortButton, { marginRight: 8, backgroundColor: theme.inputBackground, borderColor: theme.cardBorder }]} onPress={handleSort}>
               <View style={styles.sortIcon}>
                 <Ionicons name="funnel" size={20} color={theme.secondaryText} />
@@ -567,6 +574,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     marginBottom: 12,
+  },
+  headerRowCompact: {
+    alignItems: 'stretch',
+    flexDirection: 'column',
+    gap: 8,
+  },
+  clientCountsCompact: {
+    width: '100%',
+  },
+  clientHeaderActions: {
+    flexDirection: 'row',
+    flexShrink: 0,
+  },
+  clientHeaderActionsCompact: {
+    width: '100%',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
   },
   sortButton: {
     flexDirection: 'row',

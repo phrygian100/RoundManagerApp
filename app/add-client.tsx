@@ -87,6 +87,7 @@ export default function AddClientScreen() {
     'Van signage/Branding',
     'Found on the curb',
     'Client Portal',
+    'Quote sheet',
     'Guvnor',
     'Other'
   ];
@@ -460,6 +461,19 @@ export default function AddClientScreen() {
         clearQuoteData();
       }
 
+      const quoteBookRef = getParamValue(params.quoteBookRef as any);
+      if (quoteBookRef) {
+        try {
+          await updateDoc(doc(db, 'quoteBook', quoteBookRef), {
+            status: 'converted',
+            clientId: clientRef.id,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch (err) {
+          console.error('Could not mark quote book entry converted:', err);
+        }
+      }
+
       console.log('Client creation completed successfully, navigating to home');
       router.replace('/');
     } catch (error) {
@@ -506,6 +520,7 @@ export default function AddClientScreen() {
     status: 'active',
     source: source === 'Other' ? customSource : source,
     email,
+    quoteBookRef: getParamValue(params.quoteBookRef as any) || '',
   });
 
   const showFormAlert = (title: string, message: string) => {

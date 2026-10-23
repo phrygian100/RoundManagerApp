@@ -3,18 +3,27 @@ import { GuideHelpButton } from '../components/GuideHelpButton';
 import { Picker } from '@react-native-picker/picker';
 import { useRouter } from 'expo-router';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import html2canvas from 'html2canvas';
-import React, { useEffect, useRef, useState } from 'react';
-import { Image as RNImage, Modal, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Image as RNImage, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PermissionGate from '../components/PermissionGate';
-import { db } from '../core/firebase';
+import QuoteSheetSection from '../components/quoteBook/QuoteSheetSection';
+import { auth, db } from '../core/firebase';
+import { DEVELOPER_UID } from '../shared/constants/developer';
 import { getDataOwnerId } from '../core/session';
 import { getUserProfile } from '../services/userService';
 import { BusinessTypeConfig, getBusinessTypeConfig } from '../shared/constants/businessTypes';
 
 const INVOICE_HEIGHT = 580;
 const INVOICE_WIDTH = 400;
+
+const showMaterialAlert = (message: string, title = 'Materials') => {
+  if (Platform.OS === 'web') {
+    window.alert(message);
+  } else {
+    Alert.alert(title, message);
+  }
+};
 
 // Preset images for flyer back
 const FLYER_BACK_PRESETS = {
@@ -188,7 +197,7 @@ const ConfigurationModal = ({
 
   const handleLogoUpload = () => {
     if (Platform.OS !== 'web') {
-      alert('Logo upload is only available on web');
+      showMaterialAlert('Logo upload is only available on web.');
       return;
     }
     
@@ -202,7 +211,7 @@ const ConfigurationModal = ({
       
       // Check file size (max 2MB for base64 storage to support high-res logos)
       if (file.size > 2 * 1024 * 1024) {
-        alert('Image too large. Please choose an image under 2MB.');
+        showMaterialAlert('Image too large. Please choose an image under 2MB.');
         return;
       }
       
@@ -231,7 +240,7 @@ const ConfigurationModal = ({
             
             const ctx = canvas.getContext('2d');
             if (!ctx) {
-              alert('Failed to process image');
+              showMaterialAlert('Failed to process image.');
               setUploadingLogo(false);
               return;
             }
@@ -251,12 +260,12 @@ const ConfigurationModal = ({
             setUploadingLogo(false);
           } catch (error) {
             console.error('Error processing image:', error);
-            alert('Failed to process image');
+            showMaterialAlert('Failed to process image.');
             setUploadingLogo(false);
           }
         };
         img.onerror = () => {
-          alert('Failed to load image file');
+          showMaterialAlert('Failed to load image file.');
           setUploadingLogo(false);
         };
         
@@ -266,13 +275,13 @@ const ConfigurationModal = ({
           img.src = reader.result as string;
         };
         reader.onerror = () => {
-          alert('Failed to read image file');
+          showMaterialAlert('Failed to read image file.');
           setUploadingLogo(false);
         };
         reader.readAsDataURL(file);
       } catch (error) {
         console.error('Error uploading logo:', error);
-        alert('Failed to upload logo');
+        showMaterialAlert('Failed to upload logo.');
         setUploadingLogo(false);
       }
     };
@@ -284,7 +293,7 @@ const ConfigurationModal = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={modalStyles.overlay}>
         <View style={modalStyles.container}>
           <View style={modalStyles.header}>
@@ -485,7 +494,7 @@ const ItemConfigurationModal = ({
 
   const handlePromoPhotoUpload = () => {
     if (Platform.OS !== 'web') {
-      alert('Photo upload is only available on web.');
+      showMaterialAlert('Photo upload is only available on web.');
       return;
     }
     
@@ -497,7 +506,7 @@ const ItemConfigurationModal = ({
       if (!file) return;
       
       if (file.size > 5 * 1024 * 1024) {
-        alert('Image too large. Please choose an image under 5MB.');
+        showMaterialAlert('Image too large. Please choose an image under 5MB.');
         return;
       }
       
@@ -522,7 +531,7 @@ const ItemConfigurationModal = ({
             
             const ctx = canvas.getContext('2d');
             if (!ctx) {
-              alert('Failed to process image');
+              showMaterialAlert('Failed to process image.');
               setUploadingPromoPhoto(false);
               return;
             }
@@ -538,12 +547,12 @@ const ItemConfigurationModal = ({
             setUploadingPromoPhoto(false);
           } catch (error) {
             console.error('Error processing image:', error);
-            alert('Failed to process image');
+            showMaterialAlert('Failed to process image.');
             setUploadingPromoPhoto(false);
           }
         };
         img.onerror = () => {
-          alert('Failed to load image file');
+          showMaterialAlert('Failed to load image file.');
           setUploadingPromoPhoto(false);
         };
         
@@ -552,13 +561,13 @@ const ItemConfigurationModal = ({
           img.src = reader.result as string;
         };
         reader.onerror = () => {
-          alert('Failed to read image file');
+          showMaterialAlert('Failed to read image file.');
           setUploadingPromoPhoto(false);
         };
         reader.readAsDataURL(file);
       } catch (error) {
         console.error('Error uploading promo photo:', error);
-        alert('Failed to upload photo');
+        showMaterialAlert('Failed to upload photo.');
         setUploadingPromoPhoto(false);
       }
     };
@@ -602,7 +611,7 @@ const ItemConfigurationModal = ({
   );
 
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
       <View style={itemConfigStyles.overlay}>
         <View style={itemConfigStyles.container}>
           <View style={itemConfigStyles.header}>
@@ -1762,6 +1771,15 @@ export default function MaterialsScreen() {
   const [flyerItemConfig, setFlyerItemConfig] = useState<FlyerItemConfig>(defaultFlyerItemConfig);
   const [canvassingItemConfig, setCanvassingItemConfig] = useState<CanvassingFlyerItemConfig>(defaultCanvassingFlyerItemConfig);
   const [btConfig, setBtConfig] = useState<BusinessTypeConfig>(getBusinessTypeConfig(null));
+  const isDeveloper = auth.currentUser?.uid === DEVELOPER_UID;
+  const quoteSheetBrand = useMemo(() => ({
+    businessName: config.businessName,
+    tagline: config.tagline,
+    logoUrl: config.logoUrl,
+    mobileNumber: config.mobileNumber,
+    websiteAddress: config.websiteAddress,
+    facebookHandle: config.facebookHandle,
+  }), [config]);
 
   const openItemConfig = (type: ItemConfigType) => {
     setCurrentItemType(type);
@@ -1783,7 +1801,18 @@ export default function MaterialsScreen() {
         const docSnap = await getDoc(docRef);
         let materialsConfig = defaultConfig;
         if (docSnap.exists()) {
-          materialsConfig = { ...defaultConfig, ...docSnap.data() as MaterialsConfig };
+          const savedConfig = docSnap.data() as Partial<MaterialsConfig>;
+          materialsConfig = {
+            ...defaultConfig,
+            ...savedConfig,
+            businessAddress: {
+              ...defaultConfig.businessAddress,
+              ...(savedConfig.businessAddress || {}),
+            },
+            services: Array.isArray(savedConfig.services)
+              ? savedConfig.services
+              : defaultConfig.services,
+          };
         }
         
         // Load business name from owner's profile (Bank & Business Info)
@@ -1822,25 +1851,29 @@ export default function MaterialsScreen() {
       const docRef = doc(db, 'materialsConfig', ownerId);
       await setDoc(docRef, newConfig);
       setConfig(newConfig);
-      alert('Configuration saved successfully!');
+      showMaterialAlert('Configuration saved successfully.');
     } catch (error) {
       console.error('Error saving materials config:', error);
-      alert('Failed to save configuration. Please try again.');
+      showMaterialAlert('Failed to save configuration. Please try again.', 'Save Failed');
     }
   };
 
   const downloadPreviewPng = async (element: HTMLElement, filename: string) => {
     if (Platform.OS !== 'web') {
-      alert('PNG download is only available on web.');
+      showMaterialAlert('PNG download is only available on web.');
         return;
       }
       
     if (!element) {
-      alert('Could not find preview element to capture.');
+      showMaterialAlert('Could not find preview element to capture.');
       return;
     }
 
     try {
+      // Keep this browser-only dependency out of the native route startup.
+      // Native never needs it, and eager initialization can terminate this route.
+      const { default: html2canvas } = await import('html2canvas');
+
       // Ensure fonts are loaded before capture (prevents text reflow vs preview)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const fontsReady = (document as any).fonts?.ready;
@@ -1998,7 +2031,7 @@ export default function MaterialsScreen() {
       link.click();
     } catch (error) {
       console.error('Error generating PNG:', error);
-      alert('Error generating image. Please try again.');
+      showMaterialAlert('Error generating image. Please try again.');
     } finally {
       // Clean up node tagging (don’t leave attributes around)
       const tagged = [element, ...Array.from(element.querySelectorAll('*'))] as HTMLElement[];
@@ -2027,9 +2060,17 @@ export default function MaterialsScreen() {
     await downloadPreviewPng(element, `canvassing-flyer-${side}-${businessSlug}.png`);
   };
 
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer, { paddingTop: insets.top }]}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
     <PermissionGate perm="viewMaterials" fallback={<View style={styles.container}><Text>You don't have permission to view this page.</Text></View>}>
-      <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.replace('/')} style={styles.homeButton} accessibilityLabel="Home">
@@ -2061,7 +2102,13 @@ export default function MaterialsScreen() {
         />
 
         {/* Content */}
-        <ScrollView style={styles.scrollContent} contentContainerStyle={styles.scrollContentContainer}>
+        <ScrollView
+          style={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContentContainer,
+            { paddingBottom: insets.bottom + 24 },
+          ]}
+        >
           {/* Prominent Configuration Button */}
           <Pressable 
             style={styles.configBanner} 
@@ -2108,20 +2155,26 @@ export default function MaterialsScreen() {
             </View>
             
             {/* Side by side invoice previews */}
-            <View style={styles.invoiceRow} ref={printRef}>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Front</Text>
-                <View ref={invoiceFrontRef}>
-                  <InvoiceFront config={config} itemConfig={invoiceItemConfig} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+              contentContainerStyle={styles.previewScrollerContent}
+            >
+              <View style={styles.invoiceRow} ref={printRef}>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Front</Text>
+                  <View ref={invoiceFrontRef}>
+                    <InvoiceFront config={config} itemConfig={invoiceItemConfig} />
+                  </View>
+                </View>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Back</Text>
+                  <View ref={invoiceBackRef}>
+                    <InvoiceBack config={config} itemConfig={invoiceItemConfig} />
+                  </View>
                 </View>
               </View>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Back</Text>
-                <View ref={invoiceBackRef}>
-                  <InvoiceBack config={config} itemConfig={invoiceItemConfig} />
-                </View>
-              </View>
-            </View>
+            </ScrollView>
           </View>
 
           {/* Flyer Section */}
@@ -2151,20 +2204,26 @@ export default function MaterialsScreen() {
               </View>
             </View>
             
-            <View style={styles.invoiceRow}>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Front</Text>
-                <View ref={flyerFrontRef}>
-                  <FlyerFront config={config} itemConfig={flyerItemConfig} sectionTitle={btConfig.flyerSectionTitle} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+              contentContainerStyle={styles.previewScrollerContent}
+            >
+              <View style={styles.invoiceRow}>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Front</Text>
+                  <View ref={flyerFrontRef}>
+                    <FlyerFront config={config} itemConfig={flyerItemConfig} sectionTitle={btConfig.flyerSectionTitle} />
+                  </View>
+                </View>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Back</Text>
+                  <View ref={flyerBackRef}>
+                    <FlyerBack config={config} itemConfig={flyerItemConfig} />
+                  </View>
                 </View>
               </View>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Back</Text>
-                <View ref={flyerBackRef}>
-                  <FlyerBack config={config} itemConfig={flyerItemConfig} />
-                </View>
-              </View>
-            </View>
+            </ScrollView>
           </View>
 
           {/* Canvassing Flyer Section */}
@@ -2194,24 +2253,40 @@ export default function MaterialsScreen() {
               </View>
             </View>
             
-            <View style={styles.invoiceRow}>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Front</Text>
-                <View ref={canvassingFrontRef}>
-                <CanvassingFlyerFront config={config} itemConfig={canvassingItemConfig} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={Platform.OS !== 'web'}
+              contentContainerStyle={styles.previewScrollerContent}
+            >
+              <View style={styles.invoiceRow}>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Front</Text>
+                  <View ref={canvassingFrontRef}>
+                    <CanvassingFlyerFront config={config} itemConfig={canvassingItemConfig} />
+                  </View>
+                </View>
+                <View style={styles.invoiceWrapper}>
+                  <Text style={styles.invoiceLabel}>Back</Text>
+                  <View ref={canvassingBackRef}>
+                    <CanvassingFlyerBack config={config} itemConfig={canvassingItemConfig} />
+                  </View>
                 </View>
               </View>
-              <View style={styles.invoiceWrapper}>
-                <Text style={styles.invoiceLabel}>Back</Text>
-                <View ref={canvassingBackRef}>
-                <CanvassingFlyerBack config={config} itemConfig={canvassingItemConfig} />
-                </View>
-              </View>
-            </View>
+            </ScrollView>
           </View>
 
+          {isDeveloper && (
+            <QuoteSheetSection
+              brand={quoteSheetBrand}
+              servicesText={canvassingItemConfig.servicesText}
+              additionalServicesText={canvassingItemConfig.additionalServicesText}
+              promoPhotoUrl={canvassingItemConfig.promoPhotoPreset === 'custom' ? canvassingItemConfig.promoPhotoUrl : ''}
+              showBeforeAfter={canvassingItemConfig.showBeforeAfter}
+            />
+          )}
+
         </ScrollView>
-      </SafeAreaView>
+      </View>
     </PermissionGate>
   );
 }
@@ -2220,6 +2295,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -2346,8 +2425,12 @@ const styles = StyleSheet.create({
   invoiceRow: {
     flexDirection: 'row',
     gap: 24,
-    flexWrap: 'wrap',
+    flexWrap: Platform.OS === 'web' ? 'wrap' : 'nowrap',
     justifyContent: 'center',
+  },
+  previewScrollerContent: {
+    minWidth: '100%',
+    paddingBottom: Platform.OS === 'web' ? 0 : 8,
   },
   invoiceWrapper: {
     alignItems: 'center',

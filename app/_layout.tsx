@@ -2,7 +2,8 @@ import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Slot, usePathname, useRouter } from 'expo-router';
 import { Auth, onAuthStateChanged, User } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Appearance, Platform, View } from 'react-native';
+import { ActivityIndicator, Appearance, BackHandler, Platform, StyleSheet, View } from 'react-native';
+import LoginScreen from './login';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QuoteToClientProvider, useQuoteToClient } from '../contexts/QuoteToClientContext';
 import NotificationOptInModal from '../components/NotificationOptInModal';
@@ -31,7 +32,11 @@ function AppContent() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { clearQuoteData } = useQuoteToClient();
   const previousUserRef = useRef<User | null>(null);
+  // Stays true after sign-out. The auth listener clears previousUserRef first,
+  // so the redirect effect cannot tell a sign-out from a cold start otherwise.
+  const signedInThisSessionRef = useRef(false);
   const loginRedirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nativeLoginRedirectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [showPushPrompt, setShowPushPrompt] = useState(false);
 
@@ -57,6 +62,7 @@ function AppContent() {
         clearQuoteData();
       }
       
+      if (user) signedInThisSessionRef.current = true;
       previousUserRef.current = user;
       setCurrentUser(user);
       setAuthReady(true);
@@ -166,43 +172,60 @@ function AppContent() {
     if (!loggedIn) {
       // Check if this is an allowed unauthenticated route
       const isUnauthAllowed = actualPathname && unauthAllowed.some(p => actualPathname.startsWith(p));
-      
+
       console.log('🔍 Unauth check:', {
         isUnauthAllowed,
         isBusinessRoute,
         willRedirect: !isUnauthAllowed && !isBusinessRoute
       });
-      
+
       // Don't redirect if it's a business route OR explicitly allowed
       if (!isUnauthAllowed && !isBusinessRoute) {
-        const previouslyHadUser = !!previousUserRef.current;
-
-        // Fresh web visitors to the root get the public consumer landing page;
-        // deep links to app screens (expired sessions etc.) still go to login.
-        // Native apps always go to login - their audience is service providers.
-        const isRootLanding = Platform.OS === 'web' && (!actualPathname || actualPathname === '/');
-
-        if (previouslyHadUser) {
-          // Debounce redirect for non-business routes
-          if (!loginRedirectTimeoutRef.current) {
-            loginRedirectTimeoutRef.current = setTimeout(() => {
-              // Re-check business route status using window.location (web only;
-              // native has no business-portal deep links, so redirect to login)
-              const currentPath = Platform.OS === 'web' ? window.location.pathname : '';
-              const currentSegment = currentPath ? currentPath.split('/')[1] : '';
-              const stillNotBusinessRoute = !currentPath || 
-                !/^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$/.test(currentPath) ||
-                !currentSegment ||
-                unauthAllowed.includes('/' + currentSegment);
-              
-              if (!auth.currentUser && stillNotBusinessRoute) {
-                router.replace('/login');
-              }
-              loginRedirectTimeoutRef.current = null;
-            }, 5000);
+        // Native sign-out: login is drawn over the current screen. A route
+        // replace here crashes iOS (TestFlight: "Guvnor Crashed").
+        if (Platform.OS !== 'web' && signedInThisSessionRef.current) {
+          if (nativeLoginRedirectRef.current) {
+            clearTimeout(nativeLoginRedirectRef.current);
+            nativeLoginRedirectRef.current = null;
           }
         } else {
-          router.replace(isRootLanding ? '/welcome' : '/login');
+          const previouslyHadUser = !!previousUserRef.current;
+
+          // Fresh web visitors to the root get the public consumer landing page;
+          // deep links to app screens (expired sessions etc.) still go to login.
+          // Native apps always go to login - their audience is service providers.
+          const isRootLanding = Platform.OS === 'web' && (!actualPathname || actualPathname === '/');
+
+          if (previouslyHadUser) {
+            // Debounce redirect for non-business routes
+            if (!loginRedirectTimeoutRef.current) {
+              loginRedirectTimeoutRef.current = setTimeout(() => {
+                // Re-check business route status using window.location (web only;
+                // native has no business-portal deep links, so redirect to login)
+                const currentPath = Platform.OS === 'web' ? window.location.pathname : '';
+                const currentSegment = currentPath ? currentPath.split('/')[1] : '';
+                const stillNotBusinessRoute = !currentPath ||
+                  !/^\/[a-zA-Z][a-zA-Z0-9]*(\/.*)?$/.test(currentPath) ||
+                  !currentSegment ||
+                  unauthAllowed.includes('/' + currentSegment);
+
+                if (!auth.currentUser && stillNotBusinessRoute) {
+                  router.replace('/login');
+                }
+                loginRedirectTimeoutRef.current = null;
+              }, 5000);
+            }
+          } else if (Platform.OS === 'web') {
+            router.replace(isRootLanding ? '/welcome' : '/login');
+          } else if (!nativeLoginRedirectRef.current) {
+            // Cold start only. Sign-out does not reach this branch.
+            nativeLoginRedirectRef.current = setTimeout(() => {
+              nativeLoginRedirectRef.current = null;
+              if (!auth.currentUser && !signedInThisSessionRef.current) {
+                router.replace('/login');
+              }
+            }, 100);
+          }
         }
       }
     } else {
@@ -210,6 +233,10 @@ function AppContent() {
       if (loginRedirectTimeoutRef.current) {
         clearTimeout(loginRedirectTimeoutRef.current);
         loginRedirectTimeoutRef.current = null;
+      }
+      if (nativeLoginRedirectRef.current) {
+        clearTimeout(nativeLoginRedirectRef.current);
+        nativeLoginRedirectRef.current = null;
       }
       console.log('🔑 Logged in, checking redirect rules for:', actualPathname);
       // Don't redirect if we're in a password reset flow
@@ -223,6 +250,27 @@ function AppContent() {
       }
     }
   }, [authReady, currentUser, pathname]);
+
+  const coverPath = Platform.OS === 'web' ? '' : (pathname || '');
+  const coverAllowed = ['/login', '/register', '/forgot-password', '/set-password', '/window-cleaning-quote', '/welcome', '/bin-cleaning-quote', '/welcome-bin-cleaning'];
+  const nativeSignedOutCover =
+    Platform.OS !== 'web' &&
+    authReady &&
+    !currentUser &&
+    signedInThisSessionRef.current &&
+    !coverAllowed.some((p) => coverPath.startsWith(p));
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !nativeSignedOutCover) return;
+    // The signed-out login screen is an overlay so iOS does not crash while
+    // replacing the active route. Do not let Android's hardware Back button
+    // reveal or navigate the authenticated stack underneath that overlay.
+    const subscription = BackHandler.addEventListener(
+      'hardwareBackPress',
+      () => true
+    );
+    return () => subscription.remove();
+  }, [nativeSignedOutCover]);
   
   if (!authReady) {
     return (
@@ -240,9 +288,16 @@ function AppContent() {
     // designed dark palette, so paint white to match web.
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#fff' }}>
       <ThemeProvider value={DefaultTheme}>
-        <Slot />
+        <View style={{ flex: 1 }}>
+          <Slot />
+          {nativeSignedOutCover && (
+            <View style={styles.loginCover}>
+              <LoginScreen />
+            </View>
+          )}
+        </View>
         <NotificationOptInModal
-          visible={showPushPrompt}
+          visible={showPushPrompt && !nativeSignedOutCover}
           onDone={() => setShowPushPrompt(false)}
         />
       </ThemeProvider>
@@ -257,3 +312,11 @@ export default function RootLayout() {
     </QuoteToClientProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  loginCover: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#fff',
+    zIndex: 50,
+  },
+});

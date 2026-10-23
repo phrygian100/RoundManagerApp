@@ -90,7 +90,7 @@ Batch lookup, max 40 ids. Each result is `{ ok, clientId, client?, nextJob?, err
 
 ### `listJobs` — body `{ "clientId"?, "startDate"?, "endDate"?, "status"? }`
 
-You must provide **either** `clientId` **or** both `startDate` and `endDate` (`yyyy-MM-dd`). Optional `status` filter (`pending`, `completed`, etc.). Returns jobs sorted oldest-first, capped at 500 (`truncated: true` if capped). Each job includes `jobNote`, `isDeferred`, `originalScheduledTime`, and joined client fields: `clientName`, `address`, `mobileNumber`, `email`, `frequency`, `runsheetNotes`. For "text everyone on this date" this is the only read you need.
+You must provide **either** `clientId` **or** both `startDate` and `endDate` (`yyyy-MM-dd`). Optional `status` filter (`pending`, `completed`, etc.). Returns jobs sorted oldest-first, capped at 500 (`truncated: true` if capped). Each job includes `jobNote`, `eta` (the runsheet arrival time, or null), `assignedVehicleId`, `isDeferred`, `originalScheduledTime`, the job-level DD fields `gocardlessEnabled` / `gocardlessCustomerId` (what End of day actually raises from — see `auditGocardlessJobs`), and joined client fields: `clientName`, `address`, `mobileNumber`, `email`, `frequency`, `runsheetNotes`. For "text everyone on this date" this is the only read you need.
 
 ### `listPayments` — body `{ "clientId"?, "startDate"?, "endDate"? }`
 
@@ -99,6 +99,10 @@ Same bounding rule as `listJobs`. Returns payments sorted newest-first, capped a
 ### `getRunsheet` — body `{ "week": "yyyy-MM-dd" }`
 
 Pass any date; you get that week's runsheet (Monday–Sunday): jobs grouped by day, sorted by round order. Each job has the same joined client fields as `listJobs` (including `mobileNumber`) plus `roundOrderNumber`.
+
+### `listQuoteRequests` — body `{ "status"?, "includeGuvnorLeads"?: true }`
+
+Lists the account's quote requests — the **New Business** screen queue (website/portal enquiries). Optional `status` filter: `pending` (default) | `contacted` | `converted` | `declined` | `all`. Entries with `businessName: "Guvnor"` are the developer-only **Guvnor Leads** marketplace inbox (shown on `/guvnor-leads`, hidden from `/new-business`) and are excluded unless `includeGuvnorLeads: true`. Returns `{ ok, count, requests: [{ id, name, phone, address, town, postcode, email, notes, propertyType, hasConservatory, status, createdAt, source, businessName, assignedByGuvnor, selectedFrequency, selectedCost, additionalServices }] }`.
 
 ---
 
@@ -139,10 +143,10 @@ Same rules as `rescheduleJob`, max 200 items, **one write token**. Per-item fail
 ### `createJob`
 
 ```json
-{ "clientId": "<id>", "scheduledDate": "2026-08-01", "serviceId": "gutter-cleaning", "price": 40, "note": "<optional job note>" }
+{ "clientId": "<id>", "scheduledDate": "2026-08-01", "serviceId": "gutter-cleaning", "price": 40, "note": "<optional job note>", "eta": "09:20" }
 ```
 
-`serviceId` defaults to `window-cleaning`; `price` defaults to the client's standard quote. Custom `serviceId` strings display verbatim on the runsheet with one-off styling. Optional `note` becomes the job's inline runsheet note. Creates a one-off pending job. **Check `listJobs` for the same client/date/service first — do not create duplicates.** Returns `{ ok, jobId, scheduledTime, price }`. For several jobs, use `batchCreateJobs`.
+`serviceId` defaults to `window-cleaning`; `price` defaults to the client's standard quote when absent or negative — an explicit `0` is honoured (free return visits etc.). Custom `serviceId` strings display verbatim on the runsheet with one-off styling. Optional `note` becomes the job's inline runsheet note. Creates a one-off pending job. **Check `listJobs` for the same client/date/service first — do not create duplicates.** Returns `{ ok, jobId, scheduledTime, price }`. For several jobs, use `batchCreateJobs`.
 
 ### `batchCreateJobs`
 
@@ -152,6 +156,14 @@ Same rules as `rescheduleJob`, max 200 items, **one write token**. Per-item fail
 
 Same fields as `createJob`, max 50, one write token. Unknown client ids are skipped and listed in `errors`. Returns `{ ok, created, failed, jobs, errors }`.
 
+### `deletePayment`
+
+```json
+{ "paymentId": "<id>" }
+```
+
+Deletes a single payment record — a narrow escape hatch for correcting mistaken entries (e.g. a write-off applied in error). Returns the deleted payment's `clientId`, `amount`, `date`, `method` and `reference` for the audit trail.
+
 ### `deleteJob`
 
 ```json
@@ -159,6 +171,56 @@ Same fields as `createJob`, max 50, one write token. Unknown client ids are skip
 ```
 
 Deletes a single non-completed job (accidental duplicates etc.). Completed jobs are refused — they are part of billing history. Returns the deleted job's `clientId`, `serviceId`, `scheduledTime` and `price` for the audit trail.
+
+### `setJobEta`
+
+```json
+{ "jobId": "<id>", "eta": "09:20" }
+```
+
+Sets the runsheet arrival time (`HH:mm`, 24-hour) — the same field the ETA button writes. Pass `""` or `null` to clear. Returns `{ ok, jobId, scheduledTime, previousEta, newEta }`.
+
+### `batchSetJobEtas`
+
+```json
+{ "items": [ { "jobId": "<id>", "eta": "09:20" } ] }
+```
+
+Same as `setJobEta`, max 100, one write token. Returns `{ ok, updated, failed, results }`.
+
+### `setClientGocardless`
+
+```json
+{ "clientId": "<id>", "enabled": false, "customerId": "<optional GC customer id when enabling>" }
+```
+
+Turns the client's Direct Debit flag on or off and stamps the same `gocardlessEnabled` / `gocardlessCustomerId` onto every **not-yet-completed** job for that client. Does **not** cancel the GoCardless mandate. Enabling requires a customer id (existing on the client, or passed). Returns `{ ok, clientId, clientName, previousEnabled, enabled, gocardlessCustomerId, jobsUpdated }`.
+
+Why the job stamp matters: the runsheet End of day reads `job.gocardlessEnabled ?? client.gocardlessEnabled`, and every job is written with an explicit boolean, so the client value is never consulted. A job carrying a stale `false` (client put on DD after the jobs were generated) is silently not collected.
+
+### `auditGocardlessJobs`
+
+```json
+{ "startDate": "2026-09-23", "endDate": "2026-09-23", "fix": false }
+```
+
+Finds pending jobs whose DD fields disagree with their client (client on DD but job would not be collected; client off DD but job would still be charged; customer id differs). Dates are optional — omit both for every pending job. `fix: true` stamps the client's current settings onto the mismatched jobs. Returns `{ ok, pendingJobsChecked, mismatches, fixed, items: [{ jobId, clientId, clientName, accountNumber, scheduledTime, price, job: {…}, client: {…}, problem }] }`. Run it for today before pressing End of day. First run on 22 Sep 2026 found 285 stale jobs across 15 clients.
+
+### `setJobPrice`
+
+```json
+{ "jobId": "<id>", "price": 0 }
+```
+
+Sets the job price (same write as the runsheet price-edit modal: `price` + `hasCustomPrice: true`). Explicit `0` is honoured for free visits. Returns `previousPrice` and `newPrice`.
+
+### `batchSetJobPrices`
+
+```json
+{ "items": [ { "jobId": "<id>", "price": 0 } ] }
+```
+
+Same as `setJobPrice`, max 100, one write token. Returns `{ ok, updated, failed, results }`.
 
 ### `setJobNote`
 
@@ -216,6 +278,22 @@ Bulk-moves every non-completed job (`pending` / `scheduled` / `in_progress`) by 
 
 Temporarily suspends a client without archiving them: deletes their upcoming (non-completed) jobs from `fromDate` onwards, deactivates their active service plans so the schedule top-up raises nothing new, and (if `note` given) prepends a timestamped account note (author "Agent API"). The client stays `active`; reactivating the service plan in-app resumes job generation. Returns `{ ok, clientId, clientName, jobsDeleted, firstDeletedDate, lastDeletedDate, plansDeactivated, noteAdded, clientStatus }`.
 
+### `createClient`
+
+```json
+{ "name": "Jane Smith", "address1": "1 Example Road", "town": "Exampleton", "postcode": "AB1 2CD", "mobileNumber": "07700900000", "email": "", "quote": 15, "frequencyWeeks": 4, "firstVisitDate": "2026-10-05", "source": "WhatsApp", "accountNote": "<optional>", "runsheetNote": "<optional>", "afterClientId": "<optional>", "allowDuplicateAddress": false, "startingBalance": 0 }
+```
+
+The Agent API equivalent of the app's Add Client screen. Assigns the next free `RWC` account number and a round-order slot (end of round, or directly after `afterClientId`, shifting later clients down). For recurring clients (`frequencyWeeks` 1–52, `firstVisitDate` required) it also creates a window-cleaning service plan and ~24 months of pending jobs anchored on `firstVisitDate`. Pass `frequencyWeeks: "one-off"` (or `oneOff: true`) for one-off clients — then create the job separately with `createJob`. Refuses a second active client at the same `address1`+`town` unless `allowDuplicateAddress: true` (archive the old occupant first — see `archiveClient`). Returns `{ ok, clientId, accountNumber, roundOrderNumber, roundOrderShifted, jobsCreated, firstJob, lastJob }`.
+
+### `updateClientContact`
+
+```json
+{ "clientId": "<id>", "mobileNumber": "<optional>", "email": "<optional>", "name": "<optional>", "note": "<optional account note>" }
+```
+
+Updates a client's contact details (any subset of mobile number, email, display name — at least one required; name cannot be cleared, the other two can with `""`). Address and financial fields are deliberately excluded. Optional `note` prepends a timestamped account note. Returns `{ ok, clientId, clientName, changed }` with old→new values for the audit trail.
+
 ### `updateClientService`
 
 ```json
@@ -267,6 +345,14 @@ Sends pre-rendered SMS messages through the account owner's Twilio credentials o
 ```
 
 Updates the owner's Twilio broadcast credentials. Provide `accountSid` plus **either** `authToken` **or** an `apiKeySid` + `apiKeySecret` pair (API key wins on send; saving an auth token clears any stored API key). Credentials are verified against Twilio with a read-only account fetch before saving — invalid ones are rejected and nothing is stored. Optional `fromNumber` (E.164 or alphanumeric ≤11 chars) updates the sender. Secrets are redacted in the audit log. Returns `{ ok, authMethod, accountStatus, accountName, fromNumberUpdated }`.
+
+### `updateQuoteRequest`
+
+```json
+{ "requestId": "<id>", "status": "contacted" }
+```
+
+Updates a quote request's status after it has been actioned (mirrors the New Business screen marking entries contacted/converted/declined). `status` must be one of: `pending` | `contacted` | `converted` | `declined`. Returns `{ ok, requestId, previousStatus, status }`.
 
 ---
 

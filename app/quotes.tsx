@@ -8,11 +8,14 @@ import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } 
 import React, { useEffect, useState } from 'react';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Alert, Button, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuoteToClient } from '../contexts/QuoteToClientContext';
 import { db } from '../core/firebase';
 import { getDataOwnerId } from '../core/session';
 import { formatAuditDescription, logAction } from '../services/auditService';
 import { pushOrNewTab } from '../utils/ctrlClickNavigation';
+import QuoteBookPanel from '../components/quoteBook/QuoteBookPanel';
+import { migrateLegacyQuotes } from '../services/quoteBookService';
 
 type QuoteLine = {
   serviceType: string;
@@ -37,6 +40,7 @@ type Quote = {
   value?: string;
   source?: string;
   customSource?: string;
+  quoteBookRef?: string;
 };
 
 const confirmDialog = (message: string, onConfirm: () => void) => {
@@ -72,6 +76,7 @@ const sourceOptions = [
 export default function QuotesScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({ name: '', address: '', town: '', number: '', date: '', source: '', customSource: '', notes: '' });
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -87,6 +92,8 @@ export default function QuotesScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [collapsedQuotes, setCollapsedQuotes] = useState<Set<string>>(new Set());
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set());
+  const [tab, setTab] = useState<'book' | 'visits'>('book');
+  const [addQuoteKey, setAddQuoteKey] = useState(0);
 
   useEffect(() => {
     const fetchQuotes = async () => {
@@ -250,6 +257,12 @@ export default function QuotesScreen() {
       detailsModal.quote.id,
       formatAuditDescription('quote_progressed', `${detailsModal.quote.name} - ${detailsModal.quote.address}`)
     );
+
+    try {
+      await migrateLegacyQuotes(detailsModal.quote.id);
+    } catch (err) {
+      console.error('Could not copy progressed quote into the quote book:', err);
+    }
     
     setDetailsModal({ visible: false, quote: null });
     setQuoteLines([{ serviceType: '', frequency: '4 weekly', value: '', notes: '' }]); // Reset lines after saving
@@ -309,11 +322,13 @@ export default function QuotesScreen() {
     return buildSearchHaystack(q).includes(s);
   };
 
-  // Group quotes by status and apply search filter
-  const scheduledQuotes = quotes.filter(q => q.status === 'scheduled');
-  const pendingQuotes = quotes.filter(q => q.status === 'pending');
-  const wonQuotes = quotes.filter(q => q.status === 'complete');
-  const lostQuotes = quotes.filter(q => q.status === 'lost');
+  // Group quotes by status and apply search filter. Quotes already copied into
+  // the quote book are managed there.
+  const visitQuotes = quotes.filter(q => !q.quoteBookRef);
+  const scheduledQuotes = visitQuotes.filter(q => q.status === 'scheduled');
+  const pendingQuotes = visitQuotes.filter(q => q.status === 'pending');
+  const wonQuotes = visitQuotes.filter(q => q.status === 'complete');
+  const lostQuotes = visitQuotes.filter(q => q.status === 'lost');
 
   const scheduledFiltered = scheduledQuotes.filter(matchesSearch);
   const pendingFiltered = pendingQuotes.filter(matchesSearch);
@@ -444,23 +459,59 @@ export default function QuotesScreen() {
 
   const isWeb = Platform.OS === 'web';
   const isLargeScreen = isWeb && width > 768;
+  const isCompactHeader = width < 600;
 
   // --- Main Render ---
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 32 }}>
       {/* Header Bar */}
-      <View style={{ width: '100%', maxWidth: 700, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingBottom: 8, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#e0e0e0', marginBottom: 16, boxShadow: '0 2px 8px #0001' }}>
-        <Text style={{ fontWeight: 'bold', fontSize: 28, letterSpacing: 0.5 }}>Quotes</Text>
-        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+      <View style={[
+        styles.screenHeader,
+        {
+          paddingTop: Platform.OS === 'web' ? 24 : insets.top + 8,
+          paddingHorizontal: isCompactHeader ? 16 : 24,
+        },
+      ]}>
+        <Text style={[styles.screenHeaderTitle, isCompactHeader && styles.screenHeaderTitleCompact]} numberOfLines={1}>Quotes</Text>
+        <View style={[styles.screenHeaderActions, isCompactHeader && styles.screenHeaderActionsCompact]}>
           <GuideHelpButton slug="quotes" color="#1976d2" />
-          <TouchableOpacity onPress={() => pushOrNewTab('/')} style={{ padding: 8, borderRadius: 6, backgroundColor: '#eaf2ff', marginRight: 8 }}>
+          <TouchableOpacity
+            onPress={() => pushOrNewTab('/')}
+            style={styles.screenHeaderButton}
+            accessibilityRole="button"
+            accessibilityLabel="Home"
+            hitSlop={8}
+          >
             <Ionicons name="home-outline" size={22} color="#1976d2" />
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={{ padding: 8, borderRadius: 6, backgroundColor: '#1976d2' }}>
+          <TouchableOpacity
+            onPress={() => { setTab('book'); setAddQuoteKey(k => k + 1); }}
+            style={[styles.screenHeaderButton, styles.screenHeaderAddButton]}
+            accessibilityRole="button"
+            accessibilityLabel="Add quote"
+          >
             <Ionicons name="add-circle-outline" size={22} color="#fff" />
           </TouchableOpacity>
         </View>
       </View>
+      <View style={{ width: '100%', maxWidth: 760, paddingHorizontal: 16, marginBottom: 12, alignSelf: 'center', flexDirection: 'row', gap: 8 }}>
+        {([
+          ['book', 'Quote book'],
+          ['visits', `Visits${scheduledQuotes.length ? ` (${scheduledQuotes.length})` : ''}`],
+        ] as const).map(([key, label]) => (
+          <Pressable
+            key={key}
+            onPress={() => setTab(key)}
+            style={{ flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', backgroundColor: tab === key ? '#1976d2' : '#fff', borderWidth: 1, borderColor: '#1976d2' }}
+          >
+            <Text style={{ color: tab === key ? '#fff' : '#1976d2', fontWeight: '600' }}>{label}</Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === 'book' ? (
+        <QuoteBookPanel addRequestKey={addQuoteKey} />
+      ) : (
+      <>
       {/* Global Search */}
       <View style={{ width: '100%', maxWidth: 700, paddingHorizontal: 16, marginBottom: 12, alignSelf: 'center' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 }}>
@@ -596,6 +647,8 @@ export default function QuotesScreen() {
             )}
           </SectionCard>
         </View>
+      )}
+      </>
       )}
       {/* Create Quote Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
@@ -863,6 +916,51 @@ export default function QuotesScreen() {
 }
 
 const styles = StyleSheet.create({
+  screenHeader: {
+    width: '100%',
+    maxWidth: 700,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 24,
+    paddingBottom: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderColor: '#e0e0e0',
+    marginBottom: 16,
+    boxShadow: '0 2px 8px #0001',
+  },
+  screenHeaderTitle: {
+    flex: 1,
+    minWidth: 0,
+    fontWeight: 'bold',
+    fontSize: 28,
+    letterSpacing: 0.5,
+  },
+  screenHeaderTitleCompact: {
+    fontSize: 24,
+  },
+  screenHeaderActions: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  screenHeaderActionsCompact: {
+    gap: 8,
+  },
+  screenHeaderButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 6,
+    backgroundColor: '#eaf2ff',
+  },
+  screenHeaderAddButton: {
+    backgroundColor: '#1976d2',
+  },
   // Modal styles
   modalOverlay: {
     flex: 1,

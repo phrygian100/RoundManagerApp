@@ -186,7 +186,8 @@ export default function RoundOrderPositionScreen() {
           status: activeClient.status || 'active',
           source: activeClient.source || '',
           email: activeClient.email || '',
-          roundOrderNumber: String(selectedPosition)
+          roundOrderNumber: String(selectedPosition),
+          ...((activeClient as any).quoteBookRef ? { quoteBookRef: String((activeClient as any).quoteBookRef) } : {}),
         };
         router.push({
           pathname: '/add-client',
