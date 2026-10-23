@@ -363,7 +363,15 @@ export default function NewBusinessScreen() {
             </View>
           ) : (
             requests.map((request) => (
-              <View key={request.id} style={styles.card}>
+              <View key={request.id} style={[styles.card, request.preApprovedQuote && styles.preApprovedCard]}>
+                {request.preApprovedQuote && (
+                  <View style={styles.preApprovedBanner}>
+                    <Text style={styles.preApprovedBannerTitle}>✓ Pre-approved quote</Text>
+                    <Text style={styles.preApprovedBannerText}>
+                      Accepted online from a quote sheet{request.quoteRef ? ` · Ref ${request.quoteRef}` : ''}. No quote visit needed.
+                    </Text>
+                  </View>
+                )}
                 {/* Card Header */}
                 <View style={styles.cardHeader}>
                   <View style={styles.cardHeaderLeft}>
@@ -373,13 +381,6 @@ export default function NewBusinessScreen() {
                   {request.assignedByGuvnor && (
                     <View style={styles.guvnorBadge}>
                       <Text style={styles.guvnorBadgeText}>Lead from Guvnor</Text>
-                    </View>
-                  )}
-                  {request.preApprovedQuote && (
-                    <View style={styles.preApprovedBadge}>
-                      <Text style={styles.preApprovedBadgeText}>
-                        Pre-approved quote{request.quoteRef ? ` · Ref ${request.quoteRef}` : ''}
-                      </Text>
                     </View>
                   )}
                 </View>
@@ -811,18 +812,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-  preApprovedBadge: {
-    backgroundColor: '#eff6ff',
-    borderWidth: 1,
-    borderColor: '#93c5fd',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+  preApprovedCard: {
+    borderWidth: 2,
+    borderColor: '#2563eb',
   },
-  preApprovedBadgeText: {
-    color: '#1e40af',
+  preApprovedBanner: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  preApprovedBannerTitle: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  preApprovedBannerText: {
+    color: '#dbeafe',
     fontSize: 12,
-    fontWeight: '700',
+    marginTop: 2,
   },
   statusText: {
     color: '#fff',
