@@ -7,21 +7,28 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Alert, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { getDataOwnerId } from '../../core/session';
 import {
   deleteQuoteBookEntries,
   fetchQuoteBookPage,
+  fetchQuotesByFilters,
   formatQuoteOption,
   importQuoteRows,
   mapCsvRow,
   migrateLegacyQuotes,
   QUOTE_BOOK_STATUS_LABELS,
+  QUOTE_FILTER_MAX,
   QuoteBookEntry,
   QuoteBookImportResult,
   QuoteBookOption,
   QuoteBookStatus,
+  QuoteFilterField,
+  QuoteFilterRule,
+  quotesToCsvRows,
   updateQuoteBookEntry,
 } from '../../services/quoteBookService';
+import { getUserProfile } from '../../services/userService';
 
 const notify = (title: string, message: string) => {
   if (Platform.OS === 'web') window.alert(`${title}\n\n${message}`);
@@ -50,6 +57,14 @@ type EditForm = {
 };
 const EMPTY_FORM: EditForm = { address: '', town: '', postcode: '', price4: '', price8: '', name: '', phone: '', notes: '', homeSummary: '' };
 
+const FILTER_FIELDS: { key: QuoteFilterField; label: string; placeholder: string }[] = [
+  { key: 'town', label: 'Town', placeholder: 'Billinghay' },
+  { key: 'street', label: 'Street', placeholder: 'Green Lane' },
+  { key: 'postcode', label: 'Postcode', placeholder: 'LN4 4 or LN4 4BQ' },
+];
+const FILTER_RENDER_STEP = 200;
+const newRule = (mode: QuoteFilterRule['mode'] = 'include', field: QuoteFilterField = 'town'): QuoteFilterRule => ({ mode, field, value: '' });
+
 const describeImport = (r: QuoteBookImportResult) => [
   `${r.created} quotes added.`,
   r.skippedExisting ? `${r.skippedExisting} existing customers skipped.` : '',
@@ -73,6 +88,11 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
   const [editing, setEditing] = useState<{ visible: boolean; entry: QuoteBookEntry | null }>({ visible: false, entry: null });
   const [form, setForm] = useState<EditForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [rules, setRules] = useState<QuoteFilterRule[]>([newRule()]);
+  const [filterResult, setFilterResult] = useState<{ entries: QuoteBookEntry[]; truncated: boolean } | null>(null);
+  const [filtering, setFiltering] = useState(false);
+  const [filterRenderCount, setFilterRenderCount] = useState(FILTER_RENDER_STEP);
   const requestSeq = useRef(0);
 
   useEffect(() => {
@@ -234,12 +254,78 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
     setEntries((prev) => prev
       .map((e) => (e.ref === entry.ref ? { ...e, status: next } : e))
       .filter((e) => status === 'all' || e.status === status));
+    setFilterResult((prev) => prev && { ...prev, entries: prev.entries.map((e) => (e.ref === entry.ref ? { ...e, status: next } : e)) });
   };
 
   const handleDelete = async (entry: QuoteBookEntry) => {
     if (!(await confirmAction(`Delete quote ${entry.ref} for ${entry.address}? This cannot be undone.`))) return;
     await deleteQuoteBookEntries([entry.ref]);
     setEntries((prev) => prev.filter((e) => e.ref !== entry.ref));
+    setFilterResult((prev) => prev && { ...prev, entries: prev.entries.filter((e) => e.ref !== entry.ref) });
+  };
+
+  const updateRule = (index: number, patch: Partial<QuoteFilterRule>) => {
+    setRules((prev) => prev.map((r, i) => (i === index ? { ...r, ...patch } : r)));
+  };
+
+  const runFilters = async () => {
+    if (!ownerId) return;
+    setFiltering(true);
+    try {
+      const result = await fetchQuotesByFilters(ownerId, rules);
+      setFilterResult(result);
+      setFilterRenderCount(FILTER_RENDER_STEP);
+    } catch (err: any) {
+      console.error('Quote filter failed:', err);
+      notify('Filters', err?.message || 'Could not load quotes for those filters.');
+    } finally {
+      setFiltering(false);
+    }
+  };
+
+  const clearFilters = () => {
+    setRules([newRule()]);
+    setFilterResult(null);
+  };
+
+  const filteredShown = filterResult
+    ? filterResult.entries.filter((e) => status === 'all' || e.status === status)
+    : [];
+
+  const downloadCsv = async () => {
+    if (!filteredShown.length) return;
+    let businessName = '';
+    try {
+      businessName = ownerId ? (await getUserProfile(ownerId) as any)?.businessName || '' : '';
+    } catch {
+      businessName = '';
+    }
+    const csv = Papa.unparse(quotesToCsvRows(filteredShown, businessName));
+    const filename = `quote-book-${new Date().toISOString().slice(0, 10)}-${filteredShown.length}.csv`;
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+    const fileUri = `${FileSystem.documentDirectory}${filename}`;
+    await FileSystem.writeAsStringAsync(fileUri, csv, { encoding: FileSystem.EncodingType.UTF8 });
+    try {
+      const Sharing = await import('expo-sharing');
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, { mimeType: 'text/csv', dialogTitle: 'Share quote CSV' });
+        return;
+      }
+    } catch {
+      // fall through to the saved-file message
+    }
+    notify('Exported', `CSV saved to ${fileUri}`);
   };
 
   const handleAddClient = (entry: QuoteBookEntry, option: QuoteBookOption) => {
@@ -322,6 +408,7 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
 
   return (
     <View style={styles.container}>
+      {!showFilters && (
       <View style={styles.searchBox}>
         <Ionicons name="search" size={20} color="#666" />
         <TextInput
@@ -338,6 +425,7 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
           </Pressable>
         ) : null}
       </View>
+      )}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
         {STATUS_FILTERS.map((s) => (
@@ -350,6 +438,16 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
       </ScrollView>
 
       <View style={styles.toolRow}>
+        <Pressable
+          style={[styles.toolBtn, showFilters && styles.toolBtnActive]}
+          onPress={() => {
+            if (showFilters) clearFilters();
+            setShowFilters((v) => !v);
+          }}
+        >
+          <Ionicons name="funnel-outline" size={16} color={showFilters ? '#fff' : '#1976d2'} />
+          <Text style={[styles.toolBtnText, showFilters && { color: '#fff' }]}>{showFilters ? 'Close filters' : 'Filters'}</Text>
+        </Pressable>
         <Pressable style={styles.toolBtn} onPress={handleImportPress} disabled={!!importing}>
           <Ionicons name="cloud-upload-outline" size={16} color="#1976d2" />
           <Text style={styles.toolBtnText}>Import CSV</Text>
@@ -375,8 +473,86 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
         </View>
       ) : null}
 
-      {entries.map(renderEntry)}
+      {showFilters ? (
+        <View style={styles.filterPanel}>
+          <Text style={styles.filterHelp}>
+            Include terms on the same field match any of them (two towns = either town). Different fields must all match. Any exclude removes the quote. Postcode accepts a full postcode, a sector (LN4 4) or a district (LN4).
+          </Text>
+          {rules.map((rule, i) => (
+            <View key={i} style={styles.ruleRow}>
+              <Pressable
+                style={[styles.modeBtn, rule.mode === 'exclude' && styles.modeBtnExclude]}
+                onPress={() => updateRule(i, { mode: rule.mode === 'include' ? 'exclude' : 'include' })}
+              >
+                <Text style={[styles.modeBtnText, rule.mode === 'exclude' && { color: '#c62828' }]}>
+                  {rule.mode === 'include' ? 'Include' : 'Exclude'}
+                </Text>
+              </Pressable>
+              <View style={styles.fieldGroup}>
+                {FILTER_FIELDS.map((f) => (
+                  <Pressable key={f.key} onPress={() => updateRule(i, { field: f.key })} style={[styles.fieldChip, rule.field === f.key && styles.fieldChipActive]}>
+                    <Text style={[styles.fieldChipText, rule.field === f.key && styles.fieldChipTextActive]}>{f.label}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.ruleInput}
+                value={rule.value}
+                onChangeText={(v) => updateRule(i, { value: v })}
+                placeholder={FILTER_FIELDS.find((f) => f.key === rule.field)?.placeholder}
+                placeholderTextColor="#aaa"
+                autoCapitalize={rule.field === 'postcode' ? 'characters' : 'words'}
+                onSubmitEditing={runFilters}
+              />
+              <Pressable onPress={() => setRules((prev) => (prev.length > 1 ? prev.filter((_, k) => k !== i) : [newRule()]))} hitSlop={8}>
+                <Ionicons name="close-circle-outline" size={20} color="#999" />
+              </Pressable>
+            </View>
+          ))}
+          <View style={styles.filterActions}>
+            <Pressable style={styles.secondaryBtn} onPress={() => setRules((prev) => [...prev, newRule('include', 'town')])}>
+              <Text style={styles.secondaryBtnText}>+ Include</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryBtn} onPress={() => setRules((prev) => [...prev, newRule('exclude', 'street')])}>
+              <Text style={[styles.secondaryBtnText, { color: '#c62828' }]}>+ Exclude</Text>
+            </Pressable>
+            <Pressable style={styles.secondaryBtn} onPress={clearFilters}>
+              <Text style={styles.secondaryBtnText}>Clear</Text>
+            </Pressable>
+            <Pressable style={[styles.applyBtn, filtering && { opacity: 0.6 }]} onPress={runFilters} disabled={filtering}>
+              {filtering ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="search" size={15} color="#fff" />}
+              <Text style={styles.primaryBtnText}>Apply filters</Text>
+            </Pressable>
+          </View>
+          {filterResult ? (
+            <View style={styles.filterSummary}>
+              <Text style={styles.filterSummaryText}>
+                {filteredShown.length.toLocaleString()} quote{filteredShown.length === 1 ? '' : 's'} match
+                {status !== 'all' ? ` (${QUOTE_BOOK_STATUS_LABELS[status]} only)` : ''}
+                {filterResult.truncated ? `. Stopped at ${QUOTE_FILTER_MAX.toLocaleString()} quotes read; add a narrower include.` : '.'}
+              </Text>
+              <Pressable style={[styles.applyBtn, !filteredShown.length && { opacity: 0.5 }]} onPress={downloadCsv} disabled={!filteredShown.length}>
+                <Ionicons name="download-outline" size={15} color="#fff" />
+                <Text style={styles.primaryBtnText}>Download CSV</Text>
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
 
+      {filterResult ? (
+        <>
+          {filteredShown.slice(0, filterRenderCount).map(renderEntry)}
+          {filteredShown.length > filterRenderCount ? (
+            <Pressable style={styles.moreBtn} onPress={() => setFilterRenderCount((n) => n + FILTER_RENDER_STEP)}>
+              <Text style={styles.moreBtnText}>Show more ({(filteredShown.length - filterRenderCount).toLocaleString()} left)</Text>
+            </Pressable>
+          ) : null}
+        </>
+      ) : showFilters ? null : entries.map(renderEntry)}
+
+      {!filterResult && !showFilters ? (
+      <>
       {loading ? <ActivityIndicator style={{ marginVertical: 16 }} /> : null}
       {!loading && entries.length === 0 ? (
         <View style={styles.empty}>
@@ -388,6 +564,8 @@ export default function QuoteBookPanel({ addRequestKey }: { addRequestKey: numbe
         <Pressable style={styles.moreBtn} onPress={() => load(false)}>
           <Text style={styles.moreBtnText}>Load more</Text>
         </Pressable>
+      ) : null}
+      </>
       ) : null}
 
       <Modal visible={editing.visible} transparent animationType="slide" onRequestClose={() => setEditing({ visible: false, entry: null })}>
@@ -446,6 +624,23 @@ const styles = StyleSheet.create({
   toolRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   toolBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: '#bbdefb', backgroundColor: '#f5faff' },
   toolBtnText: { color: '#1976d2', fontWeight: '600', fontSize: 14 },
+  toolBtnActive: { backgroundColor: '#1976d2', borderColor: '#1976d2' },
+  filterPanel: { backgroundColor: '#fff', borderRadius: 10, borderWidth: 1, borderColor: '#e0e0e0', padding: 12, marginBottom: 12, gap: 10 },
+  filterHelp: { fontSize: 13, color: '#666', lineHeight: 18 },
+  ruleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  modeBtn: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 6, borderWidth: 1, borderColor: '#a5d6a7', backgroundColor: '#e8f5e9', minWidth: 74, alignItems: 'center' },
+  modeBtnExclude: { borderColor: '#ef9a9a', backgroundColor: '#ffebee' },
+  modeBtnText: { fontSize: 13, fontWeight: '700', color: '#2e7d32' },
+  fieldGroup: { flexDirection: 'row', borderWidth: 1, borderColor: '#cfd8dc', borderRadius: 6, overflow: 'hidden' },
+  fieldChip: { paddingHorizontal: 10, paddingVertical: 7, backgroundColor: '#fff' },
+  fieldChipActive: { backgroundColor: '#1976d2' },
+  fieldChipText: { fontSize: 13, color: '#455a64' },
+  fieldChipTextActive: { color: '#fff', fontWeight: '600' },
+  ruleInput: { flex: 1, minWidth: 160, borderWidth: 1, borderColor: '#ddd', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 7, fontSize: 15, color: '#222', backgroundColor: '#fff' },
+  filterActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  applyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#1976d2', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 },
+  filterSummary: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#eee' },
+  filterSummaryText: { fontSize: 14, color: '#333', flex: 1, minWidth: 200 },
   progressBox: { backgroundColor: '#fffde7', borderRadius: 8, padding: 12, marginBottom: 12, borderWidth: 1, borderColor: '#fff59d' },
   progressText: { fontSize: 14, color: '#5d4037', marginBottom: 8 },
   progressTrack: { height: 8, backgroundColor: '#eee', borderRadius: 4, overflow: 'hidden' },

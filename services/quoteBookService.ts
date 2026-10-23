@@ -238,6 +238,98 @@ export async function fetchQuoteBookPage(
   };
 }
 
+export type QuoteFilterField = 'town' | 'street' | 'postcode';
+export type QuoteFilterRule = { mode: 'include' | 'exclude'; field: QuoteFilterField; value: string };
+
+export const QUOTE_FILTER_MAX = 10000;
+const FILTER_PAGE = 1000;
+const IN_LIMIT = 30;
+
+const wordsOf = (s: string) => ` ${String(s || '').toLowerCase().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, ' ').trim()} `;
+const postcodeRaw = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+function ruleMatches(entry: QuoteBookEntry, rule: QuoteFilterRule) {
+  if (rule.field === 'town') return String(entry.town || '').trim().toLowerCase() === rule.value.trim().toLowerCase();
+  if (rule.field === 'street') {
+    const needle = wordsOf(rule.value);
+    return needle.trim() !== '' && wordsOf(entry.address).includes(needle);
+  }
+  const v = postcodeRaw(rule.value);
+  const key = postcodeRaw(entry.postcode);
+  if (!v || key.length < 5) return false;
+  const outward = key.slice(0, -3);
+  return v === key || v === outward || v === outward + key.slice(-3, -2);
+}
+
+/** Applies include/exclude rules: includes on the same field are OR-ed, different fields AND-ed; any exclude match removes the entry. */
+export function applyQuoteFilters(entries: QuoteBookEntry[], rules: QuoteFilterRule[]) {
+  const active = rules.filter((r) => r.value.trim());
+  const includes = active.filter((r) => r.mode === 'include');
+  const excludes = active.filter((r) => r.mode === 'exclude');
+  const fields = Array.from(new Set(includes.map((r) => r.field)));
+  return entries.filter((e) =>
+    fields.every((f) => includes.some((r) => r.field === f && ruleMatches(e, r)))
+    && !excludes.some((r) => ruleMatches(e, r)));
+}
+
+/**
+ * Loads every quote matching the rules (up to QUOTE_FILTER_MAX). One include field is
+ * queried through an existing index (towns, else postcodes, else streets) and the rest
+ * of the rules are applied client-side. Needs at least one include rule.
+ */
+export async function fetchQuotesByFilters(ownerId: string, rules: QuoteFilterRule[]): Promise<{ entries: QuoteBookEntry[]; truncated: boolean }> {
+  const includes = rules.filter((r) => r.mode === 'include' && r.value.trim());
+  const towns = includes.filter((r) => r.field === 'town').map((r) => r.value.trim().toLowerCase());
+  const postcodes = includes.filter((r) => r.field === 'postcode').map((r) => postcodeRaw(r.value).toLowerCase()).filter(Boolean);
+  const streets = includes.filter((r) => r.field === 'street').map((r) => {
+    const words = wordsOf(r.value).trim().split(' ').filter((w) => w.length >= 2);
+    return words.sort((a, b) => b.length - a.length)[0] || '';
+  }).filter(Boolean);
+
+  let primary: QueryConstraint;
+  if (towns.length) primary = where('townKey', 'in', Array.from(new Set(towns)).slice(0, IN_LIMIT));
+  else if (postcodes.length) primary = where('searchTokens', 'array-contains-any', Array.from(new Set(postcodes)).slice(0, IN_LIMIT));
+  else if (streets.length) primary = where('searchTokens', 'array-contains-any', Array.from(new Set(streets)).slice(0, IN_LIMIT));
+  else throw new Error('Add at least one town, street or postcode to include.');
+
+  const raw: QuoteBookEntry[] = [];
+  let cursor: QueryDocumentSnapshot | null = null;
+  let truncated = false;
+  for (;;) {
+    const constraints: QueryConstraint[] = [where('ownerId', '==', ownerId), primary, orderBy('sortKey')];
+    if (cursor) constraints.push(startAfter(cursor));
+    constraints.push(limit(FILTER_PAGE));
+    const snap = await getDocs(query(collection(db, 'quoteBook'), ...constraints));
+    raw.push(...snap.docs.map(toEntry));
+    if (snap.docs.length < FILTER_PAGE) break;
+    if (raw.length >= QUOTE_FILTER_MAX) { truncated = true; break; }
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+  return { entries: applyQuoteFilters(raw, rules), truncated };
+}
+
+/** CSV of quote-book entries with their refs and accept links. */
+export function quotesToCsvRows(entries: QuoteBookEntry[], businessName: string) {
+  const price = (e: QuoteBookEntry, w: number) => e.options.find((o) => o.frequencyWeeks === w)?.price ?? '';
+  return entries.map((e) => ({
+    ref: e.ref,
+    status: QUOTE_BOOK_STATUS_LABELS[e.status] || e.status,
+    address: e.address,
+    town: e.town,
+    postcode: e.postcode,
+    price_4_weekly: price(e, 4),
+    price_8_weekly: price(e, 8),
+    home_summary: e.homeSummary || '',
+    name: e.name || '',
+    phone: e.phone || '',
+    email: e.email || '',
+    notes: e.notes || '',
+    sheet_printed_at: e.sheetPrintedAt || '',
+    accepted_at: e.acceptedAt || '',
+    accept_link: businessName ? quoteSheetUrl(businessName, e.ref) : '',
+  }));
+}
+
 /** Quotes for a printing run, by postcode sector (e.g. "PE21 7") or town. */
 export async function fetchQuotesForArea(
   ownerId: string,
