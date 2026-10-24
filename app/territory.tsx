@@ -273,7 +273,8 @@ function TerritoryContent() {
         t.dirty = true;
       }
     }
-    snapshotLive(fix);
+    // A fresh fix clears any earlier "position unavailable" style warning.
+    snapshotLive(fix, { error: null });
   }, [snapshotLive]);
 
   const beginTracking = useCallback(async (activity: TerritoryActivity) => {

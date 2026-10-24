@@ -106,7 +106,8 @@ export default function BusinessDevelopmentScreen() {
 }
 
 const styles = StyleSheet.create({
-  background: { flex: 1 },
+  // Web: the route's root does not always resolve a definite height, so pin to the viewport.
+  background: { flex: 1, ...(Platform.OS === 'web' ? ({ minHeight: '100vh' } as any) : {}) },
   page: { flex: 1, paddingHorizontal: 20, alignItems: 'center' },
   header: {
     width: '100%',
