@@ -17,6 +17,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Guvnor uses the camera to attach photos to quotes and jobs.",
         "NSPhotoLibraryUsageDescription": "Guvnor uses your photo library so you can attach photos to quotes and jobs.",
+        "NSLocationWhenInUseUsageDescription": "Guvnor uses your location while a Territory activity is running to record which addresses you canvassed or leafleted.",
         "UIBackgroundModes": ["remote-notification"]
       }
     },
@@ -30,6 +31,8 @@
       "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -53,6 +56,14 @@
       "expo-router",
       "expo-web-browser",
       "expo-iap",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Guvnor uses your location while a Territory activity is running to record which addresses you canvassed or leafleted.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
       [
         "expo-image-picker",
         {

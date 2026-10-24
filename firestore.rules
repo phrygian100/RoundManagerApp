@@ -198,6 +198,20 @@ service cloud.firestore {
       allow read, write: if isSignedIn() && request.auth.uid == ownerId;
     }
 
+    // Territory (canvassing / leafletting) activities. Anyone on the account can see them;
+    // only the walker who recorded one, or the account owner, can change or delete it.
+    match /territoryActivities/{activityId} {
+      allow get, list: if isSignedIn() && hasResourceAccess(resource);
+      allow create: if isSignedIn() && hasCreateAccess() &&
+        request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn() && hasResourceAccess(resource) &&
+        (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.ownerId) &&
+        !request.resource.data.diff(resource.data).affectedKeys()
+          .hasAny(['ownerId', 'accountId', 'userId', 'startedAt']);
+      allow delete: if isSignedIn() && hasResourceAccess(resource) &&
+        (request.auth.uid == resource.data.userId || request.auth.uid == resource.data.ownerId);
+    }
+
     match /accounts/{accountId} {
       allow read: if isSignedIn() && hasAccountAccess(accountId);
       allow create, update, delete: if isSignedIn() && request.auth.uid == accountId;

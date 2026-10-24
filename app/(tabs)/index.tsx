@@ -28,7 +28,7 @@ const tileIcons: Record<string, keyof typeof Ionicons.glyphMap> = {
   'Workload Forecast': 'stats-chart-outline',
   'Runsheet': 'clipboard-outline',
   'Accounts': 'wallet-outline',
-  'Materials': 'construct-outline',
+  'Business Development': 'trending-up-outline',
   'Quotes': 'chatbubble-ellipses-outline',
   'New Business': 'briefcase-outline',
   'Guvnor Leads': 'megaphone-outline',
@@ -373,7 +373,8 @@ export default function HomeScreen() {
       { label: 'Workload Forecast', path: '/workload-forecast', permKey: 'viewRunsheet' },
       { label: 'Runsheet', path: '/runsheet', permKey: 'viewRunsheet' },
       { label: 'Accounts', path: '/accounts', permKey: 'viewPayments' },
-      { label: 'Materials', path: '/materials', permKey: 'viewMaterials' },
+      // Hub for Materials + Territory; a member needs at least one of the inner permissions.
+      { label: 'Business Development', path: '/business-development', permKey: ['viewMaterials', 'viewTerritory'] },
       { label: 'Quotes', path: '/quotes', permKey: null },
       { label: 'New Business', path: '/new-business', permKey: 'viewNewBusiness' },
       ...(session.uid === DEVELOPER_UID
@@ -385,6 +386,7 @@ export default function HomeScreen() {
       if (!btn.permKey) return true; // Always available
       if (btn.permKey === 'isOwner') return isOwner; // Owner-only features
       if (isOwner) return true; // Owner sees all
+      if (Array.isArray(btn.permKey)) return btn.permKey.some((k) => !!perms[k]);
       return !!perms[btn.permKey];
     });
 

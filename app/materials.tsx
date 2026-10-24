@@ -2073,8 +2073,8 @@ export default function MaterialsScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.replace('/')} style={styles.homeButton} accessibilityLabel="Home">
-            <Ionicons name="home" size={24} color="#007AFF" />
+          <Pressable onPress={() => router.replace('/business-development')} style={styles.homeButton} accessibilityLabel="Back to Business Development">
+            <Ionicons name="arrow-back" size={24} color="#007AFF" />
           </Pressable>
           <Text style={styles.title}>Materials</Text>
           <GuideHelpButton slug="materials" color="#007AFF" style={{ width: 40, alignItems: 'flex-end' }} />

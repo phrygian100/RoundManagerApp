@@ -17,6 +17,7 @@ const PERM_KEYS = [
   { key: 'viewRoundOrder', label: 'Round Order' },
   { key: 'viewPayments', label: 'Accounts' },
   { key: 'viewMaterials', label: 'Materials' },
+  { key: 'viewTerritory', label: 'Territory' },
   { key: 'viewNewBusiness', label: 'New Business' },
 ];
 
