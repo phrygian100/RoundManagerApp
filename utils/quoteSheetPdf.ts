@@ -3,9 +3,10 @@ import type { QuoteBookEntry } from '../services/quoteBookService';
 import { quoteSheetUrl } from '../services/quoteBookService';
 import type { QuoteSheetBrand, QuoteSheetContent } from './quoteSheetHtml';
 
-export type QuoteSheetPaper = 'A5' | 'A4';
+/** A5: one flyer per page. A4x2: A4 landscape, two A5 flyers side by side, to cut down the middle. */
+export type QuoteSheetPaper = 'A5' | 'A4x2';
 
-// Layout is drawn in A5 millimetres. A4 has the same proportions, so it is the same layout scaled by √2.
+// Layout is drawn in A5 millimetres.
 const W = 148;
 const H = 210;
 const PT_PER_MM = 72 / 25.4;
@@ -102,8 +103,9 @@ export async function buildQuoteSheetsPdf(
     import('qrcode').then((m) => m.default),
   ]);
 
-  const k = PT_PER_MM * (paper === 'A4' ? Math.SQRT2 : 1);
-  const pageW = W * k;
+  const k = PT_PER_MM;
+  const perPage = paper === 'A4x2' ? 2 : 1;
+  const pageW = W * perPage * k;
   const pageH = H * k;
 
   const doc = await PDFDocument.create();
@@ -137,7 +139,9 @@ export async function buildQuoteSheetsPdf(
     return '';
   }).join('');
 
-  const X = (mm: number) => mm * k;
+  // Left edge (mm) of the A5 panel being drawn; 0 or W on a doubled-up A4 page.
+  let panelX = 0;
+  const X = (mm: number) => (panelX + mm) * k;
   const Y = (mmFromTop: number) => pageH - mmFromTop * k;
   const pt = (mm: number) => mm * k;
   const widthMm = (font: PDFFont, text: string, sizeMm: number) => font.widthOfTextAtSize(text, pt(sizeMm)) / k;
@@ -201,7 +205,7 @@ export async function buildQuoteSheetsPdf(
 
   const drawFront = (page: PDFPage, entry: QuoteBookEntry) => {
     // Header band
-    page.drawRectangle({ x: 0, y: Y(27), width: pageW, height: pt(27), color: PALE });
+    page.drawRectangle({ x: X(0), y: Y(27), width: pt(W), height: pt(27), color: PALE });
     if (logo) {
       page.drawImage(logo, { x: X(8), y: Y(22), width: pt(15), height: pt(15) });
     } else {
@@ -333,8 +337,8 @@ export async function buildQuoteSheetsPdf(
 
   const drawBack = (page: PDFPage) => {
     const photoH = H - 44;
-    if (photo) page.drawImage(photo, { x: 0, y: Y(photoH), width: pageW, height: pt(photoH) });
-    else page.drawRectangle({ x: 0, y: Y(photoH), width: pageW, height: pt(photoH), color: hex('#dddddd') });
+    if (photo) page.drawImage(photo, { x: X(0), y: Y(photoH), width: pt(W), height: pt(photoH) });
+    else page.drawRectangle({ x: X(0), y: Y(photoH), width: pt(W), height: pt(photoH), color: hex('#dddddd') });
 
     if (content.showBeforeAfter) {
       for (const [label, cx] of [['Before', W / 4], ['After', (W * 3) / 4]] as const) {
@@ -380,7 +384,7 @@ export async function buildQuoteSheetsPdf(
     const fh = pt(52);
     page.drawSvgPath(
       `M0,${fr} C0,${fr - fr * c} ${fw / 2 - (fw / 2) * c},0 ${fw / 2},0 C${fw / 2 + (fw / 2) * c},0 ${fw},${fr - fr * c} ${fw},${fr} L${fw},${fh} L0,${fh} Z`,
-      { x: 0, y: Y(ft), color: BLUE },
+      { x: X(0), y: Y(ft), color: BLUE },
     );
     let fy = ft + 9;
     text(page, 'Get in touch', 8, fy, 5.4, bold, WHITE);
@@ -396,9 +400,14 @@ export async function buildQuoteSheetsPdf(
     if (brand.websiteAddress) row(ICON_WEB, brand.websiteAddress, 3.8, 4.6, regular);
   };
 
-  for (const entry of entries) {
-    drawFront(doc.addPage([pageW, pageH]), entry);
-    drawBack(doc.addPage([pageW, pageH]));
+  // Doubled up: one sheet carries two homes' fronts, and its reverse two copies of the shared back.
+  // Every half gets a back, including a blank front half on an odd run, so duplex flip direction cannot misplace them.
+  for (let i = 0; i < entries.length; i += perPage) {
+    const group = entries.slice(i, i + perPage);
+    const front = doc.addPage([pageW, pageH]);
+    group.forEach((entry, j) => { panelX = j * W; drawFront(front, entry); });
+    const back = doc.addPage([pageW, pageH]);
+    for (let j = 0; j < perPage; j++) { panelX = j * W; drawBack(back); }
   }
   return doc.save();
 }

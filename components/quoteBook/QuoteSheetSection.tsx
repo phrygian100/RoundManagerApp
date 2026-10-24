@@ -55,7 +55,7 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
   const [showOrder, setShowOrder] = useState(false);
   const [paper, setPaperState] = useState<QuoteSheetPaper>(() => {
     if (Platform.OS !== 'web') return 'A5';
-    try { return window.localStorage.getItem('quoteSheetPaper') === 'A4' ? 'A4' : 'A5'; } catch { return 'A5'; }
+    try { return window.localStorage.getItem('quoteSheetPaper') === 'A4x2' ? 'A4x2' : 'A5'; } catch { return 'A5'; }
   });
   const setPaper = (p: QuoteSheetPaper) => {
     setPaperState(p);
@@ -153,7 +153,7 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Quote informed sheet <Text style={styles.devTag}>DEVELOPER</Text></Text>
           <Text style={styles.subtitle}>
-            A personalised quote for one home, with the 4- and 8-weekly prices from the quote book and a QR code that opens their accept page. Downloads as a PDF at the exact paper size, front then back for each home, ready to print double-sided (flip on long edge). The back uses the Canvassing Flyer photo and additional services.
+            A personalised quote for one home, with the 4- and 8-weekly prices from the quote book and a QR code that opens their accept page. Downloads as a print-ready A5 PDF, front then back for each home, either one per page or doubled up on A4. The back uses the Canvassing Flyer photo and additional services.
           </Text>
         </View>
       </View>
@@ -162,13 +162,15 @@ export default function QuoteSheetSection({ brand, servicesText, additionalServi
         <View style={styles.controlGroup}>
           <Text style={styles.label}>Paper size</Text>
           <View style={styles.row}>
-            {(['A5', 'A4'] as const).map((p) => (
+            {([['A5', 'A5'], ['A4x2', 'Doubled up on A4']] as const).map(([p, label]) => (
               <Pressable key={p} style={[styles.btn, paper === p && styles.btnActive]} onPress={() => setPaper(p)} disabled={!!busy}>
-                <Text style={[styles.btnText, paper === p && styles.btnActiveText]}>{p}</Text>
+                <Text style={[styles.btnText, paper === p && styles.btnActiveText]}>{label}</Text>
               </Pressable>
             ))}
             <Text style={styles.hint}>
-              {paper === 'A5' ? 'A5 flyer (148 × 210 mm), for a print shop or A5 paper.' : 'The same design enlarged to fill A4, for a home printer.'}
+              {paper === 'A5'
+                ? 'One A5 flyer per page. Print double-sided, flip on long edge.'
+                : 'Two A5 flyers side by side on A4 landscape. Print double-sided, flip on short edge, then cut down the middle.'}
             </Text>
           </View>
         </View>
