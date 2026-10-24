@@ -215,19 +215,19 @@ export async function buildQuoteSheetsPdf(
     }
 
     const badgeText = 'YOUR quote!';
-    const badgeSize = 3.2;
+    const badgeSize = 3.6;
     const bw = widthMm(bold, badgeText, badgeSize) + 6;
     const bh = badgeSize * 1.2 + 3.2;
     const bx = W - 8 - bw;
     const by = 14.5 - bh / 2;
 
-    let brandSize = 5.6;
+    let brandSize = 6.4;
     const brandMax = bx - 4 - 27;
-    while (brandSize > 3.6 && widthMm(bold, safe(bold, brand.businessName), brandSize) > brandMax) brandSize -= 0.2;
-    const blockH = brandSize * 1.1 + 0.8 + (brand.tagline ? 2.8 * 1.2 : 0);
+    while (brandSize > 4 && widthMm(bold, safe(bold, brand.businessName), brandSize) > brandMax) brandSize -= 0.2;
+    const blockH = brandSize * 1.1 + 0.8 + (brand.tagline ? 3.4 * 1.2 : 0);
     const blockTop = 14.5 - blockH / 2;
     text(page, brand.businessName, 27, blockTop, brandSize, bold, INK, 1.1);
-    if (brand.tagline) text(page, brand.tagline, 27, blockTop + brandSize * 1.1 + 0.8, 2.8, regular, MUTED);
+    if (brand.tagline) text(page, brand.tagline, 27, blockTop + brandSize * 1.1 + 0.8, 3.4, regular, MUTED);
 
     const rot = degrees(-4);
     const th = (-4 * Math.PI) / 180;
@@ -245,19 +245,19 @@ export async function buildQuoteSheetsPdf(
     const inner = W - 16;
     let y = 32;
     const addrLines = ['The Homeowner', entry.address, entry.town, entry.postcode].filter(Boolean) as string[];
-    addrLines.forEach((l, i) => text(page, l, left, y + i * 3.4 * 1.35, 3.4, i === 0 ? bold : regular, INK, 1.35));
-    y += addrLines.length * 3.4 * 1.35 + 4;
+    addrLines.forEach((l, i) => text(page, l, left, y + i * 4 * 1.35, 4, i === 0 ? bold : regular, INK, 1.35));
+    y += addrLines.length * 4 * 1.35 + 4.5;
 
-    text(page, 'Your personal window cleaning quote', left, y, 5.2, bold, BLUE);
-    y += 5.2 * 1.2 + 1.5;
-    y += para(page, 'We have already priced your home, so there is no need for a visit. Pick the option that suits you.', left, y, inner, 3, regular, MUTED, 1.35) + 3.5;
+    text(page, 'Your personal window cleaning quote', left, y, 6, bold, BLUE);
+    y += 6 * 1.2 + 2;
+    y += para(page, 'We have already priced your home, so there is no need for a visit. Pick the option that suits you.', left, y, inner, 3.6, regular, MUTED, 1.35) + 3;
 
     const options = entry.options.slice().sort((a, b) => a.frequencyWeeks - b.frequencyWeeks);
     const letters = ['A', 'B', 'C'];
     if (options.length) {
       const gap = 3;
       const ow = (inner - gap * (options.length - 1)) / options.length;
-      const oh = 26.2;
+      const oh = 29.4;
       options.forEach((o, i) => {
         const ox = left + i * (ow + gap);
         box(page, ox, y, ow, oh, 3, { borderColor: BLUE, borderWidth: 0.5 });
@@ -267,38 +267,38 @@ export async function buildQuoteSheetsPdf(
           const w = widthMm(font, s, size) + sp * Math.max(0, Array.from(s).length - 1);
           text(page, s, cx - w / 2, top, size, font, color, lh, sp);
         };
-        let oy = y + 2.6;
-        centred(`OPTION ${letters[i] || i + 1}`, oy, 2.7, bold, BLUE, 1.2, 0.3);
-        oy += 2.7 * 1.2 + 0.6;
-        centred(`Every ${o.frequencyWeeks} weeks`, oy, 3.2, regular, INK);
-        oy += 3.2 * 1.2 + 0.8;
-        centred(money(o.price), oy, 9, bold, INK, 1.05);
-        oy += 9 * 1.05;
-        centred('per clean', oy, 2.6, regular, MUTED);
+        let oy = y + 3;
+        centred(`OPTION ${letters[i] || i + 1}`, oy, 3.2, bold, BLUE, 1.2, 0.3);
+        oy += 3.2 * 1.2 + 0.6;
+        centred(`Every ${o.frequencyWeeks} weeks`, oy, 3.6, regular, INK);
+        oy += 3.6 * 1.2 + 0.8;
+        centred(money(o.price), oy, 10.5, bold, INK, 1.05);
+        oy += 10.5 * 1.05;
+        centred('per clean', oy, 3.1, regular, MUTED);
       });
-      y += oh + 4;
+      y += oh + 3.5;
     }
 
     if (entry.homeSummary) {
-      const dLines = wrap(entry.homeSummary, regular, 3.1, inner - 6.8);
-      const kh = 2.6 + 2.8 * 1.2 + 0.8 + dLines.length * 3.1 * 1.35 + 2.6;
+      const dLines = wrap(entry.homeSummary, regular, 3.6, inner - 7.2);
+      const kh = 3 + 3.3 * 1.2 + 1 + dLines.length * 3.6 * 1.35 + 3;
       box(page, left, y, inner, kh, 3, { color: PALE });
-      text(page, 'What we know about your home', left + 3.4, y + 2.6, 2.8, bold, BLUE);
-      dLines.forEach((l, i) => text(page, l, left + 3.4, y + 2.6 + 2.8 * 1.2 + 0.8 + i * 3.1 * 1.35, 3.1, regular, INK, 1.35));
-      y += kh + 3.5;
+      text(page, 'What we know about your home', left + 3.6, y + 3, 3.3, bold, BLUE);
+      dLines.forEach((l, i) => text(page, l, left + 3.6, y + 3 + 3.3 * 1.2 + 1 + i * 3.6 * 1.35, 3.6, regular, INK, 1.35));
+      y += kh + 3;
     }
 
     if (services.length) {
-      text(page, "What's included", left, y, 3.2, bold, INK);
-      y += 3.2 * 1.2 + 1.2;
+      text(page, "What's included", left, y, 3.8, bold, INK);
+      y += 3.8 * 1.2 + 1.4;
       for (const s of services) {
-        tick(page, left, y + 0.6, 2.8);
-        y += para(page, s, left + 4.6, y, inner - 4.6, 3, regular, INK, 1.35) + 0.8;
+        tick(page, left, y + 0.8, 3.2);
+        y += para(page, s, left + 5.2, y, inner - 5.2, 3.6, regular, INK, 1.35) + 0.6;
       }
     }
 
-    // QR footer
-    const qrTop = H - 7 - 31;
+    // QR footer. 32mm code, 4mm above it, 7mm below.
+    const qrTop = H - 7 - 36;
     page.drawLine({
       start: { x: X(8), y: Y(qrTop) }, end: { x: X(W - 8), y: Y(qrTop) },
       thickness: pt(0.3), color: hex('#cbd2d9'), dashArray: [pt(1), pt(1)],
@@ -306,7 +306,7 @@ export async function buildQuoteSheetsPdf(
     const codeTop = qrTop + 4;
     const qr = QRCode.create(quoteSheetUrl(brand.businessName, entry.ref), { errorCorrectionLevel: 'M' });
     const n = qr.modules.size;
-    const cell = 27 / n;
+    const cell = 32 / n;
     for (let r = 0; r < n; r++) {
       let c = 0;
       while (c < n) {
@@ -321,31 +321,31 @@ export async function buildQuoteSheetsPdf(
       }
     }
 
-    const tx0 = 8 + 27 + 4;
+    const tx0 = 8 + 32 + 4;
     const tw = W - 8 - tx0;
     const how = `Confirm your address, choose ${options.map((o) => `${o.frequencyWeeks}`).join(' or ')} weekly, and leave your name and mobile. We will be in touch to book your first clean.`;
-    const howLines = wrap(how, regular, 2.8, tw);
-    const colH = 3.6 * 1.3 + 1 + howLines.length * 2.8 * 1.35 + 1.6 + 4.2 * 1.2;
-    let cy = codeTop + (27 - colH) / 2;
-    text(page, 'Scan to accept your quote', tx0, cy, 3.6, bold, INK, 1.3);
-    cy += 3.6 * 1.3 + 1;
-    howLines.forEach((l, i) => text(page, l, tx0, cy + i * 2.8 * 1.35, 2.8, regular, MUTED, 1.35));
-    cy += howLines.length * 2.8 * 1.35 + 1.6;
-    text(page, 'Quote ref ', tx0, cy + 0.5, 3.4, regular, INK);
-    text(page, entry.ref, tx0 + widthMm(regular, 'Quote ref ', 3.4), cy, 4.2, mono, INK, 1.2, 0.4);
+    const howLines = wrap(how, regular, 3.3, tw);
+    const colH = 4.2 * 1.25 + 1.2 + howLines.length * 3.3 * 1.3 + 1.8 + 4.8 * 1.2;
+    let cy = codeTop + (32 - colH) / 2;
+    text(page, 'Scan to accept your quote', tx0, cy, 4.2, bold, INK, 1.25);
+    cy += 4.2 * 1.25 + 1.2;
+    howLines.forEach((l, i) => text(page, l, tx0, cy + i * 3.3 * 1.3, 3.3, regular, MUTED, 1.3));
+    cy += howLines.length * 3.3 * 1.3 + 1.8;
+    text(page, 'Quote ref ', tx0, cy + 0.6, 3.8, regular, INK);
+    text(page, entry.ref, tx0 + widthMm(regular, 'Quote ref ', 3.8), cy, 4.8, mono, INK, 1.2, 0.4);
   };
 
   const drawBack = (page: PDFPage) => {
-    const photoH = H - 44;
+    const photoH = H - 48;
     if (photo) page.drawImage(photo, { x: X(0), y: Y(photoH), width: pt(W), height: pt(photoH) });
     else page.drawRectangle({ x: X(0), y: Y(photoH), width: pt(W), height: pt(photoH), color: hex('#dddddd') });
 
     if (content.showBeforeAfter) {
       for (const [label, cx] of [['Before', W / 4], ['After', (W * 3) / 4]] as const) {
-        const w = widthMm(bold, label, 3.6) + 6.8;
-        const h = 3.6 * 1.2 + 2.4;
+        const w = widthMm(bold, label, 4.2) + 7.2;
+        const h = 4.2 * 1.2 + 2.8;
         box(page, cx - w / 2, 5, w, h, 2, { color: rgb(0, 0, 0), opacity: 0.6 });
-        text(page, label, cx - w / 2 + 3.4, 5 + 1.2, 3.6, bold, WHITE);
+        text(page, label, cx - w / 2 + 3.6, 5 + 1.4, 4.2, bold, WHITE);
       }
     }
 
@@ -354,50 +354,50 @@ export async function buildQuoteSheetsPdf(
       const ew = W - 16;
       const colW = (ew - 10 - 4) / 2;
       const rows = Math.ceil(extras.length / 2);
-      const rowH = 3.1 * 1.2;
+      const rowH = 3.7 * 1.2;
       const note = 'Just ask when you accept your quote and we will price these for you too.';
-      const noteLines = wrap(note, regular, 2.9, ew - 10).length;
-      const eh = 4 + 4.6 * 1.2 + 2 + rows * rowH + (rows - 1) * 1.4 + 2.4 + noteLines * 2.9 * 1.2 + 4;
-      const etop = H - 58 - eh;
+      const noteLines = wrap(note, regular, 3.3, ew - 10).length;
+      const eh = 4 + 5.2 * 1.2 + 2.2 + rows * rowH + (rows - 1) * 1.6 + 2.4 + noteLines * 3.3 * 1.2 + 4;
+      const etop = H - 62 - eh;
       box(page, ex + 0.3, etop + 1, ew, eh, 3, { color: rgb(0, 0, 0), opacity: 0.12 });
       box(page, ex, etop, ew, eh, 3, { color: WHITE, opacity: 0.95 });
       let yy = etop + 4;
-      text(page, 'Additional Services', ex + 5, yy, 4.6, bold, BLUE);
-      yy += 4.6 * 1.2 + 2;
+      text(page, 'Additional Services', ex + 5, yy, 5.2, bold, BLUE);
+      yy += 5.2 * 1.2 + 2.2;
       extras.forEach((s, i) => {
         const col = i % 2;
         const row = Math.floor(i / 2);
         const ix = ex + 5 + col * (colW + 4);
-        const iy = yy + row * (rowH + 1.4);
-        tick(page, ix, iy + 0.5, 2.9);
-        text(page, s, ix + 4.4, iy, 3.1, regular, INK);
+        const iy = yy + row * (rowH + 1.6);
+        tick(page, ix, iy + 0.6, 3.4);
+        text(page, s, ix + 5, iy, 3.7, regular, INK);
       });
-      yy += rows * rowH + (rows - 1) * 1.4 + 2.4;
-      para(page, note, ex + 5, yy, ew - 10, 2.9, regular, MUTED, 1.2);
+      yy += rows * rowH + (rows - 1) * 1.6 + 2.4;
+      para(page, note, ex + 5, yy, ew - 10, 3.3, regular, MUTED, 1.2);
     }
 
-    // Footer: 52mm tall, top edge an 8mm elliptical arch, drawn over the bottom of the photo.
-    const ft = H - 52;
+    // Footer: 56mm tall, top edge an 8mm elliptical arch, drawn over the bottom of the photo.
+    const ft = H - 56;
     const c = 0.5523;
     const fw = pt(W);
     const fr = pt(8);
-    const fh = pt(52);
+    const fh = pt(56);
     page.drawSvgPath(
       `M0,${fr} C0,${fr - fr * c} ${fw / 2 - (fw / 2) * c},0 ${fw / 2},0 C${fw / 2 + (fw / 2) * c},0 ${fw},${fr - fr * c} ${fw},${fr} L${fw},${fh} L0,${fh} Z`,
       { x: X(0), y: Y(ft), color: BLUE },
     );
-    let fy = ft + 9;
-    text(page, 'Get in touch', 8, fy, 5.4, bold, WHITE);
-    fy += 5.4 * 1.2 + 3;
+    let fy = ft + 10;
+    text(page, 'Get in touch', 8, fy, 6.2, bold, WHITE);
+    fy += 6.2 * 1.2 + 3;
     const row = (icon: string, str: string, size: number, iconMm: number, font: PDFFont) => {
       const lh = size * 1.2;
       page.drawSvgPath(icon, { x: X(8), y: Y(fy + (lh - iconMm) / 2), scale: pt(iconMm) / 24, color: WHITE });
       text(page, str, 8 + iconMm + 2.6, fy, size, font, WHITE);
       fy += lh + 2.2;
     };
-    if (brand.mobileNumber) row(ICON_PHONE, brand.mobileNumber, 6, 5.6, bold);
-    if (brand.facebookHandle) row(ICON_FACEBOOK, brand.facebookHandle, 3.8, 4.6, regular);
-    if (brand.websiteAddress) row(ICON_WEB, brand.websiteAddress, 3.8, 4.6, regular);
+    if (brand.mobileNumber) row(ICON_PHONE, brand.mobileNumber, 7.2, 6.4, bold);
+    if (brand.facebookHandle) row(ICON_FACEBOOK, brand.facebookHandle, 4.5, 5.2, regular);
+    if (brand.websiteAddress) row(ICON_WEB, brand.websiteAddress, 4.5, 5.2, regular);
   };
 
   // Doubled up: one sheet carries two homes' fronts, and its reverse two copies of the shared back.
