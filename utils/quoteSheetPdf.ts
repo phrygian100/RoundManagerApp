@@ -299,10 +299,6 @@ export async function buildQuoteSheetsPdf(
 
     // QR footer. 32mm code, 4mm above it, 7mm below.
     const qrTop = H - 7 - 36;
-    page.drawLine({
-      start: { x: X(8), y: Y(qrTop) }, end: { x: X(W - 8), y: Y(qrTop) },
-      thickness: pt(0.3), color: hex('#cbd2d9'), dashArray: [pt(1), pt(1)],
-    });
     const codeTop = qrTop + 4;
     const qr = QRCode.create(quoteSheetUrl(brand.businessName, entry.ref), { errorCorrectionLevel: 'M' });
     const n = qr.modules.size;

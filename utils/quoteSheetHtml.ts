@@ -65,7 +65,7 @@ h1 { font-size: 6mm; margin: 0 0 2mm; color: #2E86AB; }
 .inc ul { margin: 0; padding: 0; list-style: none; }
 .inc li { font-size: 3.6mm; line-height: 1.35; padding-left: 5.2mm; position: relative; margin-bottom: .6mm; }
 .inc li:before { content: '✓'; position: absolute; left: 0; color: #2E86AB; font-weight: 800; }
-.qr { position: absolute; left: 8mm; right: 8mm; bottom: 7mm; display: flex; align-items: center; gap: 4mm; border-top: .3mm dashed #cbd2d9; padding-top: 4mm; }
+.qr { position: absolute; left: 8mm; right: 8mm; bottom: 7mm; display: flex; align-items: center; gap: 4mm; padding-top: 4mm; }
 .qr .code { width: 32mm; height: 32mm; flex: none; }
 .qr .code svg { width: 100%; height: 100%; display: block; }
 .qr .cta { font-size: 4.2mm; font-weight: 700; line-height: 1.25; }
