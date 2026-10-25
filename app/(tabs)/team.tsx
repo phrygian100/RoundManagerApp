@@ -10,7 +10,7 @@ import { ThemedText } from '../../components/ThemedText';
 import { ThemedView } from '../../components/ThemedView';
 import { inviteMember, listMembers, MemberRecord, removeMember, updateMemberDailyRate, updateMemberPerms, updateMemberVehicle } from '../../services/accountService';
 import { checkMemberCreationPermission } from '../../services/subscriptionService';
-import { addVehicle, deleteVehicle, listVehicles, VehicleRecord } from '../../services/vehicleService';
+import { addVehicle, deleteVehicle, listVehicles, updateVehicle, VehicleRecord } from '../../services/vehicleService';
 
 const PERM_KEYS = [
   { key: 'viewClients', label: 'Clients' },
@@ -50,6 +50,8 @@ export default function TeamScreen() {
   const [vehicles, setVehicles] = useState<VehicleRecord[]>([]);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [vehicleName, setVehicleName] = useState('');
+  const [editingVanId, setEditingVanId] = useState<string | null>(null);
+  const [editingVanName, setEditingVanName] = useState('');
   const vehicleNameInputRef = useRef<TextInputType>(null);
   const router = useRouter();
 
@@ -89,7 +91,39 @@ export default function TeamScreen() {
   }, [showVehicleModal]);
 
   const handleOpenAddVan = () => {
+    setEditingVanId(null);
     setShowVehicleModal(true);
+  };
+
+  const closeVehicleModal = () => {
+    setShowVehicleModal(false);
+    setEditingVanId(null);
+  };
+
+  const saveVanName = async () => {
+    if (!editingVanId) return;
+    const name = editingVanName.trim();
+    const current = vehicles.find(v => v.id === editingVanId);
+    if (!name) {
+      const msg = 'A van needs a name.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Vans', msg);
+      return;
+    }
+    if (name === current?.name) {
+      setEditingVanId(null);
+      return;
+    }
+    try {
+      await updateVehicle(editingVanId, { name });
+      setVehicles(prev => prev.map(v => (v.id === editingVanId ? { ...v, name } : v)));
+      setEditingVanId(null);
+    } catch (err) {
+      console.error('Error renaming vehicle:', err);
+      const msg = 'Could not rename that van. Please try again.';
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Vans', msg);
+    }
   };
 
   const handleLinkAccountWithCode = () => {
@@ -423,37 +457,69 @@ export default function TeamScreen() {
           />
         </View>
 
-        <Modal visible={showVehicleModal} animationType="fade" transparent onRequestClose={() => setShowVehicleModal(false)}>
+        <Modal visible={showVehicleModal} animationType="fade" transparent onRequestClose={closeVehicleModal}>
           <View style={styles.modalOverlay}>
             <View style={styles.modalContent}>
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Vans</Text>
-                <Pressable onPress={() => setShowVehicleModal(false)} style={styles.closeButton} accessibilityLabel="Close">
+                <Pressable onPress={closeVehicleModal} style={styles.closeButton} accessibilityLabel="Close">
                   <Ionicons name="close" size={22} color="#475467" />
                 </Pressable>
               </View>
-              <ScrollView style={styles.vehicleList}>
+              <ScrollView style={styles.vehicleList} keyboardShouldPersistTaps="handled">
                 {vehicles.length === 0 && (
                   <Text style={styles.emptyVans}>No vans yet. Add one below, then assign it on a person’s card.</Text>
                 )}
-                {vehicles.map(v => (
-                  <View key={v.id} style={styles.vehicleRow}>
-                    <View style={styles.vehicleIcon}>
-                      <Ionicons name="car-outline" size={16} color="#0c1b3c" />
+                {vehicles.map(v => {
+                  const editing = editingVanId === v.id;
+                  return (
+                    <View key={v.id} style={styles.vehicleRow}>
+                      <View style={styles.vehicleIcon}>
+                        <Ionicons name="car-outline" size={16} color="#0c1b3c" />
+                      </View>
+                      {editing ? (
+                        <TextInput
+                          style={styles.vehicleRenameInput}
+                          value={editingVanName}
+                          onChangeText={setEditingVanName}
+                          autoFocus
+                          selectTextOnFocus
+                          onSubmitEditing={saveVanName}
+                        />
+                      ) : (
+                        <Pressable style={styles.vehicleNamePress} onPress={() => { setEditingVanId(v.id); setEditingVanName(v.name); }}>
+                          <Text style={styles.vehicleName} numberOfLines={1}>{v.name}</Text>
+                        </Pressable>
+                      )}
+                      <View style={styles.vehicleActions}>
+                        {editing ? (
+                          <Pressable onPress={saveVanName} hitSlop={8} accessibilityLabel="Save name">
+                            <Text style={styles.vehicleRename}>Save</Text>
+                          </Pressable>
+                        ) : (
+                          <Pressable
+                            onPress={() => { setEditingVanId(v.id); setEditingVanName(v.name); }}
+                            hitSlop={8}
+                            accessibilityLabel={`Rename ${v.name}`}
+                          >
+                            <Text style={styles.vehicleRename}>Rename</Text>
+                          </Pressable>
+                        )}
+                        <Pressable
+                          onPress={async () => {
+                            if (editingVanId === v.id) setEditingVanId(null);
+                            await deleteVehicle(v.id);
+                            loadVehicles();
+                          }}
+                          hitSlop={8}
+                          accessibilityLabel={`Delete ${v.name}`}
+                        >
+                          <Text style={styles.vehicleDelete}>Delete</Text>
+                        </Pressable>
+                      </View>
                     </View>
-                    <Text style={styles.vehicleName}>{v.name}</Text>
-                    <Pressable
-                      onPress={async () => {
-                        await deleteVehicle(v.id);
-                        loadVehicles();
-                      }}
-                      hitSlop={8}
-                      accessibilityLabel={`Delete ${v.name}`}
-                    >
-                      <Text style={styles.vehicleDelete}>Delete</Text>
-                    </Pressable>
-                  </View>
-                ))}
+                  );
+                })}
               </ScrollView>
               <TextInput
                 ref={vehicleNameInputRef}
@@ -464,7 +530,7 @@ export default function TeamScreen() {
                 style={styles.modalInput}
               />
               <View style={styles.modalActions}>
-                <Pressable style={styles.modalCancel} onPress={() => setShowVehicleModal(false)}>
+                <Pressable style={styles.modalCancel} onPress={closeVehicleModal}>
                   <Text style={styles.modalCancelText}>Close</Text>
                 </Pressable>
                 <Pressable
@@ -614,7 +680,14 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 8, backgroundColor: '#eef2f6',
     alignItems: 'center', justifyContent: 'center',
   },
-  vehicleName: { flex: 1, fontSize: 15, fontWeight: '600', color: '#101828' },
+  vehicleNamePress: { flex: 1 },
+  vehicleName: { fontSize: 15, fontWeight: '600', color: '#101828' },
+  vehicleRenameInput: {
+    flex: 1, borderWidth: 1, borderColor: '#1565c0', borderRadius: 8,
+    paddingHorizontal: 8, paddingVertical: 6, fontSize: 15, color: '#101828',
+  },
+  vehicleActions: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  vehicleRename: { color: '#1565c0', fontWeight: '700', fontSize: 13 },
   vehicleDelete: { color: '#c62828', fontWeight: '600', fontSize: 13 },
   modalInput: {
     borderWidth: 1, borderColor: '#d0d5dd', borderRadius: 10,
