@@ -1,6 +1,6 @@
 # Google Play launch — Guvnor Android
 
-Last updated: 17 September 2026
+Last updated: 30 September 2026
 
 This is the working runbook for getting `com.guvnor.roundmanagerapp` onto Google Play.
 The production App Bundle is built from `eas.json` profile `production` (AAB, not APK).
@@ -18,7 +18,7 @@ The production App Bundle is built from `eas.json` profile `production` (AAB, no
 - EAS Android **upload keystore** already exists on Expo (`Build Credentials 56eqvxcY1i`). Keep it. Losing it means you cannot update the Play listing.
 - **Internal testing release "1.0.3 (5)" is LIVE** (published 17 Sept 2026 15:57). Production AAB (API 36, versionCode 5, build `48f11350`) is at `guvnor-1.0.3-vc5.aab` in the repo root (untracked) and uploaded to the track. Status: "Available to internal testers / Not reviewed" — testers see a temporary app name (`com.guvnor.roundmanagerapp (unreviewed)`) until Google reviews the app.
 - Tester email list **Internal testers** (travis_gm@live.co.uk) is created, ticked and saved on the track. Opt-in link: https://play.google.com/apps/internaltest/4700841304646978933 — open it signed in as that Google account, accept, then install from the Play Store.
-- **Production release 1.0.3 (5) SUBMITTED FOR REVIEW** (17 Sept 2026 ~16:05): promoted from internal testing, all 176 countries/regions + rest of world selected, advertising ID declaration completed (No — app has no ads). 11 changes sent via Publishing overview. Google says reviews are "typically completed within seven days". Managed publishing is OFF, so once approved the app goes live automatically.
+- **Production release 1.0.3 (5) is PUBLISHED** (30 Sept 2026 check). Submission 2, sent 28 Sept 16:30, was published 29 Sept 03:29. Full rollout, 178 countries, 0 installs so far. Public listing: https://play.google.com/store/apps/details?id=com.guvnor.roundmanagerapp Managed publishing OFF. Play still flags DEX obfuscation at 2% (fix-by Feb 2027). That did not block the release.
 - While waiting: verify the Play-installed internal build on a phone (login, runsheet, notifications). JS-level fixes can ship via EAS Update OTA without a new review.
 - Store assets in `assets/play-store/`:
   - `feature-graphic.png` — required 1024×500 banner

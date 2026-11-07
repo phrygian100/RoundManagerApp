@@ -1,6 +1,234 @@
 # Code Changes Log
 
+## November 7, 2026
+
+### iOS launch work pushed to GitHub on `ios-launch-changes` (process)
+
+EAS uploads the local folder, so the iOS binaries were built from this machine's working tree rather than from GitHub. Audit result: every app source file in those builds is already committed on `master` (HEAD 935c826). The code for the monthly subscription (StoreKit on iOS, Play Billing on Android), dashboard (Business Development hub), client screen, scaling/safe-area fixes and splash branding landed in f765583, a9cacca, acfed92 and a268e22. What was local-only was `GoogleService-Info.plist` (needed by `app.json` `ios.googleServicesFile`), the App Store screenshots in `assets/app-store/`, and the documentation, all now on this branch.
+
+Left out on purpose: `.p8`/`.p12`/`.mobileprovision`, `credentials.json`, `.env.local`, the `.aab` bundles, the screen recording, customer-data scripts and dumps, the `.cursor` standing-order notes, and about 300 customer-admin "(process)" entries in this log (names, payments, messages), which were not copied over.
+
+iOS release: `expo.version` 1.0.4, `ios.buildNumber` 13, EAS build `47037699` (profile `ios-store`). Build 12 (EAS `2819b465`, version 1.0.3) is the one in App Review with Premium Monthly. Android: EAS build `7b6408e1` is versionCode 7 / 1.0.4 (AAB `guvnor-1.0.4-vc7.aab`, never uploaded to Play); Play live is 1.0.3 (versionCode 5).
+
+## October 25, 2026
+
+### Android launch crash: 1.0.3 update rolled back
+
+The production over-the-air updates published on 24 and 25 October (Territory, team restyle, van rename) were delivered to the installed Android 1.0.3 app. That app's binary does not contain the native modules the newer JavaScript loads at startup (`expo-iap` and `expo-image-picker` are imported by screens that load with the app, and `expo-location` is in the bundle), so the app closed as soon as it opened. Republished the last update that opened, group `2e587ca2` ("Fix payments list white screen", 23 Sep), as Android-only group `7fca7448` on the production channel, runtime 1.0.3. iOS and the 1.0.4 runtime were left as they are. Web is unchanged.
+
+### Team: rename a van
+
+### Team: rename a van
+
+Vans in the Team modal can be renamed. Tap the name or Rename, edit it, then Save (or press return). It calls the existing `updateVehicle` function with the new name only. People keep the van by id, so the chips on each card update without reassigning anyone.
+
+### Team page restyle
+
+`app/(tabs)/team.tsx` was one long form: the van dropdown sat above the email, the "Permissions" label wrapped onto two lines, off-permissions were white text on grey, and Add van was a floating button over the list. Same actions, new layout. Each person is a card with an initials avatar, their email, and an Owner / Member / Invited pill (owner first). Van is a row of chips instead of the native dropdown, day rate is a short £ field, and access is a set of on/off chips with dark text when off. Remove is an icon on the card. Invite sits in its own card, refresh is an icon button, and vans are managed from a header button (the modal is the same, with a van list and add field). The page background is light grey, content is capped at 760px, and the top padding follows the safe area.
+
+## October 24, 2026
+
+### 1.0.4 native builds for Territory GPS (process)
+
+OTA update group `7bf417c1` published to the `production` channel (runtime 1.0.3) so the installed 1.0.3 apps get the Business Development hub and Territory map; the EAS Update GitHub workflow has been failing since 14 Sep for want of an `EXPO_TOKEN` secret, so this was published from the local CLI. `app.json` bumped to **1.0.4**, iOS build **13**, Android versionCode **7** (new runtime version because `expo-location` is a native change). EAS builds `47037699` (iOS, `ios-store`) and `7b6408e1` (Android, `production`) finished; iOS uploaded to App Store Connect via `eas submit` (build 13 processed, on TestFlight for the Internal group which has access to all builds). App Store version 1.0.3 is still Waiting for Review with the Premium Monthly subscription attached, and ASC refuses to open 1.0.4 while that is in the queue (409 "cannot create a new version of the App in the current state"), so 1.0.4 is submitted after 1.0.3 is approved. Android AAB downloaded to `guvnor-1.0.4-vc7.aab` (repo root, untracked) for upload to Play Console; there is no Play service account for `eas submit`.
+
+### Business Development hub and Territory (canvassing map)
+
+The dashboard's **Materials** tile is replaced by **Business Development** (`/business-development`, new `app/business-development.tsx`). It is a dark-themed hub with two tiles: **Materials** (unchanged `/materials`; its home button now goes back to the hub) and the new **Territory** (`/territory`). The dashboard tile shows for owners and for any member with `viewMaterials` or `viewTerritory`; the hub then shows whichever inner tiles the member is allowed (`app/(tabs)/index.tsx` now accepts an array `permKey`). `viewTerritory` is a new permission in `app/(tabs)/team.tsx`.
+
+**Territory** (`app/territory.tsx`) is the client distribution map: the same OpenStreetMap/Leaflet map as `/round-order-manager`, but existing customers are small discreet blue dots rather than round-order badges (new `components/TerritoryMapView.tsx`, canvas renderer, iframe on web / WebView on native). Activities can be filtered by date (Today, Yesterday, Last 7 days, Last 30 days, All) and by user (chips built from the users who recorded activities; "Me" for the current user). A **List** chip shows the activities in range with duration, distance, addresses visited, and a delete button (own activities, or any for the owner).
+
+**Start Activity** opens `components/StartActivityModal.tsx`: choose Canvassing, Leafletting or Other (free text), press **Get GPS lock** (shows accuracy; ≤30 m counts as locked, a weaker fix can still be used), then **Start activity**. While it runs the page tracks position (`services/locationTracker.ts`: `navigator.geolocation` on web, `expo-location` on native, screen kept awake). Instead of drawing the path, each accepted fix (≤60 m accuracy, ≥8 m from the last point) adds a soft 25 m disc of "ground covered", and any pinned customer within 25 m is recorded as **visited** and turns green on the map (popup shows when and by whom). Progress is written to Firestore every 20 s and on **End Activity**. If the page is closed mid-walk, the next visit offers Resume / End it. A browser prompt warns before closing the tab while tracking.
+
+Data: new `territoryActivities` collection (`services/territoryService.ts`): `ownerId`, `userId`, `userLabel`, `type`, `typeLabel`, `status`, `startedAt`/`endedAt`, `dateKey`, `points[]`, `visited[]` (clientId, lat, lng, address, at), `visitedIds[]`, `pointCount`, `distanceMeters`. Rules: anyone on the account can read; create requires `userId == auth.uid`; update/delete only by the walker or the owner, and `ownerId`/`userId`/`startedAt` cannot change. Index `ownerId ASC, startedAt DESC` added. Rules and indexes deployed.
+
+Native note: `expo-location` (~18.1.6) and `expo-keep-awake` are new dependencies, with the `expo-location` plugin, `NSLocationWhenInUseUsageDescription` and Android fine/coarse location permissions added to `app.json`. The current store builds (Android build 6, iOS build 12) do not contain the native module, so on those builds the Start Activity modal says to update the app rather than crashing (`require('expo-location')` is guarded). GPS tracking on phones needs a new native build; the web app at guvnor.app works now on a phone browser. Only customers with a pin can be marked visited — there is no address database for non-customers, which is what the "ground covered" shading is for.
+
+### Quote informed sheet: dashed line above the QR removed
+
+The dashed rule above the QR sat through the last "What's included" line once the type grew. Removed from the preview (`utils/quoteSheetHtml.ts`, the `border-top` on `.qr`) and from the PDF (`utils/quoteSheetPdf.ts`, the `drawLine` above the code). The gap above the QR is unchanged.
+
+### Quote informed sheet: larger type
+
+The front had a wide empty band above the QR code, so the type was small for a door-drop flyer. Body text, the prices, the QR caption and the back-page contact lines are all larger, in both `utils/quoteSheetHtml.ts` (the Materials preview) and `utils/quoteSheetPdf.ts` (the download). Prices go from 9 mm to 10.5 mm, the address and included list from about 3 mm to 3.6–4 mm, and the phone number from 6 mm to 7.2 mm. The QR code grows from 27 mm to 32 mm. The blue footer grows from 52 mm to 56 mm so the larger contact lines still fit, and the photo still runs behind its curved top. Gaps were tightened just enough that four "What's included" lines clear the dashed line above the QR.
+
+### Quote informed sheets: A5 only, or doubled up on A4
+
+The sheets are always A5 now. The "A4" paper option, which enlarged one flyer to fill an A4 page, is replaced by **Doubled up on A4**: A4 landscape pages with two A5 flyers side by side, to guillotine down the middle. Each pair of homes takes two pages: [front of home 1][front of home 2], then [back][back]. The back is the same design for every home, so both halves get a copy. On an odd run the last front page has a blank right half, but its reverse still has two backs, so neither duplex flip setting can leave a front without one. Print double-sided with flip on short edge.
+
+`utils/quoteSheetPdf.ts`: `QuoteSheetPaper` is now `'A5' | 'A4x2'`. Every horizontal position goes through a `panelX` offset (0 or 148 mm), so the full-width header band, photo and footer are drawn at panel width instead of page width. The PDF scale is always 1:1. `QuoteSheetSection.tsx`: the options are labelled "A5" and "Doubled up on A4", and the hint gives the duplex setting for each. A saved `localStorage` value of the old `'A4'` falls back to A5. Filenames end `-A5.pdf` or `-A4x2.pdf`.
+
+## October 23, 2026
+
+### Quote informed sheets download as a real A5/A4 PDF
+
+Printing went through `window.print()` on an HTML page. Chrome ignored the CSS `@page A5` size whenever the destination was a system printer (e.g. Microsoft Print to PDF on Letter), so each sheet came out small and centred on the wrong paper with the browser's date/title/"about:blank"/page-number header and footer. New `utils/quoteSheetPdf.ts` (`buildQuoteSheetsPdf`, `downloadPdf`) draws the same design straight into a PDF with the new `pdf-lib` dependency (pure JS, loaded with a dynamic import on press, web only). It imports `pdf-lib/dist/pdf-lib.min.js`, the self-contained UMD build. The package's ES build destructures tslib's default export, and with pdf-lib's nested tslib 1.14.1 that is `undefined` on Metro web ("Cannot destructure property '__extends'"). `metro.config.js` is unchanged. Text, boxes, ticks, icons, the curved footer and the QR code (from `qrcode`'s module matrix) are vector. The logo is cut to a circle and the back photo is cover-cropped at 300 dpi through a canvas, and the photo is embedded once and reused on every back page. If an image cannot be read (cross-origin), the logo falls back to initials and the photo to grey. The standard PDF fonts only cover WinAnsi, so unsupported characters are swapped (curly quotes, dashes) or dropped, and "m²" becomes "sq m".
+
+`components/quoteBook/QuoteSheetSection.tsx`: a **Paper size** choice (A5 flyer, or the same layout scaled √2 to fill A4), remembered in `localStorage`. "Print this sheet" becomes **Download PDF**, and the batch button becomes **Download N sheets (PDF)**. Specify order uses the same path. The per-PDF cap goes from 500 to 1,000 quotes, for both the batch and Specify order. 1,000 quotes (2,000 pages) built in about 12 s, came to about 9 MB with the photo, and peaked around 1.2 GB of memory in testing. `markSheetsPrinted` already commits in 450-write chunks. Pages run front, back, front, back…, for duplex printing (flip on long edge). The on-screen iframe preview still uses `utils/quoteSheetHtml.ts`, so any layout change must be made in both files.
+
+### Quote book: include/exclude filters with CSV export
+
+`components/quoteBook/QuoteBookPanel.tsx` gains a **Filters** button. It opens rows of *Include/Exclude* × *Town/Street/Postcode* × value (e.g. Include town Billinghay, Exclude street Green Lane, Exclude street Mill Lane). Includes on the same field are OR-ed, different fields are AND-ed, and any exclude match removes the quote. Town matches the whole town name. Street matches whole words inside the address line, ignoring apostrophes. Postcode matches a full postcode, sector (LN4 4) or district (LN4) exactly, so LN4 does not pick up LN41.
+
+`services/quoteBookService.ts`: `fetchQuotesByFilters` sends one include field to Firestore through existing indexes: towns via `townKey in` (up to 30), else postcodes via `searchTokens array-contains-any`, else the longest word of each street via the same index. It pages 1,000 at a time up to 10,000 reads, then `applyQuoteFilters` applies every rule client-side. At least one include is required, so the whole 48k book is never read. No new indexes. The status chips still apply to filtered results. The list renders 200 at a time ("Show more"). **Download CSV** exports all shown matches (ref, status, address, town, postcode, 4/8-weekly prices, home summary, contact, notes, printed/accepted dates, accept link) through `quotesToCsvRows`, as a browser download on web and the share sheet on native (same pattern as the Settings exports). Decline/Reopen/Delete update the filtered list in place. The search box is hidden while filters are open.
+
+### Quote informed sheet: Specify order
+
+Third way to print quote sheets, alongside a single ref and a postcode sector/town batch. **Specify order** (Materials → Quote informed sheet, web, developer account) opens `components/quoteBook/QuoteOrderModal.tsx`, a spreadsheet laid out like Bulk Payments (#, Quote ref, Address, Status). Pasting a multi-row column fills down from the clicked cell and adds rows as needed; only the first column of a multi-column paste is used, and the first 8-digit run in each cell is taken as the ref. Each ref is looked up with `getQuoteBookEntry` (20 at a time) and shows its address, or "Not in your quote book" (missing or another account's), "Repeat of row N", or a non-open status. "Create PDF" stays disabled while lookups are running, then prints the found quotes in row order through the same `printSheets` path (500 cap, then offers to mark them printed). Repeats and non-open quotes are flagged but still printed, because the order is the user's choice. No backend change.
+
+### Quote informed sheet: back-page footer and icons
+
+`utils/quoteSheetHtml.ts`: the photo now runs 8 mm further down, behind the curved top of the blue footer, so no white strip shows between them. The "f", ☎ and 🌐 characters in the footer are replaced with inline white SVG icons (phone, Facebook, globe) at a matching size. The front page is unchanged.
+
+### New Business: clearer pre-approved quote flag
+
+Travis tested a real sheet (2 Tied Cottage, Green Lane) and the small "Pre-approved quote" pill was easy to miss. Pre-approved requests now have a blue outline and a full-width banner at the top of the card: "✓ Pre-approved quote. Accepted online from a quote sheet · Ref …. No quote visit needed." The old pill styles were removed (no other users). `app/new-business.tsx` only; web and native share the same component.
+
+### Quote book replaces the quote visit workflow
+
+The Quotes screen now opens on a **Quote book**: one record per home, with a random 8-digit reference, the 4- and 8-weekly prices, a short description of the home, and a status (Open, Accepted, Converted or Declined).
+
+- **Data**: new `quoteBook/{ref}` collection (document ID is the reference) plus `quoteBookKeys/{hash}` for de-duplication by owner, address and postcode. Both are created and deleted only by Cloud Functions; owners and team members can read and update their own records (`ownerId`, `ref`, `dedupeKey` are locked by the rules). Five composite indexes support paging by `sortKey`, status filtering, word/postcode search through `searchTokens`, and printing by postcode sector or town.
+- **Functions** (`functions/quoteBook.js`, wired from `index.js`):
+  - `importQuoteBook` takes up to 400 mapped rows per call and assigns collision-checked random references. It skips existing customers, rows with no price, and addresses already in the book. All-caps addresses are title-cased, and the home description is built from property type, built form, floor area, rooms and glazing.
+  - `migrateLegacyQuotes` copies old `quotes` docs (pending → Open, complete → Converted, lost → Declined) and stamps `quoteBookRef` on the original. Scheduled visits and one-off-only quotes stay in `quotes`.
+  - `deleteQuoteBookEntries` removes records and their dedupe keys.
+  - `portalApi` gains `getQuoteByRef` (60/hr per IP) and `acceptQuote` (20/hr per IP). Accepting runs in a transaction: it writes a `quoteRequests` doc with `source: 'quote_sheet'`, `preApprovedQuote: true`, `quoteRef`, `selectedFrequency` and `selectedCost`, and marks the quote Accepted. A second acceptance is refused.
+- **Quotes screen** (`app/quotes.tsx`, `components/quoteBook/QuoteBookPanel.tsx`, `services/quoteBookService.ts`): a paged list (50 at a time, never a listener over the whole book), search by ref, street words, postcode/district/sector or town, status chips, CSV import with progress (re-running a file is safe), Add/Edit quote, Decline/Reopen, Delete, and "Add client" per price option. The old Scheduled/Pending/Won/Lost sections now sit on a **Visits** tab, showing only quotes not yet copied across. The header + button adds to the quote book; the screen no longer creates new quote visits. Already-booked quote jobs keep working; progressing one (Visits tab or runsheet) copies it into the book.
+- **Accept page** `app/[businessName]/q/[ref].tsx`: confirms the address, shows the home description and the price options, takes name and mobile (required) plus email and notes (optional). Wrong address links to the normal quote form.
+- **New Business**: pre-approved requests show a "Pre-approved quote · Ref …" badge and "Accepted our quote", and hide Schedule Quote. Add Client now passes the selected price and frequency (for all portal leads that chose one) and the quote ref. `add-client` marks the quote-book record Converted with the new `clientId` after saving. "Quote sheet" added as a lead source. Push title is "Quote accepted" for these. Agent API `listQuoteRequests` returns `preApprovedQuote` and `quoteRef`.
+- **Materials → Quote informed sheet** (developer account only, web only; `components/quoteBook/QuoteSheetSection.tsx`, `utils/quoteSheetHtml.ts`):
+  - A5 front: branding, "The Homeowner" address, Option A/B prices, "What we know about your home", What's included, and a local SVG QR (new `qrcode` dependency) to `guvnor.app/<business>/q/<ref>` with the reference.
+  - A5 back: the Canvassing Flyer photo, Additional Services and the blue contact footer.
+  - Single sheet by ref, or batch by postcode sector/town (open and never printed, up to 500 per run), printed through the browser to PDF. You can then mark them printed.
+
+- **Round-order picker keeps the quote ref**: `add-client` puts `quoteBookRef` into the data sent to `round-order-position`, and the picker passes it back. Before this, choosing a round position dropped the ref and the quote stayed Open.
+- **Title case and search**: title-casing no longer capitalises after an apostrophe ("Brown's Road", not "Brown'S Road"). Apostrophes are stripped from search tokens and from the search text, so "browns road" also finds "Brown's Road".
+- **Web crash from `expo-iap` (earlier uncommitted billing work)**: `components/UpgradeModal.tsx` and `app/(tabs)/settings.tsx` imported `expo-iap` at the top level, which threw "Cannot find native module 'ExpoIap'" and blanked the web app. They now import from `services/storeIap.ts` (re-exports `expo-iap` on iOS/Android) and `services/storeIap.web.ts` (web stubs). Native purchase behaviour is unchanged.
+
+**Verification**: a dry run of the 53,673-row TGM CSV maps to 47,909 new quotes (381 existing customers, 4,827 unpriced flats/blocks and 556 address duplicates skipped). Functions, rules and indexes are deployed. On the Play demo account (local web build against live functions): a 28-row sample imported as 20 added, 3 existing customers, 3 unpriced and 2 duplicates. Word search returned the right homes. Two quotes were accepted on `/harperwindows/q/<ref>` (one with a note) and showed in New Business with the pre-approved badge. Add Client prefilled name, address, mobile, source, price and frequency, and an accepted quote offered only the chosen option. Validation refused a missing name. The test quotes and requests were then deleted. No new TypeScript errors in changed files.
+
+### iOS build 12 for App Store resubmission
+
+iOS build number advanced from 11 to 12 so the App Store binary includes the 20 October StoreKit availability handling and shared stability fixes. EAS build `2819b465` uploaded it to App Store Connect. Android versionCode stays 6.
+
+### App Store resubmission with Premium Monthly (process)
+
+Travis confirmed TestFlight now shows £4.99/month, so the Paid Apps Agreement is active. App Review notes no longer say there is no in-app purchase; they describe the StoreKit subscription and the Dashboard Upgrade to Premium path for a free-plan account. Build 12 replaced build 5 on version 1.0.3. The API cannot submit an app's first subscription, so in App Store Connect the old Rejected submission `50b84067` was cancelled and a new submission was sent at 09:20 on 23 October with iOS 1.0.3 (12), Premium Monthly, and the Guvnor Premium group. Version 1.0.3 is Waiting for Review.
+
+## October 20, 2026
+
+### Android field-use stability and layout pass
+
+- Fixed a repeatable Android Materials failure caused by browser-only `alert()` calls. Native saves, failures and unavailable web-only actions now use `Alert.alert`, and both Materials configuration modals close correctly with Android’s Back button.
+- Materials’ fixed-width invoice/flyer previews now sit in horizontal scrollers on native phones instead of clipping their right-hand side. The screen also clears the bottom navigation/gesture inset.
+- Home and its Settings drawer now respect Android’s top and bottom safe areas under API 36 edge-to-edge rendering. The Premium modal uses the same safe-area treatment.
+- Runsheet top and bottom spacing now follows the device system bars. Narrow day headers split their actions cleanly instead of pushing availability, reset or Day Complete controls off-screen.
+- Reworked single-job and multi-job move date selection on Android to use the platform’s imperative date dialog outside the React Native modal. After choosing a date, the assignment/confirmation sheet opens once; this prevents the picker reopening or appearing behind the modal.
+- The signed-out login overlay now consumes Android’s hardware Back button so it cannot reveal or navigate the authenticated screen underneath it. The iOS sign-out crash workaround remains unchanged.
+- Profile and bank-information modals in Settings now scroll, avoid the keyboard and stay within safe areas on small phones.
+- Added the Expo Image Picker native configuration and Android camera permission required by the quote-wizard camera action. Microphone access remains disabled.
+
+**Verification**: the changed Android/shared files pass targeted ESLint with only the repository’s pre-existing unescaped-copy rule disabled; Expo’s public config resolves with Camera but without Record Audio; and a complete Android JavaScript/Hermes export succeeds. The repository-wide TypeScript check still reports existing unrelated errors, with no new errors from these changes.
+
+### Native Google Play Premium subscription
+
+- Added an Android Google Play Billing flow for `premium_monthly` / base plan `monthly`. The Premium modal now loads Google’s localized price, requires the exact active base-plan offer, supports purchase and restore, handles pending payments without granting access, and acknowledges only after server verification. Web remains on Stripe and iOS remains on StoreKit.
+- Added authenticated Cloud Functions that issue a non-identifying Play account binding, verify purchase tokens through the Android Publisher API, bind each token to one Guvnor owner, and update the existing provider-aware entitlement model.
+- Added Real-time Developer Notification handling on the `guvnor-play-subscriptions` Pub/Sub topic. Renewal, grace-period, cancellation, hold and expiry events are re-read from Google rather than trusting notification contents.
+- Android’s Manage Billing button now opens the matching Google Play subscription. Account deletion stops Google Play renewal before removing subscription links, and its warning describes the provider-specific result.
+- Advanced the Android version code from 5 to 6 for the Play Billing-enabled bundle.
+- Added `google-auth-library` as a direct Functions dependency. Android and web exports succeed; changed client files and Functions pass targeted lint and syntax checks. The repository-wide TypeScript check still reports unrelated existing errors and none in the changed billing files.
+- Added a dedicated `guvnor-play-billing` service account for Android Publisher calls. Functions impersonate that least-privilege identity using the runtime account’s existing Service Account Token Creator grant, keeping Play purchase access separate from the broader Firebase runtime identity.
+- Pinned `expo-iap` to the Expo SDK 53-compatible 3.0.2 release and kept Kotlin at Expo’s supported 2.0.21. OpenIAP 2.5.2 requires Kotlin 2.2 metadata, while Expo SDK 53 cannot apply Kotlin 2.2 (`Key 2.2.0 is missing in the map`). The purchase adapter now uses the equivalent 3.0 platform field names without changing the iOS, Android or web behavior.
+- Created the valid `guvnor-play-subscriptions` Pub/Sub topic and deployed `googlePlaySubscriptionNotifications`. The earlier `google-play-subscriptions` name was rejected because Google reserves topic IDs beginning with `goog`.
+
+**Play Console handoff**: the existing TGM Window Cleaning Limited payments profile is linked. Upload version code 6, create/activate the £4.99 monthly product, grant the dedicated Play Billing service account Android Publisher access, and configure real-time developer notifications.
+
+### Subscription entitlement write protection
+
+- Closed a Firestore rules gap that allowed a signed-in user to alter the subscription tier, provider entitlements, client limit, exemption status, or store/Stripe identifiers on their own user document.
+- New accounts may still seed only the standard Free-plan defaults used by registration. Existing users can still edit ordinary profile, business, bank and app-preference fields; trusted Cloud Functions continue to manage subscription state through the Admin SDK.
+- Reserved the equivalent Google Play entitlement identifiers now, before native Android billing is enabled, so adding Play Billing cannot reopen the same client-write path.
+
+### iOS subscription availability handling
+
+- Confirmed that the TestFlight “SKU not found” error and `—/month` price are both caused by StoreKit returning no products, rather than by a product-ID or price mismatch. App Store Connect has the matching `com.guvnor.roundmanagerapp.premium.monthly` product, a £4.99 UK price and availability in 175 territories.
+- The Premium screen now enables purchase only after StoreKit returns that exact subscription. While checking, it shows a loading state; if Apple returns no product, it shows a clear unavailable message instead of `—/month` and prevents a guaranteed-failing purchase attempt.
+- Store connection and product availability are tracked separately so Restore Purchases remains available for existing subscribers when the catalog lookup is empty.
+- Added safe product-ID diagnostics for device logs. Web Stripe and Android behaviour are unchanged.
+
+## October 19, 2026
+
+### Native iOS Premium subscription (Apple rejection fix)
+
+- Replaced the iOS “upgrade on the web” dead end with a StoreKit 2 monthly subscription flow using `expo-iap`, including Apple-localized pricing, purchase completion, server verification, Restore Purchases, App Store subscription management, renewal wording, Privacy Policy and Terms links. Web continues to use Stripe Checkout; Android purchase behaviour is unchanged.
+- Added `services/appleIapService.ts` and shared Apple product/link constants. The App Store product ID is `com.guvnor.roundmanagerapp.premium.monthly`.
+- Added `functions/appleIap.js` with authenticated account-token issuance, cryptographic verification of Apple-signed transactions in production and sandbox, transaction-to-Guvnor-account binding, and App Store Server Notifications V2 handling for renewals, billing failures, expiry, refunds and revocations.
+- Subscription state is now provider-aware. Apple and Stripe entitlements are stored separately and combined into the existing `subscriptionTier` / `subscriptionStatus` fields, preventing a Stripe cancellation from revoking a still-valid Apple subscription (or vice versa). Existing Stripe subscriptions are lazily preserved when first touched by the new logic.
+- Updated account deletion: Stripe subscriptions are still cancelled automatically; iOS now clearly warns that an App Store subscription must be cancelled separately. Apple transaction-link records are removed with the account.
+- Deployed `getAppleAppAccountToken`, `verifyApplePurchase` and `appleStoreNotifications`; redeployed `stripeWebhook` and `deleteAccount`. Configured the same HTTPS notification endpoint for Apple production and sandbox V2 notifications.
+- App Store Connect: created the **Guvnor Premium** group and **Premium Monthly** auto-renewable subscription at £4.99/month, configured all 175 territories, added en-GB metadata and review notes, and uploaded the review screenshot. Product state is `READY_TO_SUBMIT`.
+- iOS build number advanced to 10 and `expo-iap` was added to the native build. Added `.tmp-*` build-output ignores.
+
+**Verification**: changed TypeScript files have no TypeScript errors; Cloud Functions lint and syntax checks pass; Expo public config resolves with the StoreKit plugin; a full web export succeeds, preserving the Stripe/web build; deployed endpoints return the expected 401 (authenticated callable) and 405 (notifications require POST). Repository-wide TypeScript/lint checks still report pre-existing errors in unrelated screens. `expo-doctor` reports only the existing direct `@expo/metro-config` and React Native Directory metadata warnings.
+
+**Required App Store handoff**: the Paid Apps Agreement/tax/banking page is only available behind interactive Apple sign-in and cannot be verified through the App Store Connect API. The subscription must be selected with the new binary when the app version is submitted.
+
+### iOS field-test layout and Materials fixes
+
+- Made runsheet day headers fully opaque while they remain pinned, so job text and controls no longer show through the Monday–Friday header.
+- Reflowed the compact dashboard header so the weather pill cannot overlap the Settings or Help buttons.
+- Added iOS safe-area spacing and narrow-screen action sizing to Accounts and Quotes. Their Home controls now remain inside the screen with a 40×40 touch target; the Accounts bulk-payment label collapses to its icon on compact screens.
+- Made the Clients summary controls stack on narrow screens so Sort and Ex-Clients remain within the viewport.
+- Fixed the repeatable native Materials failure by no longer initializing the browser-only `html2canvas` dependency when opening the native route. Stored Materials configuration is now normalized before rendering, including legacy or incomplete address/service data, and the screen waits for that normalization before drawing previews.
+- Advanced the iOS build number to 11 and uploaded the corrected binary to App Store Connect/TestFlight; Apple reports it as valid. Web-only PNG generation remains available and Android/web navigation behaviour is unchanged.
+
+## September 26, 2026
+
+### iOS sign-out shows login instead of crashing
+
+Build 8 still showed TestFlight's "Guvnor Crashed" after sign out. Sign-out was already meant to land on the login screen, but the root layout changed route while the dashboard's Firestore listener was still attached. On iPhone that crashes. Listeners are detached first. The login screen is then drawn over the app, and the route is left alone. Web still navigates to `/login`. iOS build number is 9. That binary is for TestFlight only. It is not on the App Review submission.
+
+### iOS sign-out crash dialog, again
+
+Build 7 still showed TestFlight's "Guvnor Crashed" after sign out. The confirm was a system alert, and sign out then opened the login screen at the same time the root layout did. On iPhone that second navigation is the crash. Sign out and delete account now use an in-screen confirm, close the settings panel, then sign out. Only the root layout opens login, and only once. The settings drawer animation no longer uses the native driver. iOS build number is 8 and that binary was uploaded to TestFlight only. It is not on the App Review submission.
+
+### Client screen home button on iPhone
+
+On the client account screen the address was a single line, so on a phone it pushed the home button off the right edge. The address now wraps to two lines and the home button stays in the header. iOS build number is 7 and that binary was uploaded to TestFlight only. It is not on the App Review submission.
+
+### iOS quote-price screen spacing
+
+The “Set your window cleaning prices” screen had no safe-area padding, so the title sat under the status icons, and each house photo was locked to a tall 4:5 frame. On iPhone the title now starts below the status bar and each photo is a fixed 200pt high. Web keeps the previous layout.
+
+### iOS TestFlight: sign-out crash dialog, first-time setup save
+
+Sign out from the home settings drawer was navigating to login in the same moment iOS was still dismissing the confirm alert, with the drawer's native animation still mounted. TestFlight reports that as "Guvnor Crashed" even though the sign-out itself succeeded. Sign out and delete account now wait for the alert to finish, close the drawer, then leave.
+
+First-time setup failed on the vehicle step with "Failed to save setup" no matter what name or turnover was entered, because that screen also writes the business portal, a year's rota, and the vehicle before it finishes. A portal name already taken (or an invalid document id) aborted the whole save. The portal write no longer blocks setup, a taken name gets its own portal id, and the vehicle is created through the existing `addVehicle` function (`assignToOwner` also links it to the owner). The rota is one batched write and a failure there no longer stops setup. iOS build number is now 6 so this can be installed over the TestFlight build. It is not submitted for App Review.
+
+## September 24, 2026
+
+### iOS store build must use the iOS 26 SDK (process)
+
+Apple rejected build 4 with ITMS-90725 (compiled with the iOS 18.5 SDK). The `ios-store` profile now uses the EAS image `macos-sequoia-15.6-xcode-26.2` (Xcode 26.2). iOS build number bumped to 5. Android versionCode stays 5. Rebuild `adfa3e15` was accepted. Version 1.0.3 is **Waiting for Review** (free price, content rights, 12.9" iPad screenshots, reviewer login).
+
+
+
+### ASC listing questionnaires + first iOS build error (process)
+
+Generated three 1284×2778 iPhone 6.5" shots from the web demo (`assets/app-store/`) and attached them to Guvnor 1.0.3. Recovered the Play/App Store reviewer demo password into the listing (gitignored `.cursor/play-demo.local.md` only). Age ratings questionnaire saved as **4+** (172 countries). App Privacy published: policy `https://guvnor.app/privacy-policy`; 10 collected types (name, email, phone, address, coarse location, photos, other user content, user ID, device ID, product interaction) — app functionality, linked to identity, not used for tracking. EU DSA trader status **Active** (24 Sept). Compliance banner cleared. First iOS EAS build `62ab967e` **errored** in Prepare credentials because `.gitignore` kept `credentials.json`, the p12, and the profile out of the EAS upload. Rebuilt the p12 so it matches the App Store profile, and added `.easignore` so those three files upload while the private key stays out. Rebuild `4b70620f` **finished** (1.0.3 / build 4) and was submitted to App Store Connect (`63c87ffa`). Apple was still processing the binary; Add for Review waits on that.
+
+### First iOS EAS build + ASC listing (process)
+
+Minted an App Store distribution cert and profile via the ASC API key (local files under `.cursor/ios-signing/`, gitignored). Added `ios-store` EAS profile with `credentialsSource: local`. Started production iOS build `62ab967e-b0c1-4dbc-88fc-36acecc9d5f9` (1.0.3 / build 4). Filled ASC listing copy, URLs, contact, Business + Productivity categories, subtitle. Screenshots, age ratings, privacy labels, demo password, and EU trader status still need the owner. Do not `Add for Review` until those are done.
+
 ## September 23, 2026
+
+### App Store path: Firebase iOS, APNs, ASC app (process)
+
+Registered iOS app **Guvnor iOS** on Firebase (`com.guvnor.roundmanagerapp`) and added `GoogleService-Info.plist` at the repo root. Created Apple APNs key **KHU9YYJFV9** (team 93K9P427U5, Sandbox & Production) and uploaded it to Firebase Cloud Messaging for development and production. Registered App ID Guvnor with Push Notifications. Created App Store Connect app **Guvnor** (SKU GUVNOR-IOS, English UK, iOS 1.0 Prepare for Submission). p8 is gitignored at `.cursor/AuthKey_KHU9YYJFV9.p8`. First `eas build -p ios --profile production` needs an interactive Apple login to mint the distribution cert (this agent shell cannot answer that prompt). Do not submit until the owner names it. Play 1.0.3 stays in review. Inbox loop still 07:00 24 Sep.
 
 ### Payments list: stop the white screen on web and Android
 
@@ -9,6 +237,69 @@
 **Problem**: `/payments-list` never painted on web and showed a white screen in the Android APK. The screen loads every payment (about 7,900) and then looked up each client with a document-id `in` query. Locked-down Firestore rules reject that query, so it fell back to one `getDoc` per client (600+ at once) before drawing anything. The list itself had no bounded height, so once the data arrived the app tried to mount every row. One bad amount, method, or date in a row also threw during render and took the whole screen down.
 
 **Solution**: Load clients with the same owner-scoped query the clients screen uses (plus an `accountId` fallback). Give the list `flex: 1` so it virtualizes. Format amount, method, and date defensively so one bad payment cannot crash the screen.
+
+### `setJobPrice` / `batchSetJobPrices` (functions)
+
+New Agent API writes matching the runsheet price-edit modal (`price` + `hasCustomPrice: true`). Explicit `0` is honoured for free visits. Deployed `agentApi` us-central1. Docs in `docs/agent-api.md`.
+
+## September 22, 2026
+
+### Missed direct debits: root cause, fix, and write-off policy (functions + process)
+
+**Tuesday End of day** was pressed at 19:30 on the live runsheet (the 18:00 tick was missed while the browser was down; the tab then showed a stale Firestore cache and an interrupted cache clear also wiped the login — signed back in, no site data cleared). Summary: £382, 4 DDs (Amy/Justin Clarkson £15, Heather De Vies £18, Mrs Wyatt £15, Heather Hood £18), no failures; all four confirmed Pending submission in GoCardless for 28 Sep.
+
+**Root cause of the never-charged DD clients.** `app/runsheet/[week].tsx` raises DDs from `job.gocardlessEnabled ?? job.client?.gocardlessEnabled`. Every job is written with an explicit boolean, so `??` never reaches the client; a job generated before the client went on DD keeps `false` for ever and is silently not collected. `setClientGocardless` (added this afternoon) only updated the client, so it could not stop a raise either. `auditGocardlessJobs` found **285 pending jobs across 15 clients** out of step with their client — Roger Steele (incl. tomorrow’s visit), Andrew Underwood, Emma Rae, Carole Martin, Graham Castle, Lorraine Barnett, Fiona Stobart, Rob, ann brown, michelle, two stale Nov-2025 Heather jobs; Alan Stainton the other way (off DD, jobs still flagged); skye’s jobs carried a different customer id. All 285 stamped with the client’s current settings; re-audit is clean.
+
+`functions/agentApi.js` (**deployed us-central1**): `jobSummary` now returns `gocardlessEnabled` / `gocardlessCustomerId`; `setClientGocardless` accepts `customerId`, requires one when enabling, and syncs the flag onto the client’s pending jobs (`jobsUpdated`); new write action `auditGocardlessJobs` (`startDate`/`endDate`/`fix`). Docs in `docs/agent-api.md`.
+
+**Owner policy** (now in `.cursor/rules/end-of-day-admin.mdc`): a missed raise is written off with a discretion credit, not back-charged. The £80 (Roger) and £72 (Andrew) one-offs raised earlier this evening were **cancelled** in GoCardless while still Pending submission. Discretion credits posted (`other`, ref `discretion`, dated 22 Sep): Roger Steele £80, Andrew Underwood £72, Emma Rae £82, skye £36 — all four now £0. Carole Martin’s £45 one-off from this afternoon (charge 25 Sep, already recorded in Guvnor as a DD) was left as raised pending the owner’s call. EOD rule also gains a pre-button `auditGocardlessJobs` step for today’s date. 19:00 BACS clock skipped tonight — the Lloyds import was done at 13:00.
+
+### Scheduling extras: ETAs, 16:00 finish, next rotation (app + process)
+
+Friday 25 Sep was already booked through 16:00 (Matt Norton conservatory at 14:20). Cindy Ruck’s three one-offs (gutters £56, soffits/fascias £56, deep-clean windows £18) had no ETAs and would not fit. First moved to Fri 23 Oct 09:00 (Friday 25 was full through 16:00); Sue Lester’s free return on the 25th given **12:45**. After Cindy said she had booked a photographer, the same three jobs were brought forward to **Thu 1 Oct 09:00** (lightest day that week, six regulars). Standing rule: `.cursor/rules/scheduling-etas.mdc`. Agent API: `setJobEta` / `batchSetJobEtas`, optional `eta` on `createJob`, `setClientGocardless`. **Deployed us-central1.** Both WhatsApps sent (15:15 the October date, 15:23 the Thursday bring-forward).
+
+### DD judgement applied (no mandate cancels)
+
+Alan Stainton: `gocardlessEnabled` turned off (runsheet already said “ex GC”). skye: recorded the 10 Jun GC £48 as `direct_debit`. Carole Martin: one-off DD £45 raised in GoCardless (charge 25 Sep) and posted in Guvnor. Roger Steele, Andrew Underwood and Emma Rae still need the same one-off raise (mandates live, never charged). Working-DD historic arrears (Scullion etc.) left alone.
+
+### Agent API: `eta` + `assignedVehicleId` on job summaries
+
+**Why**: Day-before ETAs need the runsheet arrival time. `listJobs` / `getRunsheet` previously omitted `eta`, so composed texts would have been blank.
+
+**Changes**: `functions/agentApi.js` `jobSummary` now includes `eta` and `assignedVehicleId`. **Deployed to us-central1 22 Sept.** `docs/agent-api.md` updated. Additive — no existing callers broken.
+
+## September 21, 2026
+
+### Agent API: `listQuoteRequests` + `updateQuoteRequest` (New Business audit)
+
+**Why**: Daily 17:00 agent audit of the New Business queue (read the enquiry, create the account, raise jobs, acknowledge the customer). The owner explicitly scoped this to **New Business only, not Guvnor Leads** — on the developer's own account both live in `quoteRequests`, distinguished by `businessName: 'Guvnor'` (marketplace leads, shown on `/guvnor-leads` and hidden from `/new-business`).
+
+**Changes**:
+- `functions/agentApi.js`: new `actionListQuoteRequests` (read; optional `status` filter, default `pending`; **excludes `businessName === 'Guvnor'` entries unless `includeGuvnorLeads: true`**) and `actionUpdateQuoteRequest` (write; sets `status` to pending/contacted/converted/declined). **Deployed to us-central1 21 Sept** (twice — second deploy added the Guvnor Leads exclusion).
+- `docs/agent-api.md`: documented both actions.
+- `scripts/_wa_audit/newbiz_clock.ps1`: daily 17:00 sentinel loop; `newbiz_check.ps1` / `newbiz_full.ps1` list the pending queue.
+
+**Regression notes**: Additive API actions; no app code touched. The exclusion filter prevented the agent from mistakenly declining 6 Guvnor Leads entries that had been misread as junk New Business enquiries. Current New Business queue verified empty after the fix.
+
+### Agent API: new `createClient` and `updateClientContact` actions
+
+**Why**: WhatsApp admin automation trial — the agent needed to set up new customers (accepted quotes, change-of-occupant) and fix contact details without using the app UI. Existing API had no way to create a client record.
+
+**Changes**:
+- `functions/agentApi.js`: new `actionCreateClient` — mirrors the app's Add Client screen: next free RWC account number, round-order slot (end of round or after `afterClientId` with shifting), duplicate-address guard (override via `allowDuplicateAddress`), and for recurring frequencies a window-cleaning service plan plus ~24 months of pending jobs anchored on `firstVisitDate`. New `actionUpdateClientContact` — narrow update of `mobileNumber`/`email`/`name` with validation, optional account note, old→new values returned for audit. Both registered in `WRITE_ACTIONS`. **Deployed to us-central1 21 Sept** (update of `agentApi` only).
+- `docs/agent-api.md`: documented both actions.
+
+**Regression notes**: Additive — no existing actions modified. Used live the same day: created "Dog For A Day" (37 North Parade) and "Rachel" (56 Clay Hill, after force-archiving previous occupant Emma Wright), and moved Oliver Thompson's notifications to his new number.
+
+### Agent API: `deletePayment` action + `createJob` honours explicit £0
+
+**Why**: During the SMS backlog sweep the agent applied a goodwill write-off payment that turned out to be unnecessary (the client's balance was already settled) and needed a way to remove it. Separately, `createJob` silently replaced an explicit `price: 0` with the client's standard quote, so a free return visit was created at £15.
+
+**Changes**:
+- `functions/agentApi.js`: new `actionDeletePayment` (ownership-checked, returns the deleted payment's details for the audit log; registered as `deletePayment`). `actionCreateJob` now falls back to the client quote only when `price` is absent/invalid/negative — an explicit `0` is kept. **Deployed to us-central1 21 Sept.**
+- `docs/agent-api.md`: documented both.
+
+**Regression notes**: `createJob` behaviour change only affects callers passing a literal `0`, which previously never made sense (it was ignored). No app code paths call these actions.
 
 ## September 20, 2026
 
